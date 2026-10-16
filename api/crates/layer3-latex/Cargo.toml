@@ -12,7 +12,7 @@ flate2 = "1"
 serde = { workspace = true }
 tar = "0.4"
 thiserror = { workspace = true }
-zip = { version = "6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0.3", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
 tempfile = "3"

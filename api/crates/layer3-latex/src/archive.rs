@@ -105,7 +105,10 @@ pub fn unpack(bytes: &[u8], upload_name: &str, limits: Limits) -> LatexResult<Fi
             if entry.is_dir() {
                 continue;
             }
-            let Some(path) = clean_path(entry.name()) else {
+            let name = entry
+                .name()
+                .map_err(|e| LatexError::Archive(e.to_string()))?;
+            let Some(path) = clean_path(&name) else {
                 continue;
             };
             let mut data = Vec::new();

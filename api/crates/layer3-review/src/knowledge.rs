@@ -212,11 +212,13 @@ pub fn inspect_archive<R: Read + Seek>(
         let entry = archive
             .by_index(index)
             .map_err(|_| invalid("cannot read materials entry"))?;
-        let name = entry.name();
+        let name = entry
+            .name()
+            .map_err(|_| invalid("invalid materials entry name"))?;
         ensure(
             name.starts_with("sha256/")
                 && hash_id(&name.replacen('/', ":", 1))
-                && names.insert(name.to_owned())
+                && names.insert(name.into_owned())
                 && !entry.is_dir()
                 && !entry.encrypted()
                 && entry
