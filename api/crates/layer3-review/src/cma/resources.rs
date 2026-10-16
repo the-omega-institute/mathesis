@@ -18,6 +18,9 @@ struct Sandbox {
     owner: String,
     status: String,
     profile: ProfilePin,
+    // Current CMA exposes the immutable instance setting even when its internal
+    // profile is not independently readable. Older servers omit this field.
+    model_access: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 struct Profile {
@@ -78,25 +81,31 @@ pub async fn workspace_facts(
     if s.profile.revision == 0 {
         return Err(ReviewError::Output("invalid CMA profile revision".into()));
     }
-    let p: Profile = decode(
-        transport
-            .request(
-                "GET",
-                &format!(
-                    "api/v1/sandbox-profiles/{}/revisions/{}",
-                    s.profile.id, s.profile.revision
-                ),
-                None,
-                None,
-            )
-            .await?,
-    )?;
+    let model_access = match s.model_access {
+        Some(access) => access,
+        None => {
+            let p: Profile = decode(
+                transport
+                    .request(
+                        "GET",
+                        &format!(
+                            "api/v1/sandbox-profiles/{}/revisions/{}",
+                            s.profile.id, s.profile.revision
+                        ),
+                        None,
+                        None,
+                    )
+                    .await?,
+            )?;
+            p.content.model_access
+        }
+    };
     Ok(WorkspaceFacts {
         sandbox_id: w.sandbox_id,
         sandbox_profile: s.profile,
         owner: s.owner,
         workspace_status: w.status,
         sandbox_status: s.status,
-        model_access: p.content.model_access,
+        model_access,
     })
 }

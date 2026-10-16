@@ -113,6 +113,57 @@ fn receipt(id: &str) -> ReviewResult<TransportReply> {
         response_id: Some(id.into()),
     })
 }
+
+#[tokio::test]
+async fn workspace_facts_uses_pinned_instance_model_access_without_profile_visibility() {
+    for access in ["chronoai_managed", "own_credentials"] {
+        let (client, transport) = client(vec![
+            reply(json!({"sandbox_id":"sbx_test","status":"ready"})),
+            reply(json!({"owner":"operator","status":"active",
+                "profile":{"id":"sbp_private","revision":1},"model_access":access})),
+        ]);
+        let facts = resources::workspace_facts(client.transport.as_ref(), &client.workspace)
+            .await
+            .unwrap();
+        assert_eq!(facts.model_access, access);
+        assert_eq!(facts.owner, "operator");
+        assert_eq!(facts.sandbox_profile.id, "sbp_private");
+        let calls = transport.calls.lock().await;
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[1].1, "api/v1/sandboxes/sbx_test");
+        assert!(calls.iter().all(|call| call.0 == "GET"));
+    }
+}
+
+#[tokio::test]
+async fn preflight_still_requires_active_sandbox_with_instance_model_access() {
+    for status in ["active", "retired"] {
+        let (client, _) = client(vec![
+            reply(json!({"sandbox_id":"sbx_test","status":"ready"})),
+            reply(json!({"owner":"operator","status":status,
+                "profile":{"id":"sbp_private","revision":1},
+                "model_access":"chronoai_managed"})),
+        ]);
+        assert_eq!(client.preflight().await.is_ok(), status == "active");
+    }
+}
+
+#[tokio::test]
+async fn legacy_profile_failure_does_not_assume_managed_access() {
+    let (client, _) = client(vec![
+        reply(json!({"sandbox_id":"sbx_test","status":"ready"})),
+        reply(json!({"owner":"operator","status":"active",
+            "profile":{"id":"sbp_private","revision":1}})),
+        Err(ReviewError::Provider {
+            status: 404,
+            body: "profile_not_found".into(),
+        }),
+    ]);
+    assert!(matches!(
+        resources::workspace_facts(client.transport.as_ref(), &client.workspace).await,
+        Err(ReviewError::Provider { status: 404, .. })
+    ));
+}
 fn completed(text: &str) -> ReviewResult<TransportReply> {
     reply(
         json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":text}]}]}),
