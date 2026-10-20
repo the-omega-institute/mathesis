@@ -77,31 +77,26 @@ describe('Optional own agents in pages', () => {
         ...privateFields,
       }));
       renderWithApp(
-        <SubmissionDetailPage id={paper.id} />,
+        <SubmissionDetailPage id={paper.id} staffOnly={role === 'staff'} />,
         fakeApi({ getSubmission: vi.fn(async () => paper), referee, getCma }, readers[role]),
       );
       await screen.findByRole('heading', { name: paper.title });
       if (role === 'public') {
         expect(referee).not.toHaveBeenCalled();
-        expect(screen.queryByRole('region', { name: 'Who ran each step' })).toBeNull();
-      } else {
-        const advanced = screen
-          .getByText('Advanced: compute settings and history')
-          .closest('details');
-        expect(advanced).not.toHaveAttribute('open');
-        await userEvent.click(screen.getByText('Advanced: compute settings and history'));
-        expect(await screen.findByRole('region', { name: 'Who ran each step' })).toHaveTextContent(
-          'Codex audit · Your agents · running',
+        expect(screen.queryByRole('region', { name: 'Execution history' })).toBeNull();
+      } else if (role === 'staff') {
+        expect(screen.queryByRole('region', { name: 'Execution history' })).toBeNull();
+        await userEvent.click(screen.getByRole('tab', { name: 'Execution history' }));
+        expect(await screen.findByRole('region', { name: 'Execution history' })).toHaveTextContent(
+          'Source check',
         );
         expect(referee).toHaveBeenCalled();
-      }
-      if (role === 'submitter') {
-        expect(await screen.findByRole('link', { name: 'Connect' })).toBeInTheDocument();
-        expect(getCma).toHaveBeenCalled();
       } else {
-        expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
-        expect(getCma).not.toHaveBeenCalled();
+        expect(screen.queryByText('Advanced: compute settings and history')).toBeNull();
+        expect(screen.queryByRole('region', { name: 'Execution history' })).toBeNull();
       }
+      expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
+      expect(getCma).not.toHaveBeenCalled();
       for (const sentinel of Object.values(privateFields)) {
         expect(document.body.innerHTML).not.toContain(sentinel);
       }

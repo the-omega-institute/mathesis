@@ -1,8 +1,8 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import { author, submission } from '../test/fixtures';
-import { refereeAudit, refereeFile, refereeRound } from '../test/referee';
+import { accepted, author, submission } from '../test/fixtures';
+import { feedbackLetter, refereeAudit, refereeFile, refereeRound } from '../test/referee';
 import { fakeApi, renderWithApp } from '../test/render';
 import { ReviewFindings } from './ReviewFindings';
 
@@ -174,4 +174,93 @@ it('keeps an older source conclusion visibly historical', async () => {
   expect(
     screen.queryByText('Re-reviewed in round 2. Read that audit for the conclusion.'),
   ).toBeNull();
+});
+
+it('keeps source identifiers out of the author-facing points', async () => {
+  const file = refereeFile({
+    letters: [feedbackLetter],
+    rounds: [
+      {
+        ...refereeRound,
+        source_sha256: 'b'.repeat(64),
+        audit: {
+          attempts: 1,
+          state: {
+            state: 'done',
+            at: refereeRound.started_at,
+            result: {
+              ...refereeAudit,
+              concerns: [
+                {
+                  concern: 'A boundary case needs clarification.',
+                  status: 'confirmed',
+                  note: 'The final sentence needs one more hypothesis.',
+                  basis: 'offline',
+                  evidence: 'The argument uses the hypothesis at this step.',
+                },
+              ],
+            },
+          },
+        },
+      },
+    ],
+  });
+  renderWithApp(
+    <ReviewFindings submission={accepted} file={file} onChange={vi.fn()} presentation="author" />,
+    fakeApi({}, author),
+  );
+
+  const points = await screen.findByRole('region', { name: 'Points to address' });
+  expect(points).toHaveTextContent('Points to address');
+  expect(points).not.toHaveTextContent('Round 1');
+  expect(points).not.toHaveTextContent('Source SHA-256');
+  expect(points).not.toHaveTextContent('bbbbbbbb');
+  expect(points).not.toHaveTextContent('R1-A1');
+});
+
+it('shows only findings from the latest delivered report, excluding refuted and unpublished findings', async () => {
+  const withConcern = (
+    number: number,
+    concern: string,
+    status: 'confirmed' | 'refuted' = 'confirmed',
+  ) => ({
+    ...refereeRound,
+    number,
+    audit: {
+      attempts: 1,
+      state: {
+        state: 'done' as const,
+        at: refereeRound.started_at,
+        result: { ...refereeAudit, concerns: [{ concern, status, note: 'Review detail.' }] },
+      },
+    },
+  });
+  const file = refereeFile({
+    rounds: [
+      withConcern(1, 'Earlier concern'),
+      withConcern(2, 'Current concern'),
+      withConcern(3, 'Unpublished concern'),
+    ],
+    letters: [feedbackLetter, { ...feedbackLetter, round: 2 }],
+  });
+  const { unmount } = renderWithApp(
+    <ReviewFindings submission={accepted} file={file} onChange={vi.fn()} presentation="author" />,
+    fakeApi({}, author),
+  );
+  await waitFor(() => expect(screen.getByText('Current concern')).toBeInTheDocument());
+  expect(screen.queryByText('Earlier concern')).toBeNull();
+  expect(screen.queryByText('Unpublished concern')).toBeNull();
+  unmount();
+  await act(async () => {
+    renderWithApp(
+      <ReviewFindings
+        submission={accepted}
+        file={{ ...file, rounds: [withConcern(2, 'Refuted concern', 'refuted')] }}
+        onChange={vi.fn()}
+        presentation="author"
+      />,
+      fakeApi({}, author),
+    );
+  });
+  expect(screen.queryByText('Refuted concern')).toBeNull();
 });

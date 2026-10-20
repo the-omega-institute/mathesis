@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { ReviewFindings } from './ReviewFindings';
-import { ReviewProgress } from './ReviewProgress';
+import { FinalReviewReport } from './FinalReviewReport';
 import { MethodologyEvidence } from './MethodologyEvidence';
 import { CoverageEvidence, KnowledgeQueries } from './KnowledgeEvidence';
 import { ComputationEvidence } from './ComputationEvidence';
-import { hasWaitingResponse, RECHECK_WAITING, reviewProgressText } from '../lib/reviewProgress';
+import { reviewProgressText } from '../lib/reviewProgress';
 import { useApi } from '../api/context';
 import type { RefereeResource } from '../api/useReferee';
 import type {
@@ -43,11 +43,15 @@ type WorkspaceProps = {
   onChange: (submission: Submission) => void;
 };
 
-/** Staff see the full history; authors see delivered letters and referee reports. */
+/** Staff see the worker history; authors see one final review report. */
 export function RefereeWorkspace(
-  props: WorkspaceProps & { resource: RefereeResource; showStatus?: boolean },
+  props: WorkspaceProps & {
+    resource: RefereeResource;
+    showStatus?: boolean;
+    onRevise?: () => void;
+  },
 ) {
-  const { submission, isStaff, isEditor, resource, showStatus = true } = props;
+  const { submission, isStaff, isEditor, resource, showStatus = true, onRevise } = props;
   const api = useApi();
   const { reload, active } = resource;
   const includeFormal =
@@ -71,120 +75,17 @@ export function RefereeWorkspace(
 
   if (!isStaff) {
     return (
-      <section className="referee-panel" aria-label="Orchestra review">
-        <h2 id="feedback-h">Review report</h2>
-        <Async state={resource.state} onRetry={reload}>
-          {(file) => {
-            const current = [...file.rounds]
-              .reverse()
-              .find(
-                (r) =>
-                  r.version === submission.versions.at(-1)?.number &&
-                  r.claims_revision === submission.claims_revision,
-              );
-            return (
-              <>
-                {showStatus && !current ? (
-                  <p className="review-status" role="status">
-                    Your review will start after you confirm the statements above.
-                  </p>
-                ) : null}
-                {showStatus && current ? (
-                  <p className="review-status" role="status">
-                    {hasWaitingResponse(file, submission)
-                      ? RECHECK_WAITING
-                      : roundStatus(
-                          current,
-                          file.letters.filter((l) => l.round === current.number),
-                          includeFormal,
-                        )}
-                  </p>
-                ) : null}
-                {current ? <ReviewProgress round={current} includeFormal={includeFormal} /> : null}
-                {current?.review_method ? (
-                  <p className="hint">
-                    Review method: {current.review_method} · source version {current.version} ·
-                    statements revision {current.claims_revision}
-                  </p>
-                ) : null}
-                <p className="small muted">
-                  Your review checks the argument, examines prior work and identifies gaps. Respond
-                  to a finding below to request a recheck against your confirmed source.
-                </p>
-                <div className="button-row">
-                  <button
-                    type="button"
-                    className="button button-quiet button-small"
-                    onClick={reload}
-                  >
-                    Refresh review
-                  </button>
-                  <a
-                    className="button button-quiet button-small"
-                    href={`/api/v1/submissions/${encodeURIComponent(submission.id)}/review`}
-                  >
-                    Download review report
-                  </a>
-                  <a
-                    className="text-link"
-                    href={`/api/v1/submissions/${encodeURIComponent(submission.id)}/review.md`}
-                  >
-                    Download readable report
-                  </a>
-                </div>
-                {current ? (
-                  <>
-                    <ComputationEvidence round={current} />
-                    <KnowledgeQueries round={current} submissionId={submission.id} />
-                  </>
-                ) : null}
-                <ReviewFindings submission={submission} file={file} onChange={resource.replace} />
-                {file.letters.length > 0 ? <SentLetters letters={file.letters} authorView /> : null}
-                {current?.audit?.state.state === 'done' ? (
-                  <details className="history">
-                    <summary>Audit evidence</summary>
-                    <AuditView audit={current.audit.state.result} />
-                  </details>
-                ) : null}
-                {file.rounds.filter((r) => r.number !== current?.number).length ? (
-                  <details className="history">
-                    <summary>Earlier review rounds</summary>
-                    {[...file.rounds]
-                      .reverse()
-                      .filter((r) => r.number !== current?.number)
-                      .map((round) => (
-                        <section key={round.number}>
-                          <h3>
-                            Round {round.number} · source version {round.version}
-                          </h3>
-                          <>
-                            <ComputationEvidence round={round} />
-                            <KnowledgeQueries round={round} submissionId={submission.id} />
-                          </>
-                          {round.audit?.state.state === 'done' ? (
-                            <AuditView audit={round.audit.state.result} />
-                          ) : null}
-                          {round.referee.state.state === 'done' ? (
-                            <ReportView
-                              report={round.referee.state.result}
-                              submission={submission}
-                            />
-                          ) : null}
-                        </section>
-                      ))}
-                  </details>
-                ) : null}
-                {current?.referee.state.state === 'done' ? (
-                  <details className="history">
-                    <summary>Full referee report</summary>
-                    <ReportView report={current.referee.state.result} submission={submission} />
-                  </details>
-                ) : null}
-              </>
-            );
-          }}
-        </Async>
-      </section>
+      <Async state={resource.state} onRetry={reload}>
+        {(file) => (
+          <FinalReviewReport
+            submission={submission}
+            file={file}
+            showStatus={showStatus}
+            onChange={resource.replace}
+            onRevise={onRevise}
+          />
+        )}
+      </Async>
     );
   }
 

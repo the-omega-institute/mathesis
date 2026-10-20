@@ -20,6 +20,7 @@ export type Route =
   | { kind: 'submissions' }
   | { kind: 'queue' }
   | { kind: 'submission'; id: string }
+  | { kind: 'staff_submission'; id: string }
   | { kind: 'people' }
   | { kind: 'authors' }
   | { kind: 'author'; name: string }
@@ -119,6 +120,8 @@ export function parseRoute(pathname: string, search = ''): Route {
     return { kind: 'binding', id: second as string, key: segments[2] as string };
   if (segments.length === 3 && first === 'conjectures')
     return { kind: 'conjecture', record: second as string, claim: segments[2] as string };
+  if (segments.length === 3 && first === 'staff' && second === 'submissions')
+    return { kind: 'staff_submission', id: segments[2] as string };
   if (segments.length === 2 && second !== undefined) {
     switch (first) {
       case 'binding-contributors':
@@ -187,6 +190,8 @@ export function routePath(route: Route): string {
       return '/queue';
     case 'submission':
       return `/submissions/${seg(route.id)}`;
+    case 'staff_submission':
+      return `/staff/submissions/${seg(route.id)}`;
     case 'people':
       return '/people';
     case 'authors':

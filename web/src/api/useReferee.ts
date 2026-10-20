@@ -56,6 +56,7 @@ export function useReferee(submission: Submission, isStaff: boolean, enabled = t
   // Older projections lack hidden-stage states and retain the existing polling fallback.
   // Keep focus refresh after completion so newly admitted rounds and letters are discovered.
   const authorPolling =
+    paperStatus === 'in_review' ||
     hasWaitingResponse(resource.value, submission) ||
     !latest?.progress ||
     isActive(latest) ||

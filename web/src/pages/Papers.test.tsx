@@ -61,7 +61,9 @@ describe('public paper page', () => {
       })),
     });
     renderWithApp(<PaperPage record="WP-2026-0001" />, api);
-    expect(await screen.findByRole('heading', { name: 'New in this paper' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Mathematical contribution' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Uses C3.')).toBeInTheDocument();
     expect(screen.getByText(/A new intermediate identity/)).toBeInTheDocument();
     for (const text of [
@@ -119,8 +121,8 @@ describe('public paper page', () => {
     });
     const { container } = renderWithApp(<PaperPage record="WP-2026-0001" />, api);
     await screen.findByRole('heading', { name: 'Statements' });
-    // The abstract, the row preview and the expandable statement body.
-    expect(container.querySelectorAll('.mop')).toHaveLength(3);
+    // Each statement is rendered once, alongside the abstract.
+    expect(container.querySelectorAll('.mop')).toHaveLength(2);
     expect(container.querySelector(KATEX_ERROR)).toBeNull();
   });
 
@@ -168,4 +170,61 @@ it('searches the complete archive through the API and resets pagination when fil
   await waitFor(() =>
     expect(listPapers).toHaveBeenLastCalledWith({ before: null, limit: 25 }, expect.any(Object)),
   );
+});
+
+it('searches authors from the archive scope without showing research filters', async () => {
+  const listPapers = vi.fn(async () => ({ items: [paperSummary], next_before: null }));
+  renderWithApp(<PapersPage />, fakeApi({ listPapers }));
+  const user = userEvent.setup();
+
+  await user.selectOptions(screen.getByLabelText('Search in'), 'authors');
+  expect(screen.getByLabelText('Find an author')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Subject (MSC)')).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText('Find an author'), 'Ada');
+  await user.click(screen.getByRole('button', { name: 'Search' }));
+
+  expect(await screen.findByRole('link', { name: 'Ada Author' })).toHaveAttribute(
+    'href',
+    '/authors/Ada%20Author',
+  );
+  expect(screen.queryByRole('link', { name: 'Ben Second' })).not.toBeInTheDocument();
+  expect(screen.getByText('1 public record')).toBeInTheDocument();
+  expect(listPapers).toHaveBeenLastCalledWith(
+    { author: 'Ada', before: null, limit: 100 },
+    expect.any(Object),
+  );
+});
+
+it('places the statement, author credit, contribution and formal target in one result', async () => {
+  const claim = { ...publicPaper.claims![0]!, label: 'Theorem (Summation identity)' };
+  renderWithApp(
+    <PaperPage record={publicPaper.summary.record} />,
+    fakeApi({
+      getPaper: vi.fn(async () => ({
+        ...publicPaper,
+        claims: [claim],
+        new_content: [{ claim: claim.id, lemmas: ['The intermediate summation identity.'] }],
+        lean_statements: [
+          {
+            claim: claim.id,
+            lean: 'def wishpool_target_prop : Prop := True',
+            digest: 'a'.repeat(64),
+            toolchain: 'Lean',
+          },
+        ],
+      })),
+    }),
+  );
+  const result = await screen.findByRole('article', { name: 'Summation identity' });
+  expect(within(result).getByText('Ada Author, Ben Second')).toBeVisible();
+  expect(within(result).getByText('The intermediate summation identity.')).toBeVisible();
+  expect(within(result).getByRole('link', { name: 'Formalization and proofs' })).toHaveAttribute(
+    'href',
+    `/papers/${publicPaper.summary.record}/statements/${claim.id}`,
+  );
+  expect(screen.getAllByRole('heading', { name: 'Summation identity' })).toHaveLength(1);
+  await userEvent.click(within(result).getByText('Statement details'));
+  expect(
+    within(result).getByRole('region', { name: 'Author-confirmed Lean statement' }),
+  ).toBeVisible();
 });

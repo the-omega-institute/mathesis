@@ -169,7 +169,7 @@ const attempt: CmaAttemptView = {
   finished_at: null,
 };
 
-describe('Who ran each step', () => {
+describe('Execution history', () => {
   it('shows compact rows and explains only the Mathesis fallback', async () => {
     renderWithApp(
       <CmaHistory
@@ -195,14 +195,20 @@ describe('Who ran each step', () => {
       />,
       fakeApi(),
     );
-    const history = screen.getByRole('region', { name: 'Who ran each step' });
-    expect(within(history).getByRole('heading', { name: 'Who ran each step' })).toBeInTheDocument();
-    expect(history.querySelector(':scope > p')).toBeNull();
-    const list = within(history).getAllByRole('listitem');
-    expect(list[0]).toHaveTextContent(/^Codex audit · Your agents · failed$/);
-    expect(list[0]?.querySelector('p')).toBeNull();
-    expect(list[1]).toHaveTextContent('Codex audit · Mathesis · running');
-    expect(list[1]).toHaveTextContent('Your agents failed for an unknown reason.');
+    const history = screen.getByRole('region', { name: 'Execution history' });
+    expect(within(history).getByRole('heading', { name: 'Execution history' })).toBeInTheDocument();
+    expect(history).toHaveTextContent('Retries are grouped under that step');
+    const list = Array.from(history.querySelectorAll(':scope > ul > li'));
+    expect(list).toHaveLength(1);
+    expect(list[0]).toHaveTextContent(/Source check.*In progress/);
+    expect(list[0]).toHaveTextContent('Your agents · Mathesis · 2 attempts');
+    await userEvent.click(within(list[0] as HTMLElement).getByText('Show attempts'));
+    expect(
+      within(list[0] as HTMLElement).getByText('Attempt 1 · Your agents · Failed'),
+    ).toBeInTheDocument();
+    expect(
+      within(list[0] as HTMLElement).getByText('Attempt 2 · Mathesis · In progress'),
+    ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent('workspace');
   });
 
@@ -210,7 +216,7 @@ describe('Who ran each step', () => {
     'explains a %s fallback',
     (reason) => {
       renderWithApp(<CmaHistory attempts={[{ ...attempt, reason }]} />, fakeApi());
-      expect(screen.getByRole('listitem').querySelector('p')).toHaveTextContent(/Your/);
+      expect(screen.getByRole('listitem').querySelector('.hint')).toHaveTextContent(/Your/);
     },
   );
 
@@ -224,7 +230,7 @@ describe('Who ran each step', () => {
     ['author', 'quota'],
   ] as const)('omits a reason for %s / %s without a fallback', (payer, reason) => {
     renderWithApp(<CmaHistory attempts={[{ ...attempt, payer, reason }]} />, fakeApi());
-    expect(screen.getByRole('listitem').querySelector('p')).toBeNull();
+    expect(screen.getByRole('listitem').querySelector('.hint')).toBeNull();
   });
 
   it('keeps a step without a kind readable and hides an empty history', () => {
@@ -232,8 +238,36 @@ describe('Who ran each step', () => {
       <CmaHistory attempts={[{ ...attempt, kind: undefined }]} />,
       fakeApi(),
     );
-    expect(screen.getByRole('listitem')).toHaveTextContent(/^r1:audit · Mathesis · running$/);
+    expect(screen.getByRole('listitem')).toHaveTextContent(/r1:audit.*In progress/);
     rerender(<CmaHistory attempts={[]} />);
-    expect(screen.queryByRole('region', { name: 'Who ran each step' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Execution history' })).toBeNull();
   });
+});
+
+it('keeps distinct target generations separate and orders retries by admission time', () => {
+  renderWithApp(
+    <CmaHistory
+      attempts={[
+        { ...attempt, round: 1, claim: 'C1', target_generation: 1, attempt: 3, status: 'failed' },
+        { ...attempt, round: 1, claim: 'C1', target_generation: 2, status: 'succeeded' },
+        {
+          ...attempt,
+          round: 1,
+          claim: 'C1',
+          target_generation: 1,
+          attempt: 0,
+          admitted_at: '2026-10-12T00:00:00Z',
+        },
+      ]}
+    />,
+    fakeApi(),
+  );
+  const rows = screen
+    .getByRole('region', { name: 'Execution history' })
+    .querySelectorAll(':scope > ul > li');
+  expect(rows).toHaveLength(2);
+  expect(rows[0]).toHaveTextContent('target revision 1');
+  expect(rows[0]?.querySelector('.cma-history-status')).toHaveTextContent('In progress');
+  expect(rows[1]).toHaveTextContent('target revision 2');
+  expect(rows[1]?.querySelector('.cma-history-status')).toHaveTextContent('Execution completed');
 });

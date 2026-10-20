@@ -12,8 +12,6 @@ export type SessionState =
 export interface SessionContextValue {
   session: SessionState;
   person: Person | null;
-  /** The server runs local development sign-in (no provider). */
-  devSignIn: boolean;
   signIn: (returnTo?: string) => void;
   signOut: () => Promise<void>;
   refresh: () => void;
@@ -25,14 +23,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const api = useApi();
   const [session, setSession] = useState<SessionState>({ status: 'loading' });
   const [nonce, setNonce] = useState(0);
-  const [devSignIn, setDevSignIn] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     api.session({ signal: controller.signal }).then(
       (s) => {
         if (controller.signal.aborted) return;
-        setDevSignIn(s.dev_sign_in === true);
         setSession(
           s.authenticated
             ? {
@@ -59,7 +55,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value: SessionContextValue = {
     session,
     person: session.status === 'signed_in' ? session.person : null,
-    devSignIn,
     signIn: (returnTo) => signIn(returnTo ?? currentPath()),
     signOut,
     refresh: () => setNonce((n) => n + 1),

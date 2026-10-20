@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#173e32" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1c1a" />
     <meta
       name="description"
       content="Mathesis is an open mathematical research platform for private AI review, conjectures, and independently checked Lean proofs."
     />
-    <title>Mathesis — From mathematical ideas to checked proofs</title>
+    <title>Mathesis — An open record of mathematical research</title>
     <link rel="icon" type="image/svg+xml" href="./mark.svg" />
     <script type="module" src="./main.ts"></script>
   </head>
@@ -16,7 +18,11 @@
     <a class="skip" href="#main">Skip to content</a>
     <header class="site-header wrap">
       <a class="wordmark" href="#" aria-label="Mathesis home"
-        ><span class="mark" aria-hidden="true">μ</span> Mathesis</a
+        ><svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M5 25V7l11 13L27 7v18M5 25l11-5 11 5" />
+          <circle cx="16" cy="20" r="2" fill="currentColor" stroke="none" />
+        </svg>
+        Mathesis</a
       >
       <nav aria-label="Main navigation">
         <a href="#explore">The platform</a>
@@ -29,13 +35,11 @@
     <main id="main">
       <section class="hero wrap" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow">
-            <span class="dot" aria-hidden="true"></span> An open mathematical research platform
-          </p>
-          <h1 id="hero-title">Give good ideas<br />a rigorous<br /><em>next step.</em></h1>
+          <p class="eyebrow">Papers · Conjectures · Formal mathematics</p>
+          <h1 id="hero-title">An open record of<br /><em>mathematical research.</em></h1>
           <p class="lede">
-            Read deeper. Question precisely. Build proofs that can be checked. Mathesis connects
-            manuscripts, AI review and formal mathematics in one research workflow.
+            A platform for mathematical papers, open questions, and formal proofs. Mathesis connects
+            original manuscripts, research review, and independently checked Lean contributions.
           </p>
           <div class="actions">
             <a class="button" href="#explore">Explore Mathesis <span aria-hidden="true">↓</span></a>
@@ -102,9 +106,7 @@
       <section class="section wrap" id="explore" aria-labelledby="explore-title">
         <div class="section-heading">
           <p class="eyebrow">01 / Explore</p>
-          <h2 id="explore-title">
-            One place for the work<br /><em>between an idea and a theorem.</em>
-          </h2>
+          <h2 id="explore-title">A shared foundation<br /><em>for mathematical inquiry.</em></h2>
         </div>
         <div class="services">
           <article>

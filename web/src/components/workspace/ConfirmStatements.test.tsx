@@ -22,7 +22,7 @@ it('accepts extracted defaults and submits hidden rows without manual checking',
   for (let page = 0; page < 9; page++) {
     if (page < 8) fireEvent.click(screen.getByRole('button', { name: 'Next statements' }));
   }
-  expect(screen.getByText('41 statements ready')).toBeInTheDocument();
+  expect(screen.getByText('41 statements detected')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Jump to statement'), { target: { value: 'C1' } });
   expect(screen.getByLabelText('Role of C1')).toHaveValue('supporting');
   fireEvent.change(screen.getByLabelText('Find a statement'), { target: { value: 'Theorem 41' } });

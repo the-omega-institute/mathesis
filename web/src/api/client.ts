@@ -724,11 +724,6 @@ export function signInHref(path: string): string {
   return `/auth/login?return_to=${encodeURIComponent(path)}`;
 }
 
-/** Local development only: sign in as `dev:<name>` without a provider. */
-export function devSignInHref(name: string, path: string): string {
-  return `/auth/login${buildQuery({ as: name, return_to: path })}`;
-}
-
 /**
  * Leave the app to grant donated model quota through NyxID incremental
  * consent (`GET /auth/donate`). A full page navigation, never a fetch.
