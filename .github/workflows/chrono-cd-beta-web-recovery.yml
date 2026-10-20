@@ -1,0 +1,125 @@
+name: Chrono CD beta web startup recovery (one-off)
+
+on:
+  push:
+    branches: [codex/chrono-cd-beta-20261020]
+    paths: [".github/workflows/chrono-cd-beta-web-recovery.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrono-cd-beta-web-recovery
+  cancel-in-progress: false
+
+jobs:
+  application-images:
+    name: Publish ${{ matrix.component }} image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [web]
+    env:
+      COMPONENT: ${{ matrix.component }}
+      SOURCE_REVISION: 3e5441ad9c9971154be0a289aec1251987872955
+      SOURCE_REPOSITORY: ${{ github.repository }}
+      REGISTRY_OWNER: ${{ github.repository_owner }}
+    steps:
+      - name: Require successful source validation from the original build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run view 39439640801 --repo "$SOURCE_REPOSITORY" --json headSha,jobs > /tmp/source-validation.json
+          python3 - <<'CHECK'
+          import json, os
+          data = json.load(open('/tmp/source-validation.json'))
+          assert data['headSha'] == os.environ['SOURCE_REVISION']
+          required = {'Repository structure and layer rule', 'API (fmt, clippy, tests, deny)',
+                      'Contributor SDK (fmt, clippy, tests)', 'Web (format, lint, types, tests, build, audit)',
+                      'Secret scanning'}
+          successful = {job['name'] for job in data['jobs'] if job['conclusion'] == 'success'}
+          assert required <= successful, required - successful
+          CHECK
+      - uses: actions/checkout@v4
+        with:
+          ref: 3e5441ad9c9971154be0a289aec1251987872955
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the reviewed revision for Linux amd64
+        run: |
+          image="ghcr.io/${REGISTRY_OWNER,,}/mathesis-${COMPONENT}:beta-20261020-${SOURCE_REVISION:0:12}"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker buildx build --platform linux/amd64 --load \
+            --label "org.opencontainers.image.source=https://github.com/$SOURCE_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+            --label "org.opencontainers.image.version=beta-20261020-${SOURCE_REVISION:0:12}" \
+            -f "infra/$COMPONENT/Dockerfile" -t "$image" .
+      - name: Check image identity and non-root runtime
+        run: |
+          test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = amd64
+          test "$(docker run --rm --entrypoint id "$IMAGE" -u)" != 0
+          docker image inspect "$IMAGE" --format '{{json .Config.Labels}}'
+      - name: Check frontend routes and English document
+        if: matrix.component == 'web'
+        run: |
+          docker run -d --name mathesis-web-smoke --add-host wishpool-api:127.0.0.1 \
+            -p 127.0.0.1:18080:8080 "$IMAGE"
+          trap 'docker logs mathesis-web-smoke; docker rm -f mathesis-web-smoke' EXIT
+          curl --fail --max-time 10 --retry 15 --retry-all-errors --retry-delay 2 \
+            http://127.0.0.1:18080/ -o /tmp/mathesis-web-index.html
+          grep -q 'lang="en"' /tmp/mathesis-web-index.html
+          curl --fail http://127.0.0.1:18080/submissions/smoke -o /tmp/mathesis-web-route.html
+          cmp /tmp/mathesis-web-index.html /tmp/mathesis-web-route.html
+          curl --fail http://127.0.0.1:18080/staff/submissions/smoke -o /tmp/mathesis-staff-route.html
+          cmp /tmp/mathesis-web-index.html /tmp/mathesis-staff-route.html
+      - name: Check API, worker and TeX runtime with isolated development settings
+        if: matrix.component == 'api'
+        run: |
+          docker run --rm --network none \
+            -e WISHPOOL_BIND=127.0.0.1:8080 -e WISHPOOL_PUBLIC_URL=http://127.0.0.1:8080 \
+            -e WISHPOOL_AUTH_MODE=dev -e WISHPOOL_STORAGE=memory -e WISHPOOL_ROLE=api \
+            "$IMAGE" --check
+          docker run --rm --network none \
+            -e WISHPOOL_BIND=127.0.0.1:8080 -e WISHPOOL_PUBLIC_URL=http://127.0.0.1:8080 \
+            -e WISHPOOL_AUTH_MODE=dev -e WISHPOOL_STORAGE=memory -e WISHPOOL_ROLE=worker \
+            "$IMAGE" --check
+          docker run --rm --network none --entrypoint sh "$IMAGE" -ec '
+            workdir=$(mktemp -d)
+            cd "$workdir"
+            printf "%s\n" "\\documentclass{article}" "\\begin{document}" "Mathesis runtime check." "\\end{document}" > main.tex
+            pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex
+            test -s main.pdf
+          '
+      - name: Validate existing deployment manifests
+        if: matrix.component == 'web'
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          ./kubeconform -strict -summary infra/api/*.yaml infra/web/*.yaml infra/worker/*.yaml infra/verifier/*.yaml
+      - name: Publish unique beta tag and record immutable digest
+        env:
+          PUBLISH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker push "$IMAGE"
+          mkdir -p image-receipts
+          docker image inspect "$IMAGE" --format '{{json .}}' > "image-receipts/$COMPONENT.json"
+          digest=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')
+          printf '%s\n' "$digest" > "image-receipts/$COMPONENT.txt"
+          GH_TOKEN="$PUBLISH_TOKEN" gh api "orgs/$REGISTRY_OWNER/packages/container/mathesis-$COMPONENT" \
+            --jq '{name, visibility, html_url, repository: .repository.full_name}' > "image-receipts/$COMPONENT-package.json"
+          printf '### %s\n\n- Tag: `%s`\n- Digest: `%s`\n- Source: `%s`\n' \
+            "$COMPONENT" "$IMAGE" "$digest" "$SOURCE_REVISION" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-receipt-${{ matrix.component }}
+          path: image-receipts/
+          if-no-files-found: error
