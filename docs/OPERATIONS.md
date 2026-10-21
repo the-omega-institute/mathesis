@@ -146,6 +146,14 @@ tag is for build validation. Preserve old pins when historical verification
 bundles must remain reproducible. Download/build requires network access and
 substantial disk space; runtime verification has no egress.
 
+The `Publish images` workflow does this for every push to `main` and every
+`vX.Y.Z` tag, and on demand for any ref: it publishes `wishpool-web`,
+`wishpool-api` and `wishpool-verifier` to GitHub Packages under the repository
+owner, tagged with the short commit, the branch and the version. The prepared
+base is published as `wishpool-lean`, tagged with a hash of `lean-toolchain` and
+`lakefile.toml`, rebuilt only when those pins change, and passed to the verifier
+build by digest.
+
 `/readyz` checks the pinned manifest, installed Lean executable and built Mathlib
 artifact. `/healthz` only checks that the process is serving. Ordinary Rust tests
 explicitly mark real Lean cases ignored; selecting them without
