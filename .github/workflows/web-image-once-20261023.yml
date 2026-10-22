@@ -13,12 +13,12 @@ jobs:
       contents: read
       packages: write
     env:
-      SOURCE_REVISION: a40b4422fe542b7b48df96e80b5ccef2036ff451
-      IMAGE: ghcr.io/the-omega-institute/mathesis-web:ux-a40b442
+      SOURCE_REVISION: a4136acdb0375552b99586f1be3804751d1c2b6c
+      IMAGE: ghcr.io/the-omega-institute/mathesis-web:ux-a4136ac
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: a40b4422fe542b7b48df96e80b5ccef2036ff451
+          ref: a4136acdb0375552b99586f1be3804751d1c2b6c
       - uses: actions/setup-node@v4
         with:
           node-version: 22
