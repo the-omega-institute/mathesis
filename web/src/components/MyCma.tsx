@@ -3,6 +3,7 @@ import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import type { CmaAttemptView } from '../api/types';
 import { useSession } from '../auth/session';
+import { CMA_ATTEMPT_STATUS_LABELS } from '../lib/labels';
 import { Async, Field, InlineError, SignInPrompt } from './ui';
 
 export const CMA_COPY =
@@ -186,13 +187,7 @@ export function CmaHistory({ attempts }: { attempts: CmaAttemptView[] }) {
                 : 'Earlier review step'}
             </strong>{' '}
             · {attempt.payer === 'author' ? 'Your agents' : 'Mathesis'} ·{' '}
-            {(
-              {
-                running: 'In progress',
-                succeeded: 'Complete',
-                failed: 'Could not finish',
-              } as Record<string, string>
-            )[attempt.status] ?? 'Recorded'}
+            {CMA_ATTEMPT_STATUS_LABELS[attempt.status] ?? 'Recorded'}
             {attempt.payer === 'operator' && ATTEMPT_REASONS[attempt.reason] ? (
               <p className="hint">{ATTEMPT_REASONS[attempt.reason]}</p>
             ) : null}

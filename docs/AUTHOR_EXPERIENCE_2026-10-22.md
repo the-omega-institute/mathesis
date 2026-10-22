@@ -66,21 +66,35 @@ fourth pass after three bounded repair batches. Gates on the final tree:
 `format:check`, `lint`, `typecheck`, `test` (426 tests), `build`,
 `build:showcase`, `npm audit --audit-level=high` all pass; only `web/` changed.
 
+## Follow-up after the fourth review pass
+
+Applied in a later commit on the same branch, with the gates rerun (429 tests):
+
+- The cross-surface badge/headline fixture is keyed by the `SubmissionStatus`
+  union (`authorStandingCasesByState`), so a new state cannot be left out.
+- The raw-identifier sweep also runs on draft and withdrawn pages and reads
+  `aria-label` attributes.
+- My work rows show the work kind in the kind slot; the standing headline
+  carries "Private review …" alone. Rows fetch their referee file once and
+  never poll (`useReferee(…, poll = false)`); a focus event starts no refresh.
+- The AI-use radio group carries the HTML `required` attribute.
+- One author wording for stage states (`AUTHOR_STEP_STATE_LABELS`) feeds the
+  progress list and the compute history.
+- Author names read from `\author{}` are shown as text: TeX accents and
+  ligatures (`\ae`, `\'e`, `\H{o}`, `\c{c}` …) become Unicode on every author
+  surface (`web/src/lib/texText.ts`), found when previewing the signed-in pages
+  locally with the arXiv test note.
+
+Verified in a local preview (dev sign-in, memory storage, no TeX): the Submit
+form, the compile-failure standing card with its "Upload a corrected version"
+control, and the My work row.
+
 ## Remaining advisories (not blocking)
 
-- The cross-surface badge/headline fixture is a plain array, not tied to the
-  `SubmissionStatus` union; the identifier sweep does not cover draft or
-  withdrawn pages or `aria-label` attributes.
-- My work rows for private reviews read "Private review · Private review in
-  progress"; the kind slot could be dropped there.
-- Each non-draft My work row fetches its referee file (N requests per page);
-  a list-level projection would bound it.
-- The AI-use radio group is marked required but carries no HTML `required`
-  attribute (the default `none` is a valid choice).
-- Three step-state word tables still coexist for staff and history views.
 - Two `RefereeWorkspace` mounts on the submission page each carry their own
   loading shell; two author components receiving the loaded file would be
-  cleaner.
+  cleaner. Left as is: the reviewers found no contract failure and the
+  component is large.
 - Two moderate npm audit advisories in the vitest dev dependency predate this
   change.
 

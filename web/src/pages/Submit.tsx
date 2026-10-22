@@ -461,6 +461,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
                 type="radio"
                 name="ai-level"
                 value={level}
+                required
                 checked={aiLevel === level}
                 onChange={() => setAiLevel(level)}
               />

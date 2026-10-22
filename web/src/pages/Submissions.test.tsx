@@ -27,6 +27,11 @@ it('uses the same author standing and next action on a My work row', async () =>
     expect.stringContaining(standing.doing),
   );
   expect(api.referee).toHaveBeenCalledWith(submission.id, expect.any(Object));
+  // List rows fetch once; a window focus must not start per-row polling.
+  window.dispatchEvent(new Event('focus'));
+  expect(api.referee).toHaveBeenCalledTimes(1);
+  expect(row).toHaveTextContent('Paper');
+  expect(row).not.toHaveTextContent('Private review · Private review');
 });
 
 it.each(authorStandingCases)(

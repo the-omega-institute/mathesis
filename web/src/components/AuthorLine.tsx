@@ -1,5 +1,6 @@
 import type { Author } from '../api/types';
 import { orcidHref, safeHttpUrl } from '../lib/links';
+import { texToText } from '../lib/texText';
 import { ExternalLink } from './ui';
 import { Link } from '../routing/router';
 
@@ -13,13 +14,13 @@ export function AuthorLine({ authors }: { authors: readonly Author[] }) {
         return (
           <li key={`${a.name}-${i}`}>
             <Link className="author-name" to={{ kind: 'author', name: a.name }}>
-              {a.name}
+              {texToText(a.name)}
             </Link>
             {orcid ? (
               <>
                 {' '}
                 <ExternalLink href={orcid}>
-                  <span className="orcid" aria-label={`ORCID iD of ${a.name}`}>
+                  <span className="orcid" aria-label={`ORCID iD of ${texToText(a.name)}`}>
                     iD
                   </span>
                 </ExternalLink>

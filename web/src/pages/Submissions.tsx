@@ -166,6 +166,7 @@ function SubmissionRow({
     s,
     false,
     scope === 'mine' && s.status.state !== 'draft' && s.status.state !== 'withdrawn',
+    false,
   );
   const standing = scope === 'mine' ? authorStanding(s, referee.value) : undefined;
   return (
@@ -174,9 +175,7 @@ function SubmissionRow({
         <InlineLatex source={s.title} />
       </Link>
       <p className="entry-meta">
-        <span>
-          {s.purpose === 'review_only' ? 'Private review' : SUBMISSION_KIND_LABELS[s.kind]}
-        </span>
+        <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
         <SubmissionStatusBadge status={s.status} label={standing?.headline} />
         <span>{formatAuthors(s.authors)}</span>
         {newResultCount(s) > 0 ? <span>{newResults(newResultCount(s))}</span> : null}

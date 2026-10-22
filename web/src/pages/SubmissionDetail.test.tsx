@@ -285,10 +285,12 @@ describe('paper workspace', () => {
 });
 
 it.each([
+  draft,
   submission,
   { ...submission, purpose: 'review_only' as const, status: { state: 'review_complete' as const } },
   accepted,
   notAccepted,
+  { ...submission, status: { state: 'withdrawn' as const } },
 ])('keeps raw identifiers out of author text and titles for $status.state', async (paper) => {
   const { refereeRound, refereeFile, feedbackLetter, refereeAudit } =
     await import('../test/referee');
@@ -344,9 +346,17 @@ it.each([
       author,
     ),
   );
-  await screen.findByRole('region', { name: 'Current Feedback letter' });
-  await userEvent.click(screen.getByText('Details: evidence, history and settings'));
-  await userEvent.click(screen.getByText('Advanced: compute settings and history'));
+  // Draft and withdrawn pages carry no review workspace; open every fold that exists.
+  const reviewShown = paper.status.state !== 'draft' && paper.status.state !== 'withdrawn';
+  if (reviewShown) await screen.findByRole('region', { name: 'Current Feedback letter' });
+  else await screen.findByText(/Next action:/);
+  for (const label of [
+    'Details: evidence, history and settings',
+    'Advanced: compute settings and history',
+  ]) {
+    const toggle = screen.queryByText(label);
+    if (toggle) await userEvent.click(toggle);
+  }
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const textNodes: string[] = [];
   while (walker.nextNode()) textNodes.push(walker.currentNode.textContent ?? '');
@@ -354,6 +364,9 @@ it.each([
     ...textNodes,
     ...Array.from(container.querySelectorAll('[title]'), (element) =>
       element.getAttribute('title'),
+    ),
+    ...Array.from(container.querySelectorAll('[aria-label]'), (element) =>
+      element.getAttribute('aria-label'),
     ),
   ].join('\n');
   for (const raw of [
@@ -376,6 +389,7 @@ it.each([
     'workspace id',
   ])
     expect(text.toLowerCase()).not.toContain(raw.toLowerCase());
+  if (!reviewShown) return;
   expect(text).toContain('Not checked');
   expect(text).toContain('Follows from known results');
   expect(text).toContain('Source check');

@@ -16,7 +16,11 @@ function isActive(round: RefereeRound): boolean {
 }
 
 /** One referee resource shared by the paper standing and the feedback workspace. */
-export function useReferee(submission: Submission, isStaff: boolean, enabled = true) {
+/**
+ * `poll = false` fetches the file once (list rows); the workspace keeps the
+ * interval and focus refresh so newly delivered letters are discovered.
+ */
+export function useReferee(submission: Submission, isStaff: boolean, enabled = true, poll = true) {
   const api = useApi();
   const revision = submission.revision;
   const load = useCallback(
@@ -65,6 +69,7 @@ export function useReferee(submission: Submission, isStaff: boolean, enabled = t
     // The decision precedes advice and delivery, so a declined paper still awaits its letter.
     if (
       !enabled ||
+      !poll ||
       isStaff ||
       (paperStatus !== 'in_review' &&
         paperStatus !== 'accepted' &&
@@ -78,7 +83,7 @@ export function useReferee(submission: Submission, isStaff: boolean, enabled = t
       window.clearInterval(timer);
       window.removeEventListener('focus', reload);
     };
-  }, [enabled, isStaff, paperStatus, authorPolling, reload]);
+  }, [enabled, poll, isStaff, paperStatus, authorPolling, reload]);
 
   return { ...resource, active };
 }

@@ -29,6 +29,7 @@ import type {
   RefereeAudit,
 } from '../api/types';
 import { sourceLabel } from './links';
+import { texToText } from './texText';
 
 export const RECOMMENDATION_LABELS: { readonly [K in Recommendation]: string } = {
   accept: 'accept',
@@ -72,6 +73,20 @@ export const STEP_STATE_LABELS: { readonly [K in StepState<unknown>['state']]: s
   done: 'Done',
   failed: 'Failed',
   skipped: 'Skipped',
+};
+/** Author wording for a review stage's state (progress list and compute history). */
+export const AUTHOR_STEP_STATE_LABELS: { readonly [K in StepState<unknown>['state']]: string } = {
+  pending: 'Waiting to start',
+  running: 'In progress',
+  done: 'Complete',
+  failed: 'Could not finish',
+  skipped: 'Not required',
+};
+/** Compute attempts use the same words as review stages. */
+export const CMA_ATTEMPT_STATUS_LABELS: Readonly<Record<string, string>> = {
+  running: AUTHOR_STEP_STATE_LABELS.running,
+  succeeded: AUTHOR_STEP_STATE_LABELS.done,
+  failed: AUTHOR_STEP_STATE_LABELS.failed,
 };
 
 export const AUDIT_FINDING_LABELS: {
@@ -290,7 +305,7 @@ export function decisionHeadline(decision: Decision, nameOf: (stage: Stage) => s
 
 /** `A. One, B. Two and C. Three`. */
 export function formatAuthors(authors: readonly Author[]): string {
-  const names = authors.map((a) => a.name.trim()).filter((n) => n !== '');
+  const names = authors.map((a) => texToText(a.name)).filter((n) => n !== '');
   if (names.length <= 1) return names[0] ?? '';
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
