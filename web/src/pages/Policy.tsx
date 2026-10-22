@@ -56,6 +56,25 @@ export function PolicyPage() {
           </p>
         </div>
       </header>
+      <section aria-labelledby="plain-h" className="notice notice-info">
+        <h2 id="plain-h">In plain words</h2>
+        <ol>
+          <li>You upload LaTeX source and confirm the list of statements we read from it.</li>
+          <li>
+            A referee reads the manuscript and writes a report; an independent source check compares
+            that report with your source, line by line. Reviewed by GPT Pro and audited by Codex.
+          </li>
+          <li>
+            Work is accepted when a main result adds something the cited results do not already
+            give, or settles a named open problem. Otherwise you receive the same letter and may
+            upload a revised version.
+          </li>
+          <li>
+            The letter arrives on this site. On this deployment a four-page note took about 45
+            minutes from upload to letter on 22 October 2026; times vary with the queue.
+          </li>
+        </ol>
+      </section>
       <Async state={state.status === 'idle' ? { status: 'loading' } : state}>
         {(policy) => (
           <>
@@ -112,7 +131,7 @@ export function PolicyPage() {
       </section>
 
       <section aria-labelledby="escape-h">
-        <h2 id="escape-h">Escape analysis</h2>
+        <h2 id="escape-h">Escape analysis: does the proof add new content?</h2>
         <p>
           A proved statement is <strong>bind-only</strong> when its proof obtains it from prior
           results by instantiation, substitution, projection, recombination or normalisation. It

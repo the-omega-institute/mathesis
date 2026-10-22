@@ -94,6 +94,10 @@ control, and the My work row.
   them directly …"); the referee terms bind-only, escape witness and
   instantiation no longer reach author surfaces, pinned by a test. The
   mathematical word "witness" itself stays where it names a witness.
+- The public review-policy page opens with "In plain words": the four steps,
+  the acceptance rule in one sentence, "Reviewed by GPT Pro and audited by
+  Codex", and the dated observed turnaround, before the formal definitions
+  (whose heading now says what escape analysis asks). Policy text unchanged.
 - The details mount of `RefereeWorkspace` no longer carries its own loading
   and error shell: the primary mount owns it for the shared referee resource,
   and the details render once the same file has loaded (one "Loading…" on the
