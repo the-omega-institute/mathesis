@@ -1,5 +1,7 @@
-import type { FeedbackLetter, RefereeRound, RejectReason, Submission } from '../api/types';
-import { RECHECK_WAITING, reviewDelivered, reviewProgressText } from '../lib/reviewProgress';
+import { useEffect, useState } from 'react';
+import type { RefereeFile, RejectReason, Submission } from '../api/types';
+import { authorStanding } from '../lib/authorStanding';
+import { REVIEW_STAGES } from '../lib/reviewProgress';
 import { rejectReasonText } from '../lib/labels';
 
 export function publicationReason(reason: RejectReason): string {
@@ -18,90 +20,34 @@ export function publicationReason(reason: RejectReason): string {
   }
 }
 
-const STEPS = ['Referee', 'Check', 'Decision', 'Letter'] as const;
-
-/** Which of the four review steps is under way (0-based); 4 once the letter is out. */
-function progressStep(round: RefereeRound | undefined): number {
-  if (round?.progress) {
-    const index = (['referee', 'audit', 'advice', 'letter'] as const).findIndex(
-      (key) => !['done', 'skipped'].includes(round.progress![key].state),
-    );
-    return index < 0 ? 4 : index;
-  }
-  if (!round || round.referee.state.state !== 'done') return 0;
-  if (round.audit?.state.state !== 'done') return 1;
-  if (round.letter?.state.state !== 'done') return 3;
-  return 4;
-}
-
-const PROGRESS_TEXT = [
-  'The referee is reading your paper.',
-  'The referee’s report is being checked against your source.',
-  'The decision is being made.',
-  'The letter is being written.',
-];
-
-/** Publication status is decided by the escape analysis; recommendations are feedback. */
 export function PaperStanding({
   submission,
-  round,
-  letters = [],
-  awaitingRecheck = false,
+  file,
   onRevise,
-  showProgress = true,
 }: {
   submission: Submission;
-  round?: RefereeRound;
-  letters?: readonly FeedbackLetter[];
-  awaitingRecheck?: boolean;
+  file?: RefereeFile;
   onRevise?: () => void;
-  showProgress?: boolean;
 }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const standing = authorStanding(submission, file, now);
   const status = submission.status;
-  if (status.state === 'draft') return null;
-  const audit = round?.audit?.state.state === 'done' ? round.audit.state.result : undefined;
-  const probe = round?.formal?.state.state === 'done' ? round.formal.state.result : undefined;
-  const failed = round?.progress
-    ? (['referee', 'audit', 'advice', 'letter'] as const).some(
-        (key) => round.progress![key].state === 'failed',
-      )
-    : [round?.referee, round?.audit].some((s) => s?.state.state === 'failed');
-  const delivered =
-    round !== undefined &&
-    (round.progress
-      ? reviewDelivered(round, letters)
-      : round.letter?.state.state === 'done' ||
-        letters.some((letter) => letter.round === round.number));
-  const progressText = round ? reviewProgressText(round, letters) : undefined;
-  const privatePending = status.state === 'review_complete' && round !== undefined && !delivered;
-  const headline =
-    status.state === 'review_complete'
-      ? !round
-        ? 'Private review'
-        : awaitingRecheck
-          ? 'Your response is awaiting review'
-          : privatePending
-            ? failed
-              ? 'Review could not finish'
-              : audit
-                ? 'Your source audit is ready'
-                : round.response_ids?.length
-                  ? 'Your response is being reviewed'
-                  : 'Your private review is in progress'
-            : 'Your private review is ready'
-      : status.state === 'accepted'
-        ? submission.kind === 'conjecture'
-          ? 'Displayed'
-          : 'Accepted'
-        : status.state === 'not_accepted'
-          ? submission.kind === 'conjecture'
-            ? 'Not displayed'
-            : 'Not accepted'
-          : status.state === 'withdrawn'
-            ? 'Withdrawn'
-            : failed
-              ? 'Review could not finish'
-              : 'Under review';
+  const audit =
+    standing.round?.audit?.state.state === 'done' ? standing.round.audit.state.result : undefined;
+  const revisions =
+    audit?.verdict === 'minor_revision'
+      ? 'minor'
+      : audit?.verdict === 'major_revision'
+        ? 'major'
+        : undefined;
+  const compileFailure = status.state === 'draft' && !!submission.versions.at(-1)?.compile_error;
+  const mayRevise =
+    compileFailure ||
+    ['in_review', 'accepted', 'not_accepted', 'review_complete'].includes(status.state);
   const tone =
     status.state === 'accepted'
       ? 'good'
@@ -110,120 +56,67 @@ export function PaperStanding({
         : status.state === 'withdrawn'
           ? 'muted'
           : 'accent';
-  const reasons =
-    submission.decision?.decision === 'not_accepted' ? submission.decision.reasons : [];
-  const revisions =
-    audit?.verdict === 'minor_revision'
-      ? 'minor'
-      : audit?.verdict === 'major_revision'
-        ? 'major'
-        : undefined;
-  const mayRevise =
-    status.state === 'review_complete' ||
-    status.state === 'not_accepted' ||
-    (status.state === 'accepted' && revisions !== undefined);
-  const step = progressStep(round);
-  const facts = audit
-    ? [
-        { n: audit.claims.length, label: 'statements' },
-        { n: audit.claims.filter((c) => c.correctness === 'correct').length, label: 'correct' },
-        ...(probe
-          ? [
-              {
-                n: probe.attempts.filter((a) => a.outcome === 'compiled').length,
-                label: 'proved in Lean',
-              },
-            ]
-          : []),
-      ]
-    : [];
-
   return (
     <section className={`standing standing-${tone}`} aria-label="Paper standing">
       <div className="standing-head">
-        <h2 className="standing-title">{headline}</h2>
+        <h2 className="standing-title">{standing.headline}</h2>
         {status.state === 'accepted' ? (
           <span className="standing-record">{status.record}</span>
         ) : null}
       </div>
-
-      {!showProgress ? null : awaitingRecheck ? (
-        <p role="status">{RECHECK_WAITING}</p>
-      ) : status.state === 'in_review' ||
-        privatePending ||
-        (round?.progress && !delivered && status.state !== 'withdrawn') ? (
-        failed ? (
-          <p role="status">
-            {progressText ?? 'The review could not finish. Please try again later.'}
-          </p>
-        ) : (
-          <>
-            <ol className="standing-steps" aria-label="Review progress">
-              {(round?.progress
-                ? ['Referee', 'Check', 'Suggestions', 'Letter']
-                : submission.purpose === 'review_only'
-                  ? ['Referee', 'Check', 'Feedback', 'Letter']
-                  : STEPS
-              ).map((name, i) => (
-                <li
-                  key={name}
-                  className={i < step ? 'is-done' : i === step ? 'is-current' : undefined}
-                  aria-current={i === step ? 'step' : undefined}
-                >
-                  {name}
-                </li>
-              ))}
-            </ol>
-            <p role="status" className="standing-summary">
-              {progressText ??
-                (step === 3 && !round?.letter
-                  ? 'The source audit is complete. The feedback letter has not been delivered yet.'
-                  : PROGRESS_TEXT[Math.min(step, PROGRESS_TEXT.length - 1)])}
-            </p>
-          </>
-        )
+      {submission.decision?.decision === 'accept' ? (
+        <p>
+          {submission.decision.basis === 'escape_witness'
+            ? 'The source check found new mathematical content in a main result, without an identified prior result that states or directly implies it.'
+            : submission.decision.basis === 'open_problem_settlement'
+              ? 'The source check found that a main result settles a named open problem.'
+              : 'The source check found a well-posed open conjecture whose resolution would carry new mathematical content.'}
+        </p>
       ) : null}
-
-      {status.state === 'not_accepted' && reasons.length > 0 ? (
+      {status.state === 'not_accepted' && submission.decision?.decision === 'not_accepted' ? (
         <ul className="standing-reasons">
-          {reasons.map((r, i) => (
-            <li key={i}>{publicationReason(r)}</li>
+          {submission.decision.reasons.map((reason, i) => (
+            <li key={i}>{publicationReason(reason)}</li>
           ))}
         </ul>
       ) : null}
-      {(status.state === 'accepted' ||
-        status.state === 'not_accepted' ||
-        status.state === 'review_complete') &&
-      audit ? (
-        <p className="standing-summary">{audit.summary}</p>
-      ) : null}
-      {facts.length > 0 && status.state !== 'in_review' ? (
-        <ul className="standing-facts">
-          {facts.map((f) => (
-            <li key={f.label}>
-              <strong>{f.n}</strong> {f.label}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {(status.state === 'accepted' && revisions) || (mayRevise && onRevise) ? (
-        <div className="standing-next">
-          {status.state === 'accepted' && revisions ? (
-            <p>The referee suggests {revisions} revisions — see the letter.</p>
-          ) : (
-            <p>You can revise the paper and submit a new version.</p>
+      <p role="status">
+        <strong>Mathesis now:</strong> {standing.doing}
+      </p>
+      <p className="standing-next">
+        <strong>Next action:</strong> {standing.nextAction}
+      </p>
+      <p className="small">{standing.timing}</p>
+      <p className="hint">{standing.observation}</p>
+      {standing.stage ? (
+        <ol className="standing-steps" aria-label="Review progress">
+          {REVIEW_STAGES.filter(([key]) => key !== 'formal' || standing.stage === 'formal').map(
+            ([key, label]) => (
+              <li
+                key={key}
+                aria-current={key === standing.stage ? 'step' : undefined}
+                className={key === standing.stage ? 'is-current' : undefined}
+              >
+                {label}
+              </li>
+            ),
           )}
-          {mayRevise && onRevise ? (
-            <button
-              type="button"
-              className="button button-small"
-              aria-controls="standing-revision-form"
-              onClick={onRevise}
-            >
-              Upload a revised version
-            </button>
-          ) : null}
+        </ol>
+      ) : null}
+      {status.state === 'accepted' && standing.delivered && revisions ? (
+        <p>The referee suggests {revisions} revisions — see the letter.</p>
+      ) : null}
+      {mayRevise && onRevise ? (
+        <div className="standing-next">
+          <p>You can revise the paper and submit a new version.</p>
+          <button
+            type="button"
+            className="button button-small"
+            aria-controls="standing-revision-form"
+            onClick={onRevise}
+          >
+            {compileFailure ? 'Upload a corrected version' : 'Upload a revised version'}
+          </button>
         </div>
       ) : null}
     </section>

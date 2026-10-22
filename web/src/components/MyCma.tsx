@@ -6,7 +6,7 @@ import { useSession } from '../auth/session';
 import { Async, Field, InlineError, SignInPrompt } from './ui';
 
 export const CMA_COPY =
-  'Mathesis pays for review during the early phase; if you like, connect your CMA account to run the Codex steps for your submissions on your own agents.';
+  'Mathesis provides review during the early phase. Optionally connect a compute account to use your own resources for the source check and feedback steps.';
 
 const STATUS_LABELS = {
   disconnected: 'Not connected',
@@ -16,14 +16,14 @@ const STATUS_LABELS = {
 };
 const REASONS: Record<string, string> = {
   consent_pending: 'Finish connecting through NyxID.',
-  workspace_needed: 'Create a CMA workspace, then paste its ID below.',
+  workspace_needed: 'Create a Compute workspace, then paste its ID below.',
   workspace_not_owned: 'Choose a workspace you own.',
   workspace_not_ready: 'Wait for your workspace to be ready, then recheck.',
-  own_credentials_required: 'Set CMA model access to own credentials.',
-  workspace_setup_needed: 'Finish workspace setup in CMA, then recheck.',
-  authorization_refused: 'Reconnect to CMA.',
-  model_credentials_refused: 'Renew your model credentials in CMA, then recheck.',
-  author_quota_refused: 'Restore your model quota in CMA, then recheck.',
+  own_credentials_required: 'Set compute model access to own credentials.',
+  workspace_setup_needed: 'Finish workspace setup in your compute account, then recheck.',
+  authorization_refused: 'Reconnect to your compute account.',
+  model_credentials_refused: 'Renew your model credentials in your compute account, then recheck.',
+  author_quota_refused: 'Restore your model quota in your compute account, then recheck.',
 };
 
 export function MyCma({ id }: { id?: string }) {
@@ -87,7 +87,7 @@ export function MyCma({ id }: { id?: string }) {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Open CMA setup
+                          Open compute setup
                         </a>
                       ) : null}
                       {status.binding.status !== 'disconnected' ? (
@@ -105,7 +105,7 @@ export function MyCma({ id }: { id?: string }) {
                     {needsSetup ? (
                       <form
                         className="inline-form"
-                        aria-label="CMA workspace"
+                        aria-label="Compute workspace"
                         onSubmit={(event: FormEvent) => {
                           event.preventDefault();
                           const id = workspace.trim() || status.binding.workspace_id || '';
@@ -117,7 +117,7 @@ export function MyCma({ id }: { id?: string }) {
                           );
                         }}
                       >
-                        <Field label="CMA workspace ID" htmlFor="cma-workspace">
+                        <Field label="Compute workspace ID" htmlFor="cma-workspace">
                           <input
                             id="cma-workspace"
                             value={workspace}
@@ -149,7 +149,7 @@ export function MyCma({ id }: { id?: string }) {
 
 const ATTEMPT_REASONS: Record<string, string> = {
   account: 'Your account was unavailable.',
-  auth: 'Your CMA authorization was refused.',
+  auth: 'Your compute authorization was refused.',
   setup: 'Your workspace setup was unavailable.',
   credential: 'Your model credentials were refused.',
   quota: 'Your model quota was unavailable.',
@@ -157,10 +157,10 @@ const ATTEMPT_REASONS: Record<string, string> = {
 };
 
 const STEP_LABELS = {
-  audit: 'Codex audit',
-  advice: 'Advice',
-  letter: 'Letter',
-  lean_probe: 'Lean probe',
+  audit: 'Source check',
+  advice: 'Improvement suggestions',
+  letter: 'Feedback letter',
+  lean_probe: 'Lean check',
   conjecture_target: 'Conjecture target',
   research_target: 'Private research target',
   research_faithfulness: 'Research target inspection',
@@ -169,7 +169,7 @@ const STEP_LABELS = {
   error_report_audit: 'Error report audit',
   binding_audit: 'Independent binding inspection',
   venue_attempt: 'Venue agent attempt',
-  legacy_unknown: 'Earlier CMA step',
+  legacy_unknown: 'Earlier review step',
 };
 
 export function CmaHistory({ attempts }: { attempts: CmaAttemptView[] }) {
@@ -180,8 +180,19 @@ export function CmaHistory({ attempts }: { attempts: CmaAttemptView[] }) {
       <ul className="entry-list">
         {attempts.map((attempt, index) => (
           <li key={`${attempt.step}-${attempt.attempt}-${index}`}>
-            <strong>{attempt.kind ? STEP_LABELS[attempt.kind] : attempt.step}</strong> ·{' '}
-            {attempt.payer === 'author' ? 'Your agents' : 'Mathesis'} · {attempt.status}
+            <strong>
+              {attempt.kind
+                ? (STEP_LABELS[attempt.kind] ?? 'Other automated step')
+                : 'Earlier review step'}
+            </strong>{' '}
+            · {attempt.payer === 'author' ? 'Your agents' : 'Mathesis'} ·{' '}
+            {(
+              {
+                running: 'In progress',
+                succeeded: 'Complete',
+                failed: 'Could not finish',
+              } as Record<string, string>
+            )[attempt.status] ?? 'Recorded'}
             {attempt.payer === 'operator' && ATTEMPT_REASONS[attempt.reason] ? (
               <p className="hint">{ATTEMPT_REASONS[attempt.reason]}</p>
             ) : null}

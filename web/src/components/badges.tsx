@@ -35,10 +35,14 @@ const SUBMISSION_TONES: { [K in SubmissionStatus['state']]: BadgeTone } = {
   withdrawn: 'muted',
 };
 
-export function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) {
-  return (
-    <Badge tone={SUBMISSION_TONES[status.state]}>{SUBMISSION_STATE_LABELS[status.state]}</Badge>
-  );
+export function SubmissionStatusBadge({
+  status,
+  label = SUBMISSION_STATE_LABELS[status.state],
+}: {
+  status: SubmissionStatus;
+  label?: string;
+}) {
+  return <Badge tone={SUBMISSION_TONES[status.state]}>{label}</Badge>;
 }
 
 export function BasisBadge({ basis }: { basis: AdmissionBasis }) {

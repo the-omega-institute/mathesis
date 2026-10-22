@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { RefereeFile, RefereeRound, Submission } from '../api/types';
 import { useApi } from '../api/context';
 import { useSession } from '../auth/session';
+import { AUDIT_FINDING_LABELS } from '../lib/labels';
 import { InlineLatex, Markdown } from './Markdown';
 import { DateText, Field, InlineError } from './ui';
 
@@ -9,9 +10,15 @@ export function ReviewFindings({
   submission,
   file,
   onChange,
+  visibleRound,
+  excludeRound,
+  showSourceIdentity = true,
 }: {
   submission: Submission;
   file: RefereeFile;
+  visibleRound?: number;
+  excludeRound?: number;
+  showSourceIdentity?: boolean;
   onChange: (file: RefereeFile) => void;
 }) {
   const { person } = useSession();
@@ -20,22 +27,28 @@ export function ReviewFindings({
     (submission.submitter === person.id || submission.authors.some((a) => a.person === person.id));
   const rounds = [...file.rounds]
     .reverse()
-    .filter((r) => r.audit?.state.state === 'done' && r.audit.state.result.concerns.length);
+    .filter(
+      (r) =>
+        r.audit?.state.state === 'done' &&
+        r.audit.state.result.concerns.length &&
+        (visibleRound === undefined || r.number === visibleRound) &&
+        r.number !== excludeRound,
+    );
   if (!rounds.length) return null;
   return (
     <section className="review-findings" aria-label="Review findings and responses">
-      <h3>Findings to address</h3>
+      <h3>Review findings</h3>
       <p className="small muted">
-        These are the points the source check could not settle. Open one to read the evidence,
-        explain a correction, or upload a revised version and request another review. A response
-        does not mark a finding resolved.
+        Open a finding to read its status and evidence. You may respond to any finding; only
+        confirmed findings need a response. You can explain a correction, or upload a revised
+        version and request another review. A response does not mark a finding resolved.
       </p>
       {rounds.map((round) => (
         <div key={round.number}>
           <h4>
             Round {round.number} · source version {round.version}
           </h4>
-          {round.source_sha256 ? (
+          {showSourceIdentity && round.source_sha256 ? (
             <p className="hint">
               Source SHA-256:{' '}
               <code style={{ overflowWrap: 'anywhere' }}>{round.source_sha256}</code>
@@ -52,7 +65,8 @@ export function ReviewFindings({
                     <strong>
                       R{round.number}-A{index + 1}
                     </strong>{' '}
-                    · {finding.status.replace('_', ' ')} · <InlineLatex source={finding.concern} />
+                    · {AUDIT_FINDING_LABELS[finding.status]} ·{' '}
+                    <InlineLatex source={finding.concern} />
                   </summary>
                   {finding.location ? (
                     <p className="small">Reported location: {finding.location}</p>

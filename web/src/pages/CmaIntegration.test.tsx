@@ -89,9 +89,11 @@ describe('Optional own agents in pages', () => {
           .getByText('Advanced: compute settings and history')
           .closest('details');
         expect(advanced).not.toHaveAttribute('open');
+        if (role !== 'staff')
+          await userEvent.click(screen.getByText('Details: evidence, history and settings'));
         await userEvent.click(screen.getByText('Advanced: compute settings and history'));
         expect(await screen.findByRole('region', { name: 'Who ran each step' })).toHaveTextContent(
-          'Codex audit · Your agents · running',
+          'Source check · Your agents · In progress',
         );
         expect(referee).toHaveBeenCalled();
       }
@@ -122,7 +124,7 @@ describe('Optional own agents in pages', () => {
   it('offers research and Lean intake without requiring a compute account', async () => {
     const api = fakeApi({}, author);
     renderWithApp(<SubmitPage />, api);
-    await screen.findByLabelText('LaTeX source');
+    await screen.findByLabelText('LaTeX source (required)');
     expect(screen.getByRole('button', { name: 'Lean formalization' })).toBeInTheDocument();
     expect(screen.queryByText(CMA_COPY)).toBeNull();
     expect(api.getCma).not.toHaveBeenCalled();
@@ -136,7 +138,7 @@ describe('Optional own agents in pages', () => {
     renderWithApp(<SubmitPage />, fakeApi({ getCma, createSubmission }, author));
     const user = userEvent.setup();
     const file = new File(['source'], 'paper.tex', { type: 'application/x-tex' });
-    await user.upload(await screen.findByLabelText('LaTeX source'), file);
+    await user.upload(await screen.findByLabelText('LaTeX source (required)'), file);
     await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     await waitFor(() => expect(createSubmission).toHaveBeenCalledWith(expect.any(Object), file));

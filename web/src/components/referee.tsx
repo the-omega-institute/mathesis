@@ -4,7 +4,10 @@ import { ReviewProgress } from './ReviewProgress';
 import { MethodologyEvidence } from './MethodologyEvidence';
 import { CoverageEvidence, KnowledgeQueries } from './KnowledgeEvidence';
 import { ComputationEvidence } from './ComputationEvidence';
-import { hasWaitingResponse, RECHECK_WAITING, reviewProgressText } from '../lib/reviewProgress';
+import { reviewProgressText, REVIEW_STAGES } from '../lib/reviewProgress';
+import { currentAuthorRound } from '../lib/authorStanding';
+import { PaperStanding } from './PaperStanding';
+import { StatementSummary } from './StatementSummary';
 import { useApi } from '../api/context';
 import type { RefereeResource } from '../api/useReferee';
 import type {
@@ -21,6 +24,7 @@ import type {
   Submission,
 } from '../api/types';
 import {
+  AUDIT_FINDING_LABELS,
   EFFORT_LABELS,
   EVIDENCE_LABELS,
   FEASIBILITY_LABELS,
@@ -45,9 +49,12 @@ type WorkspaceProps = {
 
 /** Staff see the full history; authors see delivered letters and referee reports. */
 export function RefereeWorkspace(
-  props: WorkspaceProps & { resource: RefereeResource; showStatus?: boolean },
+  props: WorkspaceProps & {
+    resource: RefereeResource;
+    presentation?: 'all' | 'primary' | 'details';
+  },
 ) {
-  const { submission, isStaff, isEditor, resource, showStatus = true } = props;
+  const { submission, isStaff, isEditor, resource, presentation = 'all' } = props;
   const api = useApi();
   const { reload, active } = resource;
   const includeFormal =
@@ -71,46 +78,93 @@ export function RefereeWorkspace(
 
   if (!isStaff) {
     return (
-      <section className="referee-panel" aria-label="Orchestra review">
-        <h2 id="feedback-h">Review report</h2>
+      <section
+        className="referee-panel"
+        aria-label={presentation === 'details' ? 'Review details' : 'Review'}
+      >
         <Async state={resource.state} onRetry={reload}>
           {(file) => {
-            const current = [...file.rounds]
-              .reverse()
-              .find(
-                (r) =>
-                  r.version === submission.versions.at(-1)?.number &&
-                  r.claims_revision === submission.claims_revision,
-              );
-            return (
+            const current = currentAuthorRound(submission, file);
+            const sent = file.letters.filter((letter) => letter.round === current?.number);
+            const earlier = file.letters.filter((letter) => !sent.includes(letter));
+            const hasReport =
+              current?.audit?.state.state === 'done' || current?.referee.state.state === 'done';
+            const hasActionableFinding =
+              submission.status.state !== 'draft' &&
+              submission.status.state !== 'withdrawn' &&
+              current?.audit?.state.state === 'done' &&
+              current.audit.state.result.concerns.some((finding) => finding.status === 'confirmed');
+            const primary = (
               <>
-                {showStatus && !current ? (
-                  <p className="review-status" role="status">
-                    Your review will start after you confirm the statements above.
-                  </p>
+                {sent.length ? (
+                  <section aria-label="Current Feedback letter">
+                    <h2>Feedback letter</h2>
+                    <SentLetters letters={sent} authorView />
+                  </section>
                 ) : null}
-                {showStatus && current ? (
-                  <p className="review-status" role="status">
-                    {hasWaitingResponse(file, submission)
-                      ? RECHECK_WAITING
-                      : roundStatus(
-                          current,
-                          file.letters.filter((l) => l.round === current.number),
-                          includeFormal,
-                        )}
+                <section aria-label="Readable review report">
+                  <h2>Review report</h2>
+                  <p className="small muted">
+                    {hasActionableFinding
+                      ? 'Respond to a finding below to request a recheck against your confirmed source.'
+                      : hasReport
+                        ? 'No findings require a response in the available report.'
+                        : 'The readable report is not yet available.'}
+                  </p>
+                  {current?.audit?.state.state === 'done' ? (
+                    <>
+                      <h3>Source check</h3>
+                      <Markdown text={current.audit.state.result.summary} />
+                      {current.audit.state.result.claims.map((claim) => (
+                        <p key={claim.claim}>
+                          <strong>
+                            {claim.claim}: {correctnessLabel(claim.correctness)}.
+                          </strong>{' '}
+                          {claim.comment}
+                        </p>
+                      ))}
+                    </>
+                  ) : null}
+                  {current?.referee.state.state === 'done' ? (
+                    <>
+                      <h3>Referee report</h3>
+                      <Markdown text={current.referee.state.result.summary} />
+                      <MarkdownList items={current.referee.state.result.strengths} />
+                      {current.referee.state.result.concerns.map((concern, i) => (
+                        <p key={i}>{concern.issue}</p>
+                      ))}
+                    </>
+                  ) : null}
+                  <ReviewFindings
+                    submission={submission}
+                    file={file}
+                    onChange={resource.replace}
+                    visibleRound={current?.number ?? -1}
+                    showSourceIdentity={false}
+                  />
+                </section>
+              </>
+            );
+            const details = (
+              <>
+                <ReviewFindings
+                  submission={submission}
+                  file={file}
+                  onChange={resource.replace}
+                  excludeRound={current?.number}
+                />
+                {current?.source_sha256 ? (
+                  <p className="hint">
+                    Source fingerprint (SHA-256):{' '}
+                    <code style={{ overflowWrap: 'anywhere' }}>{current.source_sha256}</code>
                   </p>
                 ) : null}
                 {current ? <ReviewProgress round={current} includeFormal={includeFormal} /> : null}
                 {current?.review_method ? (
                   <p className="hint">
-                    Review method: {current.review_method} · source version {current.version} ·
-                    statements revision {current.claims_revision}
+                    Review method: source-based mathematical reading and independent source check.
                   </p>
                 ) : null}
-                <p className="small muted">
-                  Your review checks the argument, examines prior work and identifies gaps. Respond
-                  to a finding below to request a recheck against your confirmed source.
-                </p>
                 <div className="button-row">
                   <button
                     type="button"
@@ -138,41 +192,8 @@ export function RefereeWorkspace(
                     <KnowledgeQueries round={current} submissionId={submission.id} />
                   </>
                 ) : null}
-                <ReviewFindings submission={submission} file={file} onChange={resource.replace} />
-                {file.letters.length > 0 ? <SentLetters letters={file.letters} authorView /> : null}
                 {current?.audit?.state.state === 'done' ? (
-                  <details className="history">
-                    <summary>Audit evidence</summary>
-                    <AuditView audit={current.audit.state.result} />
-                  </details>
-                ) : null}
-                {file.rounds.filter((r) => r.number !== current?.number).length ? (
-                  <details className="history">
-                    <summary>Earlier review rounds</summary>
-                    {[...file.rounds]
-                      .reverse()
-                      .filter((r) => r.number !== current?.number)
-                      .map((round) => (
-                        <section key={round.number}>
-                          <h3>
-                            Round {round.number} · source version {round.version}
-                          </h3>
-                          <>
-                            <ComputationEvidence round={round} />
-                            <KnowledgeQueries round={round} submissionId={submission.id} />
-                          </>
-                          {round.audit?.state.state === 'done' ? (
-                            <AuditView audit={round.audit.state.result} />
-                          ) : null}
-                          {round.referee.state.state === 'done' ? (
-                            <ReportView
-                              report={round.referee.state.result}
-                              submission={submission}
-                            />
-                          ) : null}
-                        </section>
-                      ))}
-                  </details>
+                  <AuditView audit={current.audit.state.result} />
                 ) : null}
                 {current?.referee.state.state === 'done' ? (
                   <details className="history">
@@ -180,6 +201,44 @@ export function RefereeWorkspace(
                     <ReportView report={current.referee.state.result} submission={submission} />
                   </details>
                 ) : null}
+                {earlier.length ? (
+                  <section aria-label="Earlier Feedback letters">
+                    <h3>Earlier Feedback letters</h3>
+                    <SentLetters letters={earlier} authorView />
+                  </section>
+                ) : null}
+                {file.rounds
+                  .filter((r) => r.number !== current?.number)
+                  .map((round) => (
+                    <section key={round.number}>
+                      <h3>
+                        Earlier review: round {round.number} · source version {round.version}
+                      </h3>
+                      <ComputationEvidence round={round} />
+                      <KnowledgeQueries round={round} submissionId={submission.id} />
+                      {round.audit?.state.state === 'done' ? (
+                        <AuditView audit={round.audit.state.result} />
+                      ) : null}
+                      {round.referee.state.state === 'done' ? (
+                        <ReportView report={round.referee.state.result} submission={submission} />
+                      ) : null}
+                    </section>
+                  ))}
+              </>
+            );
+            return presentation === 'primary' ? (
+              primary
+            ) : presentation === 'details' ? (
+              details
+            ) : (
+              <>
+                <PaperStanding submission={submission} file={file} />
+                {primary}
+                <StatementSummary submission={submission} round={current} />
+                <details className="history">
+                  <summary>Details: evidence and review history</summary>
+                  {details}
+                </details>
               </>
             );
           }}
@@ -272,13 +331,10 @@ export function RefereeWorkspace(
   );
 }
 
-const STEP_NAMES = {
-  referee: 'Referee report',
-  audit: 'Audit',
-  advice: 'Suggestions',
-  formal: 'Lean check',
-  letter: 'Letter',
-} as const;
+const STEP_NAMES = Object.fromEntries(REVIEW_STAGES) as Record<
+  (typeof REVIEW_STAGES)[number][0],
+  string
+>;
 
 /** One sentence: where the latest review stands and what the editor does next. */
 function roundStatus(
@@ -591,10 +647,23 @@ export function ReportView({
   );
 }
 
+function correctnessLabel(value: string) {
+  return (
+    (
+      {
+        correct: 'Correct',
+        gap: 'Gap in the argument',
+        error: 'Mathematical error',
+        not_checked: 'Not checked',
+      } as Record<string, string>
+    )[value] ?? 'No correctness reading'
+  );
+}
+
 function AuditView({ audit }: { audit: RefereeAudit }) {
   return (
     <div className="report">
-      <h3>Audit</h3>
+      <h3>Source check</h3>
       <Badge>{RECOMMENDATION_LABELS[audit.verdict]}</Badge>
       <p>{audit.summary}</p>
       <p>Agrees with referee: {audit.agrees_with_referee ? 'Yes' : 'No'}</p>
@@ -602,11 +671,11 @@ function AuditView({ audit }: { audit: RefereeAudit }) {
         {audit.claims.map((c) => (
           <li key={c.claim}>
             <strong>
-              {c.claim} · {c.correctness}
+              {c.claim} · {correctnessLabel(c.correctness)}
             </strong>
             <p>{c.comment}</p>
             <p>
-              {c.shape ?? 'No proof reading'}
+              {c.shape ? SHAPE_LABELS[c.shape] : 'No proof reading'}
               {c.known ? ` · ${c.known}` : ''}
             </p>
             <MarkdownList items={c.witnesses} />
@@ -618,7 +687,7 @@ function AuditView({ audit }: { audit: RefereeAudit }) {
       <ul>
         {audit.concerns.map((c, i) => (
           <li key={i}>
-            <strong>{c.status}</strong>
+            <strong>{AUDIT_FINDING_LABELS[c.status]}</strong>
             <p>{c.concern}</p>
             <Markdown text={c.note} />
             {c.location ? <p>Reported location: {c.location}</p> : null}

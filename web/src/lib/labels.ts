@@ -26,6 +26,7 @@ import type {
   Feasibility,
   StepState,
   ProbeOutcome,
+  RefereeAudit,
 } from '../api/types';
 import { sourceLabel } from './links';
 
@@ -73,10 +74,18 @@ export const STEP_STATE_LABELS: { readonly [K in StepState<unknown>['state']]: s
   skipped: 'Skipped',
 };
 
+export const AUDIT_FINDING_LABELS: {
+  readonly [K in RefereeAudit['concerns'][number]['status']]: string;
+} = {
+  confirmed: 'Confirmed',
+  refuted: 'Refuted',
+  not_checkable: 'Further evidence needed',
+};
+
 export const SUBMISSION_STATE_LABELS: { readonly [K in SubmissionStatus['state']]: string } = {
   draft: 'Draft — statements to confirm',
   in_review: 'In review',
-  review_complete: 'Review ready',
+  review_complete: 'Private review',
   accepted: 'Accepted',
   not_accepted: 'Not accepted',
   withdrawn: 'Withdrawn',
@@ -120,13 +129,13 @@ export function isOpenKind(kind: ClaimKind): boolean {
 }
 
 export const BASIS_LABELS: { readonly [K in AdmissionBasis]: string } = {
-  escape_witness: 'Escape witness',
+  escape_witness: 'New mathematical content',
   open_conjecture: 'Open conjecture',
   open_problem_settlement: 'Open-problem settlement',
 };
 export const BASIS_DESCRIPTIONS: { readonly [K in AdmissionBasis]: string } = {
   escape_witness:
-    'A main result carries an escape witness (judged content) and no prior work states or directly implies it.',
+    'A main result is judged to contain new mathematical content, and no identified prior work states or directly implies it.',
   open_conjecture: 'Open conjecture',
   open_problem_settlement:
     'A main result settles a named, sourced open problem that the literature had not settled.',
@@ -154,7 +163,7 @@ export const SOURCE_KINDS = Object.keys(SOURCE_KIND_LABELS) as SourceKind[];
 
 export const SHAPE_LABELS: { readonly [K in ProofShape]: string } = {
   undetermined: 'Undetermined',
-  bind_only: 'Bind-only',
+  bind_only: 'Follows from known results',
   content: 'Content',
 };
 export const SHAPE_DESCRIPTIONS: { readonly [K in ProofShape]: string } = {

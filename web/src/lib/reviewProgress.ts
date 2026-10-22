@@ -1,7 +1,5 @@
 import type { FeedbackLetter, RefereeFile, RefereeRound, Submission } from '../api/types';
 
-export const RECHECK_WAITING = 'Your response is saved. A follow-up review is waiting to start.';
-
 export function hasWaitingResponse(file: RefereeFile | undefined, submission: Submission): boolean {
   const version = submission.versions.at(-1)?.number;
   return (
@@ -21,7 +19,7 @@ export function hasWaitingResponse(file: RefereeFile | undefined, submission: Su
 
 export const REVIEW_STAGES = [
   ['referee', 'Referee report'],
-  ['audit', 'Source audit'],
+  ['audit', 'Source check'],
   ['advice', 'Improvement suggestions'],
   ['letter', 'Feedback letter'],
   ['formal', 'Lean check'],
@@ -59,16 +57,6 @@ export function reviewProgressText(
 
 /** Translate a worker failure into the next useful action for an author. */
 function failedStageText(key: (typeof REVIEW_STAGES)[number][0]): string {
-  switch (key) {
-    case 'referee':
-      return 'Referee report needs attention. It could not be completed; your upload is saved, so please try the review again.';
-    case 'audit':
-      return 'Source audit needs attention. It could not be completed; your upload and referee report are saved, so you can try again or upload a corrected version.';
-    case 'advice':
-      return 'Improvement suggestions need attention. They could not be prepared; the referee report and source check are still available.';
-    case 'letter':
-      return 'Feedback letter needs attention. It could not be delivered; the referee report and source check are still available.';
-    case 'formal':
-      return 'Lean check needs attention. It could not be completed; your review is still available.';
-  }
+  const label = REVIEW_STAGES.find(([stage]) => stage === key)![1];
+  return `${label} needs attention. Your upload and any report are saved. A failed step is not a verdict on the mathematics. A corrected version may be uploaded.`;
 }

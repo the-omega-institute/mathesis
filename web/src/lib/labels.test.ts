@@ -50,7 +50,7 @@ describe('labels', () => {
       decisionHeadline({ decision: 'pending', awaiting: 'literature', detail: '' }, name),
     ).toBe('Pending — awaiting S2 Literature');
     expect(decisionHeadline({ decision: 'accept', basis: 'escape_witness' }, name)).toBe(
-      'Accept — Escape witness',
+      'Accept — New mathematical content',
     );
     expect(conjectureStateText({ state: 'not_pursued', reason: 'too hard' })).toBe(
       'Not pursued: too hard',

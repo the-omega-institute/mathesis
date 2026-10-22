@@ -79,7 +79,7 @@ export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () =
       </p>
       {onRetry ? (
         <button type="button" className="button button-quiet" onClick={onRetry}>
-          Try again
+          Reload page data
         </button>
       ) : null}
     </div>
