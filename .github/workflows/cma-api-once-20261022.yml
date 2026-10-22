@@ -13,12 +13,12 @@ jobs:
       contents: read
       packages: write
     env:
-      SOURCE_REVISION: ae641a0b54ee336da818c477b69fb7704bfdaaa6
-      IMAGE: ghcr.io/the-omega-institute/mathesis-api:cma-ae641a0
+      SOURCE_REVISION: 406096d9b409df75003635aa0c065234e483063b
+      IMAGE: ghcr.io/the-omega-institute/mathesis-api:cma-406096d
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ae641a0b54ee336da818c477b69fb7704bfdaaa6
+          ref: 406096d9b409df75003635aa0c065234e483063b
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: rustfmt, clippy
@@ -39,10 +39,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build API and worker image from verified source
         run: |
+          # Reuse the verified immutable TeX/runtime layer; compile the final source anew.
+          printf '%s  %s\n' 'e1e2a23e5e669488cd2939d197dc98542f056baa5cce820a75c51a872ec4f4d1' infra/api/Dockerfile | sha256sum -c -
+          sed '/^FROM debian:trixie-slim/,$d' infra/api/Dockerfile > "$RUNNER_TEMP/mathesis-api.Dockerfile"
+          cat >> "$RUNNER_TEMP/mathesis-api.Dockerfile" <<'DOCKER'
+          FROM ghcr.io/the-omega-institute/mathesis-api@sha256:c9e04547202c40117e37ba7756b6ac9cd7cfd4f420b3e2cb6c64ea6fc6906297
+          COPY --from=build /usr/local/bin/mathesis /usr/local/bin/mathesis
+          USER 65532:65532
+          EXPOSE 8080
+          ENTRYPOINT ["/usr/local/bin/mathesis"]
+          DOCKER
           docker buildx build --platform linux/amd64 --load \
             --label "org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis" \
             --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
-            -f infra/api/Dockerfile -t "$IMAGE" .
+            -f "$RUNNER_TEMP/mathesis-api.Dockerfile" -t "$IMAGE" .
       - name: Verify non-root API and worker runtime
         run: |
           test "$(docker run --rm --network none --entrypoint id "$IMAGE" -u)" != 0
