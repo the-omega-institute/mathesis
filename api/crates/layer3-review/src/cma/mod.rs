@@ -146,6 +146,13 @@ fn transient(e: &ReviewError) -> bool {
                 ..
             }
         )
+        // A freshly created agent is still `starting` while its first message
+        // runs; CMA refuses the next turn with this code and asks the caller to
+        // retry the same key. The durable turn key makes that retry exact.
+        || matches!(
+            e,
+            ReviewError::Provider { status: 409, body } if body == "agent_command_admission_conflict"
+        )
 }
 
 /// Split UTF-8 without dropping bytes. The wrapper leaves room below 256 KiB.
