@@ -89,6 +89,11 @@ Verified in a local preview (dev sign-in, memory storage, no TeX): the Submit
 form, the compile-failure standing card with its "Upload a corrected version"
 control, and the My work row.
 
+- Non-acceptance reasons and proof-shape descriptions use author words
+  ("No new result: each main result follows from known results by applying
+  them directly …"); the referee terms bind-only, escape witness and
+  instantiation no longer reach author surfaces, pinned by a test. The
+  mathematical word "witness" itself stays where it names a witness.
 - The details mount of `RefereeWorkspace` no longer carries its own loading
   and error shell: the primary mount owns it for the shared referee resource,
   and the details render once the same file has loaded (one "Loading…" on the

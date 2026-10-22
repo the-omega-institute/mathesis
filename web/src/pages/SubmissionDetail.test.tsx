@@ -387,6 +387,7 @@ it.each([
     'S3',
     'contract',
     'workspace id',
+    'bind-only',
   ])
     expect(text.toLowerCase()).not.toContain(raw.toLowerCase());
   if (!reviewShown) return;

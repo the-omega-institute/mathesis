@@ -182,11 +182,10 @@ export const SHAPE_LABELS: { readonly [K in ProofShape]: string } = {
   content: 'Content',
 };
 export const SHAPE_DESCRIPTIONS: { readonly [K in ProofShape]: string } = {
-  undetermined: 'The evidence does not establish whether the proof exceeds binding operations.',
-  bind_only:
-    'The proof instantiates, projects or normalises prior results; no new proposition appears on its proof path.',
+  undetermined: 'The evidence does not show whether the proof goes beyond applying prior results.',
+  bind_only: 'The proof applies prior results directly; no new proposition appears along the way.',
   content:
-    'The proof path contains escape witnesses: new propositions that prior results do not give by binding alone.',
+    'The proof establishes new propositions that the cited results do not give by applying them directly.',
 };
 
 export const RELATION_LABELS: { readonly [K in PriorRelation]: string } = {
@@ -258,7 +257,7 @@ export function rejectReasonText(reason: RejectReason): string {
     case 'known_result':
       return `Known result: statement ${reason.claim} is stated in, or directly implied by, ${sourceLabel(reason.prior)}.`;
     case 'bind_only':
-      return 'Bind-only: no main result carries new content; each follows from prior results by instantiation, projection or normalisation.';
+      return 'No new result: each main result follows from known results by applying them directly; publication needs a proof that adds something the cited results do not already give.';
     case 'no_main_result':
       return 'No main result: the paper marks no proved statement as a main result.';
     case 'incorrect_result':

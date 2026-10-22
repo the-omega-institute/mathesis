@@ -1,3 +1,4 @@
+import type { RejectReason } from '../api/types';
 import { describe, expect, it } from 'vitest';
 import { paperSummary } from '../test/fixtures';
 import { nonStandardAxioms } from './axioms';
@@ -11,6 +12,8 @@ import {
   isOpenKind,
   parseMsc,
   rejectReasonText,
+  SHAPE_DESCRIPTIONS,
+  BASIS_DESCRIPTIONS,
 } from './labels';
 import { stageName } from './stages';
 
@@ -34,7 +37,7 @@ describe('labels', () => {
         prior: { kind: 'arxiv', locator: '1' },
       }),
     ).toBe('Known result: statement C1 is stated in, or directly implied by, arXiv:1.');
-    expect(rejectReasonText({ reason: 'bind_only' })).toMatch(/^Bind-only: no main result/);
+    expect(rejectReasonText({ reason: 'bind_only' })).toMatch(/^No new result: each main result/);
     expect(rejectReasonText({ reason: 'no_main_result' })).toMatch(/^No main result/);
     expect(rejectReasonText({ reason: 'hygiene', detail: 'pdflatex failed' })).toBe(
       'Source: pdflatex failed',
@@ -77,4 +80,28 @@ describe('labels', () => {
       'Ada Author and Ben Second. On sums of integers. Mathesis record WP-2026-0001, accepted 5 October 2026. doi:10.48550/arXiv.2609.33421 (https://doi.org/10.48550/arXiv.2609.33421). https://wishpool.dev/papers/WP-2026-0001',
     );
   });
+});
+
+it('states every non-acceptance reason and proof-shape description in author words', () => {
+  const reasons: RejectReason[] = [
+    { reason: 'hygiene', detail: 'upload a version that compiles' },
+    { reason: 'bind_only' },
+    { reason: 'no_main_result' },
+    { reason: 'incorrect_result', claim: 'C1' },
+    { reason: 'unchecked_result', claim: 'C1' },
+    {
+      reason: 'insufficient_evidence',
+      claim: 'C1',
+      detail: 'The literature comparison is incomplete.',
+    },
+    { reason: 'out_of_scope', detail: 'not mathematics' },
+  ];
+  const texts = [
+    ...reasons.map(rejectReasonText),
+    ...Object.values(SHAPE_DESCRIPTIONS),
+    ...Object.values(BASIS_DESCRIPTIONS),
+  ];
+  for (const text of texts)
+    for (const jargon of ['bind-only', 'bind_only', 'escape', 'witness', 'instantiat', 'normalis'])
+      expect(text.toLowerCase()).not.toContain(jargon);
 });
