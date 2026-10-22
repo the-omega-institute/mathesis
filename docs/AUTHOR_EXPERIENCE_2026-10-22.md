@@ -89,19 +89,30 @@ Verified in a local preview (dev sign-in, memory storage, no TeX): the Submit
 form, the compile-failure standing card with its "Upload a corrected version"
 control, and the My work row.
 
+- The details mount of `RefereeWorkspace` no longer carries its own loading
+  and error shell: the primary mount owns it for the shared referee resource,
+  and the details render once the same file has loaded (one "Loading…" on the
+  author page, tested).
+
 ## Remaining advisories (not blocking)
 
-- Two `RefereeWorkspace` mounts on the submission page each carry their own
-  loading shell; two author components receiving the loaded file would be
-  cleaner. Left as is: the reviewers found no contract failure and the
-  component is large.
 - Two moderate npm audit advisories in the vitest dev dependency predate this
   change.
 
 ## Conflict to resolve before merge
 
 The main working tree held an uncommitted web redesign dated 17 October 2026
-(44 files, including a rewrite of the submission page and an `authorReview`
-helper) on no branch or PR. This change does not build on it. The owner
-decides which lineage to keep; merging both will conflict in
-`SubmissionDetail.tsx`, `referee.tsx`, `reviewProgress.ts` and styles.
+(43 modified files plus nine new ones) on no branch or PR. This change does
+not build on it. The overlap, measured read-only on 22 October:
+
+| 2026-10-17 tree | This branch | Note |
+|---|---|---|
+| `web/src/lib/authorReview.ts` (status label/description/tone helper) | `web/src/lib/authorStanding.ts` | same purpose; this branch's version also gives next action, elapsed time, dated observation and feeds badge, card and rows |
+| `FinalReviewReport.tsx`, `ReviewOverview.tsx`, `WorkspaceTabs.tsx` (new) | outcome-first ordering inside `referee.tsx` and `SubmissionDetail.tsx` | different decomposition of the same page |
+| `formalizationStatus.ts` (new) | not covered | Lean status helper; could be carried over on its own |
+| 21 shared files incl. `SubmissionDetail.tsx`, `referee.tsx`, `reviewProgress.ts`, `labels.ts`, `Papers.tsx`, `layout.css` | modified here | textual merge conflicts certain |
+
+Decision for the owner: keep this branch (reviewed, tested, deployed) and
+port `formalizationStatus.ts` if wanted, or keep the 17 October tree and
+re-apply the reviewed behaviours. Doing both requires a manual merge of the
+21 shared files.

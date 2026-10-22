@@ -22,6 +22,7 @@ import type {
   RefereeRound,
   Step,
   Submission,
+  RefereeFile,
 } from '../api/types';
 import {
   AUDIT_FINDING_LABELS,
@@ -77,171 +78,174 @@ export function RefereeWorkspace(
   };
 
   if (!isStaff) {
+    const render = (file: RefereeFile) => {
+      const current = currentAuthorRound(submission, file);
+      const sent = file.letters.filter((letter) => letter.round === current?.number);
+      const earlier = file.letters.filter((letter) => !sent.includes(letter));
+      const hasReport =
+        current?.audit?.state.state === 'done' || current?.referee.state.state === 'done';
+      const hasActionableFinding =
+        submission.status.state !== 'draft' &&
+        submission.status.state !== 'withdrawn' &&
+        current?.audit?.state.state === 'done' &&
+        current.audit.state.result.concerns.some((finding) => finding.status === 'confirmed');
+      const primary = (
+        <>
+          {sent.length ? (
+            <section aria-label="Current Feedback letter">
+              <h2>Feedback letter</h2>
+              <SentLetters letters={sent} authorView />
+            </section>
+          ) : null}
+          <section aria-label="Readable review report">
+            <h2>Review report</h2>
+            <p className="small muted">
+              {hasActionableFinding
+                ? 'Respond to a finding below to request a recheck against your confirmed source.'
+                : hasReport
+                  ? 'No findings require a response in the available report.'
+                  : 'The readable report is not yet available.'}
+            </p>
+            {current?.audit?.state.state === 'done' ? (
+              <>
+                <h3>Source check</h3>
+                <Markdown text={current.audit.state.result.summary} />
+                {current.audit.state.result.claims.map((claim) => (
+                  <p key={claim.claim}>
+                    <strong>
+                      {claim.claim}: {correctnessLabel(claim.correctness)}.
+                    </strong>{' '}
+                    {claim.comment}
+                  </p>
+                ))}
+              </>
+            ) : null}
+            {current?.referee.state.state === 'done' ? (
+              <>
+                <h3>Referee report</h3>
+                <Markdown text={current.referee.state.result.summary} />
+                <MarkdownList items={current.referee.state.result.strengths} />
+                {current.referee.state.result.concerns.map((concern, i) => (
+                  <p key={i}>{concern.issue}</p>
+                ))}
+              </>
+            ) : null}
+            <ReviewFindings
+              submission={submission}
+              file={file}
+              onChange={resource.replace}
+              visibleRound={current?.number ?? -1}
+              showSourceIdentity={false}
+            />
+          </section>
+        </>
+      );
+      const details = (
+        <>
+          <ReviewFindings
+            submission={submission}
+            file={file}
+            onChange={resource.replace}
+            excludeRound={current?.number}
+          />
+          {current?.source_sha256 ? (
+            <p className="hint">
+              Source fingerprint (SHA-256):{' '}
+              <code style={{ overflowWrap: 'anywhere' }}>{current.source_sha256}</code>
+            </p>
+          ) : null}
+          {current ? <ReviewProgress round={current} includeFormal={includeFormal} /> : null}
+          {current?.review_method ? (
+            <p className="hint">
+              Review method: source-based mathematical reading and independent source check.
+            </p>
+          ) : null}
+          <div className="button-row">
+            <button type="button" className="button button-quiet button-small" onClick={reload}>
+              Refresh review
+            </button>
+            <a
+              className="button button-quiet button-small"
+              href={`/api/v1/submissions/${encodeURIComponent(submission.id)}/review`}
+            >
+              Download review report
+            </a>
+            <a
+              className="text-link"
+              href={`/api/v1/submissions/${encodeURIComponent(submission.id)}/review.md`}
+            >
+              Download readable report
+            </a>
+          </div>
+          {current ? (
+            <>
+              <ComputationEvidence round={current} />
+              <KnowledgeQueries round={current} submissionId={submission.id} />
+            </>
+          ) : null}
+          {current?.audit?.state.state === 'done' ? (
+            <AuditView audit={current.audit.state.result} />
+          ) : null}
+          {current?.referee.state.state === 'done' ? (
+            <details className="history">
+              <summary>Full referee report</summary>
+              <ReportView report={current.referee.state.result} submission={submission} />
+            </details>
+          ) : null}
+          {earlier.length ? (
+            <section aria-label="Earlier Feedback letters">
+              <h3>Earlier Feedback letters</h3>
+              <SentLetters letters={earlier} authorView />
+            </section>
+          ) : null}
+          {file.rounds
+            .filter((r) => r.number !== current?.number)
+            .map((round) => (
+              <section key={round.number}>
+                <h3>
+                  Earlier review: round {round.number} · source version {round.version}
+                </h3>
+                <ComputationEvidence round={round} />
+                <KnowledgeQueries round={round} submissionId={submission.id} />
+                {round.audit?.state.state === 'done' ? (
+                  <AuditView audit={round.audit.state.result} />
+                ) : null}
+                {round.referee.state.state === 'done' ? (
+                  <ReportView report={round.referee.state.result} submission={submission} />
+                ) : null}
+              </section>
+            ))}
+        </>
+      );
+      return presentation === 'primary' ? (
+        primary
+      ) : presentation === 'details' ? (
+        details
+      ) : (
+        <>
+          <PaperStanding submission={submission} file={file} />
+          {primary}
+          <StatementSummary submission={submission} round={current} />
+          <details className="history">
+            <summary>Details: evidence and review history</summary>
+            {details}
+          </details>
+        </>
+      );
+    };
+    if (presentation === 'details') {
+      // The primary mount owns the loading and error shell for the shared
+      // resource; the details appear once the same file has loaded.
+      return resource.state.status === 'ok' ? (
+        <section className="referee-panel" aria-label="Review details">
+          {render(resource.state.value)}
+        </section>
+      ) : null;
+    }
     return (
-      <section
-        className="referee-panel"
-        aria-label={presentation === 'details' ? 'Review details' : 'Review'}
-      >
+      <section className="referee-panel" aria-label="Review">
         <Async state={resource.state} onRetry={reload}>
-          {(file) => {
-            const current = currentAuthorRound(submission, file);
-            const sent = file.letters.filter((letter) => letter.round === current?.number);
-            const earlier = file.letters.filter((letter) => !sent.includes(letter));
-            const hasReport =
-              current?.audit?.state.state === 'done' || current?.referee.state.state === 'done';
-            const hasActionableFinding =
-              submission.status.state !== 'draft' &&
-              submission.status.state !== 'withdrawn' &&
-              current?.audit?.state.state === 'done' &&
-              current.audit.state.result.concerns.some((finding) => finding.status === 'confirmed');
-            const primary = (
-              <>
-                {sent.length ? (
-                  <section aria-label="Current Feedback letter">
-                    <h2>Feedback letter</h2>
-                    <SentLetters letters={sent} authorView />
-                  </section>
-                ) : null}
-                <section aria-label="Readable review report">
-                  <h2>Review report</h2>
-                  <p className="small muted">
-                    {hasActionableFinding
-                      ? 'Respond to a finding below to request a recheck against your confirmed source.'
-                      : hasReport
-                        ? 'No findings require a response in the available report.'
-                        : 'The readable report is not yet available.'}
-                  </p>
-                  {current?.audit?.state.state === 'done' ? (
-                    <>
-                      <h3>Source check</h3>
-                      <Markdown text={current.audit.state.result.summary} />
-                      {current.audit.state.result.claims.map((claim) => (
-                        <p key={claim.claim}>
-                          <strong>
-                            {claim.claim}: {correctnessLabel(claim.correctness)}.
-                          </strong>{' '}
-                          {claim.comment}
-                        </p>
-                      ))}
-                    </>
-                  ) : null}
-                  {current?.referee.state.state === 'done' ? (
-                    <>
-                      <h3>Referee report</h3>
-                      <Markdown text={current.referee.state.result.summary} />
-                      <MarkdownList items={current.referee.state.result.strengths} />
-                      {current.referee.state.result.concerns.map((concern, i) => (
-                        <p key={i}>{concern.issue}</p>
-                      ))}
-                    </>
-                  ) : null}
-                  <ReviewFindings
-                    submission={submission}
-                    file={file}
-                    onChange={resource.replace}
-                    visibleRound={current?.number ?? -1}
-                    showSourceIdentity={false}
-                  />
-                </section>
-              </>
-            );
-            const details = (
-              <>
-                <ReviewFindings
-                  submission={submission}
-                  file={file}
-                  onChange={resource.replace}
-                  excludeRound={current?.number}
-                />
-                {current?.source_sha256 ? (
-                  <p className="hint">
-                    Source fingerprint (SHA-256):{' '}
-                    <code style={{ overflowWrap: 'anywhere' }}>{current.source_sha256}</code>
-                  </p>
-                ) : null}
-                {current ? <ReviewProgress round={current} includeFormal={includeFormal} /> : null}
-                {current?.review_method ? (
-                  <p className="hint">
-                    Review method: source-based mathematical reading and independent source check.
-                  </p>
-                ) : null}
-                <div className="button-row">
-                  <button
-                    type="button"
-                    className="button button-quiet button-small"
-                    onClick={reload}
-                  >
-                    Refresh review
-                  </button>
-                  <a
-                    className="button button-quiet button-small"
-                    href={`/api/v1/submissions/${encodeURIComponent(submission.id)}/review`}
-                  >
-                    Download review report
-                  </a>
-                  <a
-                    className="text-link"
-                    href={`/api/v1/submissions/${encodeURIComponent(submission.id)}/review.md`}
-                  >
-                    Download readable report
-                  </a>
-                </div>
-                {current ? (
-                  <>
-                    <ComputationEvidence round={current} />
-                    <KnowledgeQueries round={current} submissionId={submission.id} />
-                  </>
-                ) : null}
-                {current?.audit?.state.state === 'done' ? (
-                  <AuditView audit={current.audit.state.result} />
-                ) : null}
-                {current?.referee.state.state === 'done' ? (
-                  <details className="history">
-                    <summary>Full referee report</summary>
-                    <ReportView report={current.referee.state.result} submission={submission} />
-                  </details>
-                ) : null}
-                {earlier.length ? (
-                  <section aria-label="Earlier Feedback letters">
-                    <h3>Earlier Feedback letters</h3>
-                    <SentLetters letters={earlier} authorView />
-                  </section>
-                ) : null}
-                {file.rounds
-                  .filter((r) => r.number !== current?.number)
-                  .map((round) => (
-                    <section key={round.number}>
-                      <h3>
-                        Earlier review: round {round.number} · source version {round.version}
-                      </h3>
-                      <ComputationEvidence round={round} />
-                      <KnowledgeQueries round={round} submissionId={submission.id} />
-                      {round.audit?.state.state === 'done' ? (
-                        <AuditView audit={round.audit.state.result} />
-                      ) : null}
-                      {round.referee.state.state === 'done' ? (
-                        <ReportView report={round.referee.state.result} submission={submission} />
-                      ) : null}
-                    </section>
-                  ))}
-              </>
-            );
-            return presentation === 'primary' ? (
-              primary
-            ) : presentation === 'details' ? (
-              details
-            ) : (
-              <>
-                <PaperStanding submission={submission} file={file} />
-                {primary}
-                <StatementSummary submission={submission} round={current} />
-                <details className="history">
-                  <summary>Details: evidence and review history</summary>
-                  {details}
-                </details>
-              </>
-            );
-          }}
+          {render}
         </Async>
       </section>
     );

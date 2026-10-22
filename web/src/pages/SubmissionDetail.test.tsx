@@ -441,3 +441,21 @@ it.each(['submission', 'review'] as const)(
       expect(notice.textContent).not.toMatch(/try again/i);
   },
 );
+
+it('shows one loading shell for the shared review resource on the author page', async () => {
+  const { container } = renderWithApp(
+    <SubmissionDetailPage id={accepted.id} />,
+    fakeApi(
+      {
+        getSubmission: vi.fn(async () => accepted),
+        referee: vi.fn(() => new Promise<never>(() => undefined)),
+      },
+      author,
+    ),
+  );
+  await screen.findByText(/Next action:/);
+  await userEvent.click(screen.getByText('Details: evidence, history and settings'));
+  expect(screen.getAllByText('Loading…')).toHaveLength(1);
+  expect(container.querySelector('.author-details .referee-panel')).toBeNull();
+  expect(screen.getByRole('region', { name: 'Review' })).toHaveTextContent('Loading…');
+});
