@@ -29,8 +29,10 @@ https://mathesis-omega-research.apps.chrono-ai.fun. The ChronoAI app is separate
 The patched Mathesis adapter also passed a live preflight and a complete durable
 Agent request, returning `{"status":"ok","product":323}`. It retained response
 `resp_ad3e647ad2884b948dfd76dc91bdda06` and Agent
-`agt_3784c22e83c74cbb83b0217ac13e2f7d` for asynchronous cleanup. Local validation:
-24 CMA tests, `cargo fmt --all --check`, and review-crate clippy with warnings denied.
+`agt_3784c22e83c74cbb83b0217ac13e2f7d` for asynchronous cleanup; its subsequent public state is `deleted` and the
+worktree is `removed`. Local validation covered 384 workspace tests, including
+MongoDB and TeX integration, and 331 frontend tests. The independent smoke does
+not prove that a manuscript can complete the full publication pipeline.
 
 ## Resource identity
 
@@ -55,6 +57,24 @@ file. Credentials are excluded from this record and from Git.
    readiness and liveness probes. Using Mathesis `/readyz` for worker liveness
    repeatedly restarts the container on an external CMA outage. Process liveness
    is `/healthz`; execution readiness must still be checked independently.
+
+## Validation incident and security patches
+
+The required API job could not start its MongoDB 8.0 service on the GitHub
+runner's Linux kernel (6.19 or newer). Its container reports SERVER-121912 and
+exits before application tests. The same workspace test command is validated
+against a disposable, loopback-only local MongoDB with the TeX test binary set;
+the existing shared CI workflow is unchanged.
+
+The existing security checks also identified outdated dependencies. Update Vite
+to 7.3.7, rustls-webpki to 0.103.16 and webpki-roots to 1.0.10 within their existing
+version constraints. The Rust patches address RUSTSEC-2026-0382 and
+RUSTSEC-2026-0381. Do not deploy the earlier image built before these patches.
+
+The proxy occasionally returned HTTP 500 or `503 store_failed` during follow-up
+reads, with `Authentication authority is temporarily unavailable`. Subsequent
+reads succeeded. Successful smoke tests establish capability, not uninterrupted
+platform availability.
 
 ## Remaining launch gates
 
