@@ -129,15 +129,17 @@ cargo run -p mathesis
 
 Production uses `WISHPOOL_ORACLE=http` with its separately provisioned Oracle
 credential, and CMA HTTP through
-`https://nyx-api.chrono-ai.fun/api/v1/proxy/s/cma`. CMA requires a NyxID **user**
-access token; `nyxid_ag_` agent keys are refused. Set `WISHPOOL_CMA_TOKEN_FILE`
-to a mounted token file, or select a stored delegated credential with
+`https://nyx-api.chrono-ai.fun/api/v1/proxy/s/cma`. Use a dedicated NyxID API key
+restricted to the operator's CMA service, or an ordinary NyxID user access token.
+Set `WISHPOOL_CMA_TOKEN_FILE` to a mounted credential file, or select a stored credential with
 `WISHPOOL_CMA_TOKEN_ACCOUNT` when delegated-token storage is enabled. Delegated
 credentials use the existing sealed refresh/rotation plumbing; the file is the
-fallback if refresh is unavailable. CMA v2 requires the resulting token to be
-an ordinary, unrestricted user access token: resource-scoped or delegated
-execution tokens are refused by CMA. Reusing refresh-token storage does not
-relax that contract; use a mounted user token when the stored grant is restricted.
+fallback if refresh is unavailable. Mounted access tokens do not refresh themselves;
+use the dedicated service key for unattended operation. A key's service scope and
+the owner's current CMA permissions remain enforced by NyxID and CMA. Direct CMA
+origins may refuse keys that work through the configured NyxID proxy. Restricted
+delegated execution tokens are not ordinary user credentials; reusing refresh-token
+storage does not change their authority.
 Tokens and deployment configuration never enter CMA input, state or logs.
 
 CLI mode authenticates with the local user's NyxID session and accesses remote

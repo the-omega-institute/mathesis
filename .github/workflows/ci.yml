@@ -61,6 +61,12 @@ jobs:
       mongo:
         image: mongo:8.0
         ports: ["27017:27017"]
+        # GitHub's ubuntu-24.04 runners moved to a Linux kernel in the 6.19–7.0.13
+        # range, where mongod 8.x refuses to start (SERVER-121912: the vendored
+        # TCMalloc's own rseq registration). Letting glibc own rseq makes
+        # TCMalloc fall back to its non-rseq path, which starts on those kernels.
+        env:
+          GLIBC_TUNABLES: glibc.pthread.rseq=1
     env:
       WISHPOOL_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
       WISHPOOL_TEST_TEX_BIN: /usr/bin
