@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { pdfHref } from '../../api/client';
 import { useApi } from '../../api/context';
 import type { Claim, ClaimKind, ClaimRole, Source, Submission } from '../../api/types';
 import {
@@ -35,6 +36,7 @@ export function ConfirmStatements({
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const pageSize = 5;
   const navigation = useRef<HTMLDivElement>(null);
   const moveTo = (next: number) => {
@@ -78,6 +80,7 @@ export function ConfirmStatements({
     event.preventDefault();
     const built = buildConfirmations(rows, submission.kind === 'conjecture');
     if (!built.ok) {
+      setAdjustmentsOpen(true);
       setError(built.error);
       return;
     }
@@ -96,156 +99,176 @@ export function ConfirmStatements({
   };
 
   return (
-    <form className="confirm-form" onSubmit={submit} aria-label="Confirm statements">
-      <p>
-        We found {extracted.length} statement{extracted.length === 1 ? '' : 's'} in your source. The
-        extracted labels, roles and dependencies are accepted by default. Edit only anything we read
-        incorrectly or exclude anything that does not belong in the review. You do not need to
-        rewrite the mathematics.{' '}
-        {submission.kind === 'conjecture'
-          ? 'Mark at least one conjecture or question as main.'
-          : 'Mark at least one proved statement as a main result.'}
-      </p>
-      <div className="confirmation-navigation" ref={navigation}>
-        <div className="confirmation-progress" role="status">
+    <form className="confirm-form" onSubmit={submit} aria-label="Start review">
+      <div className="confirm-launch">
+        <p>
           <strong>
-            {rows.length} statement{rows.length === 1 ? '' : 's'} ready
-          </strong>
-          <span>Defaults accepted; edit exceptions only.</span>
-        </div>
-        <div className="confirmation-controls">
-          <label>
-            Find a statement
-            <input
-              type="search"
-              value={query}
-              placeholder="Label, section or mathematical text"
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(0);
-              }}
-            />
-          </label>
-          <label>
-            Show
-            <select
-              value={filter}
-              onChange={(e) => {
-                setFilter(e.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="all">All statements</option>
-              <option value="main">Main results</option>
-            </select>
-          </label>
-          <label>
-            Jump to statement
-            <select
-              value=""
-              onChange={(e) => {
-                const index = rows.findIndex((r) => r.id === e.target.value);
-                setFilter('all');
-                setQuery('');
-                moveTo(Math.floor(index / pageSize));
-              }}
-            >
-              <option value="" disabled>
-                Choose statement…
-              </option>
-              {extracted.map((claim) => (
-                <option key={claim.id} value={claim.id}>
-                  {claim.id} · {claim.label}
-                  {claim.section ? ` · ${claim.section}` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <p className="hint">
-          This is a one-time source check before review. You only need to edit a row when the
-          extraction is wrong; unedited statements keep the extracted defaults.
+            {extracted.length} statement{extracted.length === 1 ? '' : 's'} detected.
+          </strong>{' '}
+          They will be included automatically; no statement-by-statement confirmation is needed.
         </p>
+        <div className="button-row">
+          {submission.versions.at(-1)?.pdf ? (
+            <a
+              className="button button-quiet"
+              href={pdfHref(submission.id, submission.versions.at(-1)!.number)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View compiled PDF
+            </a>
+          ) : null}
+          <button
+            type="submit"
+            className="button"
+            aria-label="Start review with these statements"
+            disabled={busy || !submission.versions.at(-1)?.pdf}
+          >
+            {busy ? 'Starting review…' : 'Start review'}
+          </button>
+        </div>
       </div>
-      <div className="table-wrap">
-        <table className="data-table confirm-table">
-          <caption className="visually-hidden">Extracted statements</caption>
-          <thead>
-            <tr>
-              <th scope="col">Statement</th>
-              <th scope="col" className="confirm-kind">
-                Kind
-              </th>
-              <th scope="col" className="confirm-role">
-                Role
-              </th>
-              <th scope="col" className="confirm-deps">
-                Uses
-              </th>
-              <th scope="col" className="confirm-exclude">
-                Exclude
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.map((row) => {
-              const claim = extracted.find((c) => c.id === row.id) as Claim;
-              return (
-                <ConfirmRowView
-                  key={row.id}
-                  row={row}
-                  claim={claim}
-                  rows={rows}
-                  extracted={extracted}
-                  onPatch={(patch) => {
-                    setRows((rs) => updateRow(rs, row.id, patch));
-                  }}
-                  onDependency={(dep, on) => {
-                    setRows((rs) => toggleDependency(rs, row.id, dep, on));
-                  }}
-                />
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {!filtered.length ? <p role="status">No statements match this view.</p> : null}
-      <nav className="button-row confirmation-pages" aria-label="Statement pages">
-        <button
-          type="button"
-          className="button button-quiet"
-          disabled={activePage === 0}
-          onClick={() => moveTo(activePage - 1)}
-        >
-          Previous statements
-        </button>
-        <span aria-live="polite">
-          Page {activePage + 1} of {Math.max(1, Math.ceil(filtered.length / pageSize))} ·{' '}
-          {filtered.length} matching
-        </span>
-        <button
-          type="button"
-          className="button button-quiet"
-          disabled={(activePage + 1) * pageSize >= filtered.length}
-          onClick={() => moveTo(activePage + 1)}
-        >
-          Next statements
-        </button>
-      </nav>
-      <p className="small" aria-live="polite">
-        {mainCount} main result{mainCount === 1 ? '' : 's'} · {excludedCount} excluded ·{' '}
-        {rows.length - excludedCount} included in review
-      </p>
-      <div className="button-row">
-        <button
-          type="submit"
-          className="button"
-          aria-label="Start review with these statements"
-          disabled={busy}
-        >
-          {busy ? 'Starting review…' : 'Start review'}
-        </button>
-      </div>
+      <details
+        className="confirm-adjustments"
+        open={adjustmentsOpen}
+        onToggle={(event) => setAdjustmentsOpen(event.currentTarget.open)}
+      >
+        <summary>Adjust detected statements (optional)</summary>
+        <p className="hint">
+          Use this only if the PDF and the detected statements do not match. The review needs at
+          least one{' '}
+          {submission.kind === 'conjecture'
+            ? 'main conjecture or question'
+            : 'main proved statement'}
+          .
+        </p>
+        <div className="confirmation-navigation" ref={navigation}>
+          <div className="confirmation-progress" role="status">
+            <strong>
+              {rows.length} statement{rows.length === 1 ? '' : 's'} detected
+            </strong>
+            <span>Only corrections are needed.</span>
+          </div>
+          <div className="confirmation-controls">
+            <label>
+              Find a statement
+              <input
+                type="search"
+                value={query}
+                placeholder="Label, section or mathematical text"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </label>
+            <label>
+              Show
+              <select
+                value={filter}
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <option value="all">All statements</option>
+                <option value="main">Main results</option>
+              </select>
+            </label>
+            <label>
+              Jump to statement
+              <select
+                value=""
+                onChange={(e) => {
+                  const index = rows.findIndex((r) => r.id === e.target.value);
+                  setFilter('all');
+                  setQuery('');
+                  moveTo(Math.floor(index / pageSize));
+                }}
+              >
+                <option value="" disabled>
+                  Choose statement…
+                </option>
+                {extracted.map((claim) => (
+                  <option key={claim.id} value={claim.id}>
+                    {claim.id} · {claim.label}
+                    {claim.section ? ` · ${claim.section}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="data-table confirm-table">
+            <caption className="visually-hidden">Extracted statements</caption>
+            <thead>
+              <tr>
+                <th scope="col">Statement</th>
+                <th scope="col" className="confirm-kind">
+                  Kind
+                </th>
+                <th scope="col" className="confirm-role">
+                  Role
+                </th>
+                <th scope="col" className="confirm-deps">
+                  Uses
+                </th>
+                <th scope="col" className="confirm-exclude">
+                  Exclude
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => {
+                const claim = extracted.find((c) => c.id === row.id) as Claim;
+                return (
+                  <ConfirmRowView
+                    key={row.id}
+                    row={row}
+                    claim={claim}
+                    rows={rows}
+                    extracted={extracted}
+                    onPatch={(patch) => {
+                      setRows((rs) => updateRow(rs, row.id, patch));
+                    }}
+                    onDependency={(dep, on) => {
+                      setRows((rs) => toggleDependency(rs, row.id, dep, on));
+                    }}
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!filtered.length ? <p role="status">No statements match this view.</p> : null}
+        <nav className="button-row confirmation-pages" aria-label="Statement pages">
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={activePage === 0}
+            onClick={() => moveTo(activePage - 1)}
+          >
+            Previous statements
+          </button>
+          <span aria-live="polite">
+            Page {activePage + 1} of {Math.max(1, Math.ceil(filtered.length / pageSize))} ·{' '}
+            {filtered.length} matching
+          </span>
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={(activePage + 1) * pageSize >= filtered.length}
+            onClick={() => moveTo(activePage + 1)}
+          >
+            Next statements
+          </button>
+        </nav>
+        <p className="small" aria-live="polite">
+          {mainCount} main result{mainCount === 1 ? '' : 's'} · {excludedCount} excluded ·{' '}
+          {rows.length - excludedCount} included in review
+        </p>
+      </details>
       <InlineError error={error} />
     </form>
   );

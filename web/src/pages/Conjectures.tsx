@@ -50,7 +50,7 @@ export function ConjecturesPage() {
   );
   const paged = usePaged(fetchPage);
   return (
-    <div className="page">
+    <div className="page discovery-page">
       <header className="page-head">
         <div>
           <h1>Conjectures</h1>

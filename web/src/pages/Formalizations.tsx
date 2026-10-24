@@ -30,7 +30,7 @@ export function FormalizationsPage() {
     setQuery(draft.trim());
   };
   return (
-    <div className="page">
+    <div className="page discovery-page">
       <header className="page-head">
         <div>
           <p className="eyebrow">Participate in mathematical research</p>

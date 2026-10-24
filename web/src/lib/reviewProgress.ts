@@ -61,9 +61,9 @@ export function reviewProgressText(
 function failedStageText(key: (typeof REVIEW_STAGES)[number][0]): string {
   switch (key) {
     case 'referee':
-      return 'Referee report needs attention. It could not be completed; your upload is saved, so please try the review again.';
+      return 'Referee report needs attention. The manuscript reading could not finish. Your upload is saved; this status does not identify a mathematical error.';
     case 'audit':
-      return 'Source audit needs attention. It could not be completed; your upload and referee report are saved, so you can try again or upload a corrected version.';
+      return 'Source audit needs attention. The referee report could not be fully checked against your manuscript. Your upload and report are saved; this status does not identify a mathematical error.';
     case 'advice':
       return 'Improvement suggestions need attention. They could not be prepared; the referee report and source check are still available.';
     case 'letter':

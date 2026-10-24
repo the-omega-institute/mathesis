@@ -556,7 +556,13 @@ export type ItemState =
   | { state: 'approved' }
   | { state: 'declined'; reason: string }
   | { state: 'in_progress' }
-  | { state: 'verified'; artifact: FormalArtifact; axioms: string[]; contribution?: string };
+  | {
+      state: 'verified';
+      artifact: FormalArtifact;
+      axioms: string[];
+      contribution?: string;
+      attribution?: FormalizationAttribution;
+    };
 export type FormalizationItem = {
   claim: string;
   reason: string;

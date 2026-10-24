@@ -40,7 +40,11 @@ function workspace(overrides: Partial<ApiClient> = {}, person = editor, paper = 
     },
     person,
   );
-  return { ...renderWithApp(<SubmissionDetailPage id={paper.id} />, api), api };
+  const staffOnly = person.roles.some((role) => ['editor', 'reviewer', 'admin'].includes(role));
+  return {
+    ...renderWithApp(<SubmissionDetailPage id={paper.id} staffOnly={staffOnly} />, api),
+    api,
+  };
 }
 
 async function staffPanel() {
@@ -324,12 +328,17 @@ describe('referee workspace', () => {
         },
         person,
       );
-      const heading = await screen.findByRole('heading', {
-        name: 'Sent editorial feedback Minor revision',
-      });
-      expect(
-        within(heading).getByText('Minor revision', { selector: '.badge' }),
-      ).toBeInTheDocument();
+      if (person === author) {
+        const heading = await screen.findByRole('heading', { name: 'Review report' });
+        const panel = heading.closest('section')!;
+        expect(within(panel).getByText('AI review')).toBeInTheDocument();
+        expect(within(panel).queryByText('Feedback letter')).toBeNull();
+      } else {
+        const panel = await staffPanel();
+        expect(
+          within(panel).getByText('Minor revision', { selector: '.badge' }),
+        ).toBeInTheDocument();
+      }
     },
   );
 
@@ -345,7 +354,7 @@ describe('referee workspace', () => {
     expect(badge.closest('summary')).toHaveTextContent(feedbackLetter.subject);
   });
 
-  it('gives authors sent letters newest first and folds the full referee report', async () => {
+  it('gives authors one final report without exposing worker stages', async () => {
     workspace(
       {
         referee: vi.fn(async () =>
@@ -358,41 +367,38 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      accepted,
     );
-    const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
-    const panel = heading.closest('section')!;
-    expect(panel).toHaveAccessibleName('Orchestra review');
-    const letters = heading.closest('ul')!;
-    expect(
-      within(letters)
-        .getAllByRole('heading', { level: 3 })
-        .map((h) => h.textContent),
-    ).toEqual(['Sent editorial feedback', 'Earlier feedback']);
+    const panel = await screen.findByRole('region', { name: 'AI review report' });
+    expect(within(panel).getByRole('heading', { name: 'Review report' })).toBeInTheDocument();
+    expect(panel).toHaveTextContent('Please clarify the base case');
     expect(panel.querySelector('.mop')).toHaveTextContent('rep');
     expect(panel.querySelector(KATEX_ERROR)).toBeNull();
-    expect(within(panel).getAllByText('Note', { selector: 'summary' })).toHaveLength(2);
     expect(screen.queryByRole('heading', { name: 'Review' })).toBeNull();
-    const fullReport = within(panel).getByText('Full referee report', { selector: 'summary' });
-    expect(fullReport.closest('details')).not.toHaveAttribute('open');
-    expect(within(panel).getByText(/Referee recommends/)).not.toBeVisible();
-    await userEvent.click(fullReport);
-    expect(within(panel).getByText(/Referee recommends/)).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'Contributor advice' })).toBeNull();
+    expect(within(panel).queryByText('Source audit')).toBeNull();
+    expect(within(panel).queryByText('Improvement suggestions')).toBeNull();
+    expect(within(panel).queryByText('Feedback letter')).toBeNull();
     expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
   });
 
-  it('shows available review progress and report before the letter arrives', async () => {
+  it('keeps the final report hidden until the letter arrives', async () => {
     const referee = vi.fn(async () => refereeFile());
     workspace({ referee }, author);
     await waitFor(() => {
       expect(referee).toHaveBeenCalledOnce();
-      expect(screen.getByRole('region', { name: 'Orchestra review' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'AI review report' })).toBeInTheDocument();
     });
-    expect(screen.getByText('Full referee report', { selector: 'summary' })).toBeInTheDocument();
+    expect(screen.queryByText('Assessment', { selector: 'h3' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Points to address' })).toBeNull();
+    expect(
+      screen.getByText(
+        'The AI review is in progress. The final report will appear here when it is ready.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText('No feedback letters have been sent.')).toBeNull();
   });
 
-  it('previews the first two paragraphs of a long letter and reveals the rest and note on expansion', async () => {
+  it('renders the complete final report and note without a second expansion step', async () => {
     const paragraphs = [
       'Dear author,',
       'We checked the induction step.',
@@ -414,23 +420,13 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      accepted,
     );
-    const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
-    const panel = heading.closest('section')!;
-    for (const paragraph of paragraphs.slice(0, 2))
-      expect(within(panel).getByText(paragraph)).toBeVisible();
-    for (const paragraph of paragraphs.slice(2))
-      expect(within(panel).queryByText(paragraph)).toBeNull();
-    expect(within(panel).queryByText('Note', { selector: 'summary' })).toBeNull();
-    expect(within(panel).queryByText('A detailed editorial note.')).toBeNull();
-    await userEvent.click(within(panel).getByRole('button', { name: 'Read the full letter' }));
+    const panel = await screen.findByRole('region', { name: 'AI review report' });
     for (const paragraph of paragraphs) expect(within(panel).getByText(paragraph)).toBeVisible();
-    expect(within(panel).queryByRole('button', { name: 'Read the full letter' })).toBeNull();
-    const note = within(panel).getByText('Note', { selector: 'summary' });
-    expect(note).toBeVisible();
-    expect(within(panel).getByText('A detailed editorial note.')).not.toBeVisible();
-    await userEvent.click(note);
+    expect(within(panel).getByText('Additional detail')).toBeVisible();
     expect(within(panel).getByText('A detailed editorial note.')).toBeVisible();
+    expect(within(panel).queryByRole('button', { name: 'Read the full letter' })).toBeNull();
   });
 
   it('shows a letter of three paragraphs in full without an expansion button', async () => {
@@ -444,12 +440,12 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      accepted,
     );
-    const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
-    const panel = heading.closest('section')!;
+    const panel = await screen.findByRole('region', { name: 'AI review report' });
     for (const paragraph of paragraphs) expect(within(panel).getByText(paragraph)).toBeVisible();
     expect(within(panel).queryByRole('button', { name: 'Read the full letter' })).toBeNull();
-    expect(within(panel).queryByText('Note', { selector: 'summary' })).toBeNull();
+    expect(within(panel).queryByText('Additional detail')).toBeNull();
   });
 
   it('gives reviewers and admins the staff view, with mutations reserved for editors and admins', async () => {
@@ -776,7 +772,15 @@ describe('referee polling', () => {
     expect(referee).toHaveBeenCalledTimes(2);
   });
 
-  it.each([submission, accepted, notAccepted])(
+  it.each([
+    {
+      ...submission,
+      purpose: 'review_only' as const,
+      status: { state: 'review_complete' as const },
+    },
+    accepted,
+    notAccepted,
+  ])(
     'polls with no letter section, then refreshes delivered letters on focus while $status.state',
     async (paper) => {
       vi.useFakeTimers();
@@ -790,7 +794,7 @@ describe('referee polling', () => {
       const view = polling(referee, false, paper);
       await act(async () => {});
       expect(view.container).not.toBeEmptyDOMElement();
-      expect(screen.getByRole('region', { name: 'Orchestra review' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'AI review report' })).toBeInTheDocument();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(29_999);
       });
@@ -799,15 +803,19 @@ describe('referee polling', () => {
         await vi.advanceTimersByTimeAsync(1);
       });
       expect(referee).toHaveBeenCalledTimes(2);
-      expect(screen.getByRole('region', { name: 'Orchestra review' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Sent editorial feedback' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'AI review report' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'AI review report' })).toHaveTextContent(
+        'Please clarify the base case',
+      );
       await act(async () => {
         fireEvent.focus(window);
       });
       expect(referee).toHaveBeenCalledTimes(3);
-      expect(screen.getByRole('heading', { name: 'New feedback on focus' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'AI review report' })).toHaveTextContent(
+        'Please clarify the base case',
+      );
       expect(screen.queryByRole('heading', { name: 'Review' })).toBeNull();
-      expect(screen.getByText('Full referee report', { selector: 'summary' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Review report' })).toBeInTheDocument();
       expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
     },
   );
@@ -820,14 +828,14 @@ describe('referee polling', () => {
       .mockResolvedValueOnce(refereeFile())
       .mockRejectedValueOnce(new Error('Another temporary failure'))
       .mockResolvedValue(refereeFile({ letters: [feedbackLetter] }));
-    polling(referee, false);
+    polling(referee, false, accepted);
     await act(async () => {});
     expect(screen.getByRole('alert')).toHaveTextContent('Temporary connection failure');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('region', { name: 'Orchestra review' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'AI review report' })).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
@@ -837,8 +845,10 @@ describe('referee polling', () => {
     });
     expect(referee).toHaveBeenCalledTimes(4);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('region', { name: 'Orchestra review' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Sent editorial feedback' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'AI review report' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'AI review report' })).toHaveTextContent(
+      'Please clarify the base case',
+    );
   });
 
   it('cleans up author polling, focus refresh and the request on unmount', async () => {
@@ -877,17 +887,19 @@ it('shows private review completion without requesting a publication decision', 
     status: { state: 'review_complete' },
     decision: undefined,
   });
-  expect(await screen.findByText('Your private review is ready')).toBeInTheDocument();
-  expect(await screen.findByRole('link', { name: 'Download readable report' })).toHaveAttribute(
-    'href',
-    `/api/v1/submissions/${submission.id}/review.md`,
-  );
+  expect(
+    (await screen.findAllByText('Review in progress', { selector: '.badge' })).length,
+  ).toBeGreaterThan(0);
+  expect(screen.queryByRole('link', { name: 'Download report' })).toBeNull();
+  expect(
+    screen.getByText(
+      'The assessment is complete and the final report is being prepared. Your private review does not include a publication decision.',
+    ),
+  ).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Publication decision' })).toBeNull();
   expect(previewDecision).not.toHaveBeenCalled();
   expect(screen.queryByText(/Volunteer contributors may help analyse/)).toBeNull();
-  expect(
-    screen.getByText('Advanced: compute settings and history').closest('details'),
-  ).not.toHaveAttribute('open');
+  expect(screen.queryByText('Advanced: compute settings and history')).toBeNull();
 });
 
 it('does not mistake hidden author letter fields for a finished review without delivery', async () => {
@@ -902,10 +914,10 @@ it('does not mistake hidden author letter fields for a finished review without d
     },
     author,
   );
-  const panel = await screen.findByRole('region', { name: 'Orchestra review' });
+  const panel = await screen.findByRole('region', { name: 'AI review report' });
   expect(
     await within(panel).findByText(
-      'The source audit is complete. The feedback letter has not been delivered yet.',
+      'The AI review is in progress. The final report will appear here when it is ready.',
     ),
   ).toBeInTheDocument();
   expect(within(panel).queryByText('The review finished without a letter.')).toBeNull();
@@ -935,12 +947,16 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
     .mockResolvedValueOnce(refereeFile({ rounds: [running] }))
     .mockRejectedValueOnce(new Error('Connection interrupted'))
     .mockResolvedValue(refereeFile({ rounds: [finished], letters: [feedbackLetter] }));
-  polling(referee, false);
+  polling(referee, false, {
+    ...submission,
+    purpose: 'review_only',
+    status: { state: 'review_complete' },
+  });
   await act(async () => {});
-  expect(screen.getByRole('status')).toHaveTextContent('Improvement suggestions are in progress.');
-  const timeline = screen.getByRole('list', { name: 'Review stage details' });
-  expect(within(timeline).getAllByRole('listitem')).toHaveLength(4);
-  expect(within(timeline).getByText('In progress')).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'The assessment is complete and the final report is being prepared.',
+  );
+  expect(screen.queryByRole('list', { name: 'Review stage details' })).toBeNull();
   expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
@@ -949,7 +965,9 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
   });
-  expect(screen.getByRole('status')).toHaveTextContent('Your feedback letter is ready below.');
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Your private AI review is complete. Read the report below for the assessment and suggestions.',
+  );
   await act(async () => {
     await vi.advanceTimersByTimeAsync(90_000);
   });
@@ -958,10 +976,7 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
     fireEvent.focus(window);
   });
   expect(referee).toHaveBeenCalledTimes(4);
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh review' }));
-  });
-  expect(referee).toHaveBeenCalledTimes(5);
+  expect(screen.queryByRole('button', { name: 'Refresh review' })).toBeNull();
 });
 
 it('shows a failed hidden letter without leaking its payload or claiming it is still being written', async () => {
@@ -990,8 +1005,8 @@ it('shows a failed hidden letter without leaking its payload or claiming it is s
     },
     author,
   );
-  const panel = await screen.findByRole('region', { name: 'Orchestra review' });
-  expect(await within(panel).findByText(/Feedback letter needs attention/)).toBeVisible();
+  const panel = await screen.findByRole('region', { name: 'AI review report' });
+  expect(await within(panel).findByText('Review incomplete')).toBeVisible();
   expect(within(panel).queryByText(/has not been delivered yet/)).toBeNull();
 });
 
@@ -1048,10 +1063,12 @@ it('keeps polling a saved response before the worker admits its next round', asy
     status: { state: 'review_complete' },
   });
   await act(async () => {});
-  expect(screen.getByRole('status')).toHaveTextContent('A follow-up review is waiting to start.');
+  expect(screen.getByRole('status')).toHaveTextContent('Your response is saved');
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
   });
   expect(referee).toHaveBeenCalledTimes(2);
-  expect(screen.getByRole('status')).toHaveTextContent('Referee report is in progress.');
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Your response is saved and a follow-up review is in progress',
+  );
 });

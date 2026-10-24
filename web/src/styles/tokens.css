@@ -15,34 +15,34 @@
     'Source Han Serif SC', 'Noto Serif SC', 'SimSun', Georgia, serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
-  --bg: #faf9f6;
-  --surface: #ffffff;
-  --surface-sunk: #f0efe9;
-  --ink: #242e29;
-  --ink-soft: #4c5750;
-  --muted: #6c736b;
-  --rule: #e0e3da;
-  --rule-strong: #c4cdc1;
-  --accent: #285744;
+  --bg: #fbfaf7;
+  --surface: #fffefa;
+  --surface-sunk: #f1efe9;
+  --ink: #292824;
+  --ink-soft: #55534e;
+  --muted: #716e67;
+  --rule: #e0dcd3;
+  --rule-strong: #bcb6aa;
+  --accent: #773c36;
   --accent-ink: #ffffff;
-  --accent-soft: #eaf0e8;
-  --link: #285744;
+  --accent-soft: #f2e8e4;
+  --link: #773c36;
   --good: #2b6a3d;
   --good-soft: #e5f1e8;
   --warn: #84560a;
   --warn-soft: #f8eedb;
   --bad: #9a2a2a;
   --bad-soft: #f8e5e3;
-  --focus: #36795e;
+  --focus: #99564d;
 
-  --art-line: #54856a;
-  --callout-bg: #244b3b;
-  --callout-ink: #f1f4e9;
-  --callout-muted: #cedbcd;
-  --shadow: 0 8px 28px rgb(28 48 34 / 0.05);
+  --art-line: #a69a87;
+  --callout-bg: #34332f;
+  --callout-ink: #faf7ef;
+  --callout-muted: #d4cfc3;
+  --shadow: 0 4px 20px rgb(41 40 36 / 0.06);
   --border: var(--rule);
 
-  --radius: 8px;
+  --radius: 3px;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -50,39 +50,40 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --space-7: 3rem;
-  --measure: 42rem;
-  --page: 112rem;
+  --measure: 44rem;
+  --reading-page: 70rem;
+  --page: 84rem;
   --gutter: 1.25rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --art-line: #8cbd99;
+    --art-line: #b9aa93;
     --shadow: 0 8px 28px rgb(0 0 0 / 0.14);
-    --bg: #151c18;
-    --surface: #1b241e;
-    --surface-sunk: #111812;
-    --ink: #eceee5;
-    --ink-soft: #c6cec2;
-    --muted: #a0ad9e;
-    --rule: #303e32;
-    --rule-strong: #4a5d4b;
-    --accent: #a0c9af;
-    --accent-ink: #14261c;
-    --accent-soft: #26382b;
-    --link: #afd4b8;
+    --bg: #1c1c1a;
+    --surface: #242420;
+    --surface-sunk: #181815;
+    --ink: #edeae2;
+    --ink-soft: #cec9bd;
+    --muted: #aaa497;
+    --rule: #393831;
+    --rule-strong: #625d50;
+    --accent: #dda89b;
+    --accent-ink: #251916;
+    --accent-soft: #382925;
+    --link: #e5b4a6;
     --good: #8fca9e;
     --good-soft: #1d2d22;
     --warn: #e2bb6e;
     --warn-soft: #33291a;
     --bad: #f0a19b;
     --bad-soft: #3a2020;
-    --focus: #b0dfb7;
+    --focus: #efbeaf;
   }
 }
 
 @media (min-width: 40rem) {
   :root {
-    --gutter: clamp(2rem, 3vw, 4rem);
+    --gutter: clamp(1.5rem, 3vw, 2.5rem);
   }
 }

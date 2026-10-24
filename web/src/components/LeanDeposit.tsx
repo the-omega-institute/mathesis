@@ -62,13 +62,15 @@ function DepositForm({
   const api = useApi();
   const { person } = useSession();
   const [title, setTitle] = useState(target ? `${target.title} — ${target.claim.label}` : '');
-  const [authors, setAuthors] = useState(originalAuthors?.join('\n') ?? person?.display_name ?? '');
+  const [authors, setAuthors] = useState<string[]>(() =>
+    originalAuthors?.length ? originalAuthors : [person?.display_name ?? ''],
+  );
   const [statement, setStatement] = useState(target?.claim.statement ?? '');
   const [reference, setReference] = useState(
     target ? `${window.location.origin}/papers/${encodeURIComponent(target.record)}` : '',
   );
   const [toolchain, setToolchain] = useState(target?.target?.toolchain ?? '');
-  const [formalizers, setFormalizers] = useState(person?.display_name ?? '');
+  const [formalizers, setFormalizers] = useState<string[]>([person?.display_name ?? '']);
   const [sourceRevision, setSourceRevision] = useState('');
   const [supporting, setSupporting] = useState<File[]>([]);
   const [project, setProject] = useState<LeanProject | null>(null);
@@ -134,16 +136,10 @@ function DepositForm({
     return {
       modules,
       project_files: project?.project_files,
-      formalizers: formalizers
-        .split('\n')
-        .map((a) => a.trim())
-        .filter(Boolean),
+      formalizers: formalizers.map((a) => a.trim()).filter(Boolean),
       ...(sourceRevision.trim() ? { source_revision: sourceRevision.trim() } : {}),
       title,
-      authors: authors
-        .split('\n')
-        .map((a) => a.trim())
-        .filter(Boolean),
+      authors: authors.map((a) => a.trim()).filter(Boolean),
       statement,
       source_reference: { kind: 'url', locator: reference },
       toolchain,
@@ -239,22 +235,26 @@ function DepositForm({
               onChange={(e) => setTitle(e.target.value)}
             />
           </Field>
-          <Field label="Original authors (one per line)" htmlFor="lean-authors">
-            <textarea
-              id="lean-authors"
-              required
-              value={authors}
-              onChange={(e) => setAuthors(e.target.value)}
-            />
-          </Field>
-          <Field label="Formalization contributors (one per line)" htmlFor="lean-formalizers">
-            <textarea
-              id="lean-formalizers"
-              value={formalizers}
-              onChange={(e) => setFormalizers(e.target.value)}
-              placeholder="People who wrote the Lean formalization"
-            />
-          </Field>
+          <NameListField
+            label="Original authors"
+            itemLabel="Author"
+            values={authors}
+            onChange={setAuthors}
+            required
+            description={
+              target
+                ? 'Taken from the research record. Edit only if the attribution needs correction.'
+                : 'Record the researchers credited on the original result.'
+            }
+          />
+          <NameListField
+            label="Formalization contributors"
+            itemLabel="Contributor"
+            values={formalizers}
+            onChange={setFormalizers}
+            description="Credit the people who wrote or maintained the Lean formalization."
+            allowEmpty
+          />
           <Field
             label="Git commit (optional)"
             htmlFor="lean-revision"
@@ -438,6 +438,71 @@ function DepositForm({
     </>
   );
 }
+
+function NameListField({
+  label,
+  itemLabel,
+  values,
+  onChange,
+  description,
+  required = false,
+  allowEmpty = false,
+}: {
+  label: string;
+  itemLabel: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+  description: string;
+  required?: boolean;
+  allowEmpty?: boolean;
+}) {
+  const fieldId = label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-');
+  return (
+    <fieldset className="name-list-field">
+      <legend>{label}</legend>
+      <p className="hint">{description}</p>
+      <div className="name-list">
+        {values.map((value, index) => {
+          const id = `${fieldId}-${index}`;
+          return (
+            <div className="name-list-row" key={id}>
+              <label htmlFor={id}>
+                {itemLabel} {index + 1}
+              </label>
+              <input
+                id={id}
+                required={required}
+                maxLength={200}
+                value={value}
+                placeholder={index === 0 ? 'Full name as it should appear in the record' : ''}
+                onChange={(event) =>
+                  onChange(values.map((entry, i) => (i === index ? event.target.value : entry)))
+                }
+              />
+              {allowEmpty || values.length > 1 ? (
+                <button
+                  type="button"
+                  className="button button-quiet button-small"
+                  onClick={() => onChange(values.filter((_, i) => i !== index))}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        className="button button-quiet button-small"
+        onClick={() => onChange([...values, ''])}
+      >
+        Add {itemLabel.toLowerCase()}
+      </button>
+    </fieldset>
+  );
+}
+
 export function LeanWorkspace() {
   const api = useApi();
   const fetchPage = useCallback(

@@ -1,13 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Caslon+Display&display=swap');
+@import '../src/styles/tokens.css';
 
 :root {
-  font-family: 'DM Sans', sans-serif;
-  color: #25372f;
-  background: #f8f7f2;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--bg);
   font-synthesis: none;
-  --green: #173e32;
-  --muted: #59665d;
-  --line: #d9ddd0;
+  --showcase-accent: var(--accent);
+  --line: var(--rule);
 }
 * {
   box-sizing: border-box;
@@ -27,14 +26,14 @@ a:hover {
   text-decoration: underline;
 }
 a:focus-visible {
-  outline: 3px solid #947430;
+  outline: 3px solid var(--focus);
   outline-offset: 6px;
 }
 [hidden] {
   display: none !important;
 }
 .wrap {
-  width: min(1180px, calc(100% - 96px));
+  width: min(1180px, calc(100% - 80px));
   margin-inline: auto;
 }
 .skip {
@@ -42,13 +41,14 @@ a:focus-visible {
   top: -100px;
   left: 20px;
   z-index: 5;
-  background: white;
+  background: var(--surface);
   padding: 14px;
 }
 .skip:focus {
   top: 12px;
 }
 .site-header {
+  border-top: 2px solid var(--accent);
   min-height: 100px;
   display: flex;
   align-items: center;
@@ -67,16 +67,13 @@ a:focus-visible {
   text-decoration: none;
 }
 .mark {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  background: var(--green);
-  color: #f8f7f2;
-  border-radius: 50%;
-  font-size: 29px;
-  padding-bottom: 5px;
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+  stroke: currentColor;
+  stroke-width: 1.4;
 }
+
 nav {
   display: flex;
   gap: 30px;
@@ -88,15 +85,15 @@ nav a {
 }
 .nav-source {
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 10px 18px;
 }
 .hero {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
   align-items: center;
-  gap: 80px;
-  padding-block: 70px 68px;
+  gap: 64px;
+  padding-block: 64px;
 }
 .eyebrow {
   font-size: 10px;
@@ -111,24 +108,25 @@ nav a {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--green);
+  background: var(--showcase-accent);
   margin-right: 8px;
   vertical-align: middle;
 }
 h1,
 h2 {
-  font-family: 'Libre Caslon Display', Georgia, serif;
+  font-family: var(--font-serif);
   font-weight: 400;
-  color: var(--green);
+  color: var(--ink);
   margin: 0;
 }
 h1 {
-  font-size: clamp(62px, 6.2vw, 86px);
-  line-height: 0.99;
-  letter-spacing: -2.6px;
+  font-size: clamp(42px, 4.6vw, 62px);
+  line-height: 1.12;
+  letter-spacing: -1.8px;
+  text-wrap: balance;
 }
 h2 {
-  font-size: clamp(38px, 3.8vw, 53px);
+  font-size: clamp(32px, 3.4vw, 44px);
   line-height: 1.12;
   letter-spacing: -1px;
 }
@@ -136,7 +134,8 @@ em {
   font-weight: 400;
 }
 .lede {
-  font-size: 15px;
+  font-family: var(--font-serif);
+  font-size: 18px;
   line-height: 1.85;
   color: var(--muted);
   max-width: 460px;
@@ -153,16 +152,16 @@ em {
   gap: 26px;
   align-items: center;
   justify-content: center;
-  background: var(--green);
-  color: #fff;
+  background: var(--showcase-accent);
+  color: var(--accent-ink);
   padding: 15px 21px;
-  border-radius: 3px;
+  border-radius: var(--radius);
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
 }
 .button:hover {
-  background: #285341;
+  background: var(--ink);
   text-decoration: none;
 }
 .text-link {
@@ -179,10 +178,10 @@ em {
 }
 .proof-map {
   margin: 0;
-  background: #eeeee3;
+  background: var(--surface-sunk);
   border: 1px solid var(--line);
   padding: 25px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   position: relative;
 }
 .map-heading {
@@ -195,11 +194,11 @@ em {
 .geometry {
   display: block;
   width: 100%;
-  height: 245px;
-  color: #889b7c;
+  height: 180px;
+  color: var(--art-line);
 }
 .geometry text {
-  fill: var(--green);
+  fill: var(--showcase-accent);
   stroke: none;
   font:
     italic 27px Georgia,
@@ -209,15 +208,15 @@ em {
   display: flex;
   align-items: center;
   gap: 14px;
-  border: 1px solid #d3d9ca;
+  border: 1px solid var(--rule);
   padding: 15px;
-  background: #fafaf4;
+  background: var(--surface);
   margin-bottom: 9px;
-  border-radius: 3px;
+  border-radius: var(--radius);
 }
 .note-number {
   font-size: 10px;
-  color: #687b63;
+  color: var(--muted);
   width: 35px;
 }
 .map-note strong {
@@ -233,13 +232,13 @@ em {
   line-height: 1.6;
 }
 .map-note.accent {
-  background: var(--green);
-  color: white;
-  border-color: var(--green);
+  background: var(--showcase-accent);
+  color: var(--accent-ink);
+  border-color: var(--showcase-accent);
 }
 .map-note.accent .note-number,
 .map-note.accent div span {
-  color: #c5d4b9;
+  color: var(--accent-ink);
 }
 .map-note.accent > span:last-child {
   font:
@@ -262,12 +261,12 @@ figcaption {
   font-size: 11px;
 }
 .principles span::before {
-  content: '✳';
+  content: '—';
   margin-right: 14px;
-  color: #7c8c67;
+  color: var(--accent);
 }
 .section {
-  padding-block: 85px;
+  padding-block: 64px;
 }
 .section-heading {
   margin-bottom: 40px;
@@ -286,17 +285,18 @@ figcaption {
   gap: 36px;
 }
 .services article {
-  border-top: 1px solid #aebaa7;
+  border-top: 1px solid var(--rule-strong);
   padding-top: 24px;
 }
 .service-number {
   font:
     italic 27px Georgia,
     serif;
-  color: #849276;
+  color: var(--accent);
 }
 h3 {
-  font-size: 18px;
+  font-family: var(--font-serif);
+  font-size: 22px;
   font-weight: 500;
   letter-spacing: -0.4px;
   margin: 19px 0 12px;
@@ -313,7 +313,7 @@ h3 {
   margin-top: 12px;
 }
 .process {
-  background: #eaece2;
+  background: var(--surface-sunk);
   padding-block: 70px;
 }
 .steps {
@@ -325,12 +325,12 @@ h3 {
   gap: 30px;
 }
 .steps li {
-  border-top: 1px solid #b1bca5;
+  border-top: 1px solid var(--rule-strong);
   padding-top: 20px;
 }
 .steps li > span {
   font-size: 11px;
-  color: #56694e;
+  color: var(--muted);
 }
 .steps h3 {
   font-size: 15px;
@@ -339,7 +339,7 @@ h3 {
   font-size: 12px;
 }
 .process-footnote {
-  border-top: 1px solid #cbd1c0;
+  border-top: 1px solid var(--rule);
   padding-top: 22px;
   font-size: 10px;
   color: var(--muted);
@@ -348,7 +348,7 @@ h3 {
 .trust {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
-  gap: 100px;
+  gap: 64px;
 }
 .trust-list {
   margin: 0;
@@ -369,16 +369,16 @@ h3 {
   color: var(--muted);
 }
 .start {
-  background: var(--green);
-  color: #ebefdf;
+  background: var(--callout-bg);
+  color: var(--callout-ink);
   padding: 50px;
   display: grid;
   grid-template-columns: 1.4fr 1fr;
   gap: 85px;
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 .start h2 {
-  color: #f4f3e5;
+  color: var(--callout-ink);
 }
 .start p:not(.eyebrow) {
   font-size: 12px;
@@ -386,15 +386,15 @@ h3 {
   margin-block: 22px;
 }
 .start .eyebrow {
-  color: #bdcbb0;
+  color: var(--callout-muted);
   margin-bottom: 15px;
 }
 .light {
-  background: #edf0e1;
-  color: var(--green);
+  background: var(--callout-ink);
+  color: var(--callout-bg);
 }
 .light:hover {
-  background: white;
+  background: var(--callout-muted);
 }
 .stack {
   align-self: center;
@@ -402,17 +402,17 @@ h3 {
 .stack > span {
   font-size: 9px;
   letter-spacing: 1.5px;
-  color: #c0ceba;
+  color: var(--callout-muted);
 }
 .stack p {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid #40614f;
+  border-bottom: 1px solid var(--rule-strong);
   padding-bottom: 12px;
   gap: 20px;
 }
 .stack p span {
-  color: #c0ceba;
+  color: var(--callout-muted);
   font-size: 10px;
 }
 .site-footer {
@@ -433,7 +433,7 @@ h3 {
 }
 @media (min-width: 1500px) {
   .hero {
-    padding-block: 90px;
+    padding-block: 72px;
   }
 }
 @media (max-width: 1000px) {
@@ -466,11 +466,15 @@ h3 {
   }
   .site-header {
     min-height: 80px;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding-block: 18px;
   }
   .wordmark {
     font-size: 26px;
   }
   nav {
+    flex-wrap: wrap;
     gap: 14px;
     font-size: 11px;
   }
@@ -486,7 +490,7 @@ h3 {
     gap: 35px;
   }
   h1 {
-    font-size: 70px;
+    font-size: clamp(36px, 7.5vw, 54px);
   }
   .hero .eyebrow {
     font-size: 9px;
@@ -547,10 +551,7 @@ h3 {
 }
 @media (max-width: 370px) {
   h1 {
-    font-size: 60px;
-  }
-  .mark {
-    display: none;
+    font-size: 36px;
   }
   .steps {
     grid-template-columns: 1fr;
