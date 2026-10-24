@@ -9,7 +9,7 @@ import { useApi } from '../api/context';
 import { usePolicy } from '../api/policy';
 import { useAsync } from '../api/useAsync';
 import { useReferee } from '../api/useReferee';
-import { hasWaitingResponse } from '../lib/reviewProgress';
+import { authorStanding } from '../lib/authorStanding';
 import type { Decision, PolicyDocument, RejectReason, Submission } from '../api/types';
 import { hasRole, useSession } from '../auth/session';
 import { AnalysisView, ConjectureList } from '../components/Analysis';
@@ -119,11 +119,15 @@ export function Workspace({
   const [revising, setRevising] = useState(false);
   const showRevisionForm =
     revising &&
-    (state === 'in_review' ||
+    ((state === 'draft' && !!s.versions.at(-1)?.compile_error) ||
+      state === 'in_review' ||
       state === 'accepted' ||
       state === 'not_accepted' ||
       state === 'review_complete') &&
     isAuthor;
+  useEffect(() => {
+    if (showRevisionForm) document.getElementById('version-file')?.focus();
+  }, [showRevisionForm]);
 
   // Keyed on the revision, so every change reloads the preview and the analysis.
   const revision = s.revision;
@@ -147,10 +151,8 @@ export function Workspace({
   const analysis = useAsync(reviewed ? loadAnalysis : null);
   const preview = decision.value ?? s.decision ?? null;
   const current = s.versions[s.versions.length - 1];
-  const awaitingRecheck = hasWaitingResponse(referee.value, s);
-  const currentReview = [...(referee.value?.rounds ?? [])]
-    .reverse()
-    .find((r) => r.version === current?.number && r.claims_revision === s.claims_revision);
+  const standing = authorStanding(s, referee.value);
+  const currentReview = standing.round;
 
   return (
     <MacrosProvider macros={currentMacros(s.versions)}>
@@ -161,19 +163,8 @@ export function Workspace({
           </h1>
           <AuthorLine authors={s.authors} />
           <p className="entry-meta">
-            <span>
-              {s.purpose === 'review_only' ? 'Private review' : SUBMISSION_KIND_LABELS[s.kind]}
-            </span>
-            {s.status.state === 'review_complete' &&
-            (awaitingRecheck ||
-              (currentReview &&
-                !referee.value?.letters.some(
-                  (letter) => letter.round === currentReview.number,
-                ))) ? (
-              <Badge tone="accent">Review in progress</Badge>
-            ) : (
-              <SubmissionStatusBadge status={s.status} />
-            )}
+            <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
+            <SubmissionStatusBadge status={s.status} label={standing.headline} />
             <span>
               Version {current?.number ?? 1} · <DateText iso={s.created_at} />
             </span>
@@ -206,10 +197,7 @@ export function Workspace({
         {isAuthor || isStaff ? (
           <PaperStanding
             submission={s}
-            round={currentReview}
-            letters={referee.value?.letters}
-            awaitingRecheck={awaitingRecheck}
-            showProgress={false}
+            file={referee.value}
             onRevise={isAuthor && !showRevisionForm ? () => setRevising(true) : undefined}
           />
         ) : null}
@@ -225,14 +213,6 @@ export function Workspace({
           </div>
         ) : null}
 
-        {state === 'accepted' &&
-        (s.kind === 'conjecture' || s.lean_statements.length > 0) &&
-        isAuthor ? (
-          <LeanStatementCard submission={s} onChange={onChange} />
-        ) : null}
-        {reviewed && state !== 'in_review' && (isAuthor || isStaff) ? (
-          <StatementSummary submission={s} round={currentReview} />
-        ) : null}
         {(state !== 'draft' || isStaff) && (isStaff || isAuthor) ? (
           <RefereeWorkspace
             key={`${s.id}-${isStaff}`}
@@ -241,12 +221,12 @@ export function Workspace({
             isEditor={isEditor}
             resource={referee}
             onChange={onChange}
+            presentation="primary"
           />
         ) : null}
-
-        {state !== 'draft' && (isAuthor || isStaff) ? <BindingWorkspace submission={s} /> : null}
-        {state !== 'draft' && (isAuthor || isStaff) ? <FeedbackWorkspace submission={s} /> : null}
-        {state !== 'draft' && (isAuthor || isStaff) ? <ResearchWorkspace submission={s} /> : null}
+        {reviewed && (isAuthor || isStaff) ? (
+          <StatementSummary submission={s} round={currentReview} />
+        ) : null}
         {state === 'draft' ? <DraftNotice submission={s} /> : null}
         {state === 'draft' && isAuthor ? (
           <section aria-labelledby="confirm-h">
@@ -263,103 +243,130 @@ export function Workspace({
           </section>
         ) : null}
 
-        {state === 'accepted' && isAuthor ? (
-          <section aria-labelledby="accepted-h">
-            <h2 id="accepted-h">After acceptance</h2>
-            <p>
-              Record <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
-              {s.decision?.decision === 'accept' ? (
-                <>
-                  {' '}
-                  · <BasisBadge basis={s.decision.basis} />
-                </>
-              ) : null}
-            </p>
-            <VisibilityChoice submission={s} onChange={onChange} />
-            {s.kind !== 'conjecture' ? (
-              <>
-                <h3>Formalization in Lean</h3>
-                <FormalizationForAuthor submission={s} onChange={onChange} />
-              </>
-            ) : null}
-          </section>
-        ) : null}
-
-        <div className="folds">
-          {reviewed && isStaff ? (
-            <Fold id="statements-h" title="Statements" hint={s.claims.length} open>
-              <StatementList claims={s.claims} scope="ws" />
-            </Fold>
-          ) : null}
-
-          {reviewed && isStaff ? (
-            <Fold id="analysis-h" title="Analysis" open>
-              <Async state={analysis.state} onRetry={analysis.reload}>
-                {(a) => <AnalysisView analysis={a} claims={s.claims} scope="ws" />}
-              </Async>
-              {state === 'accepted' ? (
-                <>
-                  <h3>Conjecture follow-ups</h3>
-                  <ConjectureList conjectures={s.conjectures} claims={s.claims} scope="ws" />
-                </>
-              ) : null}
-            </Fold>
-          ) : null}
-
-          {isStaff && s.purpose !== 'review_only' ? (
-            <Fold id="stages-h" title="Publication decision" open>
-              {state === 'in_review' && isStaff && preview ? (
-                <DecisionView decision={preview} policy={policy} />
-              ) : null}
-              <StageTimeline submission={s} policy={policy} decision={preview} />
-            </Fold>
-          ) : null}
-
-          {current ? (
-            <EvidenceInventory
-              files={current.evidence}
-              submission={s.id}
-              version={current.number}
+        <details className="history author-details" open={isStaff ? true : undefined}>
+          <summary>Details: evidence, history and settings</summary>
+          {!isStaff && state !== 'draft' && isAuthor ? (
+            <RefereeWorkspace
+              submission={s}
+              isStaff={false}
+              isEditor={false}
+              resource={referee}
+              onChange={onChange}
+              presentation="details"
             />
           ) : null}
-          <Fold id="abstract-h" title="Abstract" open>
-            {s.abstract_text ? (
-              <LatexText source={s.abstract_text} className="abstract" />
-            ) : (
-              <p className="muted">No abstract was found in the source.</p>
-            )}
-            <p className="small">
-              <strong>AI disclosure:</strong> {AI_USE_LABELS[s.ai_disclosure.level]} —{' '}
-              {s.ai_disclosure.statement}
-            </p>
-          </Fold>
+          {state === 'accepted' &&
+          (s.kind === 'conjecture' || s.lean_statements.length > 0) &&
+          isAuthor ? (
+            <LeanStatementCard submission={s} onChange={onChange} />
+          ) : null}
+          {state !== 'draft' && (isAuthor || isStaff) ? (
+            <>
+              <BindingWorkspace submission={s} />
+              <FeedbackWorkspace submission={s} />
+              <ResearchWorkspace submission={s} />
+            </>
+          ) : null}
+          {state === 'accepted' && isAuthor ? (
+            <section aria-labelledby="accepted-h">
+              <h2 id="accepted-h">After acceptance</h2>
+              <p>
+                Record <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
+                {s.decision?.decision === 'accept' ? (
+                  <>
+                    {' '}
+                    · <BasisBadge basis={s.decision.basis} />
+                  </>
+                ) : null}
+              </p>
+              <VisibilityChoice submission={s} onChange={onChange} />
+              {s.kind !== 'conjecture' ? (
+                <>
+                  <h3>Formalization in Lean</h3>
+                  <FormalizationForAuthor submission={s} onChange={onChange} />
+                </>
+              ) : null}
+            </section>
+          ) : null}
 
-          <VersionsSection submission={s} />
-          {isAuthor || isStaff ? (
-            <Fold id="compute-h" title="Advanced: compute settings and history">
-              {s.submitter === person?.id ? <MyCma /> : null}
-              <CmaHistory attempts={referee.value?.cma_attempts ?? []} />
+          <div className="folds">
+            {reviewed && isStaff ? (
+              <Fold id="statements-h" title="Statements" hint={s.claims.length} open>
+                <StatementList claims={s.claims} scope="ws" />
+              </Fold>
+            ) : null}
+
+            {reviewed && isStaff ? (
+              <Fold id="analysis-h" title="Analysis" open>
+                <Async state={analysis.state} onRetry={analysis.reload}>
+                  {(a) => <AnalysisView analysis={a} claims={s.claims} scope="ws" />}
+                </Async>
+                {state === 'accepted' ? (
+                  <>
+                    <h3>Conjecture follow-ups</h3>
+                    <ConjectureList conjectures={s.conjectures} claims={s.claims} scope="ws" />
+                  </>
+                ) : null}
+              </Fold>
+            ) : null}
+
+            {isStaff && s.purpose !== 'review_only' ? (
+              <Fold id="stages-h" title="Publication decision" open>
+                {state === 'in_review' && isStaff && preview ? (
+                  <DecisionView decision={preview} policy={policy} />
+                ) : null}
+                <StageTimeline submission={s} policy={policy} decision={preview} />
+              </Fold>
+            ) : null}
+
+            {current ? (
+              <EvidenceInventory
+                files={current.evidence}
+                submission={s.id}
+                version={current.number}
+              />
+            ) : null}
+            <Fold id="abstract-h" title="Abstract" open>
+              {s.abstract_text ? (
+                <LatexText source={s.abstract_text} className="abstract" />
+              ) : (
+                <p className="muted">No abstract was found in the source.</p>
+              )}
+              <p className="small">
+                <strong>AI disclosure:</strong> {AI_USE_LABELS[s.ai_disclosure.level]} —{' '}
+                {s.ai_disclosure.statement}
+              </p>
             </Fold>
-          ) : null}
 
-          {isAuthor ? (
-            <Fold id="settings-h" title="Settings">
-              {s.purpose !== 'review_only' && state !== 'withdrawn' && state !== 'not_accepted' ? (
-                <ContributorsToggle submission={s} onChange={onChange} />
-              ) : null}
-              {state === 'draft' || (state === 'in_review' && !showRevisionForm) ? (
-                <NewVersionForm submission={s} onChange={onChange} />
-              ) : null}
-              {state === 'draft' || state === 'in_review' ? (
-                <WithdrawPanel submission={s} onChange={onChange} />
-              ) : null}
-            </Fold>
-          ) : null}
+            <VersionsSection submission={s} />
+            {isAuthor || isStaff ? (
+              <Fold id="compute-h" title="Advanced: compute settings and history">
+                {s.submitter === person?.id ? <MyCma /> : null}
+                <CmaHistory attempts={referee.value?.cma_attempts ?? []} />
+              </Fold>
+            ) : null}
 
-          {isEditor ? (
-            <EditorTools submission={s} decision={preview} person={person} onChange={onChange} />
-          ) : null}
-        </div>
+            {isAuthor ? (
+              <Fold id="settings-h" title="Settings">
+                {s.purpose !== 'review_only' &&
+                state !== 'withdrawn' &&
+                state !== 'not_accepted' ? (
+                  <ContributorsToggle submission={s} onChange={onChange} />
+                ) : null}
+                {(state === 'draft' || state === 'in_review') && !showRevisionForm ? (
+                  <NewVersionForm submission={s} onChange={onChange} />
+                ) : null}
+                {state === 'draft' || state === 'in_review' ? (
+                  <WithdrawPanel submission={s} onChange={onChange} />
+                ) : null}
+              </Fold>
+            ) : null}
+
+            {isEditor ? (
+              <EditorTools submission={s} decision={preview} person={person} onChange={onChange} />
+            ) : null}
+          </div>
+        </details>
       </article>
     </MacrosProvider>
   );
@@ -382,7 +389,10 @@ function DraftNotice({ submission }: { submission: Submission }) {
           <p>
             <strong>The PDF did not compile.</strong>
           </p>
-          <pre className="compile-log">{current.compile_error}</pre>
+          <details>
+            <summary>Compilation details</summary>
+            <pre className="compile-log">{current.compile_error}</pre>
+          </details>
         </div>
       ) : current.pdf ? null : (
         <p className="notice notice-info">The PDF is being compiled.</p>

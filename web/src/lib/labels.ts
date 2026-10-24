@@ -26,8 +26,10 @@ import type {
   Feasibility,
   StepState,
   ProbeOutcome,
+  RefereeAudit,
 } from '../api/types';
 import { sourceLabel } from './links';
+import { texToText } from './texText';
 
 export const RECOMMENDATION_LABELS: { readonly [K in Recommendation]: string } = {
   accept: 'accept',
@@ -72,11 +74,33 @@ export const STEP_STATE_LABELS: { readonly [K in StepState<unknown>['state']]: s
   failed: 'Failed',
   skipped: 'Skipped',
 };
+/** Author wording for a review stage's state (progress list and compute history). */
+export const AUTHOR_STEP_STATE_LABELS: { readonly [K in StepState<unknown>['state']]: string } = {
+  pending: 'Waiting to start',
+  running: 'In progress',
+  done: 'Complete',
+  failed: 'Could not finish',
+  skipped: 'Not required',
+};
+/** Compute attempts use the same words as review stages. */
+export const CMA_ATTEMPT_STATUS_LABELS: Readonly<Record<string, string>> = {
+  running: AUTHOR_STEP_STATE_LABELS.running,
+  succeeded: AUTHOR_STEP_STATE_LABELS.done,
+  failed: AUTHOR_STEP_STATE_LABELS.failed,
+};
+
+export const AUDIT_FINDING_LABELS: {
+  readonly [K in RefereeAudit['concerns'][number]['status']]: string;
+} = {
+  confirmed: 'Confirmed',
+  refuted: 'Refuted',
+  not_checkable: 'Further evidence needed',
+};
 
 export const SUBMISSION_STATE_LABELS: { readonly [K in SubmissionStatus['state']]: string } = {
   draft: 'Draft — statements to confirm',
   in_review: 'In review',
-  review_complete: 'Review ready',
+  review_complete: 'Private review',
   accepted: 'Accepted',
   not_accepted: 'Not accepted',
   withdrawn: 'Withdrawn',
@@ -120,13 +144,13 @@ export function isOpenKind(kind: ClaimKind): boolean {
 }
 
 export const BASIS_LABELS: { readonly [K in AdmissionBasis]: string } = {
-  escape_witness: 'Escape witness',
+  escape_witness: 'New mathematical content',
   open_conjecture: 'Open conjecture',
   open_problem_settlement: 'Open-problem settlement',
 };
 export const BASIS_DESCRIPTIONS: { readonly [K in AdmissionBasis]: string } = {
   escape_witness:
-    'A main result carries an escape witness (judged content) and no prior work states or directly implies it.',
+    'A main result is judged to contain new mathematical content, and no identified prior work states or directly implies it.',
   open_conjecture: 'Open conjecture',
   open_problem_settlement:
     'A main result settles a named, sourced open problem that the literature had not settled.',
@@ -154,15 +178,14 @@ export const SOURCE_KINDS = Object.keys(SOURCE_KIND_LABELS) as SourceKind[];
 
 export const SHAPE_LABELS: { readonly [K in ProofShape]: string } = {
   undetermined: 'Undetermined',
-  bind_only: 'Bind-only',
+  bind_only: 'Follows from known results',
   content: 'Content',
 };
 export const SHAPE_DESCRIPTIONS: { readonly [K in ProofShape]: string } = {
-  undetermined: 'The evidence does not establish whether the proof exceeds binding operations.',
-  bind_only:
-    'The proof instantiates, projects or normalises prior results; no new proposition appears on its proof path.',
+  undetermined: 'The evidence does not show whether the proof goes beyond applying prior results.',
+  bind_only: 'The proof applies prior results directly; no new proposition appears along the way.',
   content:
-    'The proof path contains escape witnesses: new propositions that prior results do not give by binding alone.',
+    'The proof establishes new propositions that the cited results do not give by applying them directly.',
 };
 
 export const RELATION_LABELS: { readonly [K in PriorRelation]: string } = {
@@ -234,7 +257,7 @@ export function rejectReasonText(reason: RejectReason): string {
     case 'known_result':
       return `Known result: statement ${reason.claim} is stated in, or directly implied by, ${sourceLabel(reason.prior)}.`;
     case 'bind_only':
-      return 'Bind-only: no main result carries new content; each follows from prior results by instantiation, projection or normalisation.';
+      return 'No new result: each main result follows from known results by applying them directly; publication needs a proof that adds something the cited results do not already give.';
     case 'no_main_result':
       return 'No main result: the paper marks no proved statement as a main result.';
     case 'incorrect_result':
@@ -281,7 +304,7 @@ export function decisionHeadline(decision: Decision, nameOf: (stage: Stage) => s
 
 /** `A. One, B. Two and C. Three`. */
 export function formatAuthors(authors: readonly Author[]): string {
-  const names = authors.map((a) => a.name.trim()).filter((n) => n !== '');
+  const names = authors.map((a) => texToText(a.name)).filter((n) => n !== '');
   if (names.length <= 1) return names[0] ?? '';
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }

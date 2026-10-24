@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/client';
+import { ApiError, createApiClient } from '../api/client';
+import { authorStanding } from '../lib/authorStanding';
+import { authorStandingCases } from '../test/authorStanding';
 import {
   accepted,
   analysis,
@@ -16,6 +18,29 @@ import {
 import { KATEX_ERROR, MACROS } from '../test/katex';
 import { fakeApi, renderWithApp } from '../test/render';
 import { SubmissionDetailPage } from './SubmissionDetail';
+
+it.each(authorStandingCases)(
+  'keeps the detail badge and standing headline equal for $paper.status.state / $paper.kind',
+  async ({ paper, review }) => {
+    const { container } = renderWithApp(
+      <SubmissionDetailPage id={paper.id} />,
+      fakeApi(
+        {
+          getSubmission: vi.fn(async () => paper),
+          referee: vi.fn(async () => review),
+        },
+        author,
+      ),
+    );
+    const card = await screen.findByRole('region', { name: 'Paper standing' });
+    const standing = authorStanding(paper, review);
+    const headline = await within(card).findByRole('heading', { name: standing.headline });
+    const header = container.querySelector('.record-head')!;
+    expect(header.querySelector('.badge')?.textContent).toBe(headline.textContent);
+    expect(header.querySelector('.badge')?.textContent).toBe(standing.headline);
+    expect(within(header as HTMLElement).queryByText('Private review')).toBeNull();
+  },
+);
 
 describe('paper workspace', () => {
   it('refreshes a delayed conjecture target on focus after the review has settled', async () => {
@@ -83,7 +108,7 @@ describe('paper workspace', () => {
     const user = userEvent.setup();
 
     const form = await screen.findByRole('form', { name: 'Confirm statements' });
-    expect(screen.queryByRole('heading', { name: 'Orchestra review' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Review' })).toBeNull();
     expect(
       screen.getByRole('heading', { name: 'One quick check before review' }),
     ).toBeInTheDocument();
@@ -257,4 +282,181 @@ describe('paper workspace', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply decision' }));
     expect(await screen.findByText('awaiting S2: S2 needs a human report')).toBeInTheDocument();
   });
+});
+
+it.each([
+  draft,
+  submission,
+  { ...submission, purpose: 'review_only' as const, status: { state: 'review_complete' as const } },
+  accepted,
+  notAccepted,
+  { ...submission, status: { state: 'withdrawn' as const } },
+])('keeps raw identifiers out of author text and titles for $status.state', async (paper) => {
+  const { refereeRound, refereeFile, feedbackLetter, refereeAudit } =
+    await import('../test/referee');
+  const round = {
+    ...refereeRound,
+    review_method: 'trureturing-content-2026-10-15',
+    source_sha256: 'b'.repeat(64),
+    referee: { ...refereeRound.referee, engine: 'nyxid-oracle', model: 'internal-model-id' },
+    audit: {
+      ...refereeRound.audit!,
+      engine: 'nyxid-cma',
+      state: {
+        state: 'done' as const,
+        at: refereeRound.started_at,
+        result: {
+          ...refereeAudit,
+          claims: [
+            {
+              ...refereeAudit.claims[0]!,
+              correctness: 'not_checked' as const,
+              shape: 'bind_only' as const,
+            },
+          ],
+        },
+      },
+    },
+  };
+  const { container } = renderWithApp(
+    <SubmissionDetailPage id={paper.id} />,
+    fakeApi(
+      {
+        getSubmission: vi.fn(async () => paper),
+        referee: vi.fn(async () =>
+          refereeFile({
+            rounds: [round],
+            letters: [feedbackLetter],
+            cma_attempts: [
+              {
+                round: 1,
+                kind: 'audit',
+                step: 'r1:audit',
+                attempt: 1,
+                payer: 'operator',
+                reason: 'operator_step',
+                status: 'succeeded',
+                admitted_at: refereeRound.started_at,
+                finished_at: refereeRound.started_at,
+              },
+            ],
+          }),
+        ),
+      },
+      author,
+    ),
+  );
+  // Draft and withdrawn pages carry no review workspace; open every fold that exists.
+  const reviewShown = paper.status.state !== 'draft' && paper.status.state !== 'withdrawn';
+  if (reviewShown) await screen.findByRole('region', { name: 'Current Feedback letter' });
+  else await screen.findByText(/Next action:/);
+  for (const label of [
+    'Details: evidence, history and settings',
+    'Advanced: compute settings and history',
+  ]) {
+    const toggle = screen.queryByText(label);
+    if (toggle) await userEvent.click(toggle);
+  }
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes: string[] = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode.textContent ?? '');
+  const text = [
+    ...textNodes,
+    ...Array.from(container.querySelectorAll('[title]'), (element) =>
+      element.getAttribute('title'),
+    ),
+    ...Array.from(container.querySelectorAll('[aria-label]'), (element) =>
+      element.getAttribute('aria-label'),
+    ),
+  ].join('\n');
+  for (const raw of [
+    'trureturing-content-2026-10-15',
+    'nyxid-',
+    'internal-model-id',
+    'bind_only',
+    'not_checked',
+    'escape witness',
+    'CMA',
+    'Codex',
+    'payer',
+    'Oracle',
+    'GPT',
+    'S0',
+    'S1',
+    'S2',
+    'S3',
+    'contract',
+    'workspace id',
+    'bind-only',
+  ])
+    expect(text.toLowerCase()).not.toContain(raw.toLowerCase());
+  if (!reviewShown) return;
+  expect(text).toContain('Not checked');
+  expect(text).toContain('Follows from known results');
+  expect(text).toContain('Source check');
+  expect(screen.getByRole('region', { name: 'Readable review report' })).not.toHaveTextContent(
+    'b'.repeat(64),
+  );
+  expect(
+    screen.getByText('Details: evidence, history and settings').closest('details'),
+  ).toHaveTextContent('b'.repeat(64));
+});
+
+it.each(['submission', 'review'] as const)(
+  'keeps author-facing %s network errors free of retry advice',
+  async (target) => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const networkApi = createApiClient(fetchImpl);
+    renderWithApp(
+      <SubmissionDetailPage id={submission.id} />,
+      fakeApi(
+        {
+          getSubmission:
+            target === 'submission' ? networkApi.getSubmission : vi.fn(async () => submission),
+          referee: networkApi.referee,
+        },
+        author,
+      ),
+    );
+    const notices = await screen.findAllByRole('alert');
+    for (const notice of notices) {
+      expect(notice).toHaveTextContent('The server could not be reached.');
+      expect(notice).toHaveTextContent('The request could not be confirmed');
+      expect(notice).toHaveTextContent(
+        'reload the page data when your connection is back to see the current state',
+      );
+      expect(notice.textContent).not.toMatch(/try again/i);
+    }
+    if (target === 'review') {
+      const card = screen.getByRole('region', { name: 'Paper standing' });
+      expect(within(card).getByRole('status')).toHaveTextContent(
+        'Progress details are loading or unavailable; the review is in progress on the server.',
+      );
+      expect(card).toHaveTextContent('Nothing to do now');
+    }
+    await userEvent.click(within(notices[0]!).getByRole('button', { name: 'Reload page data' }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    for (const notice of await screen.findAllByRole('alert'))
+      expect(notice.textContent).not.toMatch(/try again/i);
+  },
+);
+
+it('shows one loading shell for the shared review resource on the author page', async () => {
+  const { container } = renderWithApp(
+    <SubmissionDetailPage id={accepted.id} />,
+    fakeApi(
+      {
+        getSubmission: vi.fn(async () => accepted),
+        referee: vi.fn(() => new Promise<never>(() => undefined)),
+      },
+      author,
+    ),
+  );
+  await screen.findByText(/Next action:/);
+  await userEvent.click(screen.getByText('Details: evidence, history and settings'));
+  expect(screen.getAllByText('Loading…')).toHaveLength(1);
+  expect(container.querySelector('.author-details .referee-panel')).toBeNull();
+  expect(screen.getByRole('region', { name: 'Review' })).toHaveTextContent('Loading…');
 });

@@ -1,3 +1,6 @@
+import { useReferee } from '../api/useReferee';
+import { authorStanding } from '../lib/authorStanding';
+import type { Submission } from '../api/types';
 import { InlineLatex } from '../components/Markdown';
 import { LeanWorkspace } from '../components/LeanDeposit';
 import { useCallback } from 'react';
@@ -141,36 +144,7 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
           ) : (
             <ul className="entry-list">
               {listing.items.map((s) => (
-                <li key={s.id}>
-                  <Link to={{ kind: 'submission', id: s.id }} className="entry-title">
-                    <InlineLatex source={s.title} />
-                  </Link>
-                  <p className="entry-meta">
-                    <span>
-                      {s.purpose === 'review_only'
-                        ? 'Private review'
-                        : SUBMISSION_KIND_LABELS[s.kind]}
-                    </span>
-                    <SubmissionStatusBadge status={s.status} />
-                    <span>{formatAuthors(s.authors)}</span>
-                    {newResultCount(s) > 0 ? <span>{newResults(newResultCount(s))}</span> : null}
-                    {s.formalization.items.some((i) => i.state.state === 'verified') ? (
-                      <span>
-                        Lean ✓{' '}
-                        {s.formalization.items.filter((i) => i.state.state === 'verified').length}
-                      </span>
-                    ) : null}
-                    <span>· version {s.versions.length}</span>
-                    <span>
-                      · updated <DateText iso={s.updated_at} />
-                    </span>
-                    {s.status.state === 'accepted' ? (
-                      <span>
-                        · <code>{s.status.record}</code>
-                      </span>
-                    ) : null}
-                  </p>
-                </li>
+                <SubmissionRow key={s.id} submission={s} scope={scope} />
               ))}
             </ul>
           )
@@ -178,5 +152,60 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
       </Async>
       <Pager paged={paged} />
     </div>
+  );
+}
+
+function SubmissionRow({
+  submission: s,
+  scope,
+}: {
+  submission: Submission;
+  scope: SubmissionScope;
+}) {
+  const referee = useReferee(
+    s,
+    false,
+    scope === 'mine' && s.status.state !== 'draft' && s.status.state !== 'withdrawn',
+    false,
+  );
+  const standing = scope === 'mine' ? authorStanding(s, referee.value) : undefined;
+  return (
+    <li>
+      <Link to={{ kind: 'submission', id: s.id }} className="entry-title">
+        <InlineLatex source={s.title} />
+      </Link>
+      <p className="entry-meta">
+        <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
+        <SubmissionStatusBadge status={s.status} label={standing?.headline} />
+        <span>{formatAuthors(s.authors)}</span>
+        {newResultCount(s) > 0 ? <span>{newResults(newResultCount(s))}</span> : null}
+        {s.formalization.items.some((i) => i.state.state === 'verified') ? (
+          <span>
+            Lean ✓ {s.formalization.items.filter((i) => i.state.state === 'verified').length}
+          </span>
+        ) : null}
+        <span>· version {s.versions.length}</span>
+        <span>
+          · updated <DateText iso={s.updated_at} />
+        </span>
+        {s.status.state === 'accepted' ? (
+          <span>
+            · <code>{s.status.record}</code>
+          </span>
+        ) : null}
+      </p>
+      {standing ? <AuthorNextAction standing={standing} /> : null}
+    </li>
+  );
+}
+
+function AuthorNextAction({ standing }: { standing: ReturnType<typeof authorStanding> }) {
+  return (
+    <p
+      className="small author-next-action"
+      title={`${standing.doing} ${standing.timing} ${standing.observation}`}
+    >
+      <strong>{standing.headline} · Next action:</strong> {standing.nextAction}
+    </p>
   );
 }

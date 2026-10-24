@@ -39,6 +39,9 @@ export function PaperEntry({ paper }: { paper: PaperSummary }) {
           ) : null}
         </p>
       </div>
+      {paper.abstract_text ? (
+        <LatexText source={paper.abstract_text} className="abstract-excerpt" />
+      ) : null}
       <p className="entry-meta">
         {paper.new_results ? <span>{newResults(paper.new_results)}</span> : null}
         {paper.lean_verified ? <Badge tone="good">Lean ✓ {paper.lean_verified}</Badge> : null}
@@ -183,6 +186,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
   const latest = paper.versions?.at(-1);
   const claims = paper.claims ?? [];
   const repo = paper.formalization_repository ? safeHttpUrl(paper.formalization_repository) : null;
+  const arxiv = /^10\.48550\/arxiv\.(.+)$/i.exec(s.doi ?? '')?.[1];
   const doiHref = s.doi ? sourceHref({ kind: 'doi', locator: s.doi }) : null;
   return (
     <MacrosProvider macros={paper.macros ?? {}}>
@@ -211,6 +215,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
               </span>
             ) : null}
             <MscList codes={s.msc ?? []} />
+            {arxiv ? <span>arXiv:{arxiv}</span> : null}
             {s.doi ? (
               <span>
                 · {doiHref ? <ExternalLink href={doiHref}>doi:{s.doi}</ExternalLink> : s.doi}
@@ -231,6 +236,28 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           <section aria-labelledby="abstract-h" className="paper-abstract">
             <h2 id="abstract-h">Abstract</h2>
             <LatexText source={s.abstract_text} className="abstract" />
+          </section>
+        ) : null}
+        {paper.versions?.length ? (
+          <section aria-labelledby="public-versions-h">
+            <h2 id="public-versions-h">Version history</h2>
+            <ol className="version-list">
+              {[...paper.versions].reverse().map((version) => (
+                <li key={version.number}>
+                  <strong>Version {version.number}</strong> ·{' '}
+                  <DateText iso={version.uploaded_at} withTime />
+                  {version.has_pdf && s.submission ? (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <a href={pdfHref(s.submission, version.number)}>
+                        Version {version.number} PDF
+                      </a>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
           </section>
         ) : null}
         <Citation paper={s} />

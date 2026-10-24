@@ -481,7 +481,8 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
       throw new ApiError({
         status: 0,
         code: 'network',
-        detail: 'The server could not be reached. Check your connection and try again.',
+        detail:
+          'The server could not be reached. The request could not be confirmed; reload the page data when your connection is back to see the current state.',
       });
     }
     if (!response.ok) throw await parseErrorResponse(response);

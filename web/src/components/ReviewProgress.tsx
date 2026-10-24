@@ -1,4 +1,5 @@
 import type { RefereeRound } from '../api/types';
+import { AUTHOR_STEP_STATE_LABELS } from '../lib/labels';
 import { REVIEW_STAGES } from '../lib/reviewProgress';
 import { DateText } from './ui';
 
@@ -27,17 +28,7 @@ export function ReviewProgress({
               aria-current={step.state === 'running' ? 'step' : undefined}
             >
               <strong>{label}</strong>
-              <span>
-                {step.state === 'pending'
-                  ? 'Waiting to start'
-                  : step.state === 'skipped'
-                    ? 'Not required'
-                    : step.state === 'running'
-                      ? 'In progress'
-                      : step.state === 'failed'
-                        ? 'Could not finish'
-                        : 'Complete'}
-              </span>
+              <span>{AUTHOR_STEP_STATE_LABELS[step.state]}</span>
               {step.state === 'running' ? (
                 <span>
                   Since <DateText iso={step.since} withTime />

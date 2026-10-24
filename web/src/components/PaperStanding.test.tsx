@@ -36,99 +36,71 @@ function audited(verdict = refereeAudit.verdict): RefereeRound {
 }
 
 describe('paper standing', () => {
-  it('renders nothing for a draft', () => {
-    const { container } = render(<PaperStanding submission={draft} round={audited()} />);
-    expect(container).toBeEmptyDOMElement();
-  });
-  it.each([
-    ['Referee', queuedRound, 'The referee is reading your paper.'],
-    [
-      'Check',
-      { ...queuedRound, referee: refereeRound.referee },
-      'The referee’s report is being checked against your source.',
-    ],
-    ['Letter', { ...audited(), letter: queuedRound.letter }, 'The letter is being written.'],
-  ] as const)('shows progress at the %s stage', (current, round, phrase) => {
-    render(
-      <PaperStanding
-        submission={submission}
-        round={round}
-        letters={[{ ...feedbackLetter, assessment: 'reject' }]}
-      />,
-    );
-    const card = screen.getByRole('region', { name: 'Paper standing' });
-    expect(within(card).getByRole('heading', { name: 'Under review', level: 2 })).toBeVisible();
-    const steps = within(within(card).getByRole('list', { name: 'Review progress' })).getAllByRole(
-      'listitem',
-    );
-    expect(steps.map((step) => step.textContent)).toEqual([
-      'Referee',
-      'Check',
-      'Decision',
-      'Letter',
-    ]);
-    expect(steps.filter((step) => step.getAttribute('aria-current') === 'step')).toEqual([
-      within(card).getByText(current, { selector: 'li' }),
-    ]);
-    expect(within(card).getByRole('status')).toHaveTextContent(phrase);
-    expect(within(card).queryByText(refereeAudit.summary)).toBeNull();
-    expect(within(card).queryByText('statements')).toBeNull();
+  it('explains a draft and the confirmation action', () => {
+    render(<PaperStanding submission={draft} />);
+    expect(screen.getByRole('heading', { name: 'Draft — statements to confirm' })).toBeVisible();
+    expect(screen.getByText(/Confirm the statement list/)).toBeVisible();
+    expect(screen.getByText(/Elapsed since/)).toBeVisible();
+    expect(screen.getByText(/Observed on this deployment on 22 Oct 2026/)).toBeVisible();
   });
   it.each(['accept', 'minor_revision', 'major_revision', 'reject'] as const)(
-    'uses acceptance rather than the %s recommendation',
+    'uses the publication decision, independent of the %s recommendation',
     async (verdict) => {
       const revise = vi.fn();
-      render(<PaperStanding submission={accepted} round={audited(verdict)} onRevise={revise} />);
-      expect(screen.getByRole('heading', { name: 'Accepted' })).toBeInTheDocument();
+      render(
+        <PaperStanding
+          submission={accepted}
+          file={refereeFile({ rounds: [audited(verdict)], letters: [feedbackLetter] })}
+          onRevise={revise}
+        />,
+      );
+      expect(screen.getByRole('heading', { name: 'Accepted' })).toBeVisible();
       expect(screen.getByText('WP-2026-0001')).toBeVisible();
-      expect(screen.getByText(refereeAudit.summary)).toBeInTheDocument();
-      expect(screen.getAllByRole('listitem').map((fact) => fact.textContent)).toEqual([
-        '2 statements',
-        '2 correct',
-        '1 proved in Lean',
-      ]);
-      expect(screen.queryByRole('list', { name: 'Review progress' })).toBeNull();
-      expect(screen.queryByRole('status')).toBeNull();
-      if (verdict === 'minor_revision' || verdict === 'major_revision') {
-        expect(
-          screen.getByText(
-            `The referee suggests ${verdict === 'minor_revision' ? 'minor' : 'major'} revisions — see the letter.`,
-          ),
-        ).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: 'Upload a revised version' }));
-        expect(revise).toHaveBeenCalledOnce();
-      } else expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.queryByText(refereeAudit.summary)).toBeNull();
+      expect(document.querySelector('.standing-facts')).toBeNull();
+      await userEvent.click(screen.getByRole('button', { name: 'Upload a revised version' }));
+      expect(revise).toHaveBeenCalledOnce();
     },
   );
-  it('shows published reasons in plain words and permits revision despite an accept verdict', async () => {
-    const revise = vi.fn();
-    render(<PaperStanding submission={notAccepted} round={audited('accept')} onRevise={revise} />);
-    expect(screen.getByRole('heading', { name: 'Not accepted' })).toBeInTheDocument();
-    expect(screen.getByText('Statement C1 already follows from 1901.00001.')).toBeInTheDocument();
+  it('shows reasons in sentences and offers a revision', () => {
+    render(
+      <PaperStanding
+        submission={notAccepted}
+        file={refereeFile({ rounds: [audited()] })}
+        onRevise={() => {}}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Not accepted' })).toBeVisible();
+    expect(screen.getByText('Statement C1 already follows from 1901.00001.')).toBeVisible();
     expect(
       screen.getByText('No checked main result carries new mathematical content.'),
-    ).toBeInTheDocument();
-    expect(screen.getByText(refereeAudit.summary)).toBeInTheDocument();
-    expect(screen.getByText('You can revise the paper and submit a new version.')).toBeVisible();
-    expect(screen.queryByText('WP-2026-0001')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Upload a revised version' }));
-    expect(revise).toHaveBeenCalledOnce();
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Upload a revised version' })).toBeVisible();
   });
-  it('handles a legacy paper without an audit and a withdrawn paper', () => {
-    const { rerender } = render(<PaperStanding submission={accepted} />);
-    expect(screen.getByRole('heading', { name: 'Accepted' })).toBeInTheDocument();
-    expect(screen.queryByRole('list')).toBeNull();
-    rerender(<PaperStanding submission={{ ...submission, status: { state: 'withdrawn' } }} />);
-    expect(screen.getByRole('heading', { name: 'Withdrawn' })).toBeInTheDocument();
-  });
-  it('omits Lean facts when there is no formal probe', () => {
-    render(<PaperStanding submission={accepted} round={{ ...audited(), formal: undefined }} />);
-    expect(screen.getAllByRole('listitem').map((fact) => fact.textContent)).toEqual([
-      '2 statements',
-      '2 correct',
-    ]);
-    expect(screen.queryByText(/proved in Lean/)).toBeNull();
-  });
+  it.each(['minor_revision', 'major_revision'] as const)(
+    'shows the %s recommendation only after the current round’s letter is delivered',
+    (verdict) => {
+      const round = { ...audited(verdict), number: 2 };
+      const { rerender } = render(
+        <PaperStanding
+          submission={accepted}
+          file={refereeFile({ rounds: [round], letters: [feedbackLetter] })}
+        />,
+      );
+      expect(screen.queryByText(/The referee suggests/)).toBeNull();
+      rerender(
+        <PaperStanding
+          submission={accepted}
+          file={refereeFile({ rounds: [round], letters: [{ ...feedbackLetter, round: 2 }] })}
+        />,
+      );
+      expect(
+        screen.getByText(
+          `The referee suggests ${verdict === 'minor_revision' ? 'minor' : 'major'} revisions — see the letter.`,
+        ),
+      ).toBeVisible();
+    },
+  );
 });
 
 function workspace(person = author, paper = accepted, overrides: Partial<ApiClient> = {}) {
@@ -148,21 +120,28 @@ function workspace(person = author, paper = accepted, overrides: Partial<ApiClie
 }
 
 describe('standing in the workspace', () => {
-  it('places the standing card, statement lists and letters in order with one referee fetch', async () => {
-    const { api } = workspace();
+  it('places standing, the current letter, readable report, statements and details in order with one referee fetch', async () => {
+    const { api, container } = workspace();
     const card = await screen.findByRole('region', { name: 'Paper standing' });
-    await within(card).findByText(refereeAudit.summary);
-    expect(card.previousElementSibling).toHaveClass('record-head');
-    expect(card.nextElementSibling).toHaveAccessibleName('Statements');
+    const letter = await screen.findByRole('region', { name: 'Current Feedback letter' });
+    const report = screen.getByRole('region', { name: 'Readable review report' });
+    expect(within(card).queryByText(refereeAudit.summary)).toBeNull();
+    expect(within(report).getByText(refereeAudit.summary)).toBeVisible();
+    expect(card.querySelector('.standing-facts')).toBeNull();
     const statements = screen.getByRole('region', { name: 'Statements' });
-    expect(within(statements).getAllByRole('list')).toHaveLength(2);
-    expect(within(statements).queryByRole('table')).toBeNull();
-    expect(statements.nextElementSibling).toHaveAccessibleName('Orchestra review');
-    expect(
-      screen.getByText('Full referee report', { selector: 'summary' }).closest('details'),
-    ).not.toHaveAttribute('open');
-    expect(screen.queryByText('Analysis', { selector: 'summary' })).toBeNull();
-    expect(screen.queryByText('Publication decision', { selector: 'summary' })).toBeNull();
+    const details = screen.getByText('Details: evidence, history and settings').closest('details')!;
+    for (const [first, second] of [
+      [card, letter],
+      [letter, report],
+      [report, statements],
+      [statements, details],
+    ]) {
+      expect(
+        first!.compareDocumentPosition(second!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    expect(details).not.toHaveAttribute('open');
+    expect(container.querySelectorAll('.author-details')).toHaveLength(1);
     expect(api.referee).toHaveBeenCalledOnce();
   });
   it.each([accepted, notAccepted])('opens the existing revision upload flow', async (paper) => {
@@ -170,6 +149,23 @@ describe('standing in the workspace', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Upload a revised version' }));
     const form = screen.getByRole('form', { name: 'Upload a new version' });
     expect(form.parentElement).toHaveAttribute('id', 'standing-revision-form');
+  });
+  it('reaches the corrected-source upload directly from a compile-failure standing', async () => {
+    workspace(author, {
+      ...draft,
+      versions: [{ ...draft.versions[0]!, pdf: undefined, compile_error: 'TeX failed' }],
+    });
+    const card = await screen.findByRole('region', { name: 'Paper standing' });
+    expect(within(card).getByRole('heading', { name: 'PDF could not compile' })).toBeVisible();
+    await userEvent.click(within(card).getByRole('button', { name: 'Upload a corrected version' }));
+    const form = screen.getByRole('form', { name: 'Upload a new version' });
+    expect(form.parentElement).toHaveAttribute('id', 'standing-revision-form');
+    expect(form.closest('details')).toBeNull();
+    expect(within(form).getByLabelText('Revised LaTeX source')).toBeVisible();
+    expect(within(form).getByLabelText('Revised LaTeX source')).toHaveFocus();
+    expect(
+      screen.getAllByRole('form', { name: 'Upload a new version', hidden: true }),
+    ).toHaveLength(1);
   });
   it('uploads a revision and returns to statement confirmation', async () => {
     let current = accepted;
@@ -206,7 +202,7 @@ describe('standing in the workspace', () => {
     unmount();
     workspace(editor);
     const card = await screen.findByRole('region', { name: 'Paper standing' });
-    await within(card).findByText(refereeAudit.summary);
+    await screen.findByRole('heading', { name: 'Editor tools' });
     expect(within(card).queryByRole('button')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Editor tools' })).toBeInTheDocument();
   });
@@ -223,7 +219,7 @@ describe('standing in the workspace', () => {
       .mockResolvedValue({ ...accepted, revision: submission.revision + 1 });
     workspace(author, submission, { referee, getSubmission });
     await act(async () => {});
-    expect(screen.getByRole('heading', { name: 'Under review' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'In review' })).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
@@ -236,77 +232,36 @@ describe('standing in the workspace', () => {
   });
 });
 
-it('does not infer active letter writing from the author projection', () => {
-  render(<PaperStanding submission={submission} round={{ ...audited(), letter: undefined }} />);
-  expect(
-    screen.getByText(
-      'The source audit is complete. The feedback letter has not been delivered yet.',
-    ),
-  ).toBeInTheDocument();
-  expect(screen.queryByText('The letter is being written.')).toBeNull();
-});
-
-it('keeps a private re-review pending until its own letter is delivered', () => {
+it('requires a delivered letter for the current round before showing Review ready', () => {
   const paper = {
     ...submission,
     purpose: 'review_only' as const,
     status: { state: 'review_complete' as const },
   };
-  const followup = { ...queuedRound, number: 2, response_ids: ['response-1'] };
+  const round = {
+    ...audited(),
+    number: 2,
+    letter: {
+      ...refereeRound.letter!,
+      state: {
+        state: 'done' as const,
+        at: refereeRound.started_at,
+        result: { subject: 'Hidden draft', body: '', note: '' },
+      },
+    },
+  };
   const { rerender } = render(
-    <PaperStanding submission={paper} round={followup} letters={[feedbackLetter]} />,
+    <PaperStanding
+      submission={paper}
+      file={refereeFile({ rounds: [round], letters: [feedbackLetter] })}
+    />,
   );
-  expect(screen.getByRole('heading', { name: 'Your response is being reviewed' })).toBeVisible();
-  expect(screen.getByRole('list', { name: 'Review progress' })).toBeVisible();
-  expect(screen.queryByText('Your private review is ready')).toBeNull();
-  const checked = { ...audited(), number: 2, letter: undefined };
-  rerender(<PaperStanding submission={paper} round={checked} letters={[feedbackLetter]} />);
-  expect(screen.getByRole('heading', { name: 'Your source audit is ready' })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'The feedback letter has not been delivered yet.',
-  );
+  expect(screen.queryByRole('heading', { name: 'Review ready' })).toBeNull();
   rerender(
     <PaperStanding
       submission={paper}
-      round={checked}
-      letters={[feedbackLetter, { ...feedbackLetter, round: 2 }]}
+      file={refereeFile({ rounds: [round], letters: [{ ...feedbackLetter, round: 2 }] })}
     />,
   );
-  expect(screen.getByRole('heading', { name: 'Your private review is ready' })).toBeVisible();
-  expect(screen.queryByRole('list', { name: 'Review progress' })).toBeNull();
-});
-
-it('keeps a completed but undelivered letter pending and shows post-decision failures', () => {
-  const at = refereeRound.started_at;
-  const progress = {
-    referee: { state: 'done' as const, at },
-    audit: { state: 'done' as const, at },
-    advice: { state: 'done' as const, at },
-    letter: { state: 'done' as const, at },
-    formal: { state: 'skipped' as const },
-  };
-  const paper = {
-    ...submission,
-    purpose: 'review_only' as const,
-    status: { state: 'review_complete' as const },
-  };
-  const round = { ...audited(), progress, letter: undefined, number: 2 };
-  const { rerender } = render(
-    <PaperStanding submission={paper} round={round} letters={[feedbackLetter]} />,
-  );
-  expect(screen.queryByText('Your private review is ready')).toBeNull();
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'No feedback letter has been delivered for this round.',
-  );
-  rerender(
-    <PaperStanding
-      submission={accepted}
-      round={{
-        ...round,
-        progress: { ...progress, letter: { state: 'failed', at, retryable: true } },
-      }}
-    />,
-  );
-  expect(screen.getByRole('heading', { name: 'Accepted' })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent('Feedback letter needs attention.');
+  expect(screen.getByRole('heading', { name: 'Review ready' })).toBeVisible();
 });

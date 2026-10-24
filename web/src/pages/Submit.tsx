@@ -327,10 +327,18 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
           </p>
         </div>
       ) : null}
+      <section aria-labelledby="upload-primer-h" className="notice notice-info">
+        <h2 id="upload-primer-h">What happens after you upload</h2>
+        <p>
+          Upload → you confirm the statement list → the review runs → the feedback letter arrives on
+          this site{reviewOnly ? '.' : ' → accepted work receives a WP record.'}
+        </p>
+        <p className="small">You can return here to read the letter; delivery is on this site.</p>
+      </section>
       <section className="submission-manuscript" aria-labelledby="manuscript-heading">
         <h2 id="manuscript-heading">Manuscript</h2>
         <fieldset className="submission-choices">
-          <legend>What are you sharing?</legend>
+          <legend>Type of work (defaults to Paper)</legend>
           {(['paper', 'note', 'conjecture'] as const).map((value) => (
             <label key={value} className="radio">
               <input
@@ -369,29 +377,40 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
           </fieldset>
         ) : null}
         {typed ? (
-          <>
-            <Field label="Title" htmlFor="conjecture-title">
+          <div key="typed-manuscript">
+            <Field
+              label="Title (required)"
+              htmlFor="conjecture-title"
+              hint="We use the title to identify your conjecture."
+            >
               <input
                 id="conjecture-title"
+                required
                 value={title}
                 maxLength={1000}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </Field>
-            <Field label="Author" htmlFor="conjecture-author">
+            <Field
+              label="Author (required)"
+              htmlFor="conjecture-author"
+              hint="We use this name to attribute your conjecture."
+            >
               <input
                 id="conjecture-author"
+                required
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
               />
             </Field>
             <Field
-              label="Statement"
+              label="Statement (required)"
               htmlFor="conjecture-statement"
-              hint="TeX math is welcome. At most 20,000 characters."
+              hint="We review this statement to assess the conjecture. TeX math is welcome. At most 20,000 characters."
             >
               <textarea
                 id="conjecture-statement"
+                required
                 rows={6}
                 maxLength={20000}
                 value={statement}
@@ -403,6 +422,83 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
                 <LatexText source={statement} />
               </div>
             ) : null}
+          </div>
+        ) : (
+          <div key="source-manuscript">
+            <Field
+              label="LaTeX source (required)"
+              htmlFor="source-file"
+              hint="We read the source to identify your statements and check their arguments. A single .tex file, or a .zip or .tar.gz archive with the main file, bibliography and figures. At most 30 MB."
+            >
+              <input
+                id="source-file"
+                type="file"
+                accept={SOURCE_ACCEPT}
+                required
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </Field>
+            {file ? (
+              <p className="small" aria-live="polite">
+                {file.name} · {formatBytes(file.size)}
+                {fileProblem ? <span className="form-error"> — {fileProblem}</span> : null}
+              </p>
+            ) : null}
+          </div>
+        )}
+        <fieldset className="radio-list">
+          <legend>AI use in this work (required)</legend>
+          <p className="hint">
+            We ask so readers understand how the mathematics and text were produced.
+          </p>
+          <p className="hint">
+            Choose the closest description. Add fuller disclosure directly in the manuscript if
+            needed.
+          </p>
+          {AI_USES.map((level) => (
+            <label key={level} className="radio">
+              <input
+                type="radio"
+                name="ai-level"
+                value={level}
+                required
+                checked={aiLevel === level}
+                onChange={() => setAiLevel(level)}
+              />
+              <span>
+                <strong>{AI_USE_LABELS[level]}</strong> — {AI_USE_DESCRIPTIONS[level]}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            required
+          />
+          <span>Processing consent (required): {PROCESSING_CONSENT_TEXT}</span>
+        </label>
+        <p className="hint">
+          We need your permission to send the manuscript to the review services that read and check
+          it.
+        </p>
+        <div className="button-row">
+          <button type="submit" className="button" disabled={busy}>
+            {busy ? 'Uploading…' : 'Upload and read statements'}
+          </button>
+        </div>
+        <InlineError error={error} />
+      </section>
+      <section className="submission-options" aria-labelledby="review-options-heading">
+        <h2 id="review-options-heading">Optional information and preferences</h2>
+        <p className="hint">
+          Everything in this section is optional. You can leave the defaults and upload.
+        </p>
+        {typed ? (
+          <>
             <Field label="Background (optional)" htmlFor="conjecture-background">
               <textarea
                 id="conjecture-background"
@@ -425,21 +521,9 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               />
             </Field>
           </>
-        ) : (
+        ) : null}
+        {!typed ? (
           <>
-            <Field
-              label="LaTeX source"
-              htmlFor="source-file"
-              hint="A single .tex file, or a .zip or .tar.gz archive with the main file, bibliography and figures. At most 30 MB."
-            >
-              <input
-                id="source-file"
-                type="file"
-                accept={SOURCE_ACCEPT}
-                required
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-            </Field>
             <Field
               label="PDF manuscript or reading copy (optional)"
               htmlFor="pdf-copy"
@@ -459,12 +543,6 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               </p>
             ) : null}
             <EvidencePicker value={evidence} onChange={setEvidence} />
-            {file ? (
-              <p className="small" aria-live="polite">
-                {file.name} · {formatBytes(file.size)}
-                {fileProblem ? <span className="form-error"> — {fileProblem}</span> : null}
-              </p>
-            ) : null}
             <fieldset className="author-fields">
               <legend>Authors (optional)</legend>
               <p className="hint">
@@ -493,10 +571,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               </button>
             </fieldset>
           </>
-        )}
-      </section>
-      <section className="submission-options" aria-labelledby="review-options-heading">
-        <h2 id="review-options-heading">Review & publication</h2>
+        ) : null}
         <Field
           label="What should the review focus on? (optional)"
           htmlFor="review-scope"
@@ -517,32 +592,10 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               checked={makePublic}
               onChange={(e) => setMakePublic(e.target.checked)}
             />
-            <span>Make public after acceptance</span>
+            <span>Make public after acceptance (optional)</span>
           </label>
         ) : null}
         <p className="hint">Reviews and letters are only shown to you.</p>
-
-        <fieldset className="radio-list">
-          <legend>AI use in this work</legend>
-          <p className="hint">
-            Choose the closest description. Add fuller disclosure directly in the manuscript if
-            needed.
-          </p>
-          {AI_USES.map((level) => (
-            <label key={level} className="radio">
-              <input
-                type="radio"
-                name="ai-level"
-                value={level}
-                checked={aiLevel === level}
-                onChange={() => setAiLevel(level)}
-              />
-              <span>
-                <strong>{AI_USE_LABELS[level]}</strong> — {AI_USE_DESCRIPTIONS[level]}
-              </span>
-            </label>
-          ))}
-        </fieldset>
 
         <div className="form-row">
           <Field label="MSC 2020 codes (optional)" htmlFor="msc" hint="e.g. 11B83, 05D10">
@@ -565,27 +618,12 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               onChange={(e) => setOpen(e.target.checked)}
             />
             <span>
-              Let volunteer contributors help analyse the paper. They will see the statements, the
-              title and the abstract while the paper is in review. You can change this later.
+              Optional: let volunteer contributors help analyse the paper. They will see the
+              statements, the title and the abstract while the paper is in review. You can change
+              this later.
             </span>
           </label>
         ) : null}
-
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            required
-          />
-          <span>{PROCESSING_CONSENT_TEXT}</span>
-        </label>
-        <div className="button-row">
-          <button type="submit" className="button" disabled={busy}>
-            {busy ? 'Uploading…' : 'Upload and read statements'}
-          </button>
-        </div>
-        <InlineError error={error} />
       </section>
     </form>
   );

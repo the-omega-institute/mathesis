@@ -20,7 +20,7 @@ it('deposits source and original attribution without presenting it as verified',
   const api = fakeApi({ submitFormalization }, author);
   renderWithApp(<SubmitPage />, api);
   const user = userEvent.setup();
-  await screen.findByLabelText('LaTeX source');
+  await screen.findByLabelText('LaTeX source (required)');
   await user.click(screen.getByRole('button', { name: 'Lean formalization' }));
   await user.type(screen.getByLabelText('Title', { exact: true }), 'A formal proof');
   await user.clear(screen.getByLabelText('Original authors (one per line)'));

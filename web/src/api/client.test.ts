@@ -222,12 +222,30 @@ describe('createApiClient', () => {
     });
   });
 
-  it('maps a network failure to code "network"', async () => {
-    const api = createApiClient(async () => {
-      throw new TypeError('Failed to fetch');
-    });
-    await expect(api.policy()).rejects.toMatchObject({ status: 0, code: 'network' });
-  });
+  it.each(['read', 'decision', 'visibility', 'upload'] as const)(
+    'maps a %s network failure to neutral guidance without retry advice',
+    async (operation) => {
+      const api = createApiClient(async () => {
+        throw new TypeError('Failed to fetch');
+      });
+      const request =
+        operation === 'read'
+          ? api.policy()
+          : operation === 'decision'
+            ? api.applyDecision('s1')
+            : operation === 'visibility'
+              ? api.setVisibility('s1', 'public')
+              : api.uploadVersion('s1', new File(['x'], 'v2.tex'), 'A correction');
+      const error = await request.catch((error: unknown) => error);
+      expect(error).toMatchObject({
+        status: 0,
+        code: 'network',
+        detail:
+          'The server could not be reached. The request could not be confirmed; reload the page data when your connection is back to see the current state.',
+      });
+      expect((error as ApiError).detail).not.toMatch(/try again/i);
+    },
+  );
 
   it('returns undefined for 204 (logout)', async () => {
     const api = createApiClient(async () => new Response(null, { status: 204 }));

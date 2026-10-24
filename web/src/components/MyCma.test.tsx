@@ -72,7 +72,7 @@ describe('Use your own agents (optional)', () => {
     renderWithApp(<MyCma />, fakeApi({}, donor));
     expect(await screen.findByText('Not available yet')).toHaveAttribute('role', 'status');
     expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
-    expect(screen.queryByLabelText('CMA workspace ID')).toBeNull();
+    expect(screen.queryByLabelText('Compute workspace ID')).toBeNull();
   });
 
   it('validates setup with the binding revision, hides setup when ready and disconnects', async () => {
@@ -102,7 +102,7 @@ describe('Use your own agents (optional)', () => {
       fakeApi({ getCma: vi.fn(async () => binding), setCmaWorkspace, disconnectCma }, donor),
     );
     expect(await screen.findByText('Setup needed')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open CMA setup' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open compute setup' })).toHaveAttribute(
       'href',
       binding.setup_url,
     );
@@ -110,21 +110,21 @@ describe('Use your own agents (optional)', () => {
       'href',
       expect.stringContaining('/auth/cma/connect?return_to='),
     );
-    await userEvent.type(screen.getByLabelText('CMA workspace ID'), 'wks_mine');
+    await userEvent.type(screen.getByLabelText('Compute workspace ID'), 'wks_mine');
     await userEvent.click(screen.getByRole('button', { name: 'Save / recheck workspace' }));
     expect(setCmaWorkspace).toHaveBeenLastCalledWith({
       workspace_id: 'wks_mine',
       expected_revision: 2,
     });
     expect(await screen.findByText('Connected')).toBeInTheDocument();
-    expect(screen.queryByRole('form', { name: 'CMA workspace' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Open CMA setup' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Compute workspace' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open compute setup' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
-    expect(screen.queryByText('Create a CMA workspace, then paste its ID below.')).toBeNull();
+    expect(screen.queryByText('Create a Compute workspace, then paste its ID below.')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     expect(disconnectCma).toHaveBeenCalledOnce();
     expect(await screen.findByText('Not connected')).toBeInTheDocument();
-    expect(screen.queryByLabelText('CMA workspace ID')).toBeNull();
+    expect(screen.queryByLabelText('Compute workspace ID')).toBeNull();
   });
   it('rechecks an unusable connection using the saved workspace and current revision', async () => {
     const unavailable: MyCmaStatus = {
@@ -146,15 +146,17 @@ describe('Use your own agents (optional)', () => {
       fakeApi({ getCma: vi.fn(async () => unavailable), setCmaWorkspace }, donor),
     );
     expect(await screen.findByText('Connection unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Restore your model quota in CMA, then recheck.')).toBeInTheDocument();
-    expect(screen.getByRole('form', { name: 'CMA workspace' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Restore your model quota in your compute account, then recheck.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('form', { name: 'Compute workspace' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Save / recheck workspace' }));
     expect(setCmaWorkspace).toHaveBeenCalledWith({
       workspace_id: 'wks_existing',
       expected_revision: 5,
     });
     expect(await screen.findByText('Connected')).toBeInTheDocument();
-    expect(screen.queryByLabelText('CMA workspace ID')).toBeNull();
+    expect(screen.queryByLabelText('Compute workspace ID')).toBeNull();
   });
 });
 
@@ -199,9 +201,9 @@ describe('Who ran each step', () => {
     expect(within(history).getByRole('heading', { name: 'Who ran each step' })).toBeInTheDocument();
     expect(history.querySelector(':scope > p')).toBeNull();
     const list = within(history).getAllByRole('listitem');
-    expect(list[0]).toHaveTextContent(/^Codex audit · Your agents · failed$/);
+    expect(list[0]).toHaveTextContent(/^Source check · Your agents · Could not finish$/);
     expect(list[0]?.querySelector('p')).toBeNull();
-    expect(list[1]).toHaveTextContent('Codex audit · Mathesis · running');
+    expect(list[1]).toHaveTextContent('Source check · Mathesis · In progress');
     expect(list[1]).toHaveTextContent('Your agents failed for an unknown reason.');
     expect(document.body).not.toHaveTextContent('workspace');
   });
@@ -232,8 +234,18 @@ describe('Who ran each step', () => {
       <CmaHistory attempts={[{ ...attempt, kind: undefined }]} />,
       fakeApi(),
     );
-    expect(screen.getByRole('listitem')).toHaveTextContent(/^r1:audit · Mathesis · running$/);
+    expect(screen.getByRole('listitem')).toHaveTextContent(
+      /^Earlier review step · Mathesis · In progress$/,
+    );
     rerender(<CmaHistory attempts={[]} />);
     expect(screen.queryByRole('region', { name: 'Who ran each step' })).toBeNull();
+  });
+  it('gives an unknown legacy step kind a readable fallback', () => {
+    const legacyAttempt = JSON.parse(JSON.stringify({ ...attempt, kind: 'old_automated_step' }));
+    renderWithApp(<CmaHistory attempts={[legacyAttempt]} />, fakeApi());
+    expect(screen.getByRole('listitem')).toHaveTextContent(
+      /^Other automated step · Mathesis · In progress$/,
+    );
+    expect(document.body).not.toHaveTextContent('old_automated_step');
   });
 });
