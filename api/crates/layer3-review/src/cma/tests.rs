@@ -836,3 +836,47 @@ async fn delete_acknowledgment_keeps_the_handle_until_absence_is_observed() {
     assert_eq!(deletes.len(), 2);
     assert_eq!(deletes[0], deletes[1]);
 }
+#[tokio::test]
+async fn starting_agent_admission_conflict_retries_the_same_turn_key() {
+    // Observed on 2026-10-22: a turn posted seconds after creation answers
+    // 409 agent_command_admission_conflict ("Retry using the same key").
+    let error = || ReviewError::Provider {
+        status: 409,
+        body: "agent_command_admission_conflict".into(),
+    };
+    let conflict = || Err(error());
+    assert!(transient(&error()));
+    assert_eq!(failure_kind(&error()), None);
+    let (client, fake) = client(vec![
+        reply(json!({"id":"agt_test"})),
+        conflict(),
+        conflict(),
+        receipt("resp_test"),
+        completed("{\"summary\":\"checked\"}"),
+        accepted(),
+        accepted(),
+    ]);
+    let store = Memory::default();
+    let answer = client
+        .answer(&store, "paper source".into(), Duration::from_secs(60))
+        .await
+        .unwrap();
+    assert_eq!(answer, "{\"summary\":\"checked\"}");
+    let calls = fake.calls.lock().await;
+    let turns: Vec<_> = calls
+        .iter()
+        .filter(|c| c.1 == "api/v2/agents/agt_test/responses")
+        .collect();
+    assert_eq!(turns.len(), 3);
+    assert!(turns.iter().all(|c| c.3 == turns[0].3 && c.2 == turns[0].2));
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| c.0 == "POST" && c.1.ends_with("/agents"))
+            .count(),
+        1
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(state.response_id.as_deref(), Some("resp_test"));
+    assert!(state.stopped && state.deleted);
+}
