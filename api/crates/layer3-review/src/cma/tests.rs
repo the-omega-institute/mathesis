@@ -448,60 +448,67 @@ impl TokenSource for Tokens {
 #[tokio::test]
 async fn http_transport_maps_statuses_and_uses_the_durable_sse_header() {
     use axum::{Router, http::StatusCode, routing::any};
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    let token = format!("test-user-{}", now());
-    let expected = token.clone();
-    let router = Router::new().route(
-        "/{status}",
-        any(
-            move |axum::extract::Path(status): axum::extract::Path<u16>,
-                  headers: axum::http::HeaderMap| {
-                let expected = expected.clone();
-                async move {
-                    assert_eq!(headers["authorization"], format!("Bearer {expected}"));
-                    (
-                        StatusCode::from_u16(status).unwrap(),
-                        [("x-cma-response-id", "resp_handshake")],
-                        "{\"error\":{\"code\":\"typed_refusal\",\"message\":\"private\"}}",
-                    )
-                }
-            },
-        ),
-    );
-    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-    let http = HttpTransport {
-        base_url: format!("http://{addr}"),
-        tokens: Arc::new(Tokens(token)),
-    };
-    for status in [401, 403, 404, 409, 429, 500, 503] {
-        let e = http
-            .request("GET", &status.to_string(), None, None)
+    for prefix in ["test-user-", "nyxid_ag_", "nyx_"] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let token = format!("{prefix}{}", now());
+        let expected = token.clone();
+        let router = Router::new().route(
+            "/{status}",
+            any(
+                move |axum::extract::Path(status): axum::extract::Path<u16>,
+                      headers: axum::http::HeaderMap| {
+                    let expected = expected.clone();
+                    async move {
+                        assert_eq!(headers["authorization"], format!("Bearer {expected}"));
+                        (
+                            StatusCode::from_u16(status).unwrap(),
+                            [("x-cma-response-id", "resp_handshake")],
+                            "{\"error\":{\"code\":\"typed_refusal\",\"message\":\"private\"}}",
+                        )
+                    }
+                },
+            ),
+        );
+        let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let http = HttpTransport {
+            base_url: format!("http://{addr}"),
+            tokens: Arc::new(Tokens(token)),
+        };
+        for status in [401, 403, 404, 409, 429, 500, 503] {
+            let e = http
+                .request("GET", &status.to_string(), None, None)
+                .await
+                .err()
+                .unwrap();
+            assert!(matches!(e,ReviewError::Provider{status:s,..}if s==status));
+            assert!(!e.to_string().contains("private"));
+        }
+        assert_eq!(
+            http.request(
+                "POST",
+                "200",
+                Some(json!({"input":"x","stream":true})),
+                Some("same-key")
+            )
             .await
-            .err()
-            .unwrap();
-        assert!(matches!(e,ReviewError::Provider{status:s,..}if s==status));
-        assert!(!e.to_string().contains("private"));
+            .unwrap()
+            .response_id()
+            .unwrap(),
+            "resp_handshake"
+        );
+        let empty_credential = HttpTransport {
+            base_url: format!("http://{addr}"),
+            tokens: Arc::new(Tokens(" \n".into())),
+        };
+        assert!(
+            empty_credential
+                .request("GET", "200", None, None)
+                .await
+                .is_err()
+        );
+        server.abort();
     }
-    assert_eq!(
-        http.request(
-            "POST",
-            "200",
-            Some(json!({"input":"x","stream":true})),
-            Some("same-key")
-        )
-        .await
-        .unwrap()
-        .response_id()
-        .unwrap(),
-        "resp_handshake"
-    );
-    let agent_key = HttpTransport {
-        base_url: format!("http://{addr}"),
-        tokens: Arc::new(Tokens(format!("nyxid_ag_{}", now()))),
-    };
-    assert!(agent_key.request("GET", "200", None, None).await.is_err());
-    server.abort();
 }
 
 #[tokio::test]

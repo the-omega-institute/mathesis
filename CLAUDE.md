@@ -424,9 +424,11 @@ from `develop`. No force pushes to either.
   fallback, refused on non-loopback binds. Oracle CLI and CMA CLI are also
   loopback-only. CLI children inherit only operator `PATH` and `HOME`.
   The local fallback uses fresh source/scratch copies and disables its sandbox
-  network. Production CMA HTTP uses a NyxID user access token from the existing
-  sealed delegated-token refresh path or a mounted token file; agent keys are
-  rejected. Every new configuration key must be declared in infra (§8).
+  network. Production CMA HTTP through NyxID accepts an operator API key scoped
+  to CMA, or a user access token from the existing sealed refresh path or a mounted
+  token file. NyxID/CMA enforce current authority; credential prefixes are not
+  authorization. Mounted user access tokens do not refresh automatically.
+  Every new configuration key must be declared in infra (§8).
 
 - Author CMA connections use ordinary NyxID `offline_access` consent, without
   resource or service restrictions, in separate sealed `cma_review` generation

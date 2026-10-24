@@ -11,8 +11,13 @@ NyxID CLI mode uses the operator's local login to access a remote CMA workspace.
 It does not register Mathesis as a permanent service inside CMA. Mathesis
 creates temporary agents for individual steps and retains their identities for
 recovery and cleanup. A session expiry needs a new `nyxid login`. Production
-uses HTTP and operator-managed credentials, or the explicitly connected author's
+uses HTTP through the NyxID proxy and a dedicated operator API key scoped to CMA,
+or the explicitly connected author's
 ordinary NyxID credential, with the existing durable payer selection.
+Keep the operator key in `WISHPOOL_CMA_TOKEN_FILE`; a copied local access token
+expires without renewal. Key acceptance through the proxy does not imply that
+direct CMA origins accept the same key. Verify the deployed route with resource
+reads, then a complete Agent response before declaring review execution ready.
 
 All CMA modes require `WISHPOOL_CMA_AGENT_PROFILE` with a published `id` and
 positive `revision`. It must be readable by each executing account. A sandbox

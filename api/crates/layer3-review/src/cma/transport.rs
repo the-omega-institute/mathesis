@@ -106,8 +106,11 @@ impl Transport for HttpTransport {
             .build()
             .map_err(|_| ReviewError::Transport("CMA HTTP client unavailable".into()))?;
         let token = self.tokens.token().await?;
-        if token.trim().is_empty() || token.trim().starts_with("nyxid_ag_") {
-            return Err(invalid("CMA requires a NyxID user access token"));
+        // The NyxID proxy and CMA verify service scope and current authority.
+        // A credential prefix cannot distinguish an authorized operator key
+        // from a restricted key; rejecting all agent keys breaks service auth.
+        if token.trim().is_empty() {
+            return Err(invalid("CMA credential is empty"));
         }
         let mut request = client
             .request(
