@@ -1,0 +1,12 @@
+{
+  "identity": {
+    "bundle_digest": "sha256:6c92665f572be41df6f8fad0d246f4e141e9cf036196608239792f787121ec26",
+    "source_commit": "e7dcc89974fd44cabd0f10781eccc135eddf8d1c",
+    "source_tree": "442f387c1013f60d23f70faa1927ea29fda57d21"
+  },
+  "admitted_by": "ADMITTED_BY_PLACEHOLDER — owner decision pending (see record)",
+  "source_ci_url": "https://github.com/the-omega-institute/trureturing/actions/runs/38719956711",
+  "report_ci_url": "https://github.com/the-omega-institute/trureturing/actions/runs/38727419398",
+  "protected_source_evidence": "Operator acquisition record, 2026-10-24: GitHub REST independently confirmed source commit e7dcc89974fd44cabd0f10781eccc135eddf8d1c with tree 442f387c1013f60d23f70faa1927ea29fda57d21 and ancestry of dev (compare source...dev: ahead, behind_by 0). Source CI 38719956711 (CI, push to dev) and report CI 38727419398 (CI publication verification, push to integration-ci-fib-isolation-tests) both completed successfully at that exact source SHA, attempt 1. Pages source release was published 2026-10-15T12:49:05Z. Publication, original report parts and members, source license and all 9783 report-referenced source hashes were independently checked; coordinates and digests are retained in docs/KNOWLEDGE_ADMISSION_2026-10-24.md. Artifact trust flags, branch names and CI URL strings alone are not authentication.",
+  "license_sha256": "sha256:45404ee75576b053a86e89e545fd6987a607107cf4d846fa78dcb6a233d53447"
+}

@@ -1,0 +1,582 @@
+name: Mathesis knowledge import image (2026-10-24 only)
+on:
+  push:
+    branches: [deploy/knowledge-import-20261024]
+    paths:
+      - .github/workflows/knowledge-import-once-20261024.yml
+      - docs/KNOWLEDGE_ADMISSION_2026-10-24.md
+      - docs/KNOWLEDGE_ADMISSION_2026-10-24.json
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # This tag is only a push handle. Deploy only the receipt's RepoDigest.
+      IMAGE: ghcr.io/the-omega-institute/mathesis-knowledge-import:e7dcc899-20261024
+      # All verification values are loaded from the admission record after checkout.
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load the authoritative record and check admission bytes before downloads
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, shutil
+          record = pathlib.Path('docs/KNOWLEDGE_ADMISSION_2026-10-24.md')
+          lines = record.read_text().splitlines()
+          def table(header):
+              assert lines.count(header) == 1, header
+              rows = {}
+              for line in lines[lines.index(header) + 2:]:
+                  if not line.startswith('|'):
+                      break
+                  cells = [c.strip() for c in line.strip('|').split('|')]
+                  assert len(cells) == len(header.strip('|').split('|')), line
+                  assert cells[0] not in rows, cells[0]
+                  rows[cells[0]] = cells[1:]
+              assert rows, header
+              return rows
+          def code(text):
+              values = re.findall(r'`([^`]+)`', text)
+              assert len(values) == 1, text
+              return values[0]
+          def digest(text):
+              value = code(text)
+              assert re.fullmatch(r'[0-9a-f]{64}', value), text
+              return value
+          coordinates = table('| Coordinate | Recorded value |')
+          inputs = table('| Input | SHA-256 |')
+          part_rows = table('| Part | Bytes | SHA-256 |')
+          member_rows = table('| Member under `build/stratalint/` | SHA-256 |')
+          values = {}
+          for key, label in [('SOURCE_COMMIT', 'Trureturing source commit'),
+                             ('SOURCE_TREE', 'Source tree'), ('BASE', 'Pinned running API image'),
+                             ('SOURCE_MODULES', 'Report-referenced source files')]:
+              values[key] = code(coordinates[label][0])
+          assert re.fullmatch(r'[0-9a-f]{40}', values['SOURCE_COMMIT'])
+          assert re.fullmatch(r'[0-9a-f]{40}', values['SOURCE_TREE'])
+          assert re.fullmatch(r'ghcr\.io/[a-z0-9/-]+@sha256:[0-9a-f]{64}', values['BASE'])
+          assert values['SOURCE_MODULES'].isdigit() and int(values['SOURCE_MODULES']) > 0
+          for kind, label in [('PAGES', 'Pages release'), ('REPORT', 'Original report release')]:
+              repo, tag = re.findall(r'`([^`]+)`', coordinates[label][0])
+              assert re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo)
+              assert re.fullmatch(r'[A-Za-z0-9_.-]+', tag)
+              values[kind + '_REPO'], values[kind + '_RELEASE'] = repo, tag
+          for kind, label in [('SOURCE', 'Source CI'), ('REPORT', 'Report producer CI')]:
+              cell = coordinates[label][0]
+              url, run = re.search(r'\((https://github\.com/[^)]+/actions/runs/(\d+))\)', cell).groups()
+              assert url == f"https://github.com/{values['REPORT_REPO']}/actions/runs/{run}"
+              values[kind + '_CI_URL'], values[kind + '_RUN_ID'] = url, run
+              values[kind + '_RUN_ATTEMPT'] = re.search(r'attempt (\d+)', cell)[1]
+          projection = {code(label): digest(cells[0]) for label, cells in inputs.items()
+                        if label.startswith('Projection ')}
+          assert set(projection) == {'SHA256SUMS', 'release-manifest.v1.json', 'truth-release-publication.v1.json'}
+          values['BUNDLE_DIGEST'] = projection['SHA256SUMS']
+          values['LICENSE_SHA256'] = digest(inputs['Source `LICENSE`'][0])
+          values['ADMISSION_SHA256'] = digest(inputs['Exact checked-in admission JSON, including trailing newline'][0])
+          archive_label, = [label for label in inputs if label.startswith('Complete concatenated report archive (')]
+          values['REPORT_ARCHIVE_SHA256'] = digest(inputs[archive_label][0])
+          archive_bytes = int(re.fullmatch(r'Complete concatenated report archive \(([0-9,]+) bytes\)', archive_label)[1].replace(',', ''))
+          parts = [dict(name=code(label), bytes=int(cells[0].replace(',', '')), sha256=digest(cells[1]))
+                   for label, cells in part_rows.items()]
+          assert [p['name'] for p in parts] == [f'lean-build.tgz.part-{i:02}' for i in range(5)]
+          assert all(p['bytes'] > 0 for p in parts) and sum(p['bytes'] for p in parts) == archive_bytes
+          members = {code(label): digest(cells[0]) for label, cells in member_rows.items()}
+          assert set(members) == {'raw-lean-report.json' + suffix for suffix in
+                                  ('', '.input.attestation', '.materials.zip', '.provenance.json', '.sha256')}
+          admission = pathlib.Path('docs/KNOWLEDGE_ADMISSION_2026-10-24.json')
+          assert hashlib.sha256(admission.read_bytes()).hexdigest() == values['ADMISSION_SHA256'], 'record/admission digest drift'
+          task = pathlib.Path(os.environ['RUNNER_TEMP']) / 'knowledge-import'
+          (task / 'context/knowledge').mkdir(parents=True, exist_ok=True)
+          (task / 'receipts').mkdir(exist_ok=True)
+          (task / 'pins.json').write_text(json.dumps(dict(parts=parts, archive_bytes=archive_bytes)))
+          for name, hashes in [('projection', projection), ('report', members)]:
+              (task / (name + '.sums')).write_text(''.join(f'{h}  {n}\n' for n, h in hashes.items()))
+          # Values are data, never sourced or evaluated as shell code.
+          with pathlib.Path(os.environ['GITHUB_ENV']).open('a') as output:
+              for key, value in values.items():
+                  assert '\n' not in value and '\r' not in value
+                  output.write(f'{key}={value}\n')
+          shutil.copyfile(record, task / 'receipts' / record.name)
+          print('record verification values loaded; exact admission bytes match before downloads')
+          PY
+      - name: Check admission digest, exact contract fields and owner signer boundary
+        run: |
+          set -euo pipefail
+          printf '%s  docs/KNOWLEDGE_ADMISSION_2026-10-24.json\n' "$ADMISSION_SHA256" | sha256sum -c -
+          python3 - <<'PY'
+          import json, os, pathlib, shutil
+          source = pathlib.Path('docs/KNOWLEDGE_ADMISSION_2026-10-24.json')
+          a = json.loads(source.read_bytes())
+          assert set(a) == {'identity', 'admitted_by', 'source_ci_url', 'report_ci_url',
+                            'protected_source_evidence', 'license_sha256'}
+          assert a['identity'] == dict(bundle_digest='sha256:' + os.environ['BUNDLE_DIGEST'],
+                                       source_commit=os.environ['SOURCE_COMMIT'],
+                                       source_tree=os.environ['SOURCE_TREE'])
+          assert a['source_ci_url'] == os.environ['SOURCE_CI_URL']
+          assert a['report_ci_url'] == os.environ['REPORT_CI_URL']
+          assert a['license_sha256'] == 'sha256:' + os.environ['LICENSE_SHA256']
+          for key in ('admitted_by', 'protected_source_evidence'):
+              assert isinstance(a[key], str) and a[key].strip(), key
+          assert 'placeholder' not in a['admitted_by'].casefold(), 'owner signer decision pending; do not build'
+          assert 'owner decision pending' not in a['admitted_by'].casefold(), 'owner signer decision pending'
+          task = pathlib.Path(os.environ['RUNNER_TEMP']) / 'knowledge-import'
+          shutil.copyfile(source, task / 'context/knowledge/admission.json')
+          shutil.copyfile(source, task / 'receipts/admission.json')
+          print('operator admission bytes and fields verified')
+          PY
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prove the pinned base supports the probe-only listener as uid 65532
+        run: |
+          set -euo pipefail
+          task="$RUNNER_TEMP/knowledge-import"
+          mkdir -p "$task/context/knowledge" "$task/receipts"
+          cat > "$task/probe.pl" <<'PERL'
+          use strict;
+          use warnings;
+          use IO::Socket::INET;
+          $SIG{TERM} = sub { exit 0 };
+          $SIG{INT} = sub { exit 0 };
+          $SIG{PIPE} = 'IGNORE';
+          my $server = IO::Socket::INET->new(
+              LocalAddr => '0.0.0.0', LocalPort => 8080,
+              Listen => 16, ReuseAddr => 1
+          ) or die "probe bind: $!\n";
+          $| = 1;
+          print "knowledge-import: probe listening on :8080/healthz\n";
+          while (my $client = $server->accept()) {
+              eval {
+                  local $SIG{ALRM} = sub { die "probe request timeout\n" };
+                  alarm 2;
+                  my $request = '';
+                  while (length($request) < 8192 && $request !~ /\r\n\r\n\z/) {
+                      my $n = sysread($client, my $byte, 1);
+                      last unless $n;
+                      $request .= $byte;
+                  }
+                  my $ok = $request =~ m{\A(?:GET|HEAD) /healthz HTTP/1\.[01]\r\n};
+                  my $head = $request =~ m{\AHEAD };
+                  my $status = $ok ? '200 OK' : '404 Not Found';
+                  my $body = $ok ? "ok\n" : "not found\n";
+                  print {$client} "HTTP/1.1 $status\r\nContent-Type: text/plain\r\n",
+                      'Content-Length: ', length($body), "\r\nConnection: close\r\n\r\n",
+                      $head ? '' : $body;
+                  alarm 0;
+              };
+              alarm 0;
+              close $client;
+          }
+          PERL
+          # Used both here and for the carrier; retries are bounded, never a
+          # sleep used to guess when asynchronous hash writers have completed.
+          cat > "$task/probe-client.pl" <<'PERL'
+          use strict;
+          use warnings;
+          use IO::Socket::INET;
+          my $path = shift // '/healthz';
+          my $code = shift // '200';
+          my $method = shift // 'GET';
+          my $socket;
+          for (1 .. 100) {
+              $socket = IO::Socket::INET->new(
+                  PeerAddr => '127.0.0.1', PeerPort => 8080, Timeout => 1
+              );
+              last if $socket;
+              select undef, undef, undef, 0.1;
+          }
+          die "probe did not start\n" unless $socket;
+          alarm 5;
+          print {$socket} "$method $path HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+          local $/;
+          my $response = <$socket>;
+          die "unexpected probe response\n" unless $response =~ /\AHTTP\/1\.1 $code /;
+          print $response;
+          PERL
+          docker pull --platform linux/amd64 "$BASE"
+          # No package installation: missing Perl, modules, utilities or binary
+          # fails closed before any input is downloaded or carrier is built.
+          docker run --rm --network none --user 65532:65532 --entrypoint /bin/sh "$BASE" -ec '
+            test "$(id -u)" = 65532
+            test -x /usr/local/bin/mathesis
+            for tool in perl tail cat; do command -v "$tool" >/dev/null; done
+            perl -MIO::Socket::INET -MJSON::PP -e "print qq(base listener and JSON capabilities present\n)"
+          '
+          docker run -d --name knowledge-base-probe --network none --read-only \
+            --user 65532:65532 --entrypoint perl \
+            --mount "type=bind,src=$task/probe.pl,dst=/probe.pl,readonly" \
+            "$BASE" /probe.pl
+          trap 'docker rm -f knowledge-base-probe >/dev/null 2>&1 || true' EXIT
+          docker exec -i knowledge-base-probe perl - < "$task/probe-client.pl"
+          docker exec -i knowledge-base-probe perl - /healthz 200 HEAD < "$task/probe-client.pl"
+          docker exec -i knowledge-base-probe perl - /other 404 < "$task/probe-client.pl"
+          docker exec -i knowledge-base-probe perl - /healthz 404 POST < "$task/probe-client.pl"
+          docker logs knowledge-base-probe > "$task/receipts/base-probe.log" 2>&1
+      - name: Download and verify exactly eight projection files
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/knowledge-import"
+          gh release download "$PAGES_RELEASE" --repo "$PAGES_REPO" \
+            --pattern 'truth-release-*.tar.gz' --output projection.tgz
+          python3 - <<'PY'
+          import pathlib, shutil, tarfile
+          expected = {
+              'SHA256SUMS', 'release-manifest.v1.json', 'truth-release-publication.v1.json',
+              'raw-lean-report.json', 'report-provenance.v1.json', 'source-snapshot.v1.json',
+              'truth-export.v1.json', 'truth-graph.v1.json',
+          }
+          seen = set()
+          root = pathlib.Path('context/knowledge/projection')
+          root.mkdir()
+          with tarfile.open('projection.tgz', 'r:gz') as archive:
+              for member in archive:
+                  name = member.name.removeprefix('./')
+                  assert name in expected and name not in seen, member.name
+                  assert member.isfile() and member.size <= 512 * 1024 * 1024, member.name
+                  seen.add(name)
+                  with archive.extractfile(member) as src, (root / name).open('wb') as dst:
+                      shutil.copyfileobj(src, dst)
+          assert seen == expected, seen
+          assert {p.name for p in root.iterdir()} == expected
+          PY
+          cd context/knowledge/projection
+          printf '%s  SHA256SUMS\n' "$BUNDLE_DIGEST" | sha256sum -c -
+          sha256sum --strict -c SHA256SUMS
+          sha256sum -c "$RUNNER_TEMP/knowledge-import/projection.sums"
+          rm "$RUNNER_TEMP/knowledge-import/projection.tgz"
+      - name: Stream and verify five report parts, whole archive and five selected members
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/knowledge-import"
+          gh release download "$REPORT_RELEASE" --repo "$REPORT_REPO" \
+            --pattern manifest.json --output report-manifest.json
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, shutil, subprocess, tarfile
+          manifest = json.loads(pathlib.Path('report-manifest.json').read_bytes())
+          pins = json.loads(pathlib.Path('pins.json').read_bytes())
+          parts = pins['parts']
+          def integer(value):
+              assert type(value) is int or (isinstance(value, str) and value.isascii() and value.isdecimal()), 'expected integer or decimal string'
+              return int(value)
+          assert [dict(name=p['name'], bytes=integer(p['bytes']), sha256=p['sha256'])
+                  for p in manifest['parts']] == parts, 'release part inventory changed'
+          assert manifest['archive_sha256'] == os.environ['REPORT_ARCHIVE_SHA256']
+          assert integer(manifest['archive_bytes']) == sum(p['bytes'] for p in parts) == pins['archive_bytes']
+          assert manifest['producer_commit_sha'] == os.environ['SOURCE_COMMIT']
+          assert integer(manifest['workflow_run_id']) == int(os.environ['REPORT_RUN_ID'])
+          assert integer(manifest['workflow_run_attempt']) == int(os.environ['REPORT_RUN_ATTEMPT'])
+          # This reader owns each download and hash synchronously. All five
+          # processes must exit successfully, including after tar's end marker.
+          class Parts:
+              def __init__(self):
+                  self.number = 0
+                  self.process = None
+                  self.whole = hashlib.sha256()
+              def read(self, size):
+                  assert size > 0
+                  while self.number < len(parts):
+                      part = parts[self.number]
+                      if self.process is None:
+                          self.process = subprocess.Popen([
+                              'gh', 'release', 'download', os.environ['REPORT_RELEASE'],
+                              '--repo', os.environ['REPORT_REPO'], '--pattern', part['name'],
+                              '--output', '-',
+                          ], stdout=subprocess.PIPE)
+                          self.digest, self.count = hashlib.sha256(), 0
+                      chunk = self.process.stdout.read(size)
+                      if chunk:
+                          self.digest.update(chunk)
+                          self.whole.update(chunk)
+                          self.count += len(chunk)
+                          assert self.count <= part['bytes'], part['name']
+                          return chunk
+                      self.process.stdout.close()
+                      assert self.process.wait(timeout=60) == 0, part['name']
+                      assert self.count == part['bytes'], part['name']
+                      assert self.digest.hexdigest() == part['sha256'], part['name']
+                      print('verified part:', part['name'], self.count, part['sha256'], flush=True)
+                      self.process = None
+                      self.number += 1
+                  return b''
+              def close(self):
+                  if self.process is not None:
+                      self.process.stdout.close()
+                      self.process.terminate()
+                      try:
+                          self.process.wait(timeout=10)
+                      except subprocess.TimeoutExpired:
+                          self.process.kill()
+                          self.process.wait()
+          names = ['raw-lean-report.json' + suffix for suffix in
+                   ('', '.input.attestation', '.materials.zip', '.provenance.json', '.sha256')]
+          root = pathlib.Path('context/knowledge/report')
+          root.mkdir()
+          seen = set()
+          stream = Parts()
+          try:
+              with tarfile.open(fileobj=stream, mode='r|gz') as archive:
+                  for member in archive:
+                      name = member.name.removeprefix('./')
+                      if name not in {'build/stratalint/' + n for n in names}:
+                          continue
+                      short = name.removeprefix('build/stratalint/')
+                      assert short not in seen and member.isfile(), name
+                      assert member.size <= 1024 * 1024 * 1024, name
+                      seen.add(short)
+                      with archive.extractfile(member) as src, (root / short).open('wb') as dst:
+                          shutil.copyfileobj(src, dst)
+              # tar can stop before the gzip trailer or final part ends. Drain
+              # the original compressed stream so every archive byte is hashed.
+              while stream.read(1024 * 1024):
+                  pass
+              assert stream.whole.hexdigest() == os.environ['REPORT_ARCHIVE_SHA256']
+              assert seen == set(names), 'expected build/stratalint/ prefix/members absent'
+              print('verified whole archive:', stream.whole.hexdigest())
+          finally:
+              stream.close()
+          PY
+          cd context/knowledge/report
+          sha256sum -c "$RUNNER_TEMP/knowledge-import/report.sums"
+          cmp raw-lean-report.json ../projection/raw-lean-report.json
+          # Keep the second path without duplicating raw-report bytes in the
+          # scratch context supplied to the single payload COPY.
+          rm raw-lean-report.json
+          ln ../projection/raw-lean-report.json raw-lean-report.json
+      - name: Verify every report-referenced Lean source and copy only those paths plus LICENSE
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/knowledge-import"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess, tarfile
+          raw = json.loads(pathlib.Path('context/knowledge/report/raw-lean-report.json').read_bytes())
+          modules = raw['modules']
+          assert isinstance(modules, list) and len(modules) == int(os.environ['SOURCE_MODULES'])
+          expected = {'LICENSE': 'sha256:' + os.environ['LICENSE_SHA256']}
+          for module in modules:
+              name, digest = module['source_path'], module['source_sha256']
+              path = pathlib.PurePosixPath(name)
+              assert name == str(path) and not path.is_absolute() and '\\' not in name
+              assert all(p not in ('', '.', '..') for p in name.split('/')) and name.endswith('.lean')
+              assert re.fullmatch(r'sha256:[0-9a-f]{64}', digest), name
+              assert name not in expected, name
+              expected[name] = digest
+          root = pathlib.Path('context/knowledge/sources')
+          root.mkdir()
+          prefix = os.environ['REPORT_REPO'].replace('/', '-') + '-' + os.environ['SOURCE_COMMIT'][:7] + '/'
+          process = subprocess.Popen([
+              'gh', 'api', 'repos/' + os.environ['REPORT_REPO'] + '/tarball/' + os.environ['SOURCE_COMMIT']
+          ], stdout=subprocess.PIPE)
+          seen = set()
+          try:
+              with tarfile.open(fileobj=process.stdout, mode='r|gz') as archive:
+                  for member in archive:
+                      if not member.name.startswith(prefix):
+                          continue
+                      name = member.name[len(prefix):]
+                      if name not in expected:
+                          continue
+                      assert name not in seen and member.isfile(), name
+                      assert member.size <= 256 * 1024 * 1024, name
+                      target = root / name
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      digest = hashlib.sha256()
+                      with archive.extractfile(member) as src, target.open('wb') as dst:
+                          while chunk := src.read(1024 * 1024):
+                              digest.update(chunk)
+                              dst.write(chunk)
+                      assert 'sha256:' + digest.hexdigest() == expected[name], name
+                      seen.add(name)
+              while process.stdout.read(1024 * 1024):
+                  pass
+              process.stdout.close()
+              assert process.wait(timeout=60) == 0
+              assert seen == set(expected), 'missing sources/LICENSE or unexpected tarball prefix'
+              assert {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()} == seen
+              print(f'verified {len(modules)}/{len(modules)} module sources and LICENSE; unreferenced files excluded')
+          finally:
+              if process.poll() is None:
+                  process.stdout.close()
+                  process.terminate()
+                  try:
+                      process.wait(timeout=10)
+                  except subprocess.TimeoutExpired:
+                      process.kill()
+                      process.wait()
+          PY
+      - name: Generate carrier Dockerfile and POSIX entrypoint in scratch
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/knowledge-import"
+          cat > context/entrypoint.sh <<'SH'
+          #!/bin/sh
+          # Probe-only service; exactly one importer invocation per container start.
+          set -eu
+          test "$#" -eq 0
+          test "$(id -u)" = 65532
+          test -x /usr/local/bin/mathesis
+          test -z "${WISHPOOL_KNOWLEDGE_INDEX:-}"
+          K=/opt/knowledge
+          probe_pid=
+          import_pid=
+          cleanup() {
+            trap - EXIT TERM INT
+            if [ -n "$import_pid" ]; then
+              kill "$import_pid" 2>/dev/null || true
+              wait "$import_pid" 2>/dev/null || true
+            fi
+            if [ -n "$probe_pid" ]; then
+              kill "$probe_pid" 2>/dev/null || true
+              wait "$probe_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          trap 'exit 143' TERM
+          trap 'exit 130' INT
+          perl - <<'PROBE' &
+          SH
+          # Embed exactly the listener that passed on the pinned base.
+          cat probe.pl >> context/entrypoint.sh
+          cat >> context/entrypoint.sh <<'SH'
+          PROBE
+          probe_pid=$!
+          echo 'knowledge-import: starting'
+          /usr/local/bin/mathesis --knowledge-import "$K/projection" "$K/report" "$K/sources" "$K/admission.json" \
+            > /tmp/knowledge-import.json 2> /tmp/knowledge-import.err &
+          import_pid=$!
+          status=0
+          wait "$import_pid" || status=$?
+          import_pid=
+          echo "knowledge-import: exit_status=$status"
+          if [ "$status" -eq 0 ]; then
+            # Parsing, redirection and display are all conditional: diagnostics
+            # must not terminate the probe even with missing files or read-only /tmp.
+            if perl -MJSON::PP -e '
+                local $/;
+                my $snapshot = decode_json(<>);
+                die "snapshot is not an object\n" unless ref($snapshot) eq "HASH";
+                my @keys = qw(id candidate_modules indexed_modules omitted_modules admitted_at);
+                for my $key (@keys) {
+                    die "missing/scalar header field: $key\n"
+                        unless exists($snapshot->{$key}) && defined($snapshot->{$key}) && !ref($snapshot->{$key});
+                }
+                my %header = map { $_ => $snapshot->{$_} } @keys;
+                print JSON::PP->new->canonical->pretty->encode(\%header);
+              ' /tmp/knowledge-import.json > /tmp/knowledge-import.header &&
+              cat /tmp/knowledge-import.header; then
+              echo 'knowledge-import: ok'
+            else
+              echo 'knowledge-import: FAILED (snapshot header diagnostics unavailable or incomplete)'
+            fi
+          else
+            echo 'knowledge-import: FAILED'
+            tail -n 40 /tmp/knowledge-import.err || echo 'knowledge-import: stderr diagnostics unavailable'
+          fi
+          # Retain the probe after either outcome so the caller can collect
+          # logs and remove the service without an automatic import retry.
+          wait "$probe_pid"
+          SH
+          sh -n context/entrypoint.sh
+          shellcheck --shell=sh context/entrypoint.sh
+          cat > context/Dockerfile <<'DOCKER'
+          # syntax=docker/dockerfile:1
+          ARG BASE
+          FROM ${BASE}
+          COPY --chown=65532:65532 knowledge/ /opt/knowledge/
+          COPY --chown=65532:65532 --chmod=0555 entrypoint.sh /opt/knowledge/entrypoint.sh
+          USER 65532:65532
+          EXPOSE 8080
+          ENTRYPOINT ["/opt/knowledge/entrypoint.sh"]
+          DOCKER
+          # Set modes before COPY; a later recursive chmod layer would duplicate
+          # the large payload. No image save/export or second image is needed.
+          python3 - <<'PY'
+          import pathlib
+          root = pathlib.Path('context/knowledge')
+          for p in root.rglob('*'):
+              p.chmod(0o555 if p.is_dir() else 0o444)
+          root.chmod(0o555)
+          PY
+          cp context/Dockerfile context/entrypoint.sh probe.pl receipts/
+          sha256sum context/entrypoint.sh context/Dockerfile context/knowledge/admission.json > receipts/carrier-inputs.sha256
+          du -sh context/knowledge/*
+          df -h /
+      - name: Build the verified carrier once in the local Docker image store
+        run: |
+          set -euo pipefail
+          # The default Docker driver shares its image store with docker run/push;
+          # avoid a separate builder cache plus an exported 1 GB image tarball.
+          docker buildx build --builder default --platform linux/amd64 --load --build-arg "BASE=$BASE" \
+            --label 'org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis' \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.description=One-off verified knowledge import $SOURCE_COMMIT" \
+            -t "$IMAGE" "$RUNNER_TEMP/knowledge-import/context"
+      - name: Smoke-test the real entrypoint, health listener and importer binary
+        run: |
+          set -euo pipefail
+          task="$RUNNER_TEMP/knowledge-import"
+          # No MongoDB or secrets: the real binary must report its expected
+          # memory-storage rejection; the probe must remain healthy afterwards.
+          docker run -d --name knowledge-carrier-smoke --network none --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+            -e WISHPOOL_BIND=127.0.0.1:8080 -e WISHPOOL_PUBLIC_URL=http://127.0.0.1:8080 \
+            -e WISHPOOL_AUTH_MODE=dev -e WISHPOOL_STORAGE=memory -e WISHPOOL_ROLE=api "$IMAGE"
+          trap 'docker logs knowledge-carrier-smoke > "$RUNNER_TEMP/knowledge-import/receipts/smoke.log" 2>&1; docker rm -f knowledge-carrier-smoke >/dev/null 2>&1 || true' EXIT
+          docker exec -i knowledge-carrier-smoke perl - < "$task/probe-client.pl"
+          docker exec -i knowledge-carrier-smoke perl - /healthz 200 HEAD < "$task/probe-client.pl"
+          docker exec -i knowledge-carrier-smoke perl - /knowledge/capabilities 404 < "$task/probe-client.pl"
+          test "$(docker exec knowledge-carrier-smoke id -u)" = 65532
+          # Wait for explicit log evidence with a fixed deadline; no fixed delay
+          # is treated as proof of completion.
+          python3 - <<'PY'
+          import subprocess, time
+          deadline = time.monotonic() + 30
+          while time.monotonic() < deadline:
+              logs = subprocess.check_output(['docker', 'logs', 'knowledge-carrier-smoke'], stderr=subprocess.STDOUT).decode()
+              if 'knowledge operations require MongoDB' in logs:
+                  assert logs.count('knowledge-import: starting') == 1
+                  assert 'knowledge-import: exit_status=1\n' in logs
+                  assert 'knowledge-import: FAILED\n' in logs
+                  assert 'knowledge-import: ok\n' not in logs
+                  break
+              time.sleep(0.2)
+          else:
+              raise SystemExit('real importer did not report expected smoke-test failure')
+          PY
+          docker exec -i knowledge-carrier-smoke perl - < "$task/probe-client.pl"
+      - name: Push and record the immutable RepoDigest
+        run: |
+          set -euo pipefail
+          task="$RUNNER_TEMP/knowledge-import"
+          docker push "$IMAGE"
+          docker image inspect "$IMAGE" --format '{{json .RepoDigests}}' > "$task/receipts/repo-digests.json"
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          task = pathlib.Path(os.environ['RUNNER_TEMP']) / 'knowledge-import'
+          digests = json.loads((task / 'receipts/repo-digests.json').read_text())
+          matches = [d for d in digests if re.fullmatch(
+              r'ghcr\.io/the-omega-institute/mathesis-knowledge-import@sha256:[0-9a-f]{64}', d)]
+          assert len(matches) == 1, digests
+          (task / 'receipts/image.digest').write_text(matches[0] + '\n')
+          receipt = dict(image=matches[0], base=os.environ['BASE'], workflow_commit=os.environ['GITHUB_SHA'],
+                         workflow_run_url=f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+                         admission_sha256=os.environ['ADMISSION_SHA256'], source_commit=os.environ['SOURCE_COMMIT'],
+                         bundle_digest='sha256:' + os.environ['BUNDLE_DIGEST'])
+          (task / 'receipts/receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          print(matches[0])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-knowledge-import-20261024-receipt
+          path: ${{ runner.temp }}/knowledge-import/receipts/
+          if-no-files-found: error
