@@ -17,7 +17,7 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/the-omega-institute/mathesis-api:knowledge-context-budget-20261028
-      SOURCE_COMMIT: 17cd86d57b6edcf2850f33e6751be949583bec5a
+      SOURCE_COMMIT: 23576343ff914a64f4287a55a205ab51faac61d6
       BASE: ghcr.io/the-omega-institute/mathesis-api@sha256:d59f294b1b7eae25271fc3fb7e4a7799d0ad0f7a8deb43437d3f8b5cbf6ec18b
     steps:
       - uses: actions/checkout@v4
