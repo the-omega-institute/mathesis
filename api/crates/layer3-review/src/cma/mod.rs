@@ -270,16 +270,17 @@ impl Client {
             Err(invalid("CMA inputs changed after admission"))
         } else if state.answer.is_some() || state.failure.is_some() {
             Ok(())
-        } else if remaining.is_zero() {
-            Err(invalid("CMA step deadline exceeded"))
         } else {
             match chunks {
+                Ok(chunks) if remaining.is_zero() => {
+                    self.completed_after_wait(store, &chunks, &mut state).await
+                }
                 Ok(chunks) => {
                     match tokio::time::timeout(remaining, self.run(store, &chunks, &mut state))
                         .await
                     {
                         Ok(result) => result,
-                        Err(_) => Err(invalid("CMA step deadline exceeded")),
+                        Err(_) => self.completed_after_wait(store, &chunks, &mut state).await,
                     }
                 }
                 Err(error) => Err(error),
@@ -305,6 +306,33 @@ impl Client {
         state
             .answer
             .ok_or_else(|| invalid("CMA returned no answer"))
+    }
+    /// A worker may resume after its wait budget even though the provider has
+    /// already finished. Read the saved final response once before discarding
+    /// that result. This cannot create an agent, submit input or extend a run.
+    async fn completed_after_wait(
+        &self,
+        store: &dyn RunStore,
+        chunks: &[String],
+        state: &mut RunState,
+    ) -> ReviewResult<()> {
+        if state.agent_id.is_some()
+            && state.response_id.is_some()
+            && state.next_chunk == chunks.len()
+        {
+            let read = async {
+                if !store.active().await? {
+                    return Err(invalid("CMA work cancelled or superseded"));
+                }
+                self.advance(store, chunks, state).await
+            };
+            match tokio::time::timeout(Duration::from_secs(15), read).await {
+                Ok(Ok(true)) => return Ok(()),
+                Ok(Err(error)) => return Err(error),
+                _ => {}
+            }
+        }
+        Err(invalid("CMA step deadline exceeded"))
     }
     async fn run(
         &self,

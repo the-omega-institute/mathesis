@@ -615,6 +615,76 @@ async fn changed_inputs_fail_without_resubmission_and_cleanup_the_saved_agent() 
 }
 
 #[tokio::test]
+async fn expired_restart_recovers_only_an_already_completed_final_response() {
+    for done in [true, false] {
+        let store = Memory::default();
+        let prompt = "unchanged manuscript and evidence";
+        let deadline = now().saturating_sub(1);
+        store
+            .save(
+                serde_json::to_value(RunState {
+                    agent_id: Some("agt_saved".into()),
+                    response_id: Some("resp_saved".into()),
+                    next_chunk: 1,
+                    input: format!("{:x}", Sha256::digest(prompt.as_bytes())),
+                    deadline,
+                    ..Default::default()
+                })
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        let replies = if done {
+            vec![
+                completed("{\"summary\":\"original result\"}"),
+                accepted(),
+                accepted(),
+            ]
+        } else {
+            vec![
+                reply(json!({"status":"in_progress"})),
+                reply(
+                    json!({"target_active":true,"target":{"turn_sequence":2},"agent_revision":9,"runtime_support":{"cancel":true}}),
+                ),
+                accepted(),
+                accepted(),
+                accepted(),
+            ]
+        };
+        let (client, fake) = client(replies);
+        let result = client
+            .answer(&store, prompt.into(), Duration::from_secs(3600))
+            .await;
+        if done {
+            assert_eq!(result.unwrap(), "{\"summary\":\"original result\"}");
+        } else {
+            assert!(result.unwrap_err().to_string().contains("deadline"));
+        }
+        let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+        assert_eq!(state.deadline, deadline);
+        assert_eq!(state.response_id.as_deref(), Some("resp_saved"));
+        assert_eq!(state.answer.is_some(), done);
+        assert_eq!(state.failure.is_some(), !done);
+        assert!(state.deleted);
+        let calls = fake.calls.lock().await;
+        assert_eq!(calls[0].0, "GET");
+        assert_eq!(calls[0].1, "api/v2/responses/resp_saved");
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|c| c.1 == "api/v2/responses/resp_saved")
+                .count(),
+            1
+        );
+        assert!(
+            calls
+                .iter()
+                .all(|c| !c.1.ends_with("/responses") && !c.1.ends_with("/agents"))
+        );
+    }
+}
+
+#[tokio::test]
 async fn restart_keeps_the_original_deadline_and_cancels_expired_work() {
     let store = Memory::default();
     let prompt = "unchanged data";
