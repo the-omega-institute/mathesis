@@ -1315,7 +1315,12 @@ async fn malformed_optional_citation_preserves_gap_and_delivers_rejection() {
         Some(mathesis_core::policy::Decision::NotAccepted { reasons })
             if matches!(reasons.as_slice(), [mathesis_core::model::RejectReason::IncorrectResult { claim }] if claim.as_str() == "C1")
     ));
-    assert!(paper.record.is_none());
+    assert!(
+        mathesis_core::ports::RecordStore::for_submission(w.stores.as_ref(), &paper.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
     assert!(round.is_settled());
     assert_eq!(advisor.advice.load(Ordering::SeqCst), 1);
     assert_eq!(advisor.letters.load(Ordering::SeqCst), 1);
