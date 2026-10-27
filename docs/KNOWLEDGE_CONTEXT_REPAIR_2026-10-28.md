@@ -27,3 +27,19 @@ catalogue, UTF-8 source prefixes, exact saved-output preservation, deterministic
 replay, small results, missing responses, explicit omissions and byte limits.
 The existing workflow checks durable source delivery to Oracle and the audit,
 historical contract replay, publication gates, and private review behavior.
+
+## Literal LaTeX backslashes in completed CMA output
+
+A second completed source audit returned 86,090 characters of otherwise valid
+JSON with one unescaped LaTeX `\delta` inside a string. The earlier delimiter-only
+normalization rejected the entire result. The same bounded, raw-preserving
+normalizer now encodes any backslash inside a string whose next character is not
+one of the JSON escape codes. This preserves literal text; it does not interpret
+LaTeX or repair object structure. Existing valid escapes, including Unicode, stay
+exact. Malformed/truncated Unicode escapes, raw control characters, nonobjects,
+prose, missing delimiters and trailing content remain rejected. The original
+provider output is saved separately from the normalized JSON, and replay needs
+no additional provider request. Already settled failures remain historical.
+
+Regression coverage includes the actual mixed `\\Delta=\delta=3` pattern, durable
+raw-output preservation, unchanged valid escapes, Unicode and structural errors.
