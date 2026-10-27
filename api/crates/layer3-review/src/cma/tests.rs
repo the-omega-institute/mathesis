@@ -185,6 +185,234 @@ fn client(replies: Vec<ReviewResult<TransportReply>>) -> (Client, Arc<Fake>) {
         transport,
     )
 }
+
+#[test]
+fn delivery_contract_preserves_input_and_legacy_bytes_and_repeats_the_schema_last() {
+    let instructions = crate::referee_prompts::ADVICE;
+    let prompt = format!("{instructions}\nINPUT (data):\n{}", "αβ".repeat(150_000));
+    let legacy = inputs(&prompt).unwrap();
+    assert_eq!(delivery_inputs(&prompt, 0).unwrap(), legacy);
+    let framed = delivery_inputs(&prompt, 1).unwrap();
+    assert_eq!(framed.len(), legacy.len());
+    assert!(framed.last().unwrap().ends_with(instructions));
+    assert!(framed.iter().all(|chunk| chunk.len() <= 256 * 1024));
+    let recovered: String = framed
+        .iter()
+        .map(|chunk| {
+            chunk
+                .split_once("<chunk>\n")
+                .unwrap()
+                .1
+                .split_once("\n</chunk>")
+                .unwrap()
+                .0
+        })
+        .collect();
+    assert_eq!(recovered, prompt);
+    assert!(delivery_inputs(&prompt, 2).is_err());
+    let formal = format!(
+        "{}\nINPUT (data):\nsource\nReturn full file text in each entry.",
+        crate::referee_prompts::FORMALIZE
+    );
+    let framed = delivery_inputs(&formal, 1).unwrap();
+    assert_eq!(
+        framed[0].matches(crate::referee_prompts::FORMALIZE).count(),
+        1
+    );
+    assert!(framed[0].contains("Return full file text in each entry."));
+}
+
+#[tokio::test]
+async fn queue_expiry_retry_survives_restart_with_a_distinct_stable_key() {
+    let prompt = "Return JSON.\nINPUT (data):\nsource";
+    let store = Memory::default();
+    let deadline = now() + 60;
+    let mut state = RunState {
+        agent_id: Some("agt_existing".into()),
+        response_id: Some("resp_expired".into()),
+        next_chunk: 1,
+        input: format!("{:x}", Sha256::digest(prompt.as_bytes())),
+        deadline,
+        delivery_contract: 1,
+        ..Default::default()
+    };
+    let chunks = delivery_inputs(prompt, 1).unwrap();
+    let (first, _) = client(vec![reply(json!({"status":"failed",
+        "error":{"code":"agent_command_queue_timeout"},"output":[]}))]);
+    assert!(!first.advance(&store, &chunks, &mut state).await.unwrap());
+    assert_eq!(state.queue_expirations[0].response, "resp_expired");
+    assert_eq!(state.queue_expirations[0].chunk, 0);
+    assert_eq!(state.deadline, deadline);
+    assert_eq!(state.next_chunk, 0);
+    assert!(state.response_id.is_none());
+
+    // The expiry receipt was saved before a successor command. If its POST is
+    // ambiguous, the next worker must use the identical successor key/body.
+    let (uncertain, first_transport) =
+        client(vec![Err(ReviewError::Transport("lost reply".into()))]);
+    assert!(
+        uncertain
+            .advance(&store, &chunks, &mut state)
+            .await
+            .is_err()
+    );
+    let first_request = first_transport.calls.lock().await[0].clone();
+    let (restarted, transport) = client(vec![
+        receipt("resp_successor"),
+        completed("{\"summary\":\"checked\"}"),
+        accepted(),
+        accepted(),
+    ]);
+    let answer = restarted
+        .answer(&store, prompt.into(), Duration::from_secs(60))
+        .await
+        .unwrap();
+    assert_eq!(answer, "{\"summary\":\"checked\"}");
+    let calls = transport.calls.lock().await;
+    assert_eq!(calls[0], first_request);
+    assert_eq!(
+        calls[0].3.as_deref(),
+        Some("wishpool:paper:r1:audit:a0:turn:0:queue-retry:1")
+    );
+    assert!(
+        !calls
+            .iter()
+            .any(|call| call.0 == "POST" && call.1.ends_with("/agents"))
+    );
+    let saved: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(saved.deadline, deadline);
+    assert_eq!(saved.queue_expirations.len(), 1);
+    assert_eq!(saved.response_id.as_deref(), Some("resp_successor"));
+}
+
+#[tokio::test]
+async fn queue_recovery_never_restarts_live_unknown_executed_or_exhausted_work() {
+    for (status, code, output, contract, expired, exhausted) in [
+        ("queued", "", json!([]), 1, false, false),
+        ("in_progress", "", json!([]), 1, false, false),
+        ("failed", "cause_unknown", json!([]), 1, false, false),
+        (
+            "failed",
+            "agent_command_queue_timeout",
+            json!([{"type":"message"}]),
+            1,
+            false,
+            false,
+        ),
+        (
+            "failed",
+            "agent_command_queue_timeout",
+            json!([]),
+            0,
+            false,
+            false,
+        ),
+        (
+            "failed",
+            "agent_command_queue_timeout",
+            json!([]),
+            1,
+            true,
+            false,
+        ),
+        (
+            "failed",
+            "agent_command_queue_timeout",
+            json!([]),
+            1,
+            false,
+            true,
+        ),
+    ] {
+        let store = Memory::default();
+        let mut state = RunState {
+            agent_id: Some("agt_original".into()),
+            response_id: Some("resp_original".into()),
+            next_chunk: 1,
+            deadline: if expired {
+                now().saturating_sub(1)
+            } else {
+                now() + 60
+            },
+            delivery_contract: contract,
+            ..Default::default()
+        };
+        if exhausted {
+            state.queue_expirations.push(QueueExpiration {
+                response: "resp_prior".into(),
+                chunk: 0,
+                recorded_at: now(),
+            });
+        }
+        let before = serde_json::to_value(&state).unwrap();
+        let (client, transport) = client(vec![reply(
+            json!({"status":status,"error":{"code":code},"output":output}),
+        )]);
+        let result = client
+            .advance(&store, &inputs("source").unwrap(), &mut state)
+            .await;
+        assert_eq!(result.is_ok(), matches!(status, "queued" | "in_progress"));
+        assert_eq!(serde_json::to_value(&state).unwrap(), before);
+        assert_eq!(transport.calls.lock().await.len(), 1);
+    }
+}
+fn output_message(text: &str) -> Value {
+    json!({"type":"message","role":"assistant","content":[{"type":"output_text","text":text}]})
+}
+
+#[tokio::test]
+async fn split_json_messages_are_saved_whole_and_replayed_without_new_work() {
+    let raw = r#"{"verdict":"minor_revision","summary":"The α-bound holds.","claims":[]}"#;
+    let split = raw.find("bound").unwrap();
+    let (client, transport) = client(vec![
+        reply(json!({"id":"agt_test"})),
+        receipt("resp_test"),
+        reply(json!({"status":"completed","output":[
+            output_message("I will check the argument."),
+            output_message(&raw[..split]),
+            {"type":"mcp_call","output":"This is not report text."},
+            output_message(&raw[split..])
+        ]})),
+        accepted(),
+        accepted(),
+    ]);
+    let store = Memory::default();
+    assert_eq!(
+        client
+            .answer(&store, "source".into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        raw
+    );
+    let calls = transport.calls.lock().await.len();
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(state.answer.as_deref(), Some(raw));
+    assert!(state.raw_answer.is_none());
+    assert_eq!(
+        client
+            .answer(&store, "source".into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        raw
+    );
+    assert_eq!(transport.calls.lock().await.len(), calls);
+}
+
+#[test]
+fn output_assembly_preserves_standalone_answers_and_rejects_invented_repairs() {
+    let answer = r#"{"summary":"final"}"#;
+    let response = json!({"output":[output_message("Earlier commentary"),output_message(answer)]});
+    assert_eq!(final_text(&response).unwrap(), answer);
+    let response =
+        json!({"output":[output_message(r#"{"summary":"earlier"}"#),output_message(answer)]});
+    assert_eq!(final_text(&response).unwrap(), answer);
+    let tail = r#"unescaped "quote"."}"#;
+    let response = json!({"output":[output_message(r#"{"summary":""#),output_message(tail)]});
+    assert!(normalize_literal_backslashes(&final_text(&response).unwrap()).is_err());
+    let response = json!({"output":[output_message(&format!("{{\"summary\":\"{}", "x".repeat(MAX_JSON))),output_message(r#"end"}"#)]});
+    assert!(normalize_literal_backslashes(&final_text(&response).unwrap()).is_err());
+}
+
 #[tokio::test]
 async fn creates_polls_returns_json_and_cleans_up_once() {
     let (client, fake) = client(vec![
