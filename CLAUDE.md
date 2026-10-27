@@ -407,7 +407,10 @@ from `develop`. No force pushes to either.
 - All Codex agent steps use CMA through NyxID: audit, advice, letter,
   accepted-paper Lean probe, conjecture target generation and paper-problem
   audits. CMA network access is on. Paper TeX and needed inputs travel inline,
-  split into turns above 200 KiB. Final messages are JSON; Lean entries carry
+  split into turns above 200 KiB. A final JSON object split across assistant
+  messages in one response is assembled from exact ordered bytes, within the
+  existing answer bound; earlier commentary is excluded and saved terminal
+  answers are not rewritten. Final messages are JSON; Lean entries carry
   every file's complete text. Answers are capped at 2,000,000 bytes.
 - CMA agent/response ids, chunk progress, deadlines and terminal answers are
   durable private steps in the referee aggregate. Stable keys bind submission,
