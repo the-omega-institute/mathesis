@@ -256,7 +256,7 @@ async fn private_review_has_no_publication_and_retains_evidence_through_revision
     assert!(report.markdown().contains("Knowledge relation: Unknown"));
     assert!(report.markdown().contains("Saved response SHA-256"));
     let json = serde_json::to_value(&report).unwrap();
-    assert_eq!(json["review"]["rounds"][0]["knowledge_contract"], 3);
+    assert_eq!(json["review"]["rounds"][0]["knowledge_contract"], 4);
     assert!(
         json["review"]["rounds"][0]["knowledge_events"]
             .as_array()

@@ -980,7 +980,7 @@ impl App {
         file.rounds.push(RefereeRound {
             computation_contract: 1,
             computation_receipts: vec![],
-            knowledge_contract: 3,
+            knowledge_contract: 4,
             review_contract: crate::model::REVIEW_CONTRACT,
             source_sha256: submission
                 .current_version()

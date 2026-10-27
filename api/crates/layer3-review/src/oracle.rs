@@ -264,9 +264,12 @@ impl TaskJson {
 }
 
 fn validate(request: &OracleRequest) -> ReviewResult<()> {
-    if request.prompt.chars().count() > 500_000 {
+    // Long instructions are a UTF-8 attachment, not the broker's inline prompt.
+    // This retains the former worst-case byte bound (500k four-byte characters)
+    // and leaves both base64 attachments below the broker's 16 MiB body limit.
+    if request.prompt.len() > 2_000_000 {
         return Err(ReviewError::Output(
-            "oracle prompt exceeds 500,000 characters".into(),
+            "oracle review instructions exceed 2,000,000 UTF-8 bytes".into(),
         ));
     }
     if request

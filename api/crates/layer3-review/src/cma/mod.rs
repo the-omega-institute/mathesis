@@ -402,7 +402,7 @@ impl Client {
                         if answer.len() > MAX_JSON {
                             return Err(invalid("CMA answer exceeds 2000000 bytes"));
                         }
-                        state.answer = match normalize_math_delimiters(&answer)? {
+                        state.answer = match normalize_literal_backslashes(&answer)? {
                             Some(normalized) => {
                                 state.raw_answer = Some(answer);
                                 Some(normalized)
@@ -639,10 +639,10 @@ fn identifier(v: &Value, field: &str) -> ReviewResult<String> {
     }
     Ok(id.into())
 }
-/// A mathematical string may contain literal \(, \), \[ or \]. These are
-/// unambiguous invalid JSON escapes. Encode their backslashes without changing
-/// the text or tolerating any other malformed syntax. Valid JSON stays exact.
-fn normalize_math_delimiters(answer: &str) -> ReviewResult<Option<String>> {
+/// Preserve literal backslashes that cannot be JSON escapes inside strings,
+/// including LaTeX delimiters and control words such as \delta. Valid escapes
+/// remain exact, and all structural and Unicode syntax must still parse strictly.
+fn normalize_literal_backslashes(answer: &str) -> ReviewResult<Option<String>> {
     if let Ok(value) = serde_json::from_str::<Value>(answer) {
         return if value.is_object() {
             Ok(None)
@@ -659,7 +659,10 @@ fn normalize_math_delimiters(answer: &str) -> ReviewResult<Option<String>> {
             '"' => quoted = !quoted,
             '\\' if quoted => {
                 if let Some(escaped) = chars.next() {
-                    if matches!(escaped, '(' | ')' | '[' | ']') {
+                    if !matches!(
+                        escaped,
+                        '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u'
+                    ) {
                         normalized.push('\\');
                     }
                     normalized.push(escaped);

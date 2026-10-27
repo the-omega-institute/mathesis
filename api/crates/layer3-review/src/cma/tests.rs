@@ -228,7 +228,7 @@ async fn creates_polls_returns_json_and_cleans_up_once() {
 
 #[tokio::test]
 async fn math_delimiter_escaping_preserves_raw_output_and_replays_without_resubmission() {
-    let raw = r#"{"summary":"Replace the proof with: write \(x^2=x\\cdot x\). Then \[x=0\]."}"#;
+    let raw = r#"{"summary":"Replace the proof with: write \(x^2=x\\cdot x\). Then \[x=0\]. Setting $\\Delta=\delta=3$."}"#;
     let (client, fake) = client(vec![
         reply(json!({"id":"agt_test"})),
         receipt("resp_test"),
@@ -244,7 +244,7 @@ async fn math_delimiter_escaping_preserves_raw_output_and_replays_without_resubm
     let value: Value = serde_json::from_str(&answer).unwrap();
     assert_eq!(
         value["summary"],
-        r"Replace the proof with: write \(x^2=x\cdot x\). Then \[x=0\]."
+        r"Replace the proof with: write \(x^2=x\cdot x\). Then \[x=0\]. Setting $\Delta=\delta=3$."
     );
     let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
     assert_eq!(state.raw_answer.as_deref(), Some(raw));
@@ -266,16 +266,19 @@ async fn math_delimiter_escaping_preserves_raw_output_and_replays_without_resubm
 fn math_delimiter_normalization_keeps_strict_json_and_exact_valid_escapes() {
     let valid = r#"{"text":"π \\(x\\) \\alpha \\\\( \\\"quoted\\\" \\n","nested":{"value":true}}"#;
     assert!(serde_json::from_str::<Value>(valid).is_ok());
-    assert_eq!(normalize_math_delimiters(valid).unwrap(), None);
+    assert_eq!(normalize_literal_backslashes(valid).unwrap(), None);
     let mixed = r#"{"text":"π \(x\), \"quoted\", \\alpha, \\(already escaped\\)\nnext"}"#;
-    let normalized = normalize_math_delimiters(mixed).unwrap().unwrap();
+    let normalized = normalize_literal_backslashes(mixed).unwrap().unwrap();
     let parsed: Value = serde_json::from_str(&normalized).unwrap();
     assert_eq!(
         parsed["text"],
         "π \\(x\\), \"quoted\", \\alpha, \\(already escaped\\)\nnext"
     );
     for malformed in [
-        r#"{"text":"\(x\) and \q"}"#,
+        r#"{"text":"\(x\) and \uZZZZ"}"#,
+        r#"{"text":"\(x\) and \u123"}"#,
+        r#"{"text":"\(x\) and \uD800"}"#,
+        "{\"text\":\"\\delta followed by a literal\nnewline\"}",
         r#"{"text":"\(x\)",}"#,
         r#"{"text":"\(x\)""#,
         r#"prefix {"text":"\(x\)"}"#,
@@ -283,10 +286,25 @@ fn math_delimiter_normalization_keeps_strict_json_and_exact_valid_escapes() {
         r#"["\(x\)"]"#,
         "null",
     ] {
-        assert!(normalize_math_delimiters(malformed).is_err(), "{malformed}");
+        assert!(
+            normalize_literal_backslashes(malformed).is_err(),
+            "{malformed}"
+        );
     }
     let oversized = format!(r#"{{"text":"{}\(x\)"}}"#, "x".repeat(MAX_JSON));
-    assert!(normalize_math_delimiters(&oversized).is_err());
+    assert!(normalize_literal_backslashes(&oversized).is_err());
+}
+
+#[test]
+fn literal_backslashes_preserve_latex_commands_and_valid_json_escapes() {
+    let raw = r#"{"text":"Setting $\\Delta=\delta=3$; \epsilon, \q, \{x\}, \"quoted\", \n, \\n, \u03b4."}"#;
+    let normalized = normalize_literal_backslashes(raw).unwrap().unwrap();
+    let value: Value = serde_json::from_str(&normalized).unwrap();
+    assert_eq!(
+        value["text"],
+        "Setting $\\Delta=\\delta=3$; \\epsilon, \\q, \\{x\\}, \"quoted\", \n, \\n, δ."
+    );
+    assert_eq!(normalize_literal_backslashes(&normalized).unwrap(), None);
 }
 #[tokio::test]
 async fn restart_uses_saved_agent_response_and_cursor_without_submitting() {

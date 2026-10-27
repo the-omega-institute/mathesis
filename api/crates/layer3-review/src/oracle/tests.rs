@@ -143,8 +143,9 @@ async fn long_review_reaches_the_broker_with_all_evidence_and_the_pdf() {
     let mut input = request();
     input.prompt = format!(
         "Review instructions and saved query receipts:\n{}\nFINAL CLAIM: α² = 0 implies α = 0.",
-        "Retrieved mathematical source: ∀ x, P(x).\n".repeat(10_000)
+        "Retrieved mathematical source: ∀ x, P(x).\n".repeat(20_000)
     );
+    assert!(input.prompt.chars().count() > 500_000);
     let original = input.prompt.clone();
     let router = Router::new().route(
         "/api/v1/oracle/pools/test/tasks",
@@ -203,9 +204,8 @@ fn attachment_packaging_keeps_unicode_boundaries_and_the_combined_body_limit() {
     );
     assert!(body.get("pdf_base64").is_none());
 
-    // Every admitted prompt uses at most four UTF-8 bytes per character. Even
-    // with the largest allowed PDF, both base64 files fit the broker's 16 MiB
-    // request body limit.
+    // The instruction attachment is capped by UTF-8 bytes. Even with the
+    // largest allowed PDF, both files fit the broker's 16 MiB request body limit.
     input.prompt = "𝛼".repeat(500_000);
     input.pdf = Some(("paper.pdf".into(), vec![0; 9_000_000]));
     assert!(validate(&input).is_ok());
@@ -228,7 +228,7 @@ async fn http_limits_and_transient_capacity_error() {
         Err(ReviewError::Transport(_))
     ));
     let mut input = request();
-    input.prompt = "x".repeat(500_001);
+    input.prompt = "x".repeat(2_000_001);
     assert!(matches!(
         oracle.submit(&input).await,
         Err(ReviewError::Output(_))
@@ -244,7 +244,7 @@ async fn http_limits_and_transient_capacity_error() {
 }
 
 #[tokio::test]
-async fn validates_character_and_base64_limits_before_transport() {
+async fn validates_instruction_bytes_and_base64_limits_before_transport() {
     let oracle = OracleHttp {
         base_url: ":invalid-url".into(),
         token: uuid_token(),
@@ -252,15 +252,14 @@ async fn validates_character_and_base64_limits_before_transport() {
     };
     let mut input = request();
     input.pdf = None;
-    input.prompt = "é".repeat(500_000);
-    // A million UTF-8 bytes are still only 500,000 characters. Passing
-    // validation reaches URL parsing, without any network request.
+    input.prompt = "é".repeat(1_000_000);
+    // Passing validation reaches URL parsing, without any network request.
     assert!(
-        matches!(oracle.submit(&input).await, Err(ReviewError::Output(message)) if !message.contains("characters"))
+        matches!(oracle.submit(&input).await, Err(ReviewError::Output(message)) if !message.contains("UTF-8 bytes"))
     );
     input.prompt.push('é');
     assert!(
-        matches!(oracle.submit(&input).await, Err(ReviewError::Output(message)) if message.contains("500,000 characters"))
+        matches!(oracle.submit(&input).await, Err(ReviewError::Output(message)) if message.contains("2,000,000 UTF-8 bytes"))
     );
     input.prompt = "small".into();
     input.pdf = Some(("p.pdf".into(), vec![0; 9_000_001]));
@@ -674,10 +673,10 @@ async fn cli_keeps_large_pdf_and_prompt_off_argv_and_supports_no_attachment() {
     let mut input = request();
     for (prompt, pdf) in [
         (
-            "é".repeat(500_000),
+            "é".repeat(600_000),
             Some(("large.pdf".into(), vec![0; 9_000_000])),
         ),
-        ("é".repeat(500_000), None),
+        ("é".repeat(600_000), None),
         ("Review this short manuscript.".into(), None),
     ] {
         input.prompt = prompt;
