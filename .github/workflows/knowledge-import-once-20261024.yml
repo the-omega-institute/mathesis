@@ -241,6 +241,8 @@ jobs:
           root.mkdir()
           with tarfile.open('projection.tgz', 'r:gz') as archive:
               for member in archive:
+                  if member.isdir() and member.name in ('.', './'):
+                      continue
                   name = member.name.removeprefix('./')
                   assert name in expected and name not in seen, member.name
                   assert member.isfile() and member.size <= 512 * 1024 * 1024, member.name
