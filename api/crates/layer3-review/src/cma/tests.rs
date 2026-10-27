@@ -356,6 +356,63 @@ async fn queue_recovery_never_restarts_live_unknown_executed_or_exhausted_work()
         assert_eq!(transport.calls.lock().await.len(), 1);
     }
 }
+fn output_message(text: &str) -> Value {
+    json!({"type":"message","role":"assistant","content":[{"type":"output_text","text":text}]})
+}
+
+#[tokio::test]
+async fn split_json_messages_are_saved_whole_and_replayed_without_new_work() {
+    let raw = r#"{"verdict":"minor_revision","summary":"The α-bound holds.","claims":[]}"#;
+    let split = raw.find("bound").unwrap();
+    let (client, transport) = client(vec![
+        reply(json!({"id":"agt_test"})),
+        receipt("resp_test"),
+        reply(json!({"status":"completed","output":[
+            output_message("I will check the argument."),
+            output_message(&raw[..split]),
+            {"type":"mcp_call","output":"This is not report text."},
+            output_message(&raw[split..])
+        ]})),
+        accepted(),
+        accepted(),
+    ]);
+    let store = Memory::default();
+    assert_eq!(
+        client
+            .answer(&store, "source".into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        raw
+    );
+    let calls = transport.calls.lock().await.len();
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(state.answer.as_deref(), Some(raw));
+    assert!(state.raw_answer.is_none());
+    assert_eq!(
+        client
+            .answer(&store, "source".into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        raw
+    );
+    assert_eq!(transport.calls.lock().await.len(), calls);
+}
+
+#[test]
+fn output_assembly_preserves_standalone_answers_and_rejects_invented_repairs() {
+    let answer = r#"{"summary":"final"}"#;
+    let response = json!({"output":[output_message("Earlier commentary"),output_message(answer)]});
+    assert_eq!(final_text(&response).unwrap(), answer);
+    let response =
+        json!({"output":[output_message(r#"{"summary":"earlier"}"#),output_message(answer)]});
+    assert_eq!(final_text(&response).unwrap(), answer);
+    let tail = r#"unescaped "quote"."}"#;
+    let response = json!({"output":[output_message(r#"{"summary":""#),output_message(tail)]});
+    assert!(normalize_literal_backslashes(&final_text(&response).unwrap()).is_err());
+    let response = json!({"output":[output_message(&format!("{{\"summary\":\"{}", "x".repeat(MAX_JSON))),output_message(r#"end"}"#)]});
+    assert!(normalize_literal_backslashes(&final_text(&response).unwrap()).is_err());
+}
+
 #[tokio::test]
 async fn creates_polls_returns_json_and_cleans_up_once() {
     let (client, fake) = client(vec![

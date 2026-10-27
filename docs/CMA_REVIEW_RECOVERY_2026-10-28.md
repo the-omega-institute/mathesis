@@ -33,3 +33,14 @@ Regression coverage includes byte preservation, legacy framing, durable retry
 identity across lost replies/worker restarts, refusal to duplicate live work,
 deadline/retry bounds, and complete private recovery through letter delivery
 without changing the original historical round or creating a public record.
+
+A further observed failure committed one valid 54,762-character audit across two
+assistant messages, with the boundary inside a string. Reading only the last
+message lost the verdict and earlier claims. The response adapter now checks
+bounded ordered message suffixes (at most 128 messages and 2,000,000 bytes) for
+one complete JSON object under the existing escape rules. It inserts no text,
+ignores tool output, preserves a valid last standalone answer, and never combines
+separate responses. Invalid syntax remains a failure. Regression tests exercise
+an internal string boundary, interleaved tool activity, prior commentary,
+unchanged replay, conflicting standalone objects and the assembly size bound.
+Historical saved answers and failed rounds remain unchanged.

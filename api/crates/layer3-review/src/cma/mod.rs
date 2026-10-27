@@ -766,11 +766,45 @@ fn final_text(v: &Value) -> ReviewResult<String> {
     let items = v["output"]
         .as_array()
         .ok_or_else(|| invalid("CMA response has no output"))?;
-    let item = items
+    let mut messages = items
         .iter()
         .rev()
-        .find(|i| i["type"] == "message" && i["role"] == "assistant")
+        .filter(|i| i["type"] == "message" && i["role"] == "assistant");
+    let last = messages
+        .next()
         .ok_or_else(|| invalid("CMA response has no assistant message"))?;
+    let last = message_text(last)?;
+    if last.len() > MAX_JSON {
+        return Err(invalid("CMA answer exceeds 2000000 bytes"));
+    }
+    if normalize_literal_backslashes(&last).is_ok() {
+        return Ok(last);
+    }
+    // One response can commit a long JSON answer as several assistant messages,
+    // including a boundary inside a string. Join exact suffix bytes only when
+    // the complete result is a valid object under the existing escape rules.
+    // Preserve the last standalone answer when earlier messages are commentary.
+    let mut bytes = last.len();
+    let mut fragments = vec![last.clone()];
+    for message in messages.take(127) {
+        let text = message_text(message)?;
+        bytes = bytes.saturating_add(text.len());
+        if bytes > MAX_JSON {
+            break;
+        }
+        let starts_object = text.trim_start().starts_with('{');
+        fragments.push(text);
+        if starts_object {
+            let candidate: String = fragments.iter().rev().map(String::as_str).collect();
+            if normalize_literal_backslashes(&candidate).is_ok() {
+                return Ok(candidate);
+            }
+        }
+    }
+    Ok(last)
+}
+
+fn message_text(item: &Value) -> ReviewResult<String> {
     let parts = item["content"]
         .as_array()
         .ok_or_else(|| invalid("CMA message has no content"))?;
@@ -780,5 +814,6 @@ fn final_text(v: &Value) -> ReviewResult<String> {
         .filter_map(|p| p["text"].as_str())
         .collect())
 }
+
 #[cfg(test)]
 mod tests;
