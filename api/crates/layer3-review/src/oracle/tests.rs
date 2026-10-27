@@ -685,7 +685,8 @@ async fn cli_keeps_large_pdf_and_prompt_off_argv_and_supports_no_attachment() {
         // The HTTP tests independently check the attachment contents. Here we
         // verify the CLI transports the same body in a file, never on argv,
         // and removes that file for requests with and without attachments.
-        let expected = request_body(&input);
+        let mut expected = request_body(&input);
+        expected["client_ref"] = json!(format!("{}:test-pool", input.client_ref));
         std::fs::write(
             work.path().join("expected-body.json"),
             serde_json::to_vec(&expected).unwrap(),
