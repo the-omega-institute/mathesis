@@ -1,4 +1,4 @@
-# Readable source evidence within the prompt budget
+# Readable review evidence and completed mathematical reports
 
 A production review with 32 statements had 64 saved source-query responses. Its
 first response was 276,144 bytes, with 100 declaration records across six source
@@ -43,3 +43,18 @@ no additional provider request. Already settled failures remain historical.
 
 Regression coverage includes the actual mixed `\\Delta=\delta=3` pattern, durable
 raw-output preservation, unchanged valid escapes, Unicode and structural errors.
+
+## Apply the attachment limit to attached review instructions
+
+A three-statement Selective LOCC manuscript failed before Oracle admission because
+its instructions and saved source evidence exceeded the obsolete 500,000-character
+inline-prompt check. Long requests already travel as a text attachment beside the
+PDF. Validation now measures that attachment in UTF-8 bytes, capped at 2,000,000.
+This keeps the old worst-case byte bound (500,000 four-byte characters), so the
+largest allowed PDF and instructions still fit the broker's 16 MiB request body.
+The inline composer receives the same short directive; full evidence, client
+references and task request bytes stay unchanged for previously admitted work.
+
+HTTP and CLI regressions send more than 500,000 characters as an exact attachment,
+including the final mathematical statement and the separate PDF. Byte, base64 and
+combined-body limits remain tested. No source evidence is silently truncated.
