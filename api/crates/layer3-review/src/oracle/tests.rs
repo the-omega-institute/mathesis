@@ -672,17 +672,20 @@ async fn cli_keeps_large_pdf_and_prompt_off_argv_and_supports_no_attachment() {
     let work = tempfile::tempdir().unwrap();
     let oracle = fake_cli(work.path());
     let mut input = request();
-    input.pdf = Some(("large.pdf".into(), vec![0; 9_000_000]));
-    input.prompt = "é".repeat(500_000);
-    for pdf in [input.pdf.clone(), None] {
+    for (prompt, pdf) in [
+        (
+            "é".repeat(500_000),
+            Some(("large.pdf".into(), vec![0; 9_000_000])),
+        ),
+        ("é".repeat(500_000), None),
+        ("Review this short manuscript.".into(), None),
+    ] {
+        input.prompt = prompt;
         input.pdf = pdf;
-        let mut expected = json!({
-            "prompt":input.prompt, "client_ref":"wishpool:p:r1:v1:c1:test-pool", "tag":"wishpool"
-        });
-        if let Some((name, bytes)) = &input.pdf {
-            expected["pdf_name"] = json!(name);
-            expected["pdf_base64"] = json!(STANDARD.encode(bytes));
-        }
+        // The HTTP tests independently check the attachment contents. Here we
+        // verify the CLI transports the same body in a file, never on argv,
+        // and removes that file for requests with and without attachments.
+        let expected = request_body(&input);
         std::fs::write(
             work.path().join("expected-body.json"),
             serde_json::to_vec(&expected).unwrap(),
@@ -690,5 +693,5 @@ async fn cli_keeps_large_pdf_and_prompt_off_argv_and_supports_no_attachment() {
         .unwrap();
         assert_eq!(oracle.submit(&input).await.unwrap().task, "task-1");
     }
-    assert_body_files_removed(&oracle, 2);
+    assert_body_files_removed(&oracle, 3);
 }
