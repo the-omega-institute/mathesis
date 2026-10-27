@@ -103,6 +103,7 @@ struct FakeAdvisor {
     propose: AtomicBool,
     audits: AtomicUsize,
     known: bool,
+    gap_with_unusable_citation: bool,
     followup_concern: bool,
     audit_delay: Duration,
     audit_failures: AtomicUsize,
@@ -327,7 +328,9 @@ impl Advisor for FakeAdvisor {
                             ..Default::default()
                         }
                     }),
-                    correctness: if c.proved { "correct" } else { "not_checked" }.into(),
+                    correctness: if c.proved && self.gap_with_unusable_citation {
+                        "gap"
+                    } else if c.proved { "correct" } else { "not_checked" }.into(),
                     comment: "The source supplies a compactness lemma.".into(),
                     shape: c.proved.then(|| "content".into()),
                     witnesses: if c.proved {
@@ -335,9 +338,18 @@ impl Advisor for FakeAdvisor {
                     } else {
                         vec![]
                     },
-                    known: (self.known && c.proved).then(|| {
+                    known: if self.gap_with_unusable_citation && c.proved {
+                        Some(concat!(
+                            "Mathlib.Algebra.GroupWithZero.Basic [opened: ",
+                            "https://leanprover-community.github.io/mathlib4_docs/Mathlib/Algebra/GroupWithZero/Basic.html], ",
+                            "declarations eq_zero_of_mul_self_eq_zero and sq_eq_zero_iff; ",
+                            "Mathlib.Algebra.GroupWithZero.Defs [opened: ",
+                            "https://leanprover-community.github.io/mathlib4_docs/Mathlib/Algebra/GroupWithZero/Defs.html], ",
+                            "declaration mul_self_eq_zero."
+                        ).into())
+                    } else { (self.known && c.proved).then(|| {
                         "A reported source [opened: https://example.test/reported-work]".into()
-                    }),
+                    }) },
                     ..Default::default()
                 })
                 .collect(),
@@ -1258,6 +1270,62 @@ async fn known_main_result_gets_advice_and_auto_letter_but_no_formal_probe() {
         file.letters[0].assessment,
         Some(Recommendation::MajorRevision)
     );
+}
+
+#[tokio::test]
+async fn malformed_optional_citation_preserves_gap_and_delivers_rejection() {
+    let mut w = World::new(vec![completed("accept")], true).await;
+    let advisor = Arc::new(FakeAdvisor {
+        gap_with_unusable_citation: true,
+        ..Default::default()
+    });
+    advisor.propose.store(true, Ordering::SeqCst);
+    w.worker.advisor = Some(advisor.clone());
+    w.run_round().await;
+
+    let file = w.file().await;
+    let round = file.current().unwrap();
+    let audit = round.audit.done().unwrap();
+    let reading = audit
+        .claims
+        .iter()
+        .find(|r| r.claim.as_str() == "C1")
+        .unwrap();
+    assert_eq!(reading.correctness, mathesis_core::model::Correctness::Gap);
+    assert!(reading.known.is_none());
+    assert!(
+        reading
+            .methodology
+            .as_ref()
+            .unwrap()
+            .supports_content(false)
+    );
+    assert!(audit.summary.contains("unsupported sources were dropped"));
+    assert!(!audit.summary.contains("statements had no usable check"));
+
+    let paper = w
+        .worker
+        .app
+        .submission(&w.author, &w.paper.id)
+        .await
+        .unwrap();
+    assert_eq!(paper.status, SubmissionStatus::NotAccepted);
+    assert!(matches!(
+        paper.decision,
+        Some(mathesis_core::policy::Decision::NotAccepted { reasons })
+            if matches!(reasons.as_slice(), [mathesis_core::model::RejectReason::IncorrectResult { claim }] if claim.as_str() == "C1")
+    ));
+    assert!(paper.record.is_none());
+    assert!(round.is_settled());
+    assert_eq!(advisor.advice.load(Ordering::SeqCst), 1);
+    assert_eq!(advisor.letters.load(Ordering::SeqCst), 1);
+    assert_eq!(file.letters.len(), 1);
+    assert!(
+        file.letters[0]
+            .body
+            .starts_with("Your paper is not accepted.")
+    );
+    assert_eq!(w.formalizer.calls.load(Ordering::SeqCst), 0);
 }
 
 async fn prepare_audit(w: &World) -> LeasedJob {
