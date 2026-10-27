@@ -451,6 +451,37 @@ async fn referee_routes_project_visibility_roles_and_letter_validation() {
         .await
         .unwrap();
     app.begin_referee_round(&reviewer, &id).await.unwrap();
+    let resume = format!("{base}/resume");
+    for (subject, expected) in [
+        (None, StatusCode::UNAUTHORIZED),
+        (Some("author"), StatusCode::FORBIDDEN),
+        (Some("editor"), StatusCode::ACCEPTED),
+    ] {
+        assert_eq!(
+            call(
+                &router,
+                "POST",
+                &resume,
+                subject,
+                Some(serde_json::json!({"round":1}))
+            )
+            .await
+            .0,
+            expected
+        );
+    }
+    assert_eq!(
+        call(
+            &router,
+            "POST",
+            &resume,
+            Some("editor"),
+            Some(serde_json::json!({"round":2}))
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
     {
         use mathesis_core::{model::*, ports::BlobStore};
         let subject = app
@@ -601,6 +632,18 @@ async fn referee_routes_project_visibility_roles_and_letter_validation() {
     app.update_referee_round(&reviewer, &id, 1, RoundUpdate::Formal(formal))
         .await
         .unwrap();
+    assert_eq!(
+        call(
+            &router,
+            "POST",
+            &resume,
+            Some("editor"),
+            Some(serde_json::json!({"round":1}))
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
     let (status, file, _) = call(
         &router,
         "POST",
