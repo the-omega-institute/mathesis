@@ -28,6 +28,7 @@ pub(super) fn routes() -> Router<Arc<App>> {
             axum::routing::get(knowledge_response),
         )
         .route("/submissions/{id}/referee/restart", post(restart_referee))
+        .route("/submissions/{id}/referee/resume", post(resume_referee))
         .route(
             "/submissions/{id}/review/responses",
             post(respond_to_finding),
@@ -245,6 +246,23 @@ async fn restart_referee(
     Path(id): Path<String>,
 ) -> ApiResult<impl IntoResponse> {
     Ok(Json(app.restart_referee(&caller, &SubmissionId(id)).await?))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResumeReferee {
+    round: u32,
+}
+
+async fn resume_referee(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Body(body): Body<ResumeReferee>,
+) -> ApiResult<impl IntoResponse> {
+    app.resume_referee(&caller, &SubmissionId(id), body.round)
+        .await?;
+    Ok(StatusCode::ACCEPTED)
 }
 
 async fn knowledge_response(

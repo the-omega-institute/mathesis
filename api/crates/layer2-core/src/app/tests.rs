@@ -1013,6 +1013,66 @@ fn method_for(shape: ProofShape, conjecture: bool) -> MethodologyReading {
     reading
 }
 
+#[tokio::test]
+async fn resume_referee_requeues_current_work_without_rewriting_its_identity() {
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let editor = w.person("editor", &[Role::Editor]).await;
+    let paper = w.submit(&author, "t", false).await;
+    let paper = w.review_paper(&author, &paper).await;
+    let file = w
+        .app
+        .begin_referee_round(&reviewer, &paper.id)
+        .await
+        .unwrap();
+    let mut step = file.current().unwrap().referee.clone();
+    step.client_ref = Some("original-admitted-request".into());
+    step.state = StepState::Running {
+        task: Some("original-provider-task".into()),
+        queue_position: None,
+        since: chrono::Utc::now(),
+    };
+    let before = w
+        .app
+        .update_referee_round(&reviewer, &paper.id, 1, RoundUpdate::Referee(step))
+        .await
+        .unwrap();
+    while w.stores.take_job().await.is_some() {}
+    for caller in [&author, &reviewer] {
+        assert!(matches!(
+            w.app.resume_referee(caller, &paper.id, 1).await,
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+    assert!(w.app.resume_referee(&editor, &paper.id, 2).await.is_err());
+    assert!(w.stores.queued().await.is_empty());
+    for _ in 0..2 {
+        w.app.resume_referee(&editor, &paper.id, 1).await.unwrap();
+    }
+    assert_eq!(
+        w.stores.queued().await,
+        [(paper.id.clone(), JobKind::Referee)]
+    );
+    assert_eq!(w.app.referee_file(&paper.id).await.unwrap().0, before);
+    assert_eq!(w.app.submission(&author, &paper.id).await.unwrap(), paper);
+    w.stores.take_job().await.unwrap();
+
+    let mut changed = paper.clone();
+    changed.claims_revision += 1;
+    w.app.save(&mut changed).await.unwrap();
+    assert!(w.app.resume_referee(&editor, &paper.id, 1).await.is_err());
+    changed.claims_revision = paper.claims_revision;
+    changed.versions.last_mut().unwrap().number += 1;
+    w.app.save(&mut changed).await.unwrap();
+    assert!(w.app.resume_referee(&editor, &paper.id, 1).await.is_err());
+    changed.versions.last_mut().unwrap().number -= 1;
+    changed.status = SubmissionStatus::Withdrawn;
+    w.app.save(&mut changed).await.unwrap();
+    assert!(w.app.resume_referee(&editor, &paper.id, 1).await.is_err());
+    assert!(w.stores.queued().await.is_empty());
+}
+
 fn audit_for(
     paper: &Submission,
     verdict: Recommendation,

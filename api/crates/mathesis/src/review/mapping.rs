@@ -584,14 +584,15 @@ pub(crate) fn audit(
             dropped += 1;
             continue;
         }
-        let known = r.known.filter(|k| !k.trim().is_empty());
-        if known
-            .as_ref()
-            .is_some_and(|k| !super::sources::reported_work(k))
-        {
-            dropped += 1;
-            continue;
-        }
+        // An optional attribution is independent of the proof check and the
+        // separately validated methodology. Reject only the unusable source.
+        let known = r.known.filter(|k| !k.trim().is_empty()).filter(|k| {
+            let usable = super::sources::reported_work(k);
+            if !usable {
+                dropped += 1;
+            }
+            usable
+        });
         readings.push(AuditedClaim {
             coverage: None,
             methodology,
@@ -1355,6 +1356,12 @@ mod audit_tests {
         let result = audit(out, &input, &claims).unwrap();
         assert_eq!(result.claims.len(), claims.len());
         assert!(result.claims[0].known.is_none());
+        assert_eq!(result.claims[0].correctness, Correctness::Correct);
+        assert_eq!(result.claims[0].shape, Some(ProofShape::Content));
+        assert_eq!(
+            result.claims[0].witnesses,
+            ["An explicit new intermediate identity"]
+        );
         assert_eq!(result.claims[1].correctness, Correctness::NotChecked);
         assert!(result.claims[1].witnesses.is_empty());
         assert!(result.summary.contains("dropped"));
