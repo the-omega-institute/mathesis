@@ -7,6 +7,8 @@ use super::{
 use mathesis_core::{CoreError, model::*};
 use mathesis_review::knowledge::index::SourceQueryResult;
 
+mod context;
+
 const CONTEXT_BYTES: usize = 800_000;
 const QUERY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 const PIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
@@ -241,6 +243,10 @@ impl Worker {
                     })
                 })
                 .transpose()?;
+            if round.knowledge_contract >= 4 {
+                context.push(context::project(receipt, payload, per_receipt)?);
+                continue;
+            }
             let mut omitted = false;
             if let Some(result) = &mut payload {
                 let per_hit = per_receipt / result.hits.len().max(1) / 2;
