@@ -1,0 +1,79 @@
+name: Mathesis CMA math delimiter JSON repair image (2026-10-27 only)
+
+on:
+  push:
+    branches: [deploy/cma-math-delimiter-json-20261027]
+    paths: [.github/workflows/cma-math-delimiter-json-once-20261027.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/the-omega-institute/mathesis-api:cma-math-delimiter-json-20261027
+      SOURCE_COMMIT: e90c46de71dc06963b2e819e271d49509c322fac
+      BASE: ghcr.io/the-omega-institute/mathesis-api@sha256:9ac041ab4b6e74315862be09b5cb1f21cbd48811e89a6adbbdce01b4121ac513
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify the application inputs match the reviewed repair
+        run: git diff --exit-code "$SOURCE_COMMIT" HEAD -- api infra/api/Dockerfile
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the binary with the existing production Dockerfile
+        run: docker build --target build -f infra/api/Dockerfile -t mathesis-api-build:once .
+      - name: Replace only the binary in the pinned production runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          task="$RUNNER_TEMP/mathesis-cma-math-delimiter-json"
+          mkdir -p "$task/runtime" "$task/receipt"
+          docker create --name mathesis-repair-binary mathesis-api-build:once
+          trap 'docker rm -f mathesis-repair-binary >/dev/null 2>&1 || true' EXIT
+          docker cp mathesis-repair-binary:/usr/local/bin/mathesis "$task/runtime/mathesis"
+          printf 'FROM %s\nCOPY --chown=65532:65532 mathesis /usr/local/bin/mathesis\n' "$BASE" > "$task/runtime/Dockerfile"
+          docker build --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
+            --label "org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis" \
+            -t "$IMAGE" "$task/runtime"
+          test "$(docker image inspect --format '{{.Config.User}}' "$IMAGE")" = '65532:65532'
+          docker run --rm --network none --read-only --entrypoint /bin/sh "$IMAGE" -ec \
+            'test "$(id -u)" = 65532; test -x /usr/local/bin/mathesis; ldd /usr/local/bin/mathesis' \
+            > "$task/receipt/runtime-check.log"
+          if grep -q 'not found' "$task/receipt/runtime-check.log"; then exit 1; fi
+          sha256sum "$task/runtime/mathesis" > "$task/receipt/binary.sha256"
+      - name: Push and retain the immutable deployment receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          task="$RUNNER_TEMP/mathesis-cma-math-delimiter-json"
+          docker push "$IMAGE"
+          docker image inspect --format '{{json .RepoDigests}}' "$IMAGE" > "$task/receipt/repo-digests.json"
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'mathesis-cma-math-delimiter-json/receipt'
+          image = os.environ['IMAGE'].split(':')[0]
+          digests = [d for d in json.loads((root / 'repo-digests.json').read_text())
+                     if re.fullmatch(re.escape(image) + r'@sha256:[0-9a-f]{64}', d)]
+          assert len(digests) == 1, digests
+          (root / 'image.digest').write_text(digests[0] + '\n')
+          receipt = dict(image=digests[0], base=os.environ['BASE'], source_commit=os.environ['SOURCE_COMMIT'],
+                         workflow_commit=os.environ['GITHUB_SHA'],
+                         workflow_run_url=f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          (root / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-cma-math-delimiter-json-20261027-receipt
+          path: ${{ runner.temp }}/mathesis-cma-math-delimiter-json/receipt/
+          if-no-files-found: error
+          retention-days: 90
