@@ -64,7 +64,7 @@ pins because the bundle checksum alone does not cover their bytes.
 | Projection `truth-release-publication.v1.json` | `db5b1c45252e336769a61574017542ad5d914df360453b8e9fa1f799bfbd4e01` |
 | Complete concatenated report archive (7,556,369,620 bytes) | `e8b26b3e03f61cc5f068c1f21648cd2ff8f683836b51f6f7d4c17aa24fd847dd` |
 | Source `LICENSE` | `45404ee75576b053a86e89e545fd6987a607107cf4d846fa78dcb6a233d53447` |
-| Exact checked-in admission JSON, including trailing newline | `aaa62f28f67ca394c7b69866613d5f762966ce354bdf9fd2a364718e225adb10` |
+| Exact checked-in admission JSON, including trailing newline | `cb29f4b4abcea38c575772b3d89281e85c3440d46d4afde0cffc97ed16147838` |
 
 The report release's `manifest.json` must contain exactly this ordered part
 inventory, the whole-archive hash above, the recorded source commit, producer
