@@ -2,6 +2,170 @@ use super::*;
 use crate::ports::BlobStore;
 
 #[tokio::test]
+async fn staff_can_retry_a_settled_failed_private_review_without_rewriting_history() {
+    fn failed<T>() -> Step<T> {
+        Step {
+            state: StepState::Failed {
+                reason: "Terminal provider queue expiry".into(),
+                detail: None,
+                retryable: false,
+                at: chrono::Utc::now(),
+            },
+            ..Step::pending()
+        }
+    }
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let editor = w.person("editor", &[Role::Editor]).await;
+    let mut draft = w.submit(&author, "t", false).await;
+    draft.purpose = SubmissionPurpose::ReviewOnly;
+    draft.analysis_visibility = Visibility::Private;
+    w.app.save(&mut draft).await.unwrap();
+    let paper = w.review_paper(&author, &draft).await;
+    w.app
+        .begin_referee_round(&reviewer, &paper.id)
+        .await
+        .unwrap();
+    w.app
+        .update_referee_round(
+            &reviewer,
+            &paper.id,
+            1,
+            RoundUpdate::Referee(done_step(referee_report(Some(
+                Recommendation::MinorRevision,
+            )))),
+        )
+        .await
+        .unwrap();
+    let audit = audit_for(
+        &paper,
+        Recommendation::MinorRevision,
+        Correctness::Correct,
+        ProofShape::BindOnly,
+        None,
+    );
+    let reviewed = audited(&w, &reviewer, &paper, audit.clone()).await;
+    assert_eq!(reviewed.status, SubmissionStatus::ReviewComplete);
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+    for update in [
+        RoundUpdate::Advice(failed()),
+        RoundUpdate::Letter(failed()),
+        RoundUpdate::Formal(Step {
+            state: StepState::Skipped {
+                reason: "Private review".into(),
+            },
+            ..Step::pending()
+        }),
+    ] {
+        w.app
+            .update_referee_round(&reviewer, &paper.id, 1, update)
+            .await
+            .unwrap();
+    }
+    let before = w.app.referee_file(&paper.id).await.unwrap().0;
+    assert!(before.current().unwrap().is_settled());
+    for caller in [&author, &reviewer] {
+        assert!(matches!(
+            w.app.restart_referee(caller, &paper.id).await,
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+    let retried = w.app.restart_referee(&editor, &paper.id).await.unwrap();
+    assert_eq!(retried.rounds.len(), 2);
+    assert_eq!(retried.rounds[0], before.rounds[0]);
+    assert_eq!(retried.letters, before.letters);
+    assert_eq!(
+        retried.current().unwrap().recheck_requests,
+        ["operational-retry:r1"]
+    );
+    assert_eq!(
+        w.app.submission(&author, &paper.id).await.unwrap(),
+        reviewed
+    );
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+    assert_eq!(
+        w.app
+            .begin_referee_round(&reviewer, &paper.id)
+            .await
+            .unwrap(),
+        retried
+    );
+
+    w.app
+        .update_referee_round(
+            &reviewer,
+            &paper.id,
+            2,
+            RoundUpdate::Referee(done_step(referee_report(Some(
+                Recommendation::MinorRevision,
+            )))),
+        )
+        .await
+        .unwrap();
+    w.app
+        .update_referee_round(
+            &reviewer,
+            &paper.id,
+            2,
+            RoundUpdate::Audit(done_step(audit)),
+        )
+        .await
+        .unwrap();
+    let reapplied = w
+        .app
+        .apply_referee_audit(&reviewer, &paper.id, 2)
+        .await
+        .unwrap();
+    assert_eq!(reapplied.status, SubmissionStatus::ReviewComplete);
+    assert!(reapplied.decision.is_none());
+    assert_eq!(reapplied.versions, reviewed.versions);
+    assert_eq!(reapplied.analysis_visibility, Visibility::Private);
+    assert!(!reapplied.open_to_contributors);
+    assert_eq!(
+        &reapplied.reports[..reviewed.reports.len()],
+        &reviewed.reports
+    );
+    assert!(
+        w.app
+            .ports
+            .records
+            .for_submission(&paper.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    for update in [
+        RoundUpdate::Advice(done_step(Advice {
+            summary: "Clarify the hypotheses.".into(),
+            improvements: vec![],
+            formalization: vec![],
+        })),
+        RoundUpdate::Letter(done_step(LetterDraft {
+            subject: "Private review".into(),
+            body: "Please clarify the hypotheses.".into(),
+            note: String::new(),
+        })),
+        RoundUpdate::Formal(Step {
+            state: StepState::Skipped {
+                reason: "Private review".into(),
+            },
+            ..Step::pending()
+        }),
+    ] {
+        w.app
+            .update_referee_round(&reviewer, &paper.id, 2, update)
+            .await
+            .unwrap();
+    }
+    let finished = w.app.referee_file(&paper.id).await.unwrap().0;
+    assert_eq!(finished.rounds[0], before.rounds[0]);
+    assert_eq!(finished.letters.len(), 1);
+    assert_eq!(finished.letters[0].round, Some(2));
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+}
+
+#[tokio::test]
 async fn archive_search_filters_before_pagination_and_never_reads_private_revisions() {
     let w = World::new().await;
     let author = w.person("author", &[]).await;

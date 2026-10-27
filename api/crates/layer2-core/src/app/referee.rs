@@ -324,7 +324,9 @@ impl App {
     ) -> CoreResult<RefereeFile> {
         caller.require(Role::Editor)?;
         let submission = self.submission(caller, id).await?;
-        if !submission.is_open() {
+        let failed_private_review = submission.purpose == SubmissionPurpose::ReviewOnly
+            && submission.status == SubmissionStatus::ReviewComplete;
+        if !submission.is_open() && !failed_private_review {
             return Err(CoreError::conflict(format!(
                 "the paper is {}",
                 submission.status.name()
@@ -334,6 +336,30 @@ impl App {
         let (mut file, stored) = self.referee_file(id).await?;
         if file.current().is_some_and(|r| !r.is_settled()) {
             return Err(CoreError::conflict("the current round is still running"));
+        }
+        if failed_private_review {
+            let previous = file
+                .current()
+                .ok_or_else(|| CoreError::conflict("no private review to retry"))?;
+            let failed = matches!(previous.referee.state, StepState::Failed { .. })
+                || matches!(previous.audit.state, StepState::Failed { .. })
+                || matches!(previous.advice.state, StepState::Failed { .. })
+                || matches!(previous.letter.state, StepState::Failed { .. });
+            if !failed
+                || previous.version != version
+                || previous.claims_revision != submission.claims_revision
+            {
+                return Err(CoreError::conflict(
+                    "no failed current private review to retry",
+                ));
+            }
+            // Use the existing re-review path for completed private submissions.
+            // Persist its intent and the fresh round atomically; previous
+            // readings, letters, source and publication state remain intact.
+            let trigger = format!("operational-retry:r{}", previous.number);
+            if !file.recheck_requests.contains(&trigger) {
+                file.recheck_requests.push(trigger);
+            }
         }
         self.push_round(&mut file, &submission, version);
         self.store_referee_file(&mut file, stored).await?;

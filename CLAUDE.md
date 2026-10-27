@@ -347,7 +347,11 @@ from `develop`. No force pushes to either.
   Publication is immediate when the selected visibility is public. Paper/note
   probes and conjecture statement elaboration follow the delivered letter.
   No step requires a human editor. Editors/admins may intervene, restart settled
-  reviews while the paper is in review, or send additional letters.
+  reviews while the paper is in review, or send additional letters. Staff can also
+  restart a settled, failed current private review after review completion. This
+  records a new operational re-review round without changing the source, prior
+  readings/letters, visibility or publication state; successful private reviews
+  and live rounds cannot use this recovery path.
 - For conjectures, the referee supplies well-posedness reasons, open/known/unclear
   status, reported work names, content/bind-only escape reasons and sharpening
   suggestions. CMA Codex checks missing symbols/quantifiers and small cases, and
@@ -410,6 +414,13 @@ from `develop`. No force pushes to either.
   version, statement revision, round, step and attempt. Worker restarts resume
   polling with those ids; uncertain mutations reuse the original key and body.
   Agent steps have at most 3,600 seconds. The lease heartbeat stays active.
+  New CMA runs pin delivery contract 1: the final input chunk repeats bounded
+  audit/advice/letter instructions and the exact response-format requirement without removing
+  input bytes. Legacy saved runs retain their original framing and keys. Only a
+  terminal `agent_command_queue_timeout` with explicitly empty output may retry
+  its chunk once on the same agent, after saving the original response receipt,
+  with a distinct durable key and within the original deadline. Live work,
+  ambiguous failures and executed output are never restarted by this path.
 - A worker has one compile lane, one verification lane and 1–8 remote review
   lanes (`WISHPOOL_REVIEW_CONCURRENCY`, default 2). Compile jobs never wait on
   CMA cleanup. Each job retains its own lease and cancellation fence.
