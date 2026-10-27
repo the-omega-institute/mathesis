@@ -17,12 +17,12 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/the-omega-institute/mathesis-api:review-attachments-20261027
-      SOURCE_COMMIT: a9f8934f32654fcb3a7e8427438ed5b9c603c371
+      SOURCE_COMMIT: 9243d57f8fc9727bb0e014efbabbeb132187b854
       BASE: ghcr.io/the-omega-institute/mathesis-api@sha256:c9f9b38c03326ffc445bbb7967be9d2c31161ab6c689e5e595c364a047389835
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Verify the application inputs match the reviewed repair
         run: git diff --exit-code "$SOURCE_COMMIT" HEAD -- api infra/api/Dockerfile
       - uses: docker/login-action@v3
