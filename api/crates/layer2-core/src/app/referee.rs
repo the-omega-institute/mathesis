@@ -283,6 +283,38 @@ impl App {
         Ok(file)
     }
 
+    /// Requeue an unfinished round after an operational failure. Persisted
+    /// steps and provider identities stay intact; enqueue preserves live leases.
+    pub async fn resume_referee(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+        number: u32,
+    ) -> CoreResult<()> {
+        caller.require(Role::Editor)?;
+        let submission = self.submission(caller, id).await?;
+        if matches!(
+            submission.status,
+            SubmissionStatus::Draft | SubmissionStatus::Withdrawn
+        ) {
+            return Err(CoreError::conflict("the paper is not reviewable"));
+        }
+        let (file, _) = self.referee_file(id).await?;
+        let round = file
+            .current()
+            .filter(|r| r.number == number)
+            .ok_or_else(|| CoreError::conflict("the requested round is not current"))?;
+        if round.version != Self::version_number(&submission)?
+            || round.claims_revision != submission.claims_revision
+        {
+            return Err(CoreError::conflict("the review inputs have changed"));
+        }
+        if round.is_settled() {
+            return Err(CoreError::conflict("the round is already settled"));
+        }
+        self.ports.queue.enqueue(id, JobKind::Referee).await
+    }
+
     /// Start a new round on the current statements, e.g. after a failed
     /// step. Editors only.
     pub async fn restart_referee(
@@ -801,31 +833,33 @@ impl App {
                     }
                 })
                 .collect();
+            let mut searched: Vec<String> = if round.review_contract
+                >= crate::model::REVIEW_CONTRACT
+            {
+                audit
+                    .claims
+                    .iter()
+                    .flat_map(|reading| {
+                        reading.methodology.iter().flat_map(|method| {
+                            method
+                                .searched
+                                .iter()
+                                .map(|scope| format!("{}: {scope}", reading.claim))
+                        })
+                    })
+                    .collect()
+            } else {
+                vec!["Networked referee and Codex audit; opened sources are model-reported, not venue-verified.".into()]
+            };
+            if searched.is_empty() {
+                // Preserve an incomplete audit's limitations so it can reach
+                // policy and private feedback without inventing a search.
+                searched.push("No usable source-search scope was returned. Literature completeness is not established.".into());
+            }
             for (stage, payload) in [
                 (
                     Stage::Literature,
-                    StagePayload::Literature {
-                        prior,
-                        searched: if round.review_contract >= crate::model::REVIEW_CONTRACT {
-                            audit
-                                .claims
-                                .iter()
-                                .flat_map(|reading| {
-                                    reading.methodology.iter().flat_map(|method| {
-                                        method
-                                            .searched
-                                            .iter()
-                                            .map(|scope| format!("{}: {scope}", reading.claim))
-                                    })
-                                })
-                                .collect()
-                        } else {
-                            vec![
-                            "Networked referee and Codex audit; opened sources are model-reported, not venue-verified."
-                                .into(),
-                        ]
-                        },
-                    },
+                    StagePayload::Literature { prior, searched },
                 ),
                 (Stage::Escape, StagePayload::Escape { assessments }),
             ] {

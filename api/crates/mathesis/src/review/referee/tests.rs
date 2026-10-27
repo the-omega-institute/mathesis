@@ -104,6 +104,7 @@ struct FakeAdvisor {
     audits: AtomicUsize,
     known: bool,
     gap_with_unusable_citation: bool,
+    omit_audit_claims: bool,
     followup_concern: bool,
     audit_delay: Duration,
     audit_failures: AtomicUsize,
@@ -308,6 +309,7 @@ impl Advisor for FakeAdvisor {
             claims: input
                 .statements
                 .iter()
+                .filter(|_| !self.omit_audit_claims)
                 .map(|c| AuditedClaimOut {
                     coverage: fixture_comparison(input.knowledge.as_ref(), &c.id),
                     methodology: input.review_method.as_ref().map(|_| {
@@ -1331,6 +1333,62 @@ async fn malformed_optional_citation_preserves_gap_and_delivers_rejection() {
             .starts_with("Your paper is not accepted.")
     );
     assert_eq!(w.formalizer.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn audit_without_usable_methodology_delivers_limits_instead_of_abandoning_job() {
+    let mut w = World::new(vec![completed("accept")], true).await;
+    w.worker.advisor = Some(Arc::new(FakeAdvisor {
+        omit_audit_claims: true,
+        ..Default::default()
+    }));
+    w.run_round().await;
+    let file = w.file().await;
+    let round = file.current().unwrap();
+    assert!(round.is_settled());
+    let reading = &round.audit.done().unwrap().claims[0];
+    assert_eq!(
+        reading.correctness,
+        mathesis_core::model::Correctness::NotChecked
+    );
+    assert_eq!(
+        reading.methodology.as_ref().unwrap().literature,
+        mathesis_core::model::EvidenceStatus::Insufficient
+    );
+    let paper = w
+        .worker
+        .app
+        .submission(&w.author, &w.paper.id)
+        .await
+        .unwrap();
+    assert!(matches!(paper.decision,
+        Some(mathesis_core::policy::Decision::NotAccepted { ref reasons })
+        if matches!(reasons.as_slice(), [mathesis_core::model::RejectReason::UncheckedResult { .. }])
+    ));
+    let mathesis_core::model::StagePayload::Literature { prior, searched } = &paper
+        .latest_report(mathesis_core::model::Stage::Literature)
+        .unwrap()
+        .payload
+    else {
+        panic!()
+    };
+    assert!(prior.is_empty());
+    assert_eq!(
+        searched,
+        &[
+            "No usable source-search scope was returned. Literature completeness is not established."
+        ]
+    );
+    assert_eq!(file.letters.len(), 1);
+    assert!(round.advice.done().is_some());
+    assert!(round.letter.done().is_some());
+    assert_eq!(w.formalizer.calls.load(Ordering::SeqCst), 0);
+    assert!(
+        mathesis_core::ports::RecordStore::for_submission(w.stores.as_ref(), &paper.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 async fn prepare_audit(w: &World) -> LeasedJob {

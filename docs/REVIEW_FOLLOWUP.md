@@ -85,6 +85,20 @@ remote review or create a replacement task.
 
 ## Operating the real review loop
 
+After repairing an operational failure that left an unfinished round without a
+queued job, staff can `POST /api/v1/submissions/{id}/referee/resume` with
+`{"round": <current round number>}`. This requires the editor/staff role and returns
+202. It requeues that round while preserving every saved step, provider task and
+source identity. Existing live leases are left intact. Changed source versions or
+claims, withdrawn/draft submissions and settled rounds are refused. It does not
+start a new round or retry a settled failed step; use restart only when a new
+review is intended and the current round has settled.
+
+An unusable optional source attribution is omitted without erasing an otherwise
+valid proof check or methodology. An audit with no usable search scope records
+that limitation explicitly, allowing the existing publication policy and private
+feedback to run. This does not establish literature completeness or novelty.
+
 API-only `/readyz` checks database readiness; worker/all roles additionally check
 configured executables, CMA resources and verifier readiness. `mathesis --check`
 provides the same diagnostics without starting a listener. These resource checks
