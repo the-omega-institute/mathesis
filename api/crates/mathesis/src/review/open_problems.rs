@@ -7,7 +7,7 @@ use mathesis_core::model::{ClaimRole, SubmissionKind};
 use mathesis_review::{
     Document,
     oracle::{OracleRequest, OracleStatus},
-    referee_prompts::{self, RefereeOut, parse_answer},
+    referee_prompts::{self, RefereeOut, parse_referee_answer},
 };
 impl Worker {
     pub(super) async fn open_problems_job(&self, job: &LeasedJob) -> Result<bool, Failure> {
@@ -40,13 +40,11 @@ impl Worker {
                         .map_err(|e| Failure::Transient(e.to_string()))?
                     {
                         OracleStatus::Completed { text, .. } => {
-                            let raw =
-                                parse_answer::<RefereeOut>(&text).unwrap_or_else(|e| RefereeOut {
-                                    summary: "The problem referee answer could not be parsed."
-                                        .into(),
-                                    limits: vec![e.to_string()],
-                                    ..Default::default()
-                                });
+                            let raw = parse_referee_answer(&text).unwrap_or_else(|e| RefereeOut {
+                                summary: "The problem referee answer could not be parsed.".into(),
+                                limits: vec![e.to_string()],
+                                ..Default::default()
+                            });
                             file.report = Some(mapping::referee_for_kind(raw, text, &claims, true));
                         }
                         OracleStatus::Failed { reason, .. } => {

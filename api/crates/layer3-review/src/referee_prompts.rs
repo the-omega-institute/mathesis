@@ -51,12 +51,14 @@ pub struct AuditedClaimOut {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub methodology: Option<serde_json::Value>,
     pub conjecture: Option<ConjectureOut>,
+    #[serde(alias = "id")]
     pub claim: String,
     pub correctness: String,
     pub comment: String,
     pub shape: Option<String>,
     pub witnesses: Vec<String>,
     pub known: Option<String>,
+    #[serde(alias = "agrees_with_referee")]
     pub referee_agreed: bool,
 }
 
@@ -198,6 +200,18 @@ pub fn parse_answer<T: DeserializeOwned>(text: &str) -> ReviewResult<T> {
         last_object(text).ok_or_else(|| ReviewError::Output("no JSON object".into()))?
     };
     serde_json::from_str(object).map_err(|e| ReviewError::Output(e.to_string()))
+}
+
+/// A transport reply or unrelated nested object is not a referee reading.
+/// Preserve the existing raw-text fallback when no report content was decoded.
+pub fn parse_referee_answer(text: &str) -> ReviewResult<RefereeOut> {
+    let report: RefereeOut = parse_answer(text)?;
+    if report.summary.trim().is_empty() && report.claims.is_empty() && report.concerns.is_empty() {
+        return Err(ReviewError::Output(
+            "referee response has no summary, claim readings or concerns".into(),
+        ));
+    }
+    Ok(report)
 }
 
 /// Scan left to right for complete JSON objects, skipping those nested in an
@@ -462,6 +476,50 @@ Thanks."#;
         for invalid in ["true", "1", "[]", "{}"] {
             let text = format!(r#"{{"claims":[{{"claim":"C1","shape":{invalid}}}]}}"#);
             assert!(parse_answer::<RefereeOut>(&text).is_err());
+        }
+    }
+
+    #[test]
+    fn unrelated_inner_object_cannot_masquerade_as_a_referee_report() {
+        let malformed = r#"{
+            "summary":"A source was described as "unavailable".",
+            "requested_response_schema":{"available":false,"limitation":"No file access"}
+        }"#;
+        // The generic unfenced scanner can recover a valid inner object from
+        // malformed outer JSON. It must not become an empty successful report.
+        let inner: RefereeOut = parse_answer(malformed).unwrap();
+        assert_eq!(inner, RefereeOut::default());
+        assert!(parse_referee_answer(malformed).is_err());
+        for text in [
+            r#"{"status":"blocked_attachment_access","review_completed":false}"#,
+            r#"{"recommendation":"accept","knowledge_queries":[]}"#,
+            r#"{"summary":"   "}"#,
+        ] {
+            assert!(parse_referee_answer(text).is_err());
+        }
+    }
+
+    #[test]
+    fn partial_referee_readings_remain_available_for_domain_validation() {
+        for text in [
+            r#"{"summary":"The proof needs an additional hypothesis."}"#,
+            r#"{"claims":[{"claim":"C1","shape":"undetermined"}]}"#,
+            r#"{"concerns":[{"severity":"major","issue":"A denominator may vanish."}]}"#,
+        ] {
+            assert!(parse_referee_answer(text).is_ok());
+        }
+    }
+
+    #[test]
+    fn audit_field_aliases_reject_ambiguous_identifiers_and_agreement() {
+        for text in [
+            r#"{"claims":[{"id":"C1","claim":"C2"}]}"#,
+            r#"{"claims":[{"id":"C1","claim":"C1"}]}"#,
+            r#"{"claims":[{"referee_agreed":true,"agrees_with_referee":false}]}"#,
+            r#"{"claims":[{"id":42}]}"#,
+            r#"{"claims":[{"agrees_with_referee":"yes"}]}"#,
+        ] {
+            assert!(parse_answer::<AuditOut>(text).is_err());
         }
     }
 }
