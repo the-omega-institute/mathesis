@@ -17,7 +17,7 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/the-omega-institute/mathesis-api:review-attachments-20261027
-      SOURCE_COMMIT: 9243d57f8fc9727bb0e014efbabbeb132187b854
+      SOURCE_COMMIT: 51e2cee5d0e4e158ff0d5f29d2a8f510f387b46b
       BASE: ghcr.io/the-omega-institute/mathesis-api@sha256:c9f9b38c03326ffc445bbb7967be9d2c31161ab6c689e5e595c364a047389835
     steps:
       - uses: actions/checkout@v4
