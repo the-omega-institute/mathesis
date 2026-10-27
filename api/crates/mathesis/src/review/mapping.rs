@@ -1334,6 +1334,7 @@ mod audit_tests {
                     shape: Some("content".into()),
                     witnesses: vec!["An explicit new intermediate identity".into()],
                     known: Some("Invented paper".into()),
+                    referee_agreed: true,
                     ..Default::default()
                 },
                 AuditedClaimOut {
@@ -1375,10 +1376,25 @@ mod audit_tests {
             ],
             ..Default::default()
         };
+        // The real provider also uses id/agrees_with_referee for claim
+        // readings. Those names must retain the same checks for unknown ids,
+        // unproved claims and unsupported citations as the canonical fields.
+        let mut aliased = serde_json::to_value(&out).unwrap();
+        for claim in aliased["claims"].as_array_mut().unwrap() {
+            let claim = claim.as_object_mut().unwrap();
+            let id = claim.remove("claim").unwrap();
+            claim.insert("id".into(), id);
+            let agreed = claim.remove("referee_agreed").unwrap();
+            claim.insert("agrees_with_referee".into(), agreed);
+        }
+        let aliased = serde_json::from_value(aliased).unwrap();
+        let aliased_result = audit(aliased, &input, &claims).unwrap();
         let result = audit(out, &input, &claims).unwrap();
+        assert_eq!(result, aliased_result);
         assert_eq!(result.claims.len(), claims.len());
         assert!(result.claims[0].known.is_none());
         assert_eq!(result.claims[0].correctness, Correctness::Correct);
+        assert!(result.claims[0].referee_agreed);
         assert_eq!(result.claims[0].shape, Some(ProofShape::Content));
         assert_eq!(
             result.claims[0].witnesses,
