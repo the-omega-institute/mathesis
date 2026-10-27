@@ -1,4 +1,4 @@
-# Do not accept an unrelated object as a structured referee reading
+# Preserve review readings and make decoding limits explicit
 
 Real broker replies exposed two cases with no usable structured referee output:
 an explicit attachment-access failure, and substantive raw reports whose outer
@@ -19,3 +19,12 @@ source auditing can continue using the retained manuscript and raw answer.
 Stored settled results, prompt bytes and admitted request identities are
 unchanged. Operator exports must distinguish delivered letters with such
 limitations from reviews whose structured inputs were available throughout.
+
+A separate valid audit used `id` and `agrees_with_referee` in its three claim
+readings. The adapter expected `claim` and `referee_agreed`, so every identified
+proof check became an unknown empty id and was discarded. Those two observed
+aliases now decode to the same existing fields. Simultaneous canonical/alias
+fields and invalid value types are rejected. Unknown ids, duplicate readings,
+unproved claims, source validation and all publication gates remain subject to
+the existing domain checks. Incomplete semantic query proposals are still
+incomplete; no hypotheses, quantifiers or comparison evidence are invented.

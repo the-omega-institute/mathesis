@@ -51,12 +51,14 @@ pub struct AuditedClaimOut {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub methodology: Option<serde_json::Value>,
     pub conjecture: Option<ConjectureOut>,
+    #[serde(alias = "id")]
     pub claim: String,
     pub correctness: String,
     pub comment: String,
     pub shape: Option<String>,
     pub witnesses: Vec<String>,
     pub known: Option<String>,
+    #[serde(alias = "agrees_with_referee")]
     pub referee_agreed: bool,
 }
 
@@ -505,6 +507,19 @@ Thanks."#;
             r#"{"concerns":[{"severity":"major","issue":"A denominator may vanish."}]}"#,
         ] {
             assert!(parse_referee_answer(text).is_ok());
+        }
+    }
+
+    #[test]
+    fn audit_field_aliases_reject_ambiguous_identifiers_and_agreement() {
+        for text in [
+            r#"{"claims":[{"id":"C1","claim":"C2"}]}"#,
+            r#"{"claims":[{"id":"C1","claim":"C1"}]}"#,
+            r#"{"claims":[{"referee_agreed":true,"agrees_with_referee":false}]}"#,
+            r#"{"claims":[{"id":42}]}"#,
+            r#"{"claims":[{"agrees_with_referee":"yes"}]}"#,
+        ] {
+            assert!(parse_answer::<AuditOut>(text).is_err());
         }
     }
 }
