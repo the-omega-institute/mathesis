@@ -1074,6 +1074,28 @@ mod referee_tests {
     }
 
     #[test]
+    fn null_conjecture_shape_preserves_report_without_inventing_proof_content() {
+        let text = r#"{"recommendation":"minor_revision","claims":[
+            {"claim":"C1","shape":"content","witnesses":["A new bound"]},
+            {"claim":"C2","shape":null,"note":"This is an open conjecture."},
+            {"claim":"C3","shape":null,"witnesses":["An unsupported witness"]}
+        ]}"#;
+        let mut confirmed = claims();
+        let mut third = confirmed[0].clone();
+        third.id = "C3".into();
+        confirmed.push(third);
+        let parsed = mathesis_review::referee_prompts::parse_answer(text).unwrap();
+        let report = referee(parsed, text.into(), &confirmed);
+        assert_eq!(report.recommendation, Some(Recommendation::MinorRevision));
+        assert_eq!(report.claims.len(), 1);
+        assert_eq!(report.claims[0].claim.as_str(), "C1");
+        assert_eq!(report.claims[0].shape, ProofShape::Content);
+        assert_eq!(report.claims[0].witnesses, ["A new bound"]);
+        assert!(report.limits.iter().any(|s| s.starts_with("2 unusable")));
+        assert_eq!(report.text, text);
+    }
+
+    #[test]
     fn referee_sanitises_ids_shapes_and_preserves_raw_text() {
         let raw = RefereeOut {
             recommendation: "accept".into(),

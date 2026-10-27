@@ -86,10 +86,19 @@ pub struct ConcernOut {
 pub struct ReadingOut {
     pub conjecture: Option<ConjectureOut>,
     pub claim: String,
+    // Open questions may explicitly omit a proof shape. Keep the same empty
+    // value as an absent field so domain mapping can reject it where required.
+    #[serde(deserialize_with = "empty_shape_if_null")]
     pub shape: String,
     pub witnesses: Vec<String>,
     pub known: Option<String>,
     pub note: String,
+}
+
+fn empty_shape_if_null<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -432,5 +441,27 @@ Thanks."#;
         assert_eq!(out.recommendation, "minor_revision");
         assert_eq!(out.claims[0].witnesses, ["{a}"]);
         assert!(parse_answer::<RefereeOut>(r"only \{ latex \}").is_err());
+    }
+
+    #[test]
+    fn absent_or_null_proof_shape_does_not_discard_other_readings() {
+        let out: RefereeOut = parse_answer(
+            r#"{"recommendation":"minor_revision","knowledge_queries":[{"claim":"C1"}],"claims":[
+                {"claim":"C1","shape":"content","witnesses":["A new bound"]},
+                {"claim":"C2","shape":null},
+                {"claim":"C3"}
+            ]}"#,
+        )
+        .unwrap();
+        assert_eq!(out.recommendation, "minor_revision");
+        assert_eq!(out.knowledge_queries, [serde_json::json!({"claim":"C1"})]);
+        assert_eq!(out.claims[0].shape, "content");
+        assert_eq!(out.claims[0].witnesses, ["A new bound"]);
+        assert!(out.claims[1].shape.is_empty());
+        assert!(out.claims[2].shape.is_empty());
+        for invalid in ["true", "1", "[]", "{}"] {
+            let text = format!(r#"{{"claims":[{{"claim":"C1","shape":{invalid}}}]}}"#);
+            assert!(parse_answer::<RefereeOut>(&text).is_err());
+        }
     }
 }
