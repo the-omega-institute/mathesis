@@ -17,7 +17,7 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/the-omega-institute/mathesis-api:referee-empty-reading-20261028
-      SOURCE_COMMIT: 682bd1723a10b7d3518077c61f3c3e347eefa54e
+      SOURCE_COMMIT: d6e83bb2924089c574917e22a051d43fba878a69
       BASE: ghcr.io/the-omega-institute/mathesis-api@sha256:7cc002843c3b46492afcabab1ac323aa1c9f88f1c26304f3e472173908ca566a
     steps:
       - uses: actions/checkout@v4
