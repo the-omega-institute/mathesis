@@ -225,6 +225,69 @@ async fn creates_polls_returns_json_and_cleans_up_once() {
     assert_eq!(calls[6].0, "DELETE");
     assert!(calls.iter().filter(|c| c.0 != "GET").all(|c| c.3.is_some()));
 }
+
+#[tokio::test]
+async fn math_delimiter_escaping_preserves_raw_output_and_replays_without_resubmission() {
+    let raw = r#"{"summary":"Replace the proof with: write \(x^2=x\\cdot x\). Then \[x=0\]."}"#;
+    let (client, fake) = client(vec![
+        reply(json!({"id":"agt_test"})),
+        receipt("resp_test"),
+        completed(raw),
+        accepted(),
+        accepted(),
+    ]);
+    let store = Memory::default();
+    let answer = client
+        .answer(&store, "paper source".into(), Duration::from_secs(60))
+        .await
+        .unwrap();
+    let value: Value = serde_json::from_str(&answer).unwrap();
+    assert_eq!(
+        value["summary"],
+        r"Replace the proof with: write \(x^2=x\cdot x\). Then \[x=0\]."
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(state.raw_answer.as_deref(), Some(raw));
+    assert_eq!(state.answer.as_deref(), Some(answer.as_str()));
+    assert!(state.failure.is_none() && state.deleted);
+    assert_eq!(state.response_id.as_deref(), Some("resp_test"));
+    let calls = fake.calls.lock().await.len();
+    assert_eq!(
+        client
+            .answer(&store, "paper source".into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        answer
+    );
+    assert_eq!(fake.calls.lock().await.len(), calls);
+}
+
+#[test]
+fn math_delimiter_normalization_keeps_strict_json_and_exact_valid_escapes() {
+    let valid = r#"{"text":"π \\(x\\) \\alpha \\\\( \\\"quoted\\\" \\n","nested":{"value":true}}"#;
+    assert!(serde_json::from_str::<Value>(valid).is_ok());
+    assert_eq!(normalize_math_delimiters(valid).unwrap(), None);
+    let mixed = r#"{"text":"π \(x\), \"quoted\", \\alpha, \\(already escaped\\)\nnext"}"#;
+    let normalized = normalize_math_delimiters(mixed).unwrap().unwrap();
+    let parsed: Value = serde_json::from_str(&normalized).unwrap();
+    assert_eq!(
+        parsed["text"],
+        "π \\(x\\), \"quoted\", \\alpha, \\(already escaped\\)\nnext"
+    );
+    for malformed in [
+        r#"{"text":"\(x\) and \q"}"#,
+        r#"{"text":"\(x\)",}"#,
+        r#"{"text":"\(x\)""#,
+        r#"prefix {"text":"\(x\)"}"#,
+        r#"{"text":"\(x\)"} trailing"#,
+        r#"["\(x\)"]"#,
+        "null",
+    ] {
+        assert!(normalize_math_delimiters(malformed).is_err(), "{malformed}");
+    }
+    let oversized = format!(r#"{{"text":"{}\(x\)"}}"#, "x".repeat(MAX_JSON));
+    assert!(normalize_math_delimiters(&oversized).is_err());
+}
 #[tokio::test]
 async fn restart_uses_saved_agent_response_and_cursor_without_submitting() {
     let store = Memory::default();

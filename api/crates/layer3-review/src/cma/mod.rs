@@ -112,6 +112,9 @@ pub struct RunState {
     pub deadline: u64,
     pub input: String,
     pub answer: Option<String>,
+    /// Exact provider output when only JSON escaping of math delimiters changed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_answer: Option<String>,
     pub failure: Option<String>,
     pub typed_failure: Option<FailureKind>,
     /// Legacy wire name: stop was acknowledged; actual stopping is asynchronous.
@@ -399,12 +402,13 @@ impl Client {
                         if answer.len() > MAX_JSON {
                             return Err(invalid("CMA answer exceeds 2000000 bytes"));
                         }
-                        let value: Value = serde_json::from_str(&answer)
-                            .map_err(|_| invalid("CMA final message is not JSON"))?;
-                        if !value.is_object() {
-                            return Err(invalid("CMA final message must be a JSON object"));
-                        }
-                        state.answer = Some(answer);
+                        state.answer = match normalize_math_delimiters(&answer)? {
+                            Some(normalized) => {
+                                state.raw_answer = Some(answer);
+                                Some(normalized)
+                            }
+                            None => Some(answer),
+                        };
                         Self::save(store, state).await?;
                         return Ok(true);
                     }
@@ -635,6 +639,46 @@ fn identifier(v: &Value, field: &str) -> ReviewResult<String> {
     }
     Ok(id.into())
 }
+/// A mathematical string may contain literal \(, \), \[ or \]. These are
+/// unambiguous invalid JSON escapes. Encode their backslashes without changing
+/// the text or tolerating any other malformed syntax. Valid JSON stays exact.
+fn normalize_math_delimiters(answer: &str) -> ReviewResult<Option<String>> {
+    if let Ok(value) = serde_json::from_str::<Value>(answer) {
+        return if value.is_object() {
+            Ok(None)
+        } else {
+            Err(invalid("CMA final message must be a JSON object"))
+        };
+    }
+    let mut normalized = String::with_capacity(answer.len());
+    let mut quoted = false;
+    let mut chars = answer.chars();
+    while let Some(ch) = chars.next() {
+        normalized.push(ch);
+        match ch {
+            '"' => quoted = !quoted,
+            '\\' if quoted => {
+                if let Some(escaped) = chars.next() {
+                    if matches!(escaped, '(' | ')' | '[' | ']') {
+                        normalized.push('\\');
+                    }
+                    normalized.push(escaped);
+                }
+            }
+            _ => {}
+        }
+    }
+    if normalized.len() > MAX_JSON {
+        return Err(invalid("CMA answer exceeds 2000000 bytes"));
+    }
+    let value: Value =
+        serde_json::from_str(&normalized).map_err(|_| invalid("CMA final message is not JSON"))?;
+    if !value.is_object() {
+        return Err(invalid("CMA final message must be a JSON object"));
+    }
+    Ok(Some(normalized))
+}
+
 fn final_text(v: &Value) -> ReviewResult<String> {
     let items = v["output"]
         .as_array()
