@@ -10,7 +10,7 @@ use mathesis_review::{
     Document, ReviewError,
     advisor::AdvisorInput,
     oracle::{OracleRequest, OracleStatus},
-    referee_prompts::{self, RefereeOut, parse_answer},
+    referee_prompts::{self, RefereeOut, parse_answer, parse_referee_answer},
 };
 use sha2::{Digest, Sha256};
 
@@ -425,7 +425,7 @@ impl Worker {
                             .model
                             .clone()
                             .unwrap_or_else(|| self.referee_model.clone());
-                        let report = match parse_answer::<RefereeOut>(&text) {
+                        let report = match parse_referee_answer(&text) {
                             Ok(raw) => mapping::referee_for_kind(raw, text, &submission.claims, submission.kind == mathesis_core::model::SubmissionKind::Conjecture),
                             Err(error) => mapping::referee(RefereeOut { summary: "The referee answer could not be parsed as a structured report.".into(), limits: vec![error.to_string()], ..Default::default() }, text, &submission.claims),
                         };

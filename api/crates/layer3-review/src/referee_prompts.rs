@@ -200,6 +200,18 @@ pub fn parse_answer<T: DeserializeOwned>(text: &str) -> ReviewResult<T> {
     serde_json::from_str(object).map_err(|e| ReviewError::Output(e.to_string()))
 }
 
+/// A transport reply or unrelated nested object is not a referee reading.
+/// Preserve the existing raw-text fallback when no report content was decoded.
+pub fn parse_referee_answer(text: &str) -> ReviewResult<RefereeOut> {
+    let report: RefereeOut = parse_answer(text)?;
+    if report.summary.trim().is_empty() && report.claims.is_empty() && report.concerns.is_empty() {
+        return Err(ReviewError::Output(
+            "referee response has no summary, claim readings or concerns".into(),
+        ));
+    }
+    Ok(report)
+}
+
 /// Scan left to right for complete JSON objects, skipping those nested in an
 /// object already found.
 fn last_object(text: &str) -> Option<&str> {
@@ -462,6 +474,37 @@ Thanks."#;
         for invalid in ["true", "1", "[]", "{}"] {
             let text = format!(r#"{{"claims":[{{"claim":"C1","shape":{invalid}}}]}}"#);
             assert!(parse_answer::<RefereeOut>(&text).is_err());
+        }
+    }
+
+    #[test]
+    fn unrelated_inner_object_cannot_masquerade_as_a_referee_report() {
+        let malformed = r#"{
+            "summary":"A source was described as "unavailable".",
+            "requested_response_schema":{"available":false,"limitation":"No file access"}
+        }"#;
+        // The generic unfenced scanner can recover a valid inner object from
+        // malformed outer JSON. It must not become an empty successful report.
+        let inner: RefereeOut = parse_answer(malformed).unwrap();
+        assert_eq!(inner, RefereeOut::default());
+        assert!(parse_referee_answer(malformed).is_err());
+        for text in [
+            r#"{"status":"blocked_attachment_access","review_completed":false}"#,
+            r#"{"recommendation":"accept","knowledge_queries":[]}"#,
+            r#"{"summary":"   "}"#,
+        ] {
+            assert!(parse_referee_answer(text).is_err());
+        }
+    }
+
+    #[test]
+    fn partial_referee_readings_remain_available_for_domain_validation() {
+        for text in [
+            r#"{"summary":"The proof needs an additional hypothesis."}"#,
+            r#"{"claims":[{"claim":"C1","shape":"undetermined"}]}"#,
+            r#"{"concerns":[{"severity":"major","issue":"A denominator may vanish."}]}"#,
+        ] {
+            assert!(parse_referee_answer(text).is_ok());
         }
     }
 }
