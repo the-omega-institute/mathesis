@@ -294,6 +294,19 @@ pub trait RefereeStore: Send + Sync {
         limit: u32,
         before: Option<String>,
     ) -> CoreResult<Listing<SubmissionId>>;
+    /// Small read projection; stores may derive and persist it under the history revision.
+    async fn summary(
+        &self,
+        id: &SubmissionId,
+        version: Option<u32>,
+        claims_revision: u64,
+    ) -> CoreResult<crate::model::ReviewSummary> {
+        Ok(self
+            .get(id)
+            .await?
+            .unwrap_or_else(|| RefereeFile::new(id.clone()))
+            .summary_for(version, claims_revision))
+    }
     async fn get(&self, submission: &SubmissionId) -> CoreResult<Option<RefereeFile>>;
     async fn insert(&self, file: &RefereeFile) -> CoreResult<()>;
     async fn replace(&self, file: &RefereeFile, expected: u64) -> CoreResult<()>;

@@ -254,13 +254,14 @@ impl App {
         id: &SubmissionId,
     ) -> CoreResult<crate::model::ReviewSummary> {
         let submission = self.submission(caller, id).await?;
-        let file = self
-            .ports
+        self.ports
             .referees
-            .get(id)
-            .await?
-            .unwrap_or_else(|| RefereeFile::new(id.clone()));
-        Ok(file.summary(&submission))
+            .summary(
+                id,
+                submission.current_version().map(|v| v.number),
+                submission.claims_revision,
+            )
+            .await
     }
 
     /// The round for the paper's current version and statement set, started
