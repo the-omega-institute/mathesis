@@ -2,13 +2,38 @@ use async_trait::async_trait;
 use mathesis_core::{
     CoreError, CoreResult,
     ids::SubmissionId,
-    model::{BlobRef, RefereeFile},
+    model::{BlobRef, RefereeFile, ReviewSummary},
     ports::{BlobStore, Listing, RefereeStore},
 };
 use mongodb::bson::{Document, doc};
 use sha2::{Digest, Sha256};
 
 use super::{MongoStore, REFEREE_FILES, from_document, to_document, unavailable, write_error};
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct StatusIndex {
+    revision: u64,
+    items: Vec<ReviewSummary>,
+}
+impl StatusIndex {
+    fn from_file(file: &RefereeFile) -> Self {
+        Self {
+            revision: file.revision,
+            items: file.summary_index(),
+        }
+    }
+    fn summary(
+        self,
+        id: &SubmissionId,
+        version: Option<u32>,
+        claims_revision: u64,
+    ) -> ReviewSummary {
+        self.items
+            .into_iter()
+            .find(|s| s.version == version && s.claims_revision == claims_revision)
+            .unwrap_or_else(|| RefereeFile::new(id.clone()).summary_for(version, claims_revision))
+    }
+}
 
 const INLINE_BYTES: usize = 512 * 1024;
 
@@ -17,10 +42,12 @@ impl MongoStore {
         &self,
         file: &RefereeFile,
     ) -> CoreResult<(Document, Option<BlobRef>)> {
+        let status_index = to_document(&StatusIndex::from_file(file))?;
         let bytes = serde_json::to_vec(file)
             .map_err(|error| CoreError::Unavailable(format!("encode review history: {error}")))?;
         if bytes.len() <= INLINE_BYTES {
             let mut document = to_document(file)?;
+            document.insert("review_status_v1", status_index);
             document.insert("binding_directory", !file.binding_boards.is_empty());
             document.insert("feedback_directory", !file.feedback_proposals.is_empty());
             return Ok((document, None));
@@ -34,6 +61,7 @@ impl MongoStore {
             "revision": file.revision as i64,
             "storage_format": "gridfs-json-v1",
             "snapshot": to_document(&snapshot)?,
+            "review_status_v1": status_index,
         };
         Ok((document, Some(snapshot)))
     }
@@ -226,6 +254,44 @@ impl RefereeStore for MongoStore {
             None
         };
         Ok(Listing { items, next_before })
+    }
+
+    async fn summary(
+        &self,
+        id: &SubmissionId,
+        version: Option<u32>,
+        claims_revision: u64,
+    ) -> CoreResult<ReviewSummary> {
+        let header = self
+            .raw(REFEREE_FILES)
+            .find_one(doc! {"id": id.as_str()})
+            .projection(doc! {"revision":1,"review_status_v1":1,"_id":0})
+            .await
+            .map_err(unavailable)?;
+        let Some(header) = header else {
+            return Ok(RefereeFile::new(id.clone()).summary_for(version, claims_revision));
+        };
+        if let Ok(index) = header.get_document("review_status_v1")
+            && let Ok(index) = from_document::<StatusIndex>(index.clone())
+            && header.get_i64("revision").ok() == Some(index.revision as i64)
+        {
+            return Ok(index.summary(id, version, claims_revision));
+        }
+        // Old histories pay the checked snapshot read once. The derived index is
+        // separate from the immutable snapshot and fenced against concurrent writes.
+        let file = RefereeStore::get(self, id)
+            .await?
+            .unwrap_or_else(|| RefereeFile::new(id.clone()));
+        let index = StatusIndex::from_file(&file);
+        let result = file.summary_for(version, claims_revision);
+        let _ = self
+            .raw(REFEREE_FILES)
+            .update_one(
+                doc! {"id": id.as_str(), "revision": file.revision as i64},
+                doc! {"$set": {"review_status_v1": to_document(&index)?}},
+            )
+            .await;
+        Ok(result)
     }
 
     async fn get(&self, id: &SubmissionId) -> CoreResult<Option<RefereeFile>> {

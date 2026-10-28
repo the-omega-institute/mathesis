@@ -38,3 +38,12 @@ existing runtime and configuration. The browser connection returned
 “unsupported Codex auth method: apikey”, so screenshot-based visual verification
 was unavailable in this session; DOM interaction tests are not a substitute for
 that visual check.
+
+
+The first rollout confirmed that shrinking the HTTP response alone did not remove
+the backend snapshot cost: large histories still took 7–13 seconds to read. The
+follow-up stores a small version/claims-bound status index in each Mongo history
+header, with the same revision fence as the full history. Legacy histories derive
+that index once from checked saved bytes. Subsequent list reads project only the
+index; full reports retain independent snapshot checksum and identity checks.
+The index changes no review history, publication decision or privacy setting.

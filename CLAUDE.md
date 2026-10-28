@@ -283,6 +283,10 @@ sdk/contribute/    the contributors' CLI and MCP server.
 - Large referee aggregates use a revision-fenced Mongo header and a checksummed
   GridFS JSON snapshot. Legacy inline histories remain readable. Replaced
   snapshots are retained for offline collection, never deleted under readers.
+- Review list status uses a small `review_status_v1` projection in the Mongo history
+  header, atomically replaced with each history revision. Legacy reads derive it
+  once from the checked history using a revision fence; no historical content,
+  snapshot identity or aggregate revision changes. Authorization precedes this read.
 - Stage reports are append-only. Accepted records are immutable.
 - Machine work (compiling, S2 leads, S3 proposals) is a durable, leased job.
   A worker restart must not lose or duplicate admitted work.

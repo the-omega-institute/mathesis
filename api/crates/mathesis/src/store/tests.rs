@@ -1699,3 +1699,147 @@ async fn feedback_history_retains_payload_and_observation_blobs_in_offline_colle
     assert!(!audit.orphan_files.contains(&evidence.id));
     db.drop().await;
 }
+
+#[tokio::test]
+async fn review_summary_index_backfills_legacy_histories_and_fences_new_rounds() {
+    let Some(database) = TestDb::open().await else {
+        return;
+    };
+    let store = &database.store;
+    for large in [false, true] {
+        let mut file = RefereeFile::new(
+            if large {
+                "summary-large"
+            } else {
+                "summary-inline"
+            }
+            .into(),
+        );
+        file.rounds.push(serde_json::from_value(serde_json::json!({
+            "number":1,"version":1,"claims_revision":2,"started_at":Utc::now(),
+            "referee":{"state":{"state":"failed","reason":"Saved earlier failure","at":Utc::now()}},
+            "advice":{"state":{"state":"skipped","reason":"No report"}},
+            "letter":{"state":{"state":"skipped","reason":"No report"}}
+        })).unwrap());
+        if large {
+            file.agent_steps.insert(
+                "large-step".into(),
+                AgentStep {
+                    cma_attempts: vec![],
+                    version: 1,
+                    claims_revision: 2,
+                    progress: serde_json::json!({"answer":"x".repeat(600_000)}),
+                },
+            );
+        }
+        RefereeStore::insert(store, &file).await.unwrap();
+        let before = store
+            .raw(REFEREE_FILES)
+            .find_one(doc! {"id":file.id.as_str()})
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(before.contains_key("review_status_v1"));
+        // Legacy read derives only the new index, retaining revision and exact history.
+        store
+            .raw(REFEREE_FILES)
+            .update_one(
+                doc! {"id":file.id.as_str()},
+                doc! {"$unset":{"review_status_v1":""}},
+            )
+            .await
+            .unwrap();
+        let expected = file.summary_for(Some(1), 2);
+        assert!(expected.interrupted);
+        assert_eq!(
+            RefereeStore::summary(store, &file.id, Some(1), 2)
+                .await
+                .unwrap(),
+            expected
+        );
+        assert_eq!(
+            RefereeStore::get(store, &file.id).await.unwrap(),
+            Some(file.clone())
+        );
+        let after = store
+            .raw(REFEREE_FILES)
+            .find_one(doc! {"id":file.id.as_str()})
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(before, after);
+        let old_index = after.get_document("review_status_v1").unwrap().clone();
+        let mut next = file.rounds[0].clone();
+        next.number = 2;
+        next.referee = Step::pending();
+        file.rounds.push(next);
+        RefereeStore::replace(store, &file, 0).await.unwrap();
+        file.revision = 1;
+        let current = file.summary_for(Some(1), 2);
+        assert!(current.in_progress && !current.interrupted);
+        assert_eq!(
+            RefereeStore::summary(store, &file.id, Some(1), 2)
+                .await
+                .unwrap(),
+            current
+        );
+        assert_eq!(
+            RefereeStore::summary(store, &file.id, Some(2), 2)
+                .await
+                .unwrap()
+                .round,
+            None
+        );
+        // An index from an older revision cannot hide the newly admitted round.
+        store
+            .raw(REFEREE_FILES)
+            .update_one(
+                doc! {"id":file.id.as_str()},
+                doc! {"$set":{"review_status_v1":old_index}},
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            RefereeStore::summary(store, &file.id, Some(1), 2)
+                .await
+                .unwrap(),
+            current
+        );
+        let header = store
+            .raw(REFEREE_FILES)
+            .find_one(doc! {"id":file.id.as_str()})
+            .await
+            .unwrap()
+            .unwrap();
+        // A new store reads only the index, even when the report body is unavailable.
+        // The full report still refuses missing/corrupted evidence.
+        if large {
+            let snapshot: BlobRef =
+                from_document(header.get_document("snapshot").unwrap().clone()).unwrap();
+            BlobStore::discard(store, &snapshot.id).await.unwrap();
+        } else {
+            store
+                .raw(REFEREE_FILES)
+                .update_one(
+                    doc! {"id":file.id.as_str()},
+                    doc! {"$set":{"rounds":"invalid"}},
+                )
+                .await
+                .unwrap();
+        }
+        let reopened = MongoStore::connect(
+            &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+            &database.name,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            RefereeStore::summary(&reopened, &file.id, Some(1), 2)
+                .await
+                .unwrap(),
+            current
+        );
+        assert!(RefereeStore::get(&reopened, &file.id).await.is_err());
+    }
+    database.drop().await;
+}

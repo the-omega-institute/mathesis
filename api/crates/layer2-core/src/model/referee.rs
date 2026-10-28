@@ -521,7 +521,7 @@ impl RefereeFile {
 }
 
 /// Small, author-safe status for lists; no historical report bodies or query payloads.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReviewSummary {
     pub round: Option<u32>,
     pub version: Option<u32>,
@@ -533,14 +533,29 @@ pub struct ReviewSummary {
 }
 
 impl RefereeFile {
+    /// A small deterministic index over every source/claim revision in this history.
+    pub fn summary_index(&self) -> Vec<ReviewSummary> {
+        self.rounds
+            .iter()
+            .map(|r| (r.version, r.claims_revision))
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .map(|(version, claims)| self.summary_for(Some(version), claims))
+            .collect()
+    }
+
     pub fn summary(&self, submission: &super::Submission) -> ReviewSummary {
-        let version = submission.current_version().map(|v| v.number);
+        self.summary_for(
+            submission.current_version().map(|v| v.number),
+            submission.claims_revision,
+        )
+    }
+
+    pub fn summary_for(&self, version: Option<u32>, claims_revision: u64) -> ReviewSummary {
         let current = self
             .rounds
             .iter()
-            .filter(|r| {
-                Some(r.version) == version && r.claims_revision == submission.claims_revision
-            })
+            .filter(|r| Some(r.version) == version && r.claims_revision == claims_revision)
             .max_by_key(|r| r.number);
         let delivered_at = current.and_then(|r| {
             self.letters
@@ -563,7 +578,7 @@ impl RefereeFile {
         ReviewSummary {
             round: current.map(|r| r.number),
             version,
-            claims_revision: submission.claims_revision,
+            claims_revision,
             delivered_at,
             in_progress: !failed
                 && delivered_at.is_none()
