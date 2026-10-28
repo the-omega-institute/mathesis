@@ -1038,3 +1038,14 @@ applied reasons. Private reviews have no publication verdict. The automatic
 letter assessment follows the actual publication decision, never the internal
 minor/major revision recommendation. Historical reports are immutable and
 contract-0 rounds retain their original prompt bytes for retries.
+
+### Versioned downstream manuscripts
+
+`POST /api/v1/manuscript-deliveries` accepts the versioned delivery envelope and
+actual source, as multipart or JSON/base64. `GET` on that path recovers the
+caller-owned producer/work/purpose identity. `GET /submissions/{id}/delivery`
+returns the small version-bound receipt; `POST /submissions/{id}/delivery-confirmation`
+confirms approved statements against the exact source before ordinary review.
+See [MANUSCRIPT_DELIVERY.md](MANUSCRIPT_DELIVERY.md) for the complete envelope,
+retry/revision rules, public projection and CLI/MCP commands. This does not consume
+the Pages public feed or change independently admitted knowledge snapshots.

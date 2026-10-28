@@ -58,6 +58,8 @@ pub struct SubmissionFilter {
 #[async_trait]
 pub trait SubmissionStore: Send + Sync {
     async fn insert(&self, submission: &Submission) -> CoreResult<()>;
+    /// Unique owner/producer/work/purpose identity for resumable manuscript delivery.
+    async fn manuscript(&self, key: &str) -> CoreResult<Option<Submission>>;
     async fn get(&self, id: &SubmissionId) -> CoreResult<Option<Submission>>;
     async fn list(
         &self,

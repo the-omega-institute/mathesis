@@ -114,6 +114,7 @@ impl App {
             .put(&upload.bytes, "application/octet-stream")
             .await?;
         Ok(PaperVersion {
+            delivery: None,
             evidence: read.evidence.clone(),
             number,
             archive,
@@ -133,8 +134,19 @@ impl App {
     pub async fn submit_paper(
         &self,
         caller: &Caller,
+        new: NewPaper,
+        upload: Upload,
+    ) -> CoreResult<Submission> {
+        self.submit_paper_with_delivery(caller, new, upload, None)
+            .await
+    }
+
+    pub(crate) async fn submit_paper_with_delivery(
+        &self,
+        caller: &Caller,
         mut new: NewPaper,
         mut upload: Upload,
+        delivery: Option<(ManuscriptIdentity, ManuscriptVersion)>,
     ) -> CoreResult<Submission> {
         new.normalise_doi();
         new.validate()?;
@@ -204,9 +216,17 @@ impl App {
         if authors.is_empty() {
             return Err(CoreError::invalid("list the manuscript authors"));
         }
+        if let Some((_, delivered)) = &delivery {
+            super::manuscripts::validate_manuscript_evidence(&extracted, delivered)?;
+        }
         let now = self.ports.clock.now();
-        let version = self.new_version(1, &upload, &read, String::new()).await?;
+        let mut version = self.new_version(1, &upload, &read, String::new()).await?;
+        let manuscript = delivery.map(|(identity, delivered)| {
+            version.delivery = Some(delivered);
+            identity
+        });
         let submission = Submission {
+            manuscript,
             purpose: new.purpose,
             review_scope: new.review_scope,
             processing_consent: Some(ProcessingConsent {
@@ -250,7 +270,23 @@ impl App {
             updated_at: now,
             revision: 0,
         };
-        self.ports.submissions.insert(&submission).await?;
+        if let Err(error) = self.ports.submissions.insert(&submission).await {
+            if matches!(error, CoreError::Conflict(_))
+                && let Some(identity) = &submission.manuscript
+                && let Some(winner) = self.ports.submissions.manuscript(&identity.key).await?
+            {
+                for version in &submission.versions {
+                    if !winner
+                        .versions
+                        .iter()
+                        .any(|v| v.archive.id == version.archive.id)
+                    {
+                        let _ = self.ports.blobs.discard(&version.archive.id).await;
+                    }
+                }
+            }
+            return Err(error);
+        }
         self.ports
             .queue
             .enqueue(&submission.id, JobKind::Compile)
@@ -280,8 +316,61 @@ impl App {
         id: &SubmissionId,
         confirmations: Vec<ClaimConfirmation>,
     ) -> CoreResult<Submission> {
+        self.confirm_claims_bound(caller, id, confirmations, None)
+            .await
+    }
+
+    pub(crate) async fn confirm_claims_bound(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+        confirmations: Vec<ClaimConfirmation>,
+        binding: Option<&ConfirmManuscriptDelivery>,
+    ) -> CoreResult<Submission> {
+        use sha2::{Digest, Sha256};
         let mut submission = self.load(id).await?;
         Self::require_submitter(caller, &submission)?;
+        let confirmation_digest = format!(
+            "{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&confirmations)
+                    .map_err(|_| CoreError::invalid("claim confirmations"))?
+            )
+        );
+        if let Some(binding) = binding {
+            let v = submission
+                .current_version()
+                .filter(|v| {
+                    v.number == binding.version && v.archive.sha256 == binding.source_sha256
+                })
+                .ok_or_else(|| {
+                    CoreError::conflict(
+                        "the manuscript source changed; read its current delivery receipt",
+                    )
+                })?;
+            let delivery = v
+                .delivery
+                .as_ref()
+                .ok_or_else(|| CoreError::conflict("this version is not a manuscript delivery"))?;
+            if let Some(saved) = &delivery.confirmation {
+                if saved.digest != confirmation_digest
+                    || saved.claims_revision != submission.claims_revision
+                {
+                    return Err(CoreError::conflict(
+                        "the confirmed statements changed; do not replay a stale confirmation",
+                    ));
+                }
+                self.recover_manuscript_jobs(&submission, v.number).await?;
+                return Ok(submission);
+            }
+            if submission.status != SubmissionStatus::Draft
+                || binding.expected_claims_revision != submission.claims_revision
+            {
+                return Err(CoreError::conflict(
+                    "statement confirmation no longer matches the draft",
+                ));
+            }
+        }
         if !submission.status.is_active() {
             return Err(CoreError::conflict(format!(
                 "the paper is {}",
@@ -384,6 +473,20 @@ impl App {
         if submission.claims_revision != before {
             submission.lean_statements.clear();
         }
+        if binding.is_some() {
+            let claims_revision = submission.claims_revision;
+            submission
+                .versions
+                .last_mut()
+                .unwrap()
+                .delivery
+                .as_mut()
+                .unwrap()
+                .confirmation = Some(ManuscriptConfirmation {
+                digest: confirmation_digest,
+                claims_revision,
+            });
+        }
         submission.status = SubmissionStatus::InReview;
         let endorsements = self.ports.endorsements.for_submission(id).await?;
         submission.decision = (submission.purpose == SubmissionPurpose::Publication)
@@ -410,8 +513,29 @@ impl App {
         note: String,
         processing_consent: Option<String>,
     ) -> CoreResult<Submission> {
+        self.upload_version_with_delivery(caller, id, upload, note, processing_consent, None)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn upload_version_with_delivery(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+        upload: Upload,
+        note: String,
+        processing_consent: Option<String>,
+        delivery: Option<(NewPaper, ManuscriptVersion, u32)>,
+    ) -> CoreResult<Submission> {
         let mut submission = self.load(id).await?;
         Self::require_submitter(caller, &submission)?;
+        if let Some((_, _, previous)) = &delivery
+            && submission.current_version().map(|v| v.number) != Some(*previous)
+        {
+            return Err(CoreError::conflict(
+                "the predecessor manuscript version changed",
+            ));
+        }
         if processing_consent.as_deref() != Some(AI_PROCESSING_CONSENT_VERSION) {
             return Err(CoreError::invalid(
                 "agreement to third-party AI review is required",
@@ -484,9 +608,13 @@ impl App {
         }
         let read = self.read(&upload)?;
         let number = submission.versions.len() as u32 + 1;
-        let version = self
+        if let Some((_, delivered, _)) = &delivery {
+            super::manuscripts::validate_manuscript_evidence(&claims_from(&read), delivered)?;
+        }
+        let mut version = self
             .new_version(number, &upload, &read, note.chars().take(2_000).collect())
             .await?;
+        version.delivery = delivery.as_ref().map(|(_, d, _)| d.clone());
         submission.versions.push(version);
         submission.extracted = claims_from(&read);
         if submission.kind == SubmissionKind::Conjecture {
@@ -502,6 +630,27 @@ impl App {
         }
         if let Some(abstract_text) = read.abstract_text.clone() {
             submission.abstract_text = abstract_text;
+        }
+        if let Some((new, _, _)) = delivery {
+            if let Some(title) = new.title {
+                submission.title = title;
+            }
+            if let Some(abstract_text) = new.abstract_text {
+                submission.abstract_text = abstract_text;
+            }
+            submission.authors = new.authors;
+            submission.ai_disclosure = new.ai_disclosure;
+            submission.msc = new.msc;
+            submission.doi = new.doi;
+            submission.review_scope = new.review_scope;
+            submission.open_to_contributors = new.open_to_contributors;
+            submission.analysis_visibility = if new.purpose == SubmissionPurpose::Publication
+                && new.make_public_after_acceptance
+            {
+                Visibility::Public
+            } else {
+                Visibility::Private
+            };
         }
         submission.status = SubmissionStatus::Draft;
         submission.decision = None;

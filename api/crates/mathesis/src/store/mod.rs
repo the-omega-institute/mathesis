@@ -90,6 +90,16 @@ impl MongoStore {
         self.raw(SUBMISSIONS)
             .create_indexes([
                 unique(doc! { "id": 1 }),
+                IndexModel::builder()
+                    .keys(doc! {"manuscript.key":1})
+                    .options(
+                        IndexOptions::builder()
+                            .unique(true)
+                            .partial_filter_expression(doc! {"manuscript.key":{"$type":"string"}})
+                            .name("manuscript_delivery_identity_v1".to_owned())
+                            .build(),
+                    )
+                    .build(),
                 plain(doc! { "status.state": 1, "id": -1 }),
                 plain(doc! { "submitter": 1, "id": -1 }),
                 plain(doc! { "authors.person": 1, "id": -1 }),

@@ -90,3 +90,9 @@ MCP exposes the same preflight as `{project: <deposit body>}` and accepts an opt
 Paper computational evidence is included in the same source ZIP/tar archive via
 `mathesis-evidence.json`; see [project and evidence intake](../../docs/PROJECT_AND_EVIDENCE_INTAKE.md).
 The private review dossier includes `evidence_by_version` with server-derived hashes.
+
+Versioned manuscript delivery is also supported through `deliver-manuscript`,
+`find-manuscript`, `manuscript-status` and `confirm-manuscript` in both CLI and MCP.
+See [the downstream delivery contract](../../docs/MANUSCRIPT_DELIVERY.md).
+The optional `--confirm claims.json` uses already-approved exact statement
+confirmations; it does not infer consent or publication acceptance.

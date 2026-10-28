@@ -23,6 +23,12 @@ fn tools() -> Value {
         {"name": "contribute-binding", "description": "Submit a structured joint binding; requires binding-contribution-2026-10-16 consent and CC-BY-4.0. No client verdict is accepted.", "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}, "key": {"type": "string"}, "contribution": {"type": "object"}}, "required": ["id", "key", "contribution"]}},
         {"name": "challenge-binding", "description": "Submit challenge or appeal evidence for independent inspection, with explicit license and contribution consent. Never decides success.", "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}, "key": {"type": "string"}, "challenge": {"type": "object"}}, "required": ["id", "key", "challenge"]}},
     ]);
+    let manuscript_tools = json!([
+        {"name":"deliver-manuscript","description":"Deliver a versioned paper or short note with source associations. Exact retries recover the same manuscript. Optional already-approved confirmations start the ordinary review; publication still requires Mathesis acceptance.","inputSchema":{"type":"object","properties":{"metadata":{"type":"object","description":"mathesis.manuscript-delivery.v1 metadata, including explicit processing consent"},"filename":string("Source basename: PDF, TeX, ZIP or tar.gz"),"source_base64":{"type":"string","maxLength":41943040},"confirmations":{"type":"array","items":{"type":"object"},"description":"Optional author-approved ClaimConfirmation entries for this exact source; never infer consent or statements"}},"required":["metadata","filename","source_base64"]}},
+        {"name":"manuscript-status","description":"Read the private, version-bound delivery, review and publication receipt.","inputSchema":{"type":"object","properties":{"id":string("Submission id"),"version":{"type":"integer","minimum":1}},"required":["id"]}},
+        {"name":"find-manuscript","description":"Recover the submitting account's stable manuscript identity after an interrupted delivery.","inputSchema":{"type":"object","properties":{"producer":string("Producer namespace"),"work_id":string("Stable note/work id"),"purpose":{"enum":["publication","review_only"]}},"required":["producer","work_id","purpose"]}},
+        {"name":"confirm-manuscript","description":"Confirm author-approved statements of one delivered source version and start review. Replays are idempotent; stale source/statement confirmations are refused.","inputSchema":{"type":"object","properties":{"id":string("Submission id"),"confirmation":{"type":"object","description":"version, source_sha256, expected_claims_revision and claims"}},"required":["id","confirmation"]}},
+    ]);
     let mut common = json!([
         {"name":"knowledge-capabilities","description":"Read the downstream consumer's admitted source-query/ranking protocols and exact coverage-certificate support. Unsupported protocols cannot be promoted by ordinary Lean proof receipts.","inputSchema":{"type":"object","properties":{}}},
         {"name":"research", "description":"Read private audited research candidates, author-authorized goals, targets and independent verification receipts.","inputSchema":{"type":"object","properties":{"id":string("Submission id")},"required":["id"]}},
@@ -97,6 +103,10 @@ fn tools() -> Value {
         .unwrap()
         .extend(feedback_tools.as_array().unwrap().iter().cloned());
     common
+        .as_array_mut()
+        .unwrap()
+        .extend(manuscript_tools.as_array().unwrap().iter().cloned());
+    common
 }
 
 fn call(client: &Client, name: &str, args: &Value) -> Result<Value, String> {
@@ -112,6 +122,18 @@ fn call(client: &Client, name: &str, args: &Value) -> Result<Value, String> {
             .ok_or_else(|| format!("{key} is required"))
     };
     let result = match name {
+        "deliver-manuscript" => {
+            use base64::Engine;
+            let encoded = required("source_base64")?;
+            if encoded.len() > 41943040 { return Err("manuscript exceeds 30 MiB".into()); }
+            let source = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|_| "invalid source_base64".to_owned())?;
+            client.deliver_manuscript(&args["metadata"], required("filename")?, &source).and_then(|receipt| {
+                match args.get("confirmations") { Some(claims) => client.confirm_delivered_manuscript(receipt, claims), None => Ok(receipt) }
+            })
+        },
+        "manuscript-status" => client.manuscript_status(required("id")?, args["version"].as_u64()),
+        "find-manuscript" => client.find_manuscript(required("producer")?, required("work_id")?, required("purpose")?),
+        "confirm-manuscript" => client.confirm_manuscript(required("id")?, &args["confirmation"]),
         "formalization-opportunities" => client.formalization_opportunities(args),
         "formalizations" => client.get("/formalizations"),
         "formalization-project" => client.formalization_project(required("id")?),

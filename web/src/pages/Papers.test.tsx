@@ -266,3 +266,35 @@ it('does not derive an arXiv identifier from an unrelated DOI', async () => {
   expect(await screen.findByRole('link', { name: 'doi:10.1000/example' })).toBeVisible();
   expect(screen.queryByText(/^arXiv:/)).toBeNull();
 });
+
+it('shows manuscript evidence as source links without granting another Lean verification badge', async () => {
+  const api = fakeApi({
+    getPaper: vi.fn(async () => ({
+      ...publicPaper,
+      origin: {
+        problem_ids: ['problem-a', 'problem-b'],
+        source_url: 'https://example.org/note',
+        license: 'CC-BY-4.0',
+        evidence: [
+          {
+            claim_label: 'Theorem 1',
+            kind: 'lean_source' as const,
+            url: `https://github.com/example/research/blob/${SHA}/Proof.lean`,
+            source_revision: SHA,
+            scope: 'Formalizes the finite case.',
+          },
+        ],
+      },
+    })),
+  });
+  renderWithApp(<PaperPage record="WP-2026-0001" />, api);
+  expect(
+    await screen.findByRole('link', { name: 'Original manuscript and sources' }),
+  ).toHaveAttribute('href', 'https://example.org/note');
+  expect(screen.getByRole('link', { name: 'Lean source' })).toHaveAttribute(
+    'href',
+    `https://github.com/example/research/blob/${SHA}/Proof.lean`,
+  );
+  expect(screen.getByText('Related problems: problem-a, problem-b')).toBeVisible();
+  expect(screen.getAllByText('Lean ✓')).toHaveLength(1);
+});

@@ -56,6 +56,8 @@ pub struct BlobRef {
 /// One uploaded version of the source.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PaperVersion {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<super::ManuscriptVersion>,
     #[serde(default)]
     pub evidence: Vec<super::EvidenceAttachment>,
     pub number: u32,
@@ -276,6 +278,8 @@ pub struct ProcessingConsent {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Submission {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manuscript: Option<super::ManuscriptIdentity>,
     #[serde(default)]
     pub purpose: SubmissionPurpose,
     /// Author-requested focus, bounded and treated as untrusted context.

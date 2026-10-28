@@ -87,6 +87,15 @@ impl SubmissionStore for MongoStore {
         MongoStore::insert(self, SUBMISSIONS, submission).await
     }
 
+    async fn manuscript(&self, key: &str) -> CoreResult<Option<Submission>> {
+        self.raw(SUBMISSIONS)
+            .find_one(doc! {"manuscript.key": key})
+            .await
+            .map_err(unavailable)?
+            .map(from_document)
+            .transpose()
+    }
+
     async fn get(&self, id: &SubmissionId) -> CoreResult<Option<Submission>> {
         self.get_by_id(SUBMISSIONS, id.as_str()).await
     }

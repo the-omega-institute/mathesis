@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Multipart, State},
+    extract::{DefaultBodyLimit, FromRequest, Multipart, Request, State},
     http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post, put},
@@ -14,7 +14,10 @@ use mathesis_core::{
     CoreError,
     app::{App, MAX_UPLOAD_BYTES, PaperFile, SubmissionScope, Upload},
     ids::{RecordId, SubmissionId},
-    model::{ClaimConfirmation, NewPaper, Visibility},
+    model::{
+        ClaimConfirmation, ConfirmManuscriptDelivery, NewManuscriptDelivery, NewPaper,
+        SubmissionPurpose, Visibility,
+    },
 };
 use serde::Deserialize;
 
@@ -29,6 +32,19 @@ pub(super) fn routes() -> Router<Arc<App>> {
             get(list_submissions).post(submit).layer(upload_limit),
         )
         .route("/submissions/{id}", get(get_submission))
+        .route(
+            "/manuscript-deliveries",
+            get(find_manuscript)
+                .post(deliver_manuscript)
+                .layer(DefaultBodyLimit::max(
+                    MAX_UPLOAD_BYTES * 4 / 3 + 1024 * 1024,
+                )),
+        )
+        .route("/submissions/{id}/delivery", get(manuscript_receipt))
+        .route(
+            "/submissions/{id}/delivery-confirmation",
+            post(confirm_manuscript),
+        )
         .route("/submissions/{id}/review", get(review_report))
         .route("/submissions/{id}/review.md", get(review_markdown))
         .route("/submissions/{id}/claims", post(confirm_claims))
@@ -93,6 +109,115 @@ async fn read_form(mut multipart: Multipart) -> Result<UploadForm, Problem> {
 
 fn missing_source() -> Problem {
     Problem(CoreError::invalid("attach the LaTeX source as `source`"))
+}
+
+async fn deliver_manuscript(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    request: Request,
+) -> ApiResult<impl IntoResponse> {
+    if request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| {
+            v.split(';')
+                .next()
+                .is_some_and(|v| v.trim() == "application/json")
+        })
+    {
+        use base64::Engine;
+        let Body(encoded) = Body::<EncodedManuscript>::from_request(request, &app).await?;
+        if encoded.source_base64.len() > MAX_UPLOAD_BYTES * 4 / 3 {
+            return Err(Problem(CoreError::invalid(
+                "manuscript source exceeds 30 MiB",
+            )));
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&encoded.source_base64)
+            .map_err(|_| Problem(CoreError::invalid("invalid source_base64")))?;
+        return Ok(Json(
+            app.deliver_manuscript(
+                &caller,
+                encoded.metadata,
+                Upload {
+                    filename: encoded.filename,
+                    bytes,
+                },
+            )
+            .await?,
+        ));
+    }
+    let multipart = Multipart::from_request(request, &app)
+        .await
+        .map_err(|e| Problem(CoreError::invalid(e.to_string())))?;
+    let form = read_form(multipart).await?;
+    let metadata = form
+        .metadata
+        .ok_or_else(|| Problem(CoreError::invalid("attach manuscript delivery metadata")))?;
+    let new: NewManuscriptDelivery = serde_json::from_str(&metadata)
+        .map_err(|e| Problem(CoreError::invalid(format!("metadata: {e}"))))?;
+    Ok(Json(
+        app.deliver_manuscript(&caller, new, form.source.ok_or_else(missing_source)?)
+            .await?,
+    ))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EncodedManuscript {
+    metadata: NewManuscriptDelivery,
+    filename: String,
+    source_base64: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FindManuscript {
+    producer: String,
+    work_id: String,
+    purpose: SubmissionPurpose,
+}
+
+async fn find_manuscript(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Query(q): Query<FindManuscript>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.find_manuscript_delivery(&caller, &q.producer, &q.work_id, q.purpose)
+            .await?,
+    ))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeliveryVersion {
+    version: Option<u32>,
+}
+
+async fn manuscript_receipt(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Query(q): Query<DeliveryVersion>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.manuscript_receipt(&caller, &SubmissionId(id), q.version)
+            .await?,
+    ))
+}
+
+async fn confirm_manuscript(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Body(body): Body<ConfirmManuscriptDelivery>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.confirm_manuscript_delivery(&caller, &SubmissionId(id), body)
+            .await?,
+    ))
 }
 
 async fn submit(

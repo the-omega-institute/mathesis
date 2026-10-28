@@ -1457,3 +1457,135 @@ async fn feedback_routes_require_exact_rights_and_never_accept_an_observation_ve
         StatusCode::CONFLICT
     );
 }
+
+#[tokio::test]
+async fn manuscript_delivery_http_resumes_and_confirms_only_its_source() {
+    let router = router();
+    let metadata=serde_json::json!({"schema":"mathesis.manuscript-delivery.v1","producer":"paper","work_id":"note-a","version":"1",
+        "paper":{"kind":"note","purpose":"review_only","title":"A note","authors":[{"name":"A. Author"}],"processing_consent":"ai-review-2026-10-11","ai_disclosure":{"level":"assisted","statement":"Proofreading."}},
+        "origin":{"problem_ids":["problem-a"],"source_url":"https://example.org/note","license":"CC-BY-4.0"}}).to_string();
+    let body = multipart(&[
+        ("metadata", None, metadata.as_bytes()),
+        ("source", Some("note.tex"), b"source"),
+    ]);
+    let request = || {
+        Request::builder()
+            .method("POST")
+            .uri("/manuscript-deliveries")
+            .header("x-test-subject", "author")
+            .header(
+                header::CONTENT_TYPE,
+                format!("multipart/form-data; boundary={BOUNDARY}"),
+            )
+            .body(Body::from(body.clone()))
+            .unwrap()
+    };
+    let (status, receipt, _) = send(&router, request()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(receipt["next_action"], "confirm_claims");
+    let (_, again, _) = send(&router, request()).await;
+    assert_eq!(again["submission"], receipt["submission"]);
+    let id = receipt["submission"].as_str().unwrap();
+    assert_eq!(
+        call(
+            &router,
+            "GET",
+            &format!("/submissions/{id}/delivery"),
+            Some("stranger"),
+            None
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    let claims=receipt["extracted"].as_array().unwrap().iter().map(|c|serde_json::json!({"id":c["id"],"kind":c["kind"],"role":c["role"],"excluded":false,"depends_on":[]})).collect::<Vec<_>>();
+    let mut confirm = serde_json::json!({"version":1,"source_sha256":"wrong-source","expected_claims_revision":0,"claims":claims});
+    let path = format!("/submissions/{id}/delivery-confirmation");
+    assert_eq!(
+        call(
+            &router,
+            "POST",
+            &path,
+            Some("author"),
+            Some(confirm.clone())
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
+    confirm["source_sha256"] = receipt["source_sha256"].clone();
+    let (status, confirmed, _) = call(
+        &router,
+        "POST",
+        &path,
+        Some("author"),
+        Some(confirm.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(confirmed["status"], "in_review");
+    assert!(confirmed["publication"].is_null());
+    let (_, again, _) = call(&router, "POST", &path, Some("author"), Some(confirm)).await;
+    assert_eq!(
+        again["confirmed_claims_revision"],
+        confirmed["confirmed_claims_revision"]
+    );
+    let (_, found, _) = call(
+        &router,
+        "GET",
+        "/manuscript-deliveries?producer=paper&work_id=note-a&purpose=review_only",
+        Some("author"),
+        None,
+    )
+    .await;
+    assert_eq!(found["submission"], receipt["submission"]);
+}
+
+#[tokio::test]
+async fn manuscript_json_transport_preserves_binary_source_bytes() {
+    use base64::Engine;
+    let router = router();
+    let source = b"\x00\xffPK\x80binary source\n";
+    let mut body = serde_json::json!({"metadata":{"schema":"mathesis.manuscript-delivery.v1","producer":"paper","work_id":"binary-note","version":"1","paper":{"kind":"note","title":"A note","authors":[{"name":"Author"}],"processing_consent":"ai-review-2026-10-11","ai_disclosure":{"level":"assisted","statement":"Proofreading."}},"origin":{"problem_ids":["problem-a"],"source_url":"https://example.org/note","license":"CC-BY-4.0"}},"filename":"note.zip","source_base64":base64::engine::general_purpose::STANDARD.encode(source)});
+    let (status, receipt, _) = call(
+        &router,
+        "POST",
+        "/manuscript-deliveries",
+        Some("author"),
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let id = receipt["submission"].as_str().unwrap();
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/submissions/{id}/files/source?version=1"))
+                .header("x-test-subject", "author")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        &axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap()[..],
+        source
+    );
+    body["source_base64"] = serde_json::json!("invalid base64");
+    assert_eq!(
+        call(
+            &router,
+            "POST",
+            "/manuscript-deliveries",
+            Some("author"),
+            Some(body)
+        )
+        .await
+        .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+}
