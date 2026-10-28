@@ -208,6 +208,7 @@ async fn knowledge_archive_upload_rejects_changed_or_oversized_bytes() {
 
 fn submission(id: &str, submitter: &str, status: SubmissionStatus) -> Submission {
     Submission {
+        manuscript: None,
         purpose: Default::default(),
         review_scope: Default::default(),
         processing_consent: None,
@@ -1842,4 +1843,55 @@ async fn review_summary_index_backfills_legacy_histories_and_fences_new_rounds()
         assert!(RefereeStore::get(&reopened, &file.id).await.is_err());
     }
     database.drop().await;
+}
+
+#[tokio::test]
+async fn manuscript_delivery_identity_is_unique_persistent_and_legacy_safe() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let mut first = submission("manuscript-one", "author", SubmissionStatus::Draft);
+    first.manuscript = Some(ManuscriptIdentity {
+        key: "stable-owner-work-purpose".into(),
+        producer: "paper".into(),
+        work_id: "note-a".into(),
+    });
+    let mut duplicate = first.clone();
+    duplicate.id = "manuscript-two".into();
+    let (a, b) = tokio::join!(
+        SubmissionStore::insert(&db.store, &first),
+        SubmissionStore::insert(&db.store, &duplicate)
+    );
+    assert_ne!(a.is_ok(), b.is_ok());
+    let winner = SubmissionStore::manuscript(&db.store, "stable-owner-work-purpose")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(winner.id, if a.is_ok() { first.id } else { duplicate.id });
+    let restarted = MongoStore {
+        client: db.store.client.clone(),
+        db: db.store.db.clone(),
+    };
+    assert_eq!(
+        SubmissionStore::manuscript(&restarted, "stable-owner-work-purpose")
+            .await
+            .unwrap()
+            .unwrap(),
+        winner
+    );
+    for id in ["legacy-a", "legacy-b"] {
+        SubmissionStore::insert(
+            &db.store,
+            &submission(id, "author", SubmissionStatus::Draft),
+        )
+        .await
+        .unwrap();
+    }
+    assert_eq!(
+        SubmissionStore::active_count(&db.store, &"author".into())
+            .await
+            .unwrap(),
+        3
+    );
+    db.drop().await;
 }

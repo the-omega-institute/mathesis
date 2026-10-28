@@ -2668,6 +2668,261 @@
           }
         }
       }
+    },
+    "/api/v1/manuscript-deliveries": {
+      "post": {
+        "summary": "Deliver a paper or short note idempotently; new revisions name their exact predecessor",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-bound receipt; not an acceptance or proof receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManuscriptReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity"
+          },
+          "404": {
+            "description": "Not visible or missing"
+          },
+          "409": {
+            "description": "Version or request differs from the saved delivery"
+          },
+          "422": {
+            "description": "Invalid input or missing processing consent"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "$ref": "#/components/schemas/ManuscriptDelivery"
+                  },
+                  "source": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "metadata",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "encoding": {
+                "metadata": {
+                  "contentType": "application/json"
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "metadata",
+                  "filename",
+                  "source_base64"
+                ],
+                "properties": {
+                  "metadata": {
+                    "$ref": "#/components/schemas/ManuscriptDelivery"
+                  },
+                  "filename": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "source_base64": {
+                    "type": "string",
+                    "maxLength": 41943040,
+                    "description": "Standard base64 of the same source bytes; JSON transport for NyxID/MCP."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Recover the caller-owned manuscript by producer, work and purpose",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-bound receipt; not an acceptance or proof receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManuscriptReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity"
+          },
+          "404": {
+            "description": "Not visible or missing"
+          },
+          "409": {
+            "description": "Version or request differs from the saved delivery"
+          },
+          "422": {
+            "description": "Invalid input or missing processing consent"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "producer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "work_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "enum": [
+                "publication",
+                "review_only"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/submissions/{id}/delivery": {
+      "get": {
+        "summary": "Read a delivery receipt without loading private review histories",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-bound receipt; not an acceptance or proof receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManuscriptReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity"
+          },
+          "404": {
+            "description": "Not visible or missing"
+          },
+          "409": {
+            "description": "Version or request differs from the saved delivery"
+          },
+          "422": {
+            "description": "Invalid input or missing processing consent"
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/submissions/{id}/delivery-confirmation": {
+      "post": {
+        "summary": "Confirm author-approved statements against the exact delivered source and start review",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-bound receipt; not an acceptance or proof receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManuscriptReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing identity"
+          },
+          "404": {
+            "description": "Not visible or missing"
+          },
+          "409": {
+            "description": "Version or request differs from the saved delivery"
+          },
+          "422": {
+            "description": "Invalid input or missing processing consent"
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManuscriptConfirmation"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3074,6 +3329,9 @@
             "items": {
               "type": "object"
             }
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ManuscriptOrigin"
           }
         },
         "required": [
@@ -6126,6 +6384,267 @@
             "type": "boolean"
           }
         }
+      },
+      "ManuscriptOrigin": {
+        "type": "object",
+        "properties": {
+          "problem_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "source_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Public HTTPS manuscript/release URL; a source association, not authenticated proof."
+          },
+          "license": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "evidence": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptEvidence"
+            }
+          }
+        },
+        "required": [
+          "problem_ids",
+          "source_url",
+          "license"
+        ],
+        "additionalProperties": false
+      },
+      "ManuscriptEvidence": {
+        "type": "object",
+        "properties": {
+          "claim_label": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "written_proof",
+              "finite_computation",
+              "lean_source"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "scope": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "source_revision": {
+            "type": "string",
+            "description": "Full Git commit. Lean links must include this revision."
+          }
+        },
+        "required": [
+          "claim_label",
+          "kind",
+          "url",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "ManuscriptDelivery": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "mathesis.manuscript-delivery.v1"
+          },
+          "producer": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "work_id": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "previous_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "paper": {
+            "type": "object",
+            "description": "Existing NewPaper metadata, with explicit kind paper/note, purpose publication/review_only, title, ordered authors and processing_consent ai-review-2026-10-11. See MANUSCRIPT_DELIVERY.md for a complete example.",
+            "required": [
+              "title",
+              "authors",
+              "ai_disclosure",
+              "processing_consent"
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ManuscriptOrigin"
+          }
+        },
+        "required": [
+          "schema",
+          "producer",
+          "work_id",
+          "version",
+          "paper",
+          "origin"
+        ],
+        "additionalProperties": false
+      },
+      "ManuscriptReceipt": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "mathesis.manuscript-receipt.v1"
+          },
+          "submission": {
+            "type": "string"
+          },
+          "producer": {
+            "type": "string"
+          },
+          "work_id": {
+            "type": "string"
+          },
+          "upstream_version": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_sha256": {
+            "type": "string"
+          },
+          "current_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "expected_claims_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confirmed_claims_revision": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "next_action": {
+            "enum": [
+              "confirm_claims",
+              "wait",
+              "read_report",
+              "inspect_execution",
+              "none"
+            ]
+          },
+          "pdf_ready": {
+            "type": "boolean"
+          },
+          "compile_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "review": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publication": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "record": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "public": {
+                "type": "boolean"
+              }
+            }
+          },
+          "extracted": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "submission",
+          "upstream_version",
+          "version",
+          "source_sha256",
+          "current_version",
+          "current",
+          "status",
+          "next_action"
+        ]
+      },
+      "ManuscriptConfirmation": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "expected_claims_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Existing ClaimConfirmation: id, kind, role, excluded, depends_on, depends_on_conjectures, settles."
+            }
+          }
+        },
+        "required": [
+          "version",
+          "source_sha256",
+          "expected_claims_revision",
+          "claims"
+        ],
+        "additionalProperties": false
       }
     }
   }

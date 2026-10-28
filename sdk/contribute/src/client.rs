@@ -84,7 +84,17 @@ impl Client {
             ]);
             let body = request.body().and_then(|b| b.as_bytes());
             if body.is_some() {
-                command.args(["--data", "-", "--header", "Content-Type:application/json"]);
+                let content_type = request
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|h| h.to_str().ok())
+                    .unwrap_or("application/json");
+                command.args([
+                    "--data",
+                    "-",
+                    "--header",
+                    &format!("Content-Type:{content_type}"),
+                ]);
             }
             // No shell, no token on argv, and request bodies travel through stdin.
             let mut child = command
@@ -194,6 +204,108 @@ impl Client {
     }
     pub fn review(&self, id: &str) -> ApiResult<Value> {
         self.get(&format!("/submissions/{}/review", segment(id)))
+    }
+
+    pub fn deliver_manuscript(
+        &self,
+        metadata: &Value,
+        filename: &str,
+        source: &[u8],
+    ) -> ApiResult<Value> {
+        if self.nyxid_service.is_some() {
+            use base64::Engine;
+            if source.is_empty() || source.len() > 30 * 1024 * 1024 {
+                return Err(ApiError {
+                    status: 0,
+                    detail: "Manuscript source must contain 1 byte to 30 MiB".into(),
+                });
+            }
+            return self.post("/manuscript-deliveries", &json!({"metadata":metadata,"filename":filename,"source_base64":base64::engine::general_purpose::STANDARD.encode(source)}));
+        }
+        let metadata = serde_json::to_vec(metadata).map_err(|e| ApiError {
+            status: 0,
+            detail: e.to_string(),
+        })?;
+        if metadata.len() > 1024 * 1024
+            || source.is_empty()
+            || source.len() > 30 * 1024 * 1024
+            || filename.is_empty()
+            || filename.len() > 200
+            || filename
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '"' | '\\' | '/'))
+        {
+            return Err(ApiError { status: 0, detail: "Supply a manuscript basename, metadata up to 1 MiB, and a source file up to 30 MiB.".into() });
+        }
+        let mut serial = 0_u64;
+        let boundary = loop {
+            let candidate = format!(
+                "mathesis-manuscript-{:x}-{serial}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+            if !source
+                .windows(candidate.len())
+                .any(|w| w == candidate.as_bytes())
+                && !metadata
+                    .windows(candidate.len())
+                    .any(|w| w == candidate.as_bytes())
+            {
+                break candidate;
+            }
+            serial += 1;
+        };
+        let mut body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n").into_bytes();
+        body.extend(metadata);
+        body.extend(format!("\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"source\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n").as_bytes());
+        body.extend(source);
+        body.extend(format!("\r\n--{boundary}--\r\n").as_bytes());
+        self.send(
+            self.http
+                .post(format!("{}/manuscript-deliveries", self.base))
+                .header(
+                    reqwest::header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(body),
+        )
+    }
+
+    pub fn manuscript_status(&self, id: &str, version: Option<u64>) -> ApiResult<Value> {
+        self.get(&format!(
+            "/submissions/{}/delivery{}",
+            segment(id),
+            version.map(|v| format!("?version={v}")).unwrap_or_default()
+        ))
+    }
+
+    pub fn find_manuscript(&self, producer: &str, work: &str, purpose: &str) -> ApiResult<Value> {
+        self.get(&format!(
+            "/manuscript-deliveries?producer={}&work_id={}&purpose={}",
+            segment(producer),
+            segment(work),
+            segment(purpose)
+        ))
+    }
+
+    pub fn confirm_manuscript(&self, id: &str, body: &Value) -> ApiResult<Value> {
+        self.post(
+            &format!("/submissions/{}/delivery-confirmation", segment(id)),
+            body,
+        )
+    }
+
+    pub fn confirm_delivered_manuscript(&self, receipt: Value, claims: &Value) -> ApiResult<Value> {
+        if receipt["current"] == false {
+            return Ok(receipt);
+        }
+        let id = receipt["submission"].as_str().ok_or_else(|| ApiError {
+            status: 0,
+            detail: "Manuscript receipt has no submission identity".into(),
+        })?;
+        self.confirm_manuscript(id, &json!({"version":receipt["version"],"source_sha256":receipt["source_sha256"],"expected_claims_revision":receipt["expected_claims_revision"],"claims":claims}))
     }
     pub fn knowledge_capabilities(&self) -> ApiResult<Value> {
         self.get("/knowledge/capabilities")
@@ -629,6 +741,78 @@ mod solving_tests {
             client.attempt_status("a1").unwrap()["receipt"]["reason"],
             "Wrong target type"
         );
+        server.join().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod manuscript_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    #[test]
+    fn binary_delivery_and_confirmation_keep_the_same_source_identity() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .unwrap();
+                let mut bytes = vec![];
+                let head = loop {
+                    let mut buf = [0; 4096];
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    bytes.extend_from_slice(&buf[..n]);
+                    if let Some(p) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break p + 4;
+                    }
+                };
+                let headers = String::from_utf8(bytes[..head].to_vec())
+                    .unwrap()
+                    .to_lowercase();
+                let size = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.strip_prefix("content-length:")
+                            .map(|n| n.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap();
+                while bytes.len() < head + size {
+                    let mut buf = [0; 4096];
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    bytes.extend_from_slice(&buf[..n]);
+                }
+                assert!(headers.contains("authorization: bearer test-token"));
+                if index == 0 {
+                    assert!(headers.starts_with("post /api/v1/manuscript-deliveries "));
+                    assert!(headers.contains("multipart/form-data; boundary="));
+                    assert!(bytes[head..].windows(5).any(|w| w == b"PK\x00\xff\x80"));
+                    assert!(String::from_utf8_lossy(&bytes[head..]).contains("note.zip"));
+                } else {
+                    assert!(
+                        headers
+                            .starts_with("post /api/v1/submissions/sub-one/delivery-confirmation ")
+                    );
+                    let input: Value = serde_json::from_slice(&bytes[head..]).unwrap();
+                    assert_eq!(
+                        input,
+                        json!({"version":2,"source_sha256":"saved-digest","expected_claims_revision":3,"claims":[{"id":"C1"}]})
+                    );
+                }
+                let body=json!({"submission":"sub-one","current":true,"version":2,"source_sha256":"saved-digest","expected_claims_revision":3}).to_string();
+                write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
+            }
+        });
+        let client = Client::new(&origin, "test-token");
+        let receipt = client
+            .deliver_manuscript(&json!({"work_id":"note-a"}), "note.zip", b"PK\x00\xff\x80")
+            .unwrap();
+        client
+            .confirm_delivered_manuscript(receipt, &json!([{"id":"C1"}]))
+            .unwrap();
         server.join().unwrap();
     }
 }

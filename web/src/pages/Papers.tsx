@@ -1,4 +1,5 @@
 import { InlineLatex } from '../components/Markdown';
+import { ManuscriptSources } from '../components/ManuscriptSources';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
 import { EntrantName } from './Leaderboard';
@@ -264,6 +265,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           </section>
         ) : null}
         <Citation paper={s} />
+        {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
         {paper.new_content?.length ? (
           <section aria-labelledby="new-content-h" className="new-content">
             <h2 id="new-content-h">

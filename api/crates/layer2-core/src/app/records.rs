@@ -59,6 +59,9 @@ pub struct PublicVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPaper {
+    /// Public source associations from the accepted version only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<ManuscriptOrigin>,
     pub summary: PaperSummary,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confirmed_error_reports: Option<usize>,
@@ -529,6 +532,14 @@ impl App {
             })
             .count();
         Ok(PublicPaper {
+            origin: if public {
+                submission
+                    .current_version()
+                    .and_then(|v| v.delivery.as_ref())
+                    .map(|d| d.origin.clone())
+            } else {
+                None
+            },
             summary: paper_summary,
             confirmed_error_reports: if public {
                 Some(

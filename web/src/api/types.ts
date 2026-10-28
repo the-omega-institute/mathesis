@@ -655,6 +655,7 @@ export type PublicClaim = {
   lean?: FormalArtifact | null;
 };
 export type PublicPaper = {
+  origin?: ManuscriptOrigin;
   summary: PaperSummary;
   confirmed_error_reports?: number;
   versions?: { number: number; uploaded_at: string; has_pdf: boolean }[];
@@ -663,6 +664,19 @@ export type PublicPaper = {
   macros?: Record<string, string>;
   new_content?: { claim: string; lemmas: string[] }[];
   lean_statements?: { claim: string; lean: string; digest: string; toolchain: string }[];
+};
+
+export type ManuscriptOrigin = {
+  problem_ids: string[];
+  source_url: string;
+  license: string;
+  evidence: {
+    claim_label: string;
+    kind: 'written_proof' | 'finite_computation' | 'lean_source';
+    url: string;
+    scope: string;
+    source_revision?: string;
+  }[];
 };
 
 // ── Contributors ─────────────────────────────────────────────────────────

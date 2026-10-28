@@ -211,11 +211,30 @@ macro_rules! replace_with_revision {
 #[async_trait]
 impl SubmissionStore for MemoryStores {
     async fn insert(&self, submission: &Submission) -> CoreResult<()> {
-        self.submissions
+        let mut all = self.submissions.lock().await;
+        if all.contains_key(submission.id.as_str())
+            || submission.manuscript.as_ref().is_some_and(|m| {
+                all.values().any(|s| {
+                    s.manuscript
+                        .as_ref()
+                        .is_some_and(|other| other.key == m.key)
+                })
+            })
+        {
+            return Err(CoreError::conflict("submission already exists"));
+        }
+        all.insert(submission.id.0.clone(), submission.clone());
+        Ok(())
+    }
+
+    async fn manuscript(&self, key: &str) -> CoreResult<Option<Submission>> {
+        Ok(self
+            .submissions
             .lock()
             .await
-            .insert(submission.id.0.clone(), submission.clone());
-        Ok(())
+            .values()
+            .find(|s| s.manuscript.as_ref().is_some_and(|m| m.key == key))
+            .cloned())
     }
 
     async fn get(&self, id: &SubmissionId) -> CoreResult<Option<Submission>> {
