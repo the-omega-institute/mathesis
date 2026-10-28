@@ -63,8 +63,8 @@ const noRoundCases = {
       ],
     },
     undefined,
-    'Draft — statements to confirm',
-    'Confirm the statement list',
+    'Ready for your check',
+    'Check the manuscript PDF',
   ],
   in_review: [
     'review progress unavailable without a file',
@@ -114,7 +114,7 @@ const cases: StandingCase[] = [
     },
     undefined,
     'PDF compiling',
-    'Confirm the statement list when',
+    'Check the manuscript PDF when',
   ],
   [
     'compile failure',
@@ -133,22 +133,22 @@ const cases: StandingCase[] = [
     stage === 'formal' ? accepted : submission,
     file(stageRound(stage), stage === 'formal'),
     stage === 'formal' ? 'Accepted' : 'In review',
-    stage === 'formal' ? 'Read the Feedback letter' : 'Nothing to do now',
+    stage === 'formal' ? 'Read the analysis and suggestions' : 'Nothing to do now',
   ]),
   [
     'private letter delivered',
     privatePaper,
     file({ ...refereeRound, formal: undefined }, true),
     'Review ready',
-    'Read the Feedback letter',
+    'Read the analysis and suggestions',
   ],
-  ['accepted', accepted, file(refereeRound, true), 'Accepted', 'Read the Feedback letter'],
+  ['accepted', accepted, file(refereeRound, true), 'Accepted', 'Read the analysis and suggestions'],
   [
     'not accepted',
     notAccepted,
     file(refereeRound, true),
     'Not accepted',
-    'Read the Feedback letter',
+    'Read the analysis and suggestions',
   ],
   [
     'private review before letter',
@@ -191,7 +191,7 @@ describe('one author standing for every state', () => {
   });
   it('only describes a queued Referee report when its stage is pending', () => {
     const standing = authorStanding(submission, file(stageRound('referee', 'pending')), now);
-    expect(standing.doing).toBe('Mathesis is waiting to start Referee report.');
+    expect(standing.doing).toBe('Your review is queued and will continue automatically.');
     expect(standing.stage).toBe('referee');
     expect(standing.headline).toBe(SUBMISSION_STATE_LABELS.in_review);
   });
@@ -210,9 +210,9 @@ describe('one author standing for every state', () => {
       render(<PaperStanding submission={paper} file={review} />);
       expect(screen.getByRole('heading', { name: headline })).toBeVisible();
       expect(screen.getByRole('status')).toHaveTextContent(standing.doing);
-      expect(screen.getByText('Next action:').closest('p')).toHaveTextContent(standing.nextAction);
+      expect(screen.getByText(standing.nextAction)).toBeVisible();
       expect(screen.getByText(/^Elapsed /)).toBeVisible();
-      expect(screen.getByText(TIMING_OBSERVATION)).toBeVisible();
+      expect(screen.queryByText(TIMING_OBSERVATION)).toBeNull();
     },
   );
   it.each(REVIEW_STAGES)('%s uses safe failure text', (stage, label) => {
@@ -224,7 +224,7 @@ describe('one author standing for every state', () => {
     expect(standing.doing).toContain(`${label} needs attention`);
     expect(standing.doing).toContain('upload and any report are saved');
     expect(standing.doing).toContain('not a verdict on the mathematics');
-    expect(standing.nextAction).toContain('corrected version');
+    expect(standing.nextAction).toContain('recover');
     expect(JSON.stringify(standing)).not.toMatch(/try again/i);
   });
   it.each(REVIEW_STAGES)(

@@ -210,6 +210,7 @@ fn independently_refuted_proof_cannot_retain_content_witnesses_or_known_true_sta
         ..Default::default()
     };
     let input = AdvisorInput {
+        letter_contract: 0,
         computations: None,
         knowledge: Some(
             json!({"receipts":[{"receipt_id":receipt.id,"result":{"hits":[{"source_excerpt":"theorem bound ...", "declarations":[{"identity":{"statement_id":receipt.returned[0].statement_id}}]}]}}]}),

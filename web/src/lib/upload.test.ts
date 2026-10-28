@@ -14,7 +14,7 @@ describe('upload checks', () => {
     expect(sourceFileProblem({ name: 'paper.tex', size: 10 })).toBeNull();
     expect(sourceFileProblem({ name: 'Paper.ZIP', size: 10 })).toBeNull();
     expect(sourceFileProblem({ name: 'paper.tar.gz', size: MAX_SOURCE_BYTES })).toBeNull();
-    expect(sourceFileProblem({ name: 'paper.pdf', size: 10 })).toMatch(/\.tex/);
+    expect(sourceFileProblem({ name: 'paper.pdf', size: 10 })).toBeNull();
     expect(sourceFileProblem({ name: 'paper.tex', size: MAX_SOURCE_BYTES + 1 })).toMatch(/30 MB/);
     expect(sourceFileProblem({ name: 'paper.tex', size: 0 })).toBe('The file is empty.');
   });

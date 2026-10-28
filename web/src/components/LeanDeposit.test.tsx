@@ -20,11 +20,14 @@ it('deposits source and original attribution without presenting it as verified',
   const api = fakeApi({ submitFormalization }, author);
   renderWithApp(<SubmitPage />, api);
   const user = userEvent.setup();
-  await screen.findByLabelText('LaTeX source (required)');
-  await user.click(screen.getByRole('button', { name: 'Lean formalization' }));
+  await screen.findByLabelText('Title');
+  await user.click(screen.getByRole('button', { name: 'Community formalization' }));
+  await user.click(
+    screen.getByText('Deposit an existing formalization without a linked statement'),
+  );
   await user.type(screen.getByLabelText('Title', { exact: true }), 'A formal proof');
-  await user.clear(screen.getByLabelText('Original authors (one per line)'));
-  await user.type(screen.getByLabelText('Original authors (one per line)'), 'Original author');
+  await user.clear(screen.getByLabelText('Original authors 1'));
+  await user.type(screen.getByLabelText('Original authors 1'), 'Original author');
   await user.type(screen.getByLabelText('Mathematical statement'), 'True');
   await user.type(
     screen.getByLabelText('Original research or source URL'),
@@ -115,9 +118,7 @@ it('prefills the confirmed statement and binds a multi-file verification request
   expect(await screen.findByLabelText('Lean / Mathlib version pin')).toHaveValue(
     'pinned-toolchain',
   );
-  expect(screen.getByLabelText('Original authors (one per line)')).toHaveValue(
-    'Original researcher',
-  );
+  expect(screen.getByLabelText('Original authors 1')).toHaveValue('Original researcher');
   const user = userEvent.setup();
   await user.type(screen.getByLabelText('Source license'), 'MIT');
   const main = new File(['import Target\nimport Helpers'], 'Solution.lean', { type: 'text/plain' });

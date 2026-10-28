@@ -51,10 +51,10 @@ export function PaperEntry({ paper }: { paper: PaperSummary }) {
   );
 }
 
-export function PapersPage() {
+export function PapersPage({ initialQuery = '' }: { initialQuery?: string } = {}) {
   const api = useApi();
-  const [query, setQuery] = useState<PaperQuery>({});
-  const [draft, setDraft] = useState<PaperQuery>({});
+  const [query, setQuery] = useState<PaperQuery>(initialQuery ? { q: initialQuery } : {});
+  const [draft, setDraft] = useState<PaperQuery>(initialQuery ? { q: initialQuery } : {});
   const fetchPage = useCallback(
     (before: string | null, signal: AbortSignal) =>
       api.listPapers({ ...query, before, limit: 25 }, { signal }),
@@ -88,7 +88,7 @@ export function PapersPage() {
               id="paper-query"
               type="search"
               maxLength={300}
-              placeholder="Title, abstract, keywords or WP record…"
+              placeholder="Title, author, abstract, DOI or record…"
               value={draft.q ?? ''}
               onChange={(e) => setDraft({ ...draft, q: e.target.value })}
             />
@@ -97,50 +97,53 @@ export function PapersPage() {
             </button>
           </div>
         </div>
-        <div className="archive-search-filters">
-          <label>
-            Author
-            <input
-              maxLength={160}
-              placeholder="Author name"
-              value={draft.author ?? ''}
-              onChange={(e) => setDraft({ ...draft, author: e.target.value })}
-            />
-          </label>
-          <label>
-            Subject (MSC)
-            <input
-              maxLength={5}
-              placeholder="e.g. 11 or 11A"
-              value={draft.msc ?? ''}
-              onChange={(e) => setDraft({ ...draft, msc: e.target.value })}
-            />
-          </label>
-          <label>
-            Type
-            <select
-              value={draft.kind ?? ''}
-              onChange={(e) => setDraft({ ...draft, kind: e.target.value as PaperQuery['kind'] })}
+        <details className="archive-search-advanced">
+          <summary>Advanced search</summary>
+          <div className="archive-search-filters">
+            <label>
+              Author
+              <input
+                maxLength={160}
+                placeholder="Author name"
+                value={draft.author ?? ''}
+                onChange={(e) => setDraft({ ...draft, author: e.target.value })}
+              />
+            </label>
+            <label>
+              Subject (MSC)
+              <input
+                maxLength={5}
+                placeholder="e.g. 11 or 11A"
+                value={draft.msc ?? ''}
+                onChange={(e) => setDraft({ ...draft, msc: e.target.value })}
+              />
+            </label>
+            <label>
+              Type
+              <select
+                value={draft.kind ?? ''}
+                onChange={(e) => setDraft({ ...draft, kind: e.target.value as PaperQuery['kind'] })}
+              >
+                <option value="">All research</option>
+                <option value="paper">Papers</option>
+                <option value="note">Short notes</option>
+                <option value="conjecture">Conjectures</option>
+              </select>
+            </label>
+            <button
+              className="button button-quiet"
+              type="button"
+              onClick={() => {
+                setDraft({});
+                setQuery({});
+              }}
             >
-              <option value="">All research</option>
-              <option value="paper">Papers</option>
-              <option value="note">Short notes</option>
-              <option value="conjecture">Conjectures</option>
-            </select>
-          </label>
-          <button
-            className="button button-quiet"
-            type="button"
-            onClick={() => {
-              setDraft({});
-              setQuery({});
-            }}
-          >
-            Clear filters
-          </button>
-        </div>
+              Clear filters
+            </button>
+          </div>
+        </details>
         <p className="hint">
-          Search public titles and abstracts across the archive. Results are ordered newest first.
+          Search papers, notes and conjectures by title, author, abstract or identifier.
         </p>
       </form>
       <Async state={paged.state} onRetry={paged.reload}>

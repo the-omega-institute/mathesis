@@ -38,10 +38,10 @@ function audited(verdict = refereeAudit.verdict): RefereeRound {
 describe('paper standing', () => {
   it('explains a draft and the confirmation action', () => {
     render(<PaperStanding submission={draft} />);
-    expect(screen.getByRole('heading', { name: 'Draft — statements to confirm' })).toBeVisible();
-    expect(screen.getByText(/Confirm the statement list/)).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Ready for your check' })).toBeVisible();
+    expect(screen.getByText(/Check the manuscript PDF/)).toBeVisible();
     expect(screen.getByText(/Elapsed since/)).toBeVisible();
-    expect(screen.getByText(/Observed on this deployment on 22 Oct 2026/)).toBeVisible();
+    expect(screen.queryByText(/Observed on this deployment/)).toBeNull();
   });
   it.each(['accept', 'minor_revision', 'major_revision', 'reject'] as const)(
     'uses the publication decision, independent of the %s recommendation',
@@ -78,7 +78,7 @@ describe('paper standing', () => {
     expect(screen.getByRole('button', { name: 'Upload a revised version' })).toBeVisible();
   });
   it.each(['minor_revision', 'major_revision'] as const)(
-    'shows the %s recommendation only after the current round’s letter is delivered',
+    'keeps the %s recommendation separate from the publication outcome',
     (verdict) => {
       const round = { ...audited(verdict), number: 2 };
       const { rerender } = render(
@@ -94,11 +94,8 @@ describe('paper standing', () => {
           file={refereeFile({ rounds: [round], letters: [{ ...feedbackLetter, round: 2 }] })}
         />,
       );
-      expect(
-        screen.getByText(
-          `The referee suggests ${verdict === 'minor_revision' ? 'minor' : 'major'} revisions — see the letter.`,
-        ),
-      ).toBeVisible();
+      expect(screen.queryByText(/The referee suggests/)).toBeNull();
+      expect(screen.getByRole('heading', { name: 'Accepted' })).toBeVisible();
     },
   );
 });
@@ -116,23 +113,28 @@ function workspace(person = author, paper = accepted, overrides: Partial<ApiClie
     },
     person,
   );
-  return { ...renderWithApp(<SubmissionDetailPage id={paper.id} />, api), api };
+  return {
+    ...renderWithApp(
+      <SubmissionDetailPage id={paper.id} staffView={person.roles.includes('editor')} />,
+      api,
+    ),
+    api,
+  };
 }
 
 describe('standing in the workspace', () => {
   it('places standing, the current letter, readable report, statements and details in order with one referee fetch', async () => {
     const { api, container } = workspace();
     const card = await screen.findByRole('region', { name: 'Paper standing' });
-    const letter = await screen.findByRole('region', { name: 'Current Feedback letter' });
-    const report = screen.getByRole('region', { name: 'Readable review report' });
+    const report = await screen.findByRole('region', { name: 'Final review report' });
     expect(within(card).queryByText(refereeAudit.summary)).toBeNull();
-    expect(within(report).getByText(refereeAudit.summary)).toBeVisible();
+    expect(within(report).getByText(feedbackLetter.subject)).toBeVisible();
+    expect(within(report).queryByText(refereeAudit.summary)).toBeNull();
     expect(card.querySelector('.standing-facts')).toBeNull();
     const statements = screen.getByRole('region', { name: 'Statements' });
     const details = screen.getByText('Details: evidence, history and settings').closest('details')!;
     for (const [first, second] of [
-      [card, letter],
-      [letter, report],
+      [card, report],
       [report, statements],
       [statements, details],
     ]) {
@@ -161,8 +163,8 @@ describe('standing in the workspace', () => {
     const form = screen.getByRole('form', { name: 'Upload a new version' });
     expect(form.parentElement).toHaveAttribute('id', 'standing-revision-form');
     expect(form.closest('details')).toBeNull();
-    expect(within(form).getByLabelText('Revised LaTeX source')).toBeVisible();
-    expect(within(form).getByLabelText('Revised LaTeX source')).toHaveFocus();
+    expect(within(form).getByLabelText('Revised manuscript files')).toBeVisible();
+    expect(within(form).getByLabelText('Revised manuscript files')).toHaveFocus();
     expect(
       screen.getAllByRole('form', { name: 'Upload a new version', hidden: true }),
     ).toHaveLength(1);
@@ -178,7 +180,7 @@ describe('standing in the workspace', () => {
     await user.click(await screen.findByRole('button', { name: 'Upload a revised version' }));
     const form = screen.getByRole('form', { name: 'Upload a new version' });
     const source = new File(['source'], 'revision.tex', { type: 'text/plain' });
-    await user.upload(within(form).getByLabelText('Revised LaTeX source'), source);
+    await user.upload(within(form).getByLabelText('Revised manuscript files'), source);
     await user.type(within(form).getByLabelText('What changed'), 'Clarified the base case.');
     await user.click(within(form).getByRole('checkbox', { name: /I agree that the source/ }));
     await user.click(within(form).getByRole('button', { name: 'Upload version' }));
@@ -202,6 +204,7 @@ describe('standing in the workspace', () => {
     unmount();
     workspace(editor);
     const card = await screen.findByRole('region', { name: 'Paper standing' });
+    await userEvent.click(screen.getByText('Details: evidence, history and settings'));
     await screen.findByRole('heading', { name: 'Editor tools' });
     expect(within(card).queryByRole('button')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Editor tools' })).toBeInTheDocument();

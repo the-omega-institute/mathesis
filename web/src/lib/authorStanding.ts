@@ -45,9 +45,9 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
   if (s.status.state === 'draft') {
     since = version?.uploaded_at ?? s.created_at;
     elapsedLabel = 'Elapsed since this version was uploaded';
-    headline = 'Draft — statements to confirm';
-    doing = 'Mathesis has read your source and is waiting for you to confirm the statement list.';
-    nextAction = 'Confirm the statement list to start the review.';
+    headline = 'Ready for your check';
+    doing = 'Your manuscript is ready. Check the PDF, then start the review.';
+    nextAction = 'Check the manuscript PDF and start the review.';
     if (version?.compile_error) {
       headline = 'PDF could not compile';
       doing = `Mathesis could not compile the PDF. ${SAVED_FAILURE}`;
@@ -55,7 +55,7 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
     } else if (version && !version.pdf) {
       headline = 'PDF compiling';
       doing = 'Mathesis is compiling the PDF and preparing the statement list.';
-      nextAction = 'Confirm the statement list when it is available.';
+      nextAction = 'Check the manuscript PDF when it is available.';
     }
   } else if (s.status.state === 'withdrawn') {
     headline = 'Withdrawn';
@@ -74,7 +74,10 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
         if (step.state === 'running') {
           since = step.since;
           elapsedLabel = `Elapsed since ${label} started`;
-          doing = `Mathesis is working on ${label}.`;
+          doing =
+            key === 'formal'
+              ? 'A formalization attempt is in progress.'
+              : 'Mathesis is reviewing your manuscript.';
         } else if (step.state === 'pending') {
           const preceding = REVIEW_STAGES.slice(
             0,
@@ -85,11 +88,15 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
             .find((p) => p?.state === 'done');
           since = preceding?.state === 'done' ? preceding.at : round.started_at;
           elapsedLabel = `Elapsed waiting for ${label}`;
-          doing = `Mathesis is waiting to start ${label}.`;
+          doing =
+            key === 'formal'
+              ? 'A formalization attempt is queued.'
+              : 'Your review is queued and will continue automatically.';
         } else {
           headline = 'Review could not finish';
           doing = `${label} needs attention. ${SAVED_FAILURE}`;
-          nextAction = 'You may upload a corrected version. Staff can restart the failed step.';
+          nextAction =
+            'The manuscript is saved. Staff can inspect and recover the interrupted review.';
           // A failure has an end time, but older projections do not retain its start.
           elapsedLabel = 'Elapsed since this review started (step start time is unavailable)';
         }
@@ -97,7 +104,7 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
       }
       if (!stage) {
         doing = delivered
-          ? 'Mathesis has delivered the current review’s Feedback letter.'
+          ? 'Your final review report is available below.'
           : 'The available review steps are complete. No feedback letter has been delivered for this round.';
       }
     }
@@ -128,8 +135,7 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
       elapsedLabel = 'Elapsed since the current Feedback letter arrived';
     }
     if (delivered && nextAction.startsWith('Nothing'))
-      nextAction =
-        'Read the Feedback letter. You may respond to a finding or upload a revised version.';
+      nextAction = 'Read the analysis and suggestions in your report.';
     if (waiting) {
       stage = undefined;
       const response = file?.finding_responses

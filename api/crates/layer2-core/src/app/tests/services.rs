@@ -162,6 +162,11 @@ async fn staff_can_retry_a_settled_failed_private_review_without_rewriting_histo
     assert_eq!(finished.rounds[0], before.rounds[0]);
     assert_eq!(finished.letters.len(), 1);
     assert_eq!(finished.letters[0].round, Some(2));
+    assert_eq!(finished.letters[0].assessment, None);
+    let summary = w.app.review_summary(&author, &paper.id).await.unwrap();
+    assert_eq!(summary.round, Some(2));
+    assert!(summary.delivered_at.is_some());
+    assert!(!summary.interrupted && !summary.in_progress);
     assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
 }
 
@@ -449,7 +454,7 @@ async fn private_review_has_no_publication_and_retains_evidence_through_revision
     assert!(
         report.review.letters[0]
             .body
-            .contains("private Orchestra review is complete")
+            .contains("private Mathesis review is complete")
     );
     assert!(!report.review.letters[0].body.contains("not accepted"));
     assert!(report.review.rounds[0].advice.is_none());

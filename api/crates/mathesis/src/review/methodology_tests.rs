@@ -37,6 +37,7 @@ fn checked(
     current: bool,
 ) -> mathesis_core::model::AuditedClaim {
     let input = AdvisorInput {
+        letter_contract: 0,
         computations: None,
         knowledge: None,
         review_method: current.then(|| mathesis_core::model::REVIEW_METHOD.into()),

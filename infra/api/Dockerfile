@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
  && cp target/release/mathesis /usr/local/bin/mathesis
 
 FROM debian:trixie-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates poppler-utils \
       texlive-latex-base texlive-latex-recommended texlive-latex-extra \
       texlive-fonts-recommended texlive-fonts-extra texlive-science texlive-publishers \
       texlive-bibtex-extra texlive-plain-generic texlive-xetex texlive-luatex cm-super lmodern \

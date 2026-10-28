@@ -55,13 +55,25 @@ function workspace(overrides: Partial<ApiClient> = {}, person = editor, paper = 
     },
     person,
   );
-  return { ...renderWithApp(<SubmissionDetailPage id={paper.id} />, api), api };
+  return {
+    ...renderWithApp(
+      <SubmissionDetailPage
+        id={paper.id}
+        staffView={person.roles.some((role) => ['admin', 'editor', 'reviewer'].includes(role))}
+      />,
+      api,
+    ),
+    api,
+  };
 }
 
 async function staffPanel() {
   const panel = (await screen.findByRole('heading', { name: 'Review', level: 2 })).closest(
     'section',
   )!;
+  await userEvent.click(await within(panel).findByText(/^Current execution/));
+  const details = screen.queryByText('Details: evidence, history and settings')?.closest('details');
+  if (details && !details.open) await userEvent.click(details.querySelector('summary')!);
   await within(panel).findAllByRole('list', { name: 'Review progress' });
   return panel;
 }
@@ -71,46 +83,22 @@ afterEach(() => {
 });
 
 describe('referee workspace', () => {
-  it.each<[string, RefereeRound | undefined, string]>([
-    ['no round', undefined, 'The readable report is not yet available.'],
-    ['queued review', queuedRound, 'The readable report is not yet available.'],
-    [
-      'earlier findings',
-      { ...refereeRound, claims_revision: -1 },
-      'The readable report is not yet available.',
-    ],
-    [
-      'report without findings',
-      roundWithFindings([]),
-      'No findings require a response in the available report.',
-    ],
-    [
-      'refuted finding',
-      roundWithFindings([{ concern: 'Old concern', status: 'refuted', note: 'Checked.' }]),
-      'No findings require a response in the available report.',
-    ],
-    [
-      'finding needing further evidence',
-      roundWithFindings([{ concern: 'Attribution', status: 'not_checkable', note: 'No source.' }]),
-      'No findings require a response in the available report.',
-    ],
-    [
-      'actionable finding',
-      roundWithFindings([
-        { concern: 'Boundary case', status: 'confirmed', note: 'Fails at zero.' },
-      ]),
-      'Respond to a finding below to request a recheck against your confirmed source.',
-    ],
-  ])('gives truthful report guidance for %s', async (_name, round, message) => {
+  it.each([
+    undefined,
+    queuedRound,
+    { ...refereeRound, claims_revision: -1 },
+    roundWithFindings([{ concern: 'Boundary case', status: 'confirmed', note: 'Fails at zero.' }]),
+  ])('withholds intermediate reports before current delivery', async (round) => {
     workspace(
-      { referee: vi.fn(async () => refereeFile({ rounds: round ? [round] : [] })) },
+      { referee: vi.fn(async () => refereeFile({ rounds: round ? [round] : [], letters: [] })) },
       author,
     );
-    const report = await screen.findByRole('region', { name: 'Readable review report' });
-    expect(within(report).getByText(message)).toBeVisible();
-    if (!message.startsWith('Respond'))
-      expect(within(report).queryByText(/Respond to a finding below/)).toBeNull();
-    else expect(within(report).getByText('R1-A1')).toBeVisible();
+    expect(
+      await screen.findByText('The final report will appear here when the review is complete.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Final review report' })).toBeNull();
+    expect(screen.queryByText('Respond to the review')).toBeNull();
+    expect(screen.queryByText('Boundary case')).toBeNull();
   });
 
   it('shows one status line, the queued position, pending steps and the engine on hover', async () => {
@@ -283,8 +271,8 @@ describe('referee workspace', () => {
       assessment: 'minor_revision',
     });
     expect(
-      await within(panel).findByRole('heading', { name: 'Sent editorial feedback', level: 3 }),
-    ).toBeInTheDocument();
+      await within(panel).findAllByRole('heading', { name: /Sent editorial feedback/, level: 3 }),
+    ).not.toHaveLength(0);
     expect(within(panel).getByText(`Sent by ${editor.id}`)).toBeInTheDocument();
     expect(within(panel).getByText('Edited', { selector: '.badge' })).toBeInTheDocument();
     expect(within(panel).queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
@@ -370,25 +358,19 @@ describe('referee workspace', () => {
     },
   );
 
-  it.each([editor, author])(
-    'shows the sent assessment beside the subject for $id',
-    async (person) => {
-      workspace(
-        {
-          referee: vi.fn(async () =>
-            refereeFile({ letters: [{ ...feedbackLetter, assessment: 'minor_revision' }] }),
-          ),
-        },
-        person,
-      );
-      const heading = await screen.findByRole('heading', {
-        name: 'Sent editorial feedback Minor revision',
-      });
-      expect(
-        within(heading).getByText('Minor revision', { selector: '.badge' }),
-      ).toBeInTheDocument();
-    },
-  );
+  it('keeps internal revision recommendations out of the author report', async () => {
+    workspace(
+      {
+        referee: vi.fn(async () =>
+          refereeFile({ letters: [{ ...feedbackLetter, assessment: 'minor_revision' }] }),
+        ),
+      },
+      author,
+    );
+    const report = await screen.findByRole('region', { name: 'Final review report' });
+    expect(within(report).getByRole('heading', { name: feedbackLetter.subject })).toBeVisible();
+    expect(screen.queryByText('Minor revision')).toBeNull();
+  });
 
   it('shows assessments in the staff’s earlier-letter history', async () => {
     workspace({
@@ -397,12 +379,12 @@ describe('referee workspace', () => {
       ),
     });
     const panel = await staffPanel();
-    await userEvent.click(within(panel).getByText('Earlier reviews'));
+    await userEvent.click(within(panel).getByText(/^Previous executions/));
     const badge = within(panel).getByText('Reject', { selector: '.badge' });
     expect(badge.closest('summary')).toHaveTextContent(feedbackLetter.subject);
   });
 
-  it('gives authors sent letters newest first and folds the full referee report', async () => {
+  it('shows the latest delivered report and preserves earlier letters in history', async () => {
     workspace(
       {
         referee: vi.fn(async () =>
@@ -416,42 +398,29 @@ describe('referee workspace', () => {
       },
       author,
     );
-    const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
-    const panel = heading.closest('section')!;
-    expect(panel).toHaveAccessibleName('Current Feedback letter');
-    const letters = heading.closest('ul')!;
-    expect(
-      within(letters)
-        .getAllByRole('heading', { level: 3 })
-        .map((h) => h.textContent),
-    ).toEqual(['Sent editorial feedback', 'Earlier feedback']);
-    expect(panel.querySelector('.mop')).toHaveTextContent('rep');
-    expect(panel.querySelector(KATEX_ERROR)).toBeNull();
-    expect(within(panel).getAllByText('Note', { selector: 'summary' })).toHaveLength(2);
-    expect(screen.queryByRole('heading', { name: 'Review' })).toBeNull();
+    const report = await screen.findByRole('region', { name: 'Final review report' });
+    expect(within(report).getByRole('heading', { name: feedbackLetter.subject })).toBeVisible();
+    expect(within(report).queryByText('Earlier feedback')).toBeNull();
+    expect(report.querySelector('.mop')).toHaveTextContent('rep');
+    expect(report.querySelector(KATEX_ERROR)).toBeNull();
     await userEvent.click(screen.getByText('Details: evidence, history and settings'));
-    const details = screen.getByRole('region', { name: 'Review details' });
-    const fullReport = within(details).getByText('Full referee report', { selector: 'summary' });
-    expect(fullReport.closest('details')).not.toHaveAttribute('open');
-    expect(within(details).getByText(/Referee recommends/)).not.toBeVisible();
-    await userEvent.click(fullReport);
-    expect(within(details).getByText(/Referee recommends/)).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'Contributor advice' })).toBeNull();
+    await userEvent.click(screen.getByText('Earlier reports'));
+    expect(screen.getByRole('heading', { name: 'Earlier feedback' })).toBeVisible();
     expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
   });
 
-  it('shows available review progress and report before the letter arrives', async () => {
+  it('keeps the final report unavailable until a letter is delivered', async () => {
     const referee = vi.fn(async () => refereeFile());
     workspace({ referee }, author);
     await waitFor(() => {
       expect(referee).toHaveBeenCalledOnce();
       expect(screen.getByRole('region', { name: 'Review' })).toBeInTheDocument();
     });
-    expect(screen.getByText('Full referee report', { selector: 'summary' })).toBeInTheDocument();
+    expect(screen.queryByText('Full referee report', { selector: 'summary' })).toBeNull();
     expect(screen.queryByText('No feedback letters have been sent.')).toBeNull();
   });
 
-  it('previews the first two paragraphs of a long letter and reveals the rest and note on expansion', async () => {
+  it('shows the complete delivered analysis and suggestions without a second download', async () => {
     const paragraphs = [
       'Dear author,',
       'We checked the induction step.',
@@ -476,20 +445,10 @@ describe('referee workspace', () => {
     );
     const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
     const panel = heading.closest('section')!;
-    for (const paragraph of paragraphs.slice(0, 2))
-      expect(within(panel).getByText(paragraph)).toBeVisible();
-    for (const paragraph of paragraphs.slice(2))
-      expect(within(panel).queryByText(paragraph)).toBeNull();
-    expect(within(panel).queryByText('Note', { selector: 'summary' })).toBeNull();
-    expect(within(panel).queryByText('A detailed editorial note.')).toBeNull();
-    await userEvent.click(within(panel).getByRole('button', { name: 'Read the full letter' }));
     for (const paragraph of paragraphs) expect(within(panel).getByText(paragraph)).toBeVisible();
-    expect(within(panel).queryByRole('button', { name: 'Read the full letter' })).toBeNull();
-    const note = within(panel).getByText('Note', { selector: 'summary' });
-    expect(note).toBeVisible();
-    expect(within(panel).getByText('A detailed editorial note.')).not.toBeVisible();
-    await userEvent.click(note);
     expect(within(panel).getByText('A detailed editorial note.')).toBeVisible();
+    expect(within(panel).getAllByRole('button', { name: 'Download report' })).toHaveLength(1);
+    expect(within(panel).queryByRole('button', { name: 'Read the full letter' })).toBeNull();
   });
 
   it('shows a letter of three paragraphs in full without an expansion button', async () => {
@@ -563,12 +522,22 @@ describe('referee workspace', () => {
   it('retains earlier rounds in expandable history, without an old send form', async () => {
     workspace({
       referee: vi.fn(async () =>
-        refereeFile({ rounds: [refereeRound, { ...queuedRound, number: 2, version: 2 }] }),
+        refereeFile({
+          rounds: [
+            { ...refereeRound, number: 0, version: 0 },
+            { ...queuedRound, number: 2 },
+          ],
+        }),
       ),
     });
     const panel = (await screen.findByRole('heading', { name: 'Review' })).closest('section')!;
+    await userEvent.click(await within(panel).findByText(/^Current execution/));
+    const details = screen
+      .queryByText('Details: evidence, history and settings')
+      ?.closest('details');
+    if (details && !details.open) await userEvent.click(details.querySelector('summary')!);
     await within(panel).findAllByRole('list', { name: 'Review progress' });
-    await userEvent.click(within(panel).getByText('Earlier reviews'));
+    await userEvent.click(within(panel).getByText(/^Previous executions/));
     await userEvent.click(within(panel).getByText('Referee report · minor revision'));
     expect(within(panel).getByRole('heading', { name: 'Referee report' })).toBeInTheDocument();
     expect(within(panel).queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
@@ -866,7 +835,7 @@ describe('referee polling', () => {
       expect(referee).toHaveBeenCalledTimes(3);
       expect(screen.getByRole('heading', { name: 'New feedback on focus' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Review' })).toBeNull();
-      expect(screen.getByText('Full referee report', { selector: 'summary' })).toBeInTheDocument();
+      expect(screen.queryByText('Full referee report', { selector: 'summary' })).toBeNull();
       expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
     },
   );
@@ -940,10 +909,7 @@ it('shows private review completion without requesting a publication decision', 
     await screen.findByRole('heading', { name: 'Private review in progress' }),
   ).toBeInTheDocument();
   await userEvent.click(screen.getByText('Details: evidence, history and settings'));
-  expect(await screen.findByRole('link', { name: 'Download readable report' })).toHaveAttribute(
-    'href',
-    `/api/v1/submissions/${submission.id}/review.md`,
-  );
+  expect(screen.queryByRole('button', { name: 'Download report' })).toBeNull();
   expect(screen.queryByRole('heading', { name: 'Publication decision' })).toBeNull();
   expect(previewDecision).not.toHaveBeenCalled();
   expect(screen.queryByText(/Volunteer contributors may help analyse/)).toBeNull();
@@ -997,13 +963,10 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
     .mockResolvedValue(refereeFile({ rounds: [finished], letters: [feedbackLetter] }));
   polling(referee, false);
   await act(async () => {});
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'Mathesis is working on Improvement suggestions.',
-  );
-  fireEvent.click(screen.getByText('Details: evidence and review history'));
-  const timeline = screen.getByRole('list', { name: 'Review stage details' });
-  expect(within(timeline).getAllByRole('listitem')).toHaveLength(4);
-  expect(within(timeline).getByText('In progress')).toBeVisible();
+  expect(
+    screen.getByText('The final report will appear here when the review is complete.'),
+  ).toBeVisible();
+  expect(screen.queryByRole('list', { name: 'Review stage details' })).toBeNull();
   expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
@@ -1012,9 +975,7 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
   });
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'Mathesis has delivered the current review’s Feedback letter.',
-  );
+  expect(screen.getByRole('region', { name: 'Final review report' })).toBeVisible();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(90_000);
   });
@@ -1023,10 +984,6 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
     fireEvent.focus(window);
   });
   expect(referee).toHaveBeenCalledTimes(4);
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh review' }));
-  });
-  expect(referee).toHaveBeenCalledTimes(5);
 });
 
 it('shows a failed hidden letter without leaking its payload or claiming it is still being written', async () => {
@@ -1113,12 +1070,13 @@ it('keeps polling a saved response before the worker admits its next round', asy
     status: { state: 'review_complete' },
   });
   await act(async () => {});
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'Mathesis is waiting to start a follow-up review.',
-  );
+  expect(screen.getByRole('status')).toHaveTextContent('A follow-up review is queued.');
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
   });
   expect(referee).toHaveBeenCalledTimes(2);
-  expect(screen.getByRole('status')).toHaveTextContent('Mathesis is working on Referee report.');
+  expect(
+    screen.getByText('The final report will appear here when the review is complete.'),
+  ).toBeVisible();
+  expect(screen.queryByRole('region', { name: 'Final review report' })).toBeNull();
 });

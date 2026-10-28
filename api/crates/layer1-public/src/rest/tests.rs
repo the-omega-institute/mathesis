@@ -362,6 +362,21 @@ async fn referee_routes_project_visibility_roles_and_letter_validation() {
     assert_eq!(status, StatusCode::CREATED);
     let id = SubmissionId::from(paper["id"].as_str().unwrap());
     let base = format!("/submissions/{id}/referee");
+    let summary_path = format!("/submissions/{id}/review-summary");
+    for (identity, expected) in [
+        (None, StatusCode::UNAUTHORIZED),
+        (Some("stranger"), StatusCode::NOT_FOUND),
+        (Some("author"), StatusCode::OK),
+    ] {
+        let (status, body, _) = call(&router, "GET", &summary_path, identity, None).await;
+        assert_eq!(status, expected);
+        if status == StatusCode::OK {
+            assert!(body["round"].is_null());
+            assert_eq!(body["interrupted"], false);
+            assert!(body.get("rounds").is_none());
+        }
+    }
+
     assert_eq!(
         call(&router, "GET", &base, None, None).await.0,
         StatusCode::UNAUTHORIZED

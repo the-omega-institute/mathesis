@@ -183,8 +183,9 @@ impl App {
             .typed_conjecture
             .as_ref()
             .map(|typed| typed.title.clone())
+            .or_else(|| new.title.clone())
             .or_else(|| read.title.clone())
-            .ok_or_else(|| CoreError::invalid("the source has no \\title"))?;
+            .ok_or_else(|| CoreError::invalid("enter a manuscript title"))?;
         let authors = if new.authors.is_empty() {
             read.authors
                 .iter()
@@ -201,9 +202,7 @@ impl App {
             new.authors.clone()
         };
         if authors.is_empty() {
-            return Err(CoreError::invalid(
-                "the source has no \\author; list the authors",
-            ));
+            return Err(CoreError::invalid("list the manuscript authors"));
         }
         let now = self.ports.clock.now();
         let version = self.new_version(1, &upload, &read, String::new()).await?;
@@ -221,7 +220,10 @@ impl App {
             id: SubmissionId(new_uuid()),
             submitter: caller.person.clone(),
             title,
-            abstract_text: read.abstract_text.clone().unwrap_or_default(),
+            abstract_text: new
+                .abstract_text
+                .or_else(|| read.abstract_text.clone())
+                .unwrap_or_default(),
             authors,
             ai_disclosure: new.ai_disclosure,
             msc: new.msc,

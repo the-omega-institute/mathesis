@@ -338,6 +338,10 @@ pub struct Submission {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewPaper {
     #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub abstract_text: Option<String>,
+    #[serde(default)]
     pub purpose: SubmissionPurpose,
     /// Author-requested focus, bounded and treated as untrusted context.
     #[serde(default)]
@@ -364,6 +368,16 @@ pub struct NewPaper {
 
 impl NewPaper {
     pub fn validate(&self) -> CoreResult<()> {
+        if let Some(title) = &self.title {
+            require_text("title", title, 1000)?;
+        }
+        if self
+            .abstract_text
+            .as_ref()
+            .is_some_and(|text| text.chars().count() > 20_000)
+        {
+            return Err(CoreError::invalid("abstract exceeds 20000 characters"));
+        }
         if self.review_scope.chars().count() > 5000 {
             return Err(CoreError::invalid("review scope exceeds 5000 characters"));
         }
@@ -540,6 +554,8 @@ mod tests {
 
     fn new_paper(doi: Option<&str>) -> NewPaper {
         NewPaper {
+            title: None,
+            abstract_text: None,
             purpose: Default::default(),
             review_scope: Default::default(),
             processing_consent: Some("ai-review-2026-10-11".into()),

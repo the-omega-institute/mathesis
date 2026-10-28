@@ -2,6 +2,7 @@ use super::*;
 
 fn input() -> AdvisorInput {
     AdvisorInput {
+        letter_contract: 0,
         computations: None,
         knowledge: None,
         review_method: None,
@@ -223,4 +224,19 @@ fn followup_contract_does_not_change_legacy_admitted_prompt_bytes() {
     assert!(updated.contains("response_assessments"));
     assert!(updated.contains("response-1"));
     assert!(updated.contains("Author assertions alone cannot establish addressed"));
+}
+
+#[test]
+fn final_report_style_is_pinned_without_changing_legacy_prompt_bytes() {
+    let mut current = input();
+    let old = referee_prompts::letter(&current, None);
+    assert!(old.starts_with(referee_prompts::LETTER));
+    current.letter_contract = 1;
+    let new = referee_prompts::letter(&current, None);
+    assert!(new.starts_with(referee_prompts::FINAL_REPORT));
+    assert!(new.contains("never present minor revision"));
+    assert!(new.contains("Sign as Mathesis"));
+    assert!(new.contains("For private reviews"));
+    current.letter_contract = 0;
+    assert_eq!(referee_prompts::letter(&current, None), old);
 }

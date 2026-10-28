@@ -16,7 +16,6 @@ import { NotFoundPage } from './pages/NotFound';
 import { PaperPage, PapersPage } from './pages/Papers';
 import { PeoplePage } from './pages/People';
 import { AuthorPage } from './pages/Author';
-import { AuthorsPage } from './pages/Authors';
 import { PolicyPage } from './pages/Policy';
 import { SubmissionDetailPage } from './pages/SubmissionDetail';
 import { SubmissionsPage } from './pages/Submissions';
@@ -109,7 +108,7 @@ function Page({ route }: { route: Route }) {
     case 'conjectures':
       return <ConjecturesPage />;
     case 'papers':
-      return <PapersPage />;
+      return <PapersPage key={route.q ?? ''} initialQuery={route.q} />;
     case 'paper':
       return <PaperPage key={route.record} record={route.record} />;
     case 'policy':
@@ -130,13 +129,19 @@ function Page({ route }: { route: Route }) {
     case 'queue':
       return <SubmissionsPage key="queue" scope="queue" />;
     case 'submission':
-      return <SubmissionDetailPage key={route.id} id={route.id} />;
+      return (
+        <SubmissionDetailPage
+          key={`${route.id}-${route.staff}`}
+          id={route.id}
+          staffView={route.staff}
+        />
+      );
     case 'people':
       return <PeoplePage />;
     case 'author':
       return <AuthorPage name={route.name} />;
     case 'authors':
-      return <AuthorsPage />;
+      return <PapersPage />;
     case 'contribute':
       return <ContributePage />;
     case 'tasks':

@@ -247,6 +247,22 @@ impl App {
         Ok(file.view(Self::is_staff(caller)))
     }
 
+    /// Lists need the current result, not megabytes of old reports and source receipts.
+    pub async fn review_summary(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+    ) -> CoreResult<crate::model::ReviewSummary> {
+        let submission = self.submission(caller, id).await?;
+        let file = self
+            .ports
+            .referees
+            .get(id)
+            .await?
+            .unwrap_or_else(|| RefereeFile::new(id.clone()));
+        Ok(file.summary(&submission))
+    }
+
     /// The round for the paper's current version and statement set, started
     /// if there is none. Reviewer accounts only.
     pub async fn begin_referee_round(
@@ -689,7 +705,7 @@ impl App {
                                 format!("Your paper is accepted as {record}.")
                             }
                         }
-                        SubmissionStatus::ReviewComplete => "Your private Orchestra review is complete. This is research feedback, not a publication decision.".into(),
+                        SubmissionStatus::ReviewComplete => "Your private Mathesis review is complete. This is research feedback, not a publication decision.".into(),
                         SubmissionStatus::NotAccepted => {
                             let reasons = match &submission.decision {
                                 Some(crate::policy::Decision::NotAccepted { reasons }) => reasons
@@ -720,7 +736,15 @@ impl App {
                 if let Some(draft) = step.done() {
                     file.letters.push(FeedbackLetter {
                         round: Some(number),
-                        assessment: round.audit.done().map(|a| a.verdict),
+                        assessment: match submission.status {
+                            SubmissionStatus::Accepted { .. } => {
+                                Some(crate::model::Recommendation::Accept)
+                            }
+                            SubmissionStatus::NotAccepted => {
+                                Some(crate::model::Recommendation::Reject)
+                            }
+                            _ => None,
+                        },
                         subject: draft.subject.clone(),
                         body: draft.body.clone(),
                         note: draft.note.clone(),
@@ -1004,6 +1028,7 @@ impl App {
     fn push_round(&self, file: &mut RefereeFile, submission: &Submission, version: u32) {
         let number = file.rounds.last().map_or(1, |r| r.number + 1);
         file.rounds.push(RefereeRound {
+            letter_contract: 1,
             computation_contract: 1,
             computation_receipts: vec![],
             knowledge_contract: 4,

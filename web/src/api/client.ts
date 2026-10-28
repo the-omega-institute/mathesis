@@ -348,6 +348,7 @@ export interface ApiClient {
   ): Promise<Submission>;
   getAnalysis(id: string, options?: RequestOptions): Promise<PaperAnalysis>;
   previewDecision(id: string, options?: RequestOptions): Promise<Decision>;
+  reviewSummary(id: string, options?: RequestOptions): Promise<import('./types').ReviewSummary>;
   referee(id: string, options?: RequestOptions): Promise<RefereeFile>;
   respondFormalization(
     id: string,
@@ -569,6 +570,7 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     setVisibility: (id, visibility) => request('PUT', sub(id, '/visibility'), { visibility }),
     getAnalysis: (id, o) => request('GET', sub(id, '/analysis'), undefined, o),
     previewDecision: (id, o) => request('GET', sub(id, '/decision'), undefined, o),
+    reviewSummary: (id, o) => request('GET', sub(id, '/review-summary'), undefined, o),
     referee: (id, o) => request('GET', sub(id, '/referee'), undefined, o),
     respondFormalization: (id, claim, response) =>
       request('POST', sub(id, `/formalization/items/${seg(claim)}/response`), response),

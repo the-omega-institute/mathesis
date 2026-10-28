@@ -171,7 +171,7 @@ const attempt: CmaAttemptView = {
   finished_at: null,
 };
 
-describe('Who ran each step', () => {
+describe('Execution records', () => {
   it('shows compact rows and explains only the Mathesis fallback', async () => {
     renderWithApp(
       <CmaHistory
@@ -197,11 +197,11 @@ describe('Who ran each step', () => {
       />,
       fakeApi(),
     );
-    const history = screen.getByRole('region', { name: 'Who ran each step' });
-    expect(within(history).getByRole('heading', { name: 'Who ran each step' })).toBeInTheDocument();
-    expect(history.querySelector(':scope > p')).toBeNull();
+    const history = screen.getByRole('region', { name: 'Execution records' });
+    expect(within(history).getByRole('heading', { name: 'Execution records' })).toBeInTheDocument();
+    expect(history.querySelector(':scope > p')).toHaveTextContent('Earlier failures');
     const list = within(history).getAllByRole('listitem');
-    expect(list[0]).toHaveTextContent(/^Source check · Your agents · Could not finish$/);
+    expect(list[0]).toHaveTextContent(/Source check · Your agents · Could not finish$/);
     expect(list[0]?.querySelector('p')).toBeNull();
     expect(list[1]).toHaveTextContent('Source check · Mathesis · In progress');
     expect(list[1]).toHaveTextContent('Your agents failed for an unknown reason.');
@@ -235,16 +235,16 @@ describe('Who ran each step', () => {
       fakeApi(),
     );
     expect(screen.getByRole('listitem')).toHaveTextContent(
-      /^Earlier review step · Mathesis · In progress$/,
+      /Earlier review step · Mathesis · In progress$/,
     );
     rerender(<CmaHistory attempts={[]} />);
-    expect(screen.queryByRole('region', { name: 'Who ran each step' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Execution records' })).toBeNull();
   });
   it('gives an unknown legacy step kind a readable fallback', () => {
     const legacyAttempt = JSON.parse(JSON.stringify({ ...attempt, kind: 'old_automated_step' }));
     renderWithApp(<CmaHistory attempts={[legacyAttempt]} />, fakeApi());
     expect(screen.getByRole('listitem')).toHaveTextContent(
-      /^Other automated step · Mathesis · In progress$/,
+      /Other automated step · Mathesis · In progress$/,
     );
     expect(document.body).not.toHaveTextContent('old_automated_step');
   });

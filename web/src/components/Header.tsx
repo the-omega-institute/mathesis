@@ -1,3 +1,4 @@
+import { ArchiveSearch } from './ArchiveSearch';
 import { useState } from 'react';
 import { currentPath, devSignInHref, errorMessage } from '../api/client';
 import { hasRole, useSession } from '../auth/session';
@@ -77,30 +78,26 @@ export function Header() {
             label="Formalizations"
             active={k === 'formalizations' || k === 'statement'}
           />
-          <NavLink
-            to={{ kind: 'authors' }}
-            label="Authors"
-            active={k === 'authors' || k === 'author'}
-          />
           <NavLink to={{ kind: 'submit' }} label="Submit" active={k === 'submit'} />
           {person ? (
             <NavLink
               to={{ kind: 'submissions' }}
               label="My work"
-              active={k === 'submissions' || (k === 'submission' && !staff)}
+              active={k === 'submissions' || (k === 'submission' && !route.staff)}
             />
           ) : null}
           {staff ? (
             <NavLink
               to={{ kind: 'queue' }}
               label="Review queue"
-              active={k === 'queue' || (k === 'submission' && staff)}
+              active={k === 'queue' || (k === 'submission' && !!route.staff)}
             />
           ) : null}
           {hasRole(person, 'admin') ? (
             <NavLink to={{ kind: 'people' }} label="People" active={k === 'people'} />
           ) : null}
         </nav>
+        <ArchiveSearch />
         <div className="account">
           {session.status === 'loading' ? <span className="muted small">…</span> : null}
           {session.status === 'anonymous' || session.status === 'error' ? (

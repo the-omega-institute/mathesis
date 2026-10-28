@@ -788,6 +788,7 @@ impl Worker {
                             input.decision = Some(
                                 serde_json::json!({ "status": submission.status, "decision": submission.decision }),
                             );
+                            input.letter_contract = round.letter_contract;
                             let advice = round.advice.done().map(mapping::advice_out);
                             letter.engine = Some(advisor.engine().into());
                             letter.model = Some(advisor.model().into());
@@ -1252,7 +1253,11 @@ impl Worker {
         } else {
             String::new()
         };
-        let main = mathesis_latex::parse::main_file(&files).map_err(|e| e.to_string())?;
+        let main = if let Some((path, _)) = mathesis_latex::pdf::manuscript(&files)? {
+            path.to_owned()
+        } else {
+            mathesis_latex::parse::main_file(&files).map_err(|e| e.to_string())?
+        };
         std::fs::create_dir_all(&self.advisor_work_dir).map_err(|e| e.to_string())?;
         let work = tempfile::tempdir_in(&self.advisor_work_dir).map_err(|e| e.to_string())?;
         let source_dir = work.path().join("source");
@@ -1271,6 +1276,7 @@ impl Worker {
             std::fs::write(path, bytes).map_err(|e| e.to_string())?;
         }
         let mut input = AdvisorInput {
+            letter_contract: 0,
             computations: None,
             knowledge: None,
             review_method: (review_contract >= mathesis_core::model::REVIEW_CONTRACT)

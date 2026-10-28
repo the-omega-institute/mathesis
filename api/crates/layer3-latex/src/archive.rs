@@ -52,7 +52,12 @@ fn is_tar(data: &[u8]) -> bool {
 fn single_name(upload_name: &str) -> String {
     let name = upload_name.trim_end_matches(".gz");
     match clean_path(name) {
-        Some(n) if n.to_ascii_lowercase().ends_with(".tex") => n,
+        Some(n)
+            if n.to_ascii_lowercase().ends_with(".tex")
+                || n.to_ascii_lowercase().ends_with(".pdf") =>
+        {
+            n
+        }
         _ => "main.tex".into(),
     }
 }

@@ -1,5 +1,5 @@
 import { EvidencePicker } from '../components/EvidenceFiles';
-import { withEvidence, type EvidenceInput } from '../lib/sourceBundle';
+import { bundleManuscript, withEvidence, type EvidenceInput } from '../lib/sourceBundle';
 import { useState, type FormEvent } from 'react';
 import { LeanDepositForm } from '../components/LeanDeposit';
 import { useApi } from '../api/context';
@@ -14,7 +14,7 @@ import {
   AI_USE_LABELS,
   formatBytes,
 } from '../lib/labels';
-import { SOURCE_ACCEPT, buildNewPaper, pdfCopyProblem, sourceFileProblem } from '../lib/upload';
+import { SOURCE_ACCEPT, buildNewPaper, sourceFileProblem } from '../lib/upload';
 import { orcidHref, safeHttpUrl } from '../lib/links';
 import { LatexText } from '../components/Markdown';
 import { Link, useRouter } from '../routing/router';
@@ -86,7 +86,9 @@ export function SubmitPage({
           <p className="lede">
             {intake === 'review'
               ? 'Submit a manuscript for private research feedback. We check arguments, examine prior work, and identify specific findings.'
-              : 'Share research or contribute a Lean proof. Mathesis provides research review and independent Lean verification.'}
+              : intake === 'lean'
+                ? 'Contribute a Lean proof of an existing conjecture or theorem. Verified contributions credit both the original authors and the formalizers.'
+                : 'Submit a paper, short note or conjecture for AI review and a publication decision.'}
           </p>
           <p className="small">
             <Link to={{ kind: 'policy' }}>How work is reviewed</Link>
@@ -110,14 +112,14 @@ export function SubmitPage({
           aria-pressed={intake === 'research'}
           onClick={() => setIntake('research')}
         >
-          Paper or conjecture
+          Publication
         </button>
         <button
           className={`button ${intake === 'lean' ? '' : 'button-quiet'}`}
           aria-pressed={intake === 'lean'}
           onClick={() => setIntake('lean')}
         >
-          Lean formalization
+          Community formalization
         </button>
       </div>
       {person ? (
@@ -147,6 +149,7 @@ function AuthorFields({
   const patch = (key: keyof AuthorDraft, value: string) => onChange({ ...author, [key]: value });
   return (
     <div className="author-card">
+      <h3>Author {index + 1}</h3>
       <div className="form-row">
         <Field label="Name" htmlFor={`author-${index}-name`}>
           <input
@@ -166,35 +169,38 @@ function AuthorFields({
           />
         </Field>
       </div>
-      <div className="form-row">
-        <Field label="ORCID" htmlFor={`author-${index}-orcid`} hint="e.g. 0000-0002-1825-0097">
+      <details className="author-identifiers">
+        <summary>ORCID and academic profiles (optional)</summary>
+        <div className="form-row">
+          <Field label="ORCID" htmlFor={`author-${index}-orcid`} hint="e.g. 0000-0002-1825-0097">
+            <input
+              id={`author-${index}-orcid`}
+              value={author.orcid}
+              onChange={(e) => patch('orcid', e.target.value)}
+              placeholder="0000-0002-1825-0097"
+              inputMode="text"
+            />
+          </Field>
+          <Field label="Google Scholar" htmlFor={`author-${index}-scholar`}>
+            <input
+              id={`author-${index}-scholar`}
+              type="url"
+              value={author.googleScholar}
+              onChange={(e) => patch('googleScholar', e.target.value)}
+              placeholder="https://scholar.google.com/citations?..."
+            />
+          </Field>
+        </div>
+        <Field label="Personal website" htmlFor={`author-${index}-website`}>
           <input
-            id={`author-${index}-orcid`}
-            value={author.orcid}
-            onChange={(e) => patch('orcid', e.target.value)}
-            placeholder="0000-0002-1825-0097"
-            inputMode="text"
-          />
-        </Field>
-        <Field label="Google Scholar" htmlFor={`author-${index}-scholar`}>
-          <input
-            id={`author-${index}-scholar`}
+            id={`author-${index}-website`}
             type="url"
-            value={author.googleScholar}
-            onChange={(e) => patch('googleScholar', e.target.value)}
-            placeholder="https://scholar.google.com/citations?..."
+            value={author.website}
+            onChange={(e) => patch('website', e.target.value)}
+            placeholder="https://example.edu/~name"
           />
         </Field>
-      </div>
-      <Field label="Personal website" htmlFor={`author-${index}-website`}>
-        <input
-          id={`author-${index}-website`}
-          type="url"
-          value={author.website}
-          onChange={(e) => patch('website', e.target.value)}
-          placeholder="https://example.edu/~name"
-        />
-      </Field>
+      </details>
       {canRemove ? (
         <button type="button" className="button button-quiet button-small" onClick={onRemove}>
           Remove author
@@ -207,424 +213,416 @@ function AuthorFields({
 export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}) {
   const api = useApi();
   const { person } = useSession();
+  const { navigate } = useRouter();
+  const [step, setStep] = useState(0);
   const [reviewScope, setReviewScope] = useState('');
   const [kind, setKind] = useState<SubmissionKind>('paper');
   const [mode, setMode] = useState<'upload' | 'type'>('upload');
   const [consent, setConsent] = useState(false);
   const [makePublic, setMakePublic] = useState(true);
   const [title, setTitle] = useState('');
+  const [abstract, setAbstract] = useState('');
   const [statement, setStatement] = useState('');
   const [background, setBackground] = useState('');
   const [origin, setOrigin] = useState('');
-  const [authorName, setAuthorName] = useState(person?.display_name ?? '');
   const [authors, setAuthors] = useState<AuthorDraft[]>([emptyAuthor()]);
-  const typed = kind === 'conjecture' && mode === 'type';
-  const { navigate } = useRouter();
-  const [file, setFile] = useState<File | null>(null);
-  const [pdfCopy, setPdfCopy] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
   const [aiLevel, setAiLevel] = useState<AiUseLevel>('none');
   const [msc, setMsc] = useState('');
   const [doi, setDoi] = useState('');
-  const [openToContributors, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-
-  const fileProblem = file ? sourceFileProblem(file) : null;
-  const pdfProblem = pdfCopy ? pdfCopyProblem(pdfCopy) : null;
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
+  const typed = kind === 'conjecture' && mode === 'type';
+  const supplied = authors.filter(authorHasContent);
+  const tabs = ['Manuscript', 'Authors', 'Files', 'Review & submit'];
+  const changeStep = (next: number) => {
+    setStep(next);
     setError(null);
-    if (!typed && file === null) {
-      setError('Choose the LaTeX source file.');
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (step !== 3) {
+      changeStep(step + 1);
       return;
     }
-    if (!typed && fileProblem) {
-      setError(fileProblem);
-      return;
-    }
-    if (!typed && pdfProblem) {
-      setError(pdfProblem);
-      return;
-    }
+    setError(null);
+    const fail = (message: string, at: number) => {
+      setStep(at);
+      setError(message);
+    };
+    if (!title.trim()) return fail('Enter the manuscript title.', 0);
+    if (typed && !statement.trim()) return fail('Enter the conjecture statement.', 0);
+    if (!typed && !files.length) return fail('Choose a PDF, LaTeX source, or source archive.', 2);
+    if (!supplied.length) return fail('Add the authors in the order shown on the manuscript.', 1);
+    const parsedAuthors = suppliedAuthors(supplied);
+    if (!parsedAuthors.ok) return fail(parsedAuthors.error, 1);
     const metadata = buildNewPaper({
       aiLevel,
       aiStatement: AI_DISCLOSURE_STATEMENTS[aiLevel],
       msc,
       doi,
-      openToContributors,
+      openToContributors: false,
     });
-    if (!metadata.ok) {
-      setError(metadata.error);
-      return;
-    }
-    if (!consent) {
-      setError('Agree to third-party AI review before uploading.');
-      return;
-    }
-    metadata.value.processing_consent = PROCESSING_CONSENT_VERSION;
-    metadata.value.kind = kind;
-    metadata.value.purpose = reviewOnly ? 'review_only' : 'publication';
-    metadata.value.review_scope = reviewScope;
-    metadata.value.make_public_after_acceptance = !reviewOnly && makePublic;
-    if (typed) {
-      if (!title.trim() || !statement.trim() || !authorName.trim()) {
-        setError('Give a title, statement and author name.');
-        return;
-      }
-      if (Array.from(statement).length > 20_000 || Array.from(background).length > 50_000) {
-        setError('Keep the statement within 20,000 characters and background within 50,000.');
-        return;
-      }
-      metadata.value.typed_conjecture = { title, statement, background, origin };
-      metadata.value.authors = [{ name: authorName, person: person?.id }];
-    } else {
-      const supplied = authors.filter((author) => authorHasContent(author));
-      if (supplied.length > 0) {
-        const parsed = suppliedAuthors(supplied);
-        if (!parsed.ok) {
-          setError(parsed.error);
-          return;
-        }
-        metadata.value.authors = parsed.value;
-      }
-    }
+    if (!metadata.ok) return fail(metadata.error, 0);
+    if (!consent) return fail('Agree to third-party AI review before uploading.', 3);
+    Object.assign(metadata.value, {
+      title: title.trim(),
+      abstract_text: abstract.trim() || undefined,
+      authors: parsedAuthors.value,
+      processing_consent: PROCESSING_CONSENT_VERSION,
+      kind,
+      purpose: reviewOnly ? 'review_only' : 'publication',
+      review_scope: reviewScope,
+      make_public_after_acceptance: !reviewOnly && makePublic,
+      ...(typed
+        ? { typed_conjecture: { title: title.trim(), statement, background, origin } }
+        : {}),
+    });
     setBusy(true);
-    const attachments = pdfCopy
-      ? [
-          ...evidence,
-          {
-            file: pdfCopy,
-            kind: 'supplement' as const,
-            description: 'Author-provided PDF reading copy.',
-            claims: [],
-          },
-        ]
-      : evidence;
-    (typed ? Promise.resolve(undefined) : withEvidence(file as File, attachments))
-      .then((source) => api.createSubmission(metadata.value, source))
-      .then(
-        (s) => {
-          setBusy(false);
-          navigate({ kind: 'submission', id: s.id });
-        },
-        (e: unknown) => {
-          setBusy(false);
-          setError(e);
-        },
-      );
+    try {
+      const source = typed
+        ? undefined
+        : await withEvidence(await bundleManuscript(files), evidence);
+      const submission = await api.createSubmission(metadata.value, source);
+      navigate({ kind: 'submission', id: submission.id });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
   };
-
   return (
-    <form className="form submission-form" onSubmit={submit} aria-label="Submit work" noValidate>
-      {reviewOnly ? (
-        <div className="notice notice-info">
-          <strong>Private research feedback</strong>
-          <p>
-            Get your arguments checked without applying for publication. Your manuscript and review
-            remain available only to you, linked co-authors and review staff.
-          </p>
-        </div>
-      ) : null}
-      <section aria-labelledby="upload-primer-h" className="notice notice-info">
-        <h2 id="upload-primer-h">What happens after you upload</h2>
-        <p>
-          Upload → you confirm the statement list → the review runs → the feedback letter arrives on
-          this site{reviewOnly ? '.' : ' → accepted work receives a WP record.'}
+    <form
+      className="form submission-form submission-wizard"
+      onSubmit={(e) => void submit(e)}
+      aria-label="Submit work"
+      noValidate
+    >
+      <div className="submission-tabs" role="tablist" aria-label="Submission steps">
+        {tabs.map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            id={`submit-tab-${index}`}
+            aria-controls={`submit-panel-${index}`}
+            aria-selected={step === index}
+            tabIndex={step === index ? 0 : -1}
+            disabled={busy}
+            onKeyDown={(event) => {
+              const next =
+                event.key === 'ArrowRight'
+                  ? (index + 1) % tabs.length
+                  : event.key === 'ArrowLeft'
+                    ? (index + tabs.length - 1) % tabs.length
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? tabs.length - 1
+                        : null;
+              if (next !== null) {
+                event.preventDefault();
+                changeStep(next);
+                document.getElementById(`submit-tab-${next}`)?.focus();
+              }
+            }}
+            onClick={() => changeStep(index)}
+          >
+            <span className="step-number" aria-hidden="true">
+              {index + 1}
+            </span>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        className="submission-panel"
+        role="tabpanel"
+        id={`submit-panel-${step}`}
+        aria-labelledby={`submit-tab-${step}`}
+      >
+        <p className="eyebrow">
+          {reviewOnly ? 'Private review' : 'Research submission'} · Step {step + 1} of 4
         </p>
-        <p className="small">You can return here to read the letter; delivery is on this site.</p>
-      </section>
-      <section className="submission-manuscript" aria-labelledby="manuscript-heading">
-        <h2 id="manuscript-heading">Manuscript</h2>
-        <fieldset className="submission-choices">
-          <legend>Type of work (defaults to Paper)</legend>
-          {(['paper', 'note', 'conjecture'] as const).map((value) => (
-            <label key={value} className="radio">
+        {step === 0 ? (
+          <>
+            <h2>Manuscript details</h2>
+            <p className="hint">
+              Use the title and abstract from your manuscript. Mathematical notation is welcome.
+            </p>
+            <Field label="Type of work" htmlFor="submission-kind">
+              <select
+                id="submission-kind"
+                value={kind}
+                onChange={(e) => setKind(e.target.value as SubmissionKind)}
+              >
+                <option value="paper">Paper</option>
+                <option value="note">Short note</option>
+                <option value="conjecture">Conjecture</option>
+              </select>
+            </Field>
+            <Field label="Title" htmlFor="manuscript-title">
               <input
-                type="radio"
-                name="submission-kind"
-                checked={kind === value}
-                onChange={() => setKind(value)}
-              />
-              <span>
-                {value === 'paper' ? 'Paper' : value === 'note' ? 'Short note' : 'Conjecture'}
-              </span>
-            </label>
-          ))}
-        </fieldset>
-        {kind === 'conjecture' ? (
-          <fieldset className="submission-choices">
-            <legend>How would you like to enter it?</legend>
-            <label className="radio">
-              <input
-                type="radio"
-                name="conjecture-mode"
-                checked={mode === 'upload'}
-                onChange={() => setMode('upload')}
-              />
-              Upload LaTeX
-            </label>
-            <label className="radio">
-              <input
-                type="radio"
-                name="conjecture-mode"
-                checked={mode === 'type'}
-                onChange={() => setMode('type')}
-              />
-              Type it
-            </label>
-          </fieldset>
-        ) : null}
-        {typed ? (
-          <div key="typed-manuscript">
-            <Field
-              label="Title (required)"
-              htmlFor="conjecture-title"
-              hint="We use the title to identify your conjecture."
-            >
-              <input
-                id="conjecture-title"
+                id="manuscript-title"
                 required
-                value={title}
                 maxLength={1000}
+                value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </Field>
-            <Field
-              label="Author (required)"
-              htmlFor="conjecture-author"
-              hint="We use this name to attribute your conjecture."
-            >
-              <input
-                id="conjecture-author"
-                required
-                value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
-              />
-            </Field>
-            <Field
-              label="Statement (required)"
-              htmlFor="conjecture-statement"
-              hint="We review this statement to assess the conjecture. TeX math is welcome. At most 20,000 characters."
-            >
+            <Field label="Abstract" htmlFor="manuscript-abstract">
               <textarea
-                id="conjecture-statement"
-                required
-                rows={6}
+                id="manuscript-abstract"
+                rows={5}
                 maxLength={20000}
-                value={statement}
-                onChange={(e) => setStatement(e.target.value)}
+                value={abstract}
+                onChange={(e) => setAbstract(e.target.value)}
               />
             </Field>
-            {statement ? (
-              <div className="typed-statement-preview" aria-label="Statement preview">
-                <LatexText source={statement} />
-              </div>
+            {kind === 'conjecture' ? (
+              <>
+                <Field label="Manuscript format" htmlFor="conjecture-mode">
+                  <select
+                    id="conjecture-mode"
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value as 'upload' | 'type')}
+                  >
+                    <option value="upload">Upload a manuscript</option>
+                    <option value="type">Enter the conjecture here</option>
+                  </select>
+                </Field>
+                {typed ? (
+                  <>
+                    <Field label="Conjecture statement" htmlFor="conjecture-statement">
+                      <textarea
+                        id="conjecture-statement"
+                        rows={5}
+                        required
+                        maxLength={20000}
+                        value={statement}
+                        onChange={(e) => setStatement(e.target.value)}
+                      />
+                    </Field>
+                    {statement ? (
+                      <div aria-label="Statement preview">
+                        <LatexText source={statement} />
+                      </div>
+                    ) : null}
+                    <Field label="Background (optional)" htmlFor="conjecture-background">
+                      <textarea
+                        id="conjecture-background"
+                        rows={3}
+                        maxLength={50000}
+                        value={background}
+                        onChange={(e) => setBackground(e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Original source (optional)" htmlFor="conjecture-origin">
+                      <input
+                        id="conjecture-origin"
+                        value={origin}
+                        maxLength={2000}
+                        onChange={(e) => setOrigin(e.target.value)}
+                      />
+                    </Field>
+                  </>
+                ) : null}
+              </>
             ) : null}
-          </div>
-        ) : (
-          <div key="source-manuscript">
-            <Field
-              label="LaTeX source (required)"
-              htmlFor="source-file"
-              hint="We read the source to identify your statements and check their arguments. A single .tex file, or a .zip or .tar.gz archive with the main file, bibliography and figures. At most 30 MB."
-            >
-              <input
-                id="source-file"
-                type="file"
-                accept={SOURCE_ACCEPT}
-                required
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-            </Field>
-            {file ? (
-              <p className="small" aria-live="polite">
-                {file.name} · {formatBytes(file.size)}
-                {fileProblem ? <span className="form-error"> — {fileProblem}</span> : null}
-              </p>
-            ) : null}
-          </div>
-        )}
-        <fieldset className="radio-list">
-          <legend>AI use in this work (required)</legend>
-          <p className="hint">
-            We ask so readers understand how the mathematics and text were produced.
-          </p>
-          <p className="hint">
-            Choose the closest description. Add fuller disclosure directly in the manuscript if
-            needed.
-          </p>
-          {AI_USES.map((level) => (
-            <label key={level} className="radio">
-              <input
-                type="radio"
-                name="ai-level"
-                value={level}
-                required
-                checked={aiLevel === level}
-                onChange={() => setAiLevel(level)}
-              />
-              <span>
-                <strong>{AI_USE_LABELS[level]}</strong> — {AI_USE_DESCRIPTIONS[level]}
-              </span>
-            </label>
-          ))}
-        </fieldset>
-
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            required
-          />
-          <span>Processing consent (required): {PROCESSING_CONSENT_TEXT}</span>
-        </label>
-        <p className="hint">
-          We need your permission to send the manuscript to the review services that read and check
-          it.
-        </p>
-        <div className="button-row">
-          <button type="submit" className="button" disabled={busy}>
-            {busy ? 'Uploading…' : 'Upload and read statements'}
-          </button>
-        </div>
-        <InlineError error={error} />
-      </section>
-      <section className="submission-options" aria-labelledby="review-options-heading">
-        <h2 id="review-options-heading">Optional information and preferences</h2>
-        <p className="hint">
-          Everything in this section is optional. You can leave the defaults and upload.
-        </p>
-        {typed ? (
-          <>
-            <Field label="Background (optional)" htmlFor="conjecture-background">
-              <textarea
-                id="conjecture-background"
-                rows={4}
-                maxLength={50000}
-                value={background}
-                onChange={(e) => setBackground(e.target.value)}
-              />
-            </Field>
-            <Field
-              label="Origin (optional)"
-              htmlFor="conjecture-origin"
-              hint="My own, or a work or URL as you know it."
-            >
-              <input
-                id="conjecture-origin"
-                maxLength={2000}
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-              />
-            </Field>
-          </>
-        ) : null}
-        {!typed ? (
-          <>
-            <Field
-              label="PDF manuscript or reading copy (optional)"
-              htmlFor="pdf-copy"
-              hint="Useful when your manuscript comes from Word or PDF. LaTeX is still required for automatic statement extraction, compilation and review. At most 30 MB."
-            >
-              <input
-                id="pdf-copy"
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={(e) => setPdfCopy(e.target.files?.[0] ?? null)}
-              />
-            </Field>
-            {pdfCopy ? (
-              <p className="small" aria-live="polite">
-                {pdfCopy.name} · {formatBytes(pdfCopy.size)}
-                {pdfProblem ? <span className="form-error"> — {pdfProblem}</span> : null}
-              </p>
-            ) : null}
-            <EvidencePicker value={evidence} onChange={setEvidence} />
-            <fieldset className="author-fields">
-              <legend>Authors (optional)</legend>
-              <p className="hint">
-                Leave this blank to read the author list from the manuscript. Add details here when
-                the PDF or source does not contain them; these entries replace the source author
-                list.
-              </p>
-              {authors.map((author, index) => (
-                <AuthorFields
-                  key={index}
-                  index={index}
-                  author={author}
-                  canRemove={authors.length > 1}
-                  onChange={(next) =>
-                    setAuthors((current) => current.map((item, i) => (i === index ? next : item)))
-                  }
-                  onRemove={() => setAuthors((current) => current.filter((_, i) => i !== index))}
+            <div className="form-row">
+              <Field label="MSC 2020 codes (optional)" htmlFor="msc" hint="e.g. 11B83, 05D10">
+                <input id="msc" value={msc} onChange={(e) => setMsc(e.target.value)} />
+              </Field>
+              <Field label="DOI (optional)" htmlFor="doi">
+                <input
+                  id="doi"
+                  value={doi}
+                  onChange={(e) => setDoi(e.target.value)}
+                  placeholder="10.48550/arXiv.…"
                 />
-              ))}
-              <button
-                type="button"
-                className="button button-quiet button-small"
-                onClick={() => setAuthors((current) => [...current, emptyAuthor()])}
-              >
-                Add another author
-              </button>
-            </fieldset>
+              </Field>
+            </div>
           </>
         ) : null}
-        <Field
-          label="What should the review focus on? (optional)"
-          htmlFor="review-scope"
-          hint="Name the statements, proof steps or literature questions that matter most. All confirmed statements still receive an audit reading."
-        >
-          <textarea
-            id="review-scope"
-            maxLength={5000}
-            rows={3}
-            value={reviewScope}
-            onChange={(e) => setReviewScope(e.target.value)}
-          />
-        </Field>
-        {!reviewOnly ? (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={makePublic}
-              onChange={(e) => setMakePublic(e.target.checked)}
-            />
-            <span>Make public after acceptance (optional)</span>
-          </label>
+        {step === 1 ? (
+          <>
+            <h2>Authors and affiliations</h2>
+            <p className="hint">
+              List all authors in manuscript order. The submitting account is {person?.display_name}
+              .
+            </p>
+            {authors.map((author, index) => (
+              <AuthorFields
+                key={index}
+                index={index}
+                author={author}
+                canRemove={authors.length > 1}
+                onChange={(next) =>
+                  setAuthors((current) => current.map((a, i) => (i === index ? next : a)))
+                }
+                onRemove={() => setAuthors((current) => current.filter((_, i) => i !== index))}
+              />
+            ))}
+            <button
+              type="button"
+              className="button button-quiet"
+              disabled={authors.length >= 50}
+              onClick={() => setAuthors((current) => [...current, emptyAuthor()])}
+            >
+              Add another author
+            </button>
+          </>
         ) : null}
-        <p className="hint">Reviews and letters are only shown to you.</p>
-
-        <div className="form-row">
-          <Field label="MSC 2020 codes (optional)" htmlFor="msc" hint="e.g. 11B83, 05D10">
-            <input id="msc" value={msc} onChange={(e) => setMsc(e.target.value)} />
-          </Field>
-          <Field
-            label="DOI (optional)"
-            htmlFor="doi"
-            hint="If the paper already has one, e.g. 10.48550/arXiv.2609.33421"
-          >
-            <input id="doi" value={doi} onChange={(e) => setDoi(e.target.value)} />
-          </Field>
+        {step === 2 ? (
+          <>
+            <h2>Manuscript files</h2>
+            {typed ? (
+              <p>Your conjecture will be typeset from the statement entered in Manuscript.</p>
+            ) : (
+              <>
+                <div className="manuscript-upload">
+                  <h3>PDF or LaTeX manuscript</h3>
+                  <p>
+                    Choose a PDF, a source ZIP / tar.gz, or multiple TeX, bibliography and figure
+                    files. For a project with subfolders, upload the complete archive.
+                  </p>
+                  <Field
+                    label="Choose manuscript files"
+                    htmlFor="source-file"
+                    hint="Up to 30 MB. PDF manuscripts must contain selectable text; scanned pages need a text layer."
+                  >
+                    <input
+                      id="source-file"
+                      type="file"
+                      accept={SOURCE_ACCEPT}
+                      multiple
+                      onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                    />
+                  </Field>
+                  {files.length ? (
+                    <ul className="upload-files" aria-label="Selected manuscript files">
+                      {files.map((file, i) => (
+                        <li key={i}>
+                          {file.name}
+                          <span>{formatBytes(file.size)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {files.length === 1 && sourceFileProblem(files[0]!) ? (
+                    <p className="form-error">{sourceFileProblem(files[0]!)}</p>
+                  ) : null}
+                </div>
+                <details className="history">
+                  <summary>Supplementary files (optional)</summary>
+                  <EvidencePicker value={evidence} onChange={setEvidence} />
+                </details>
+              </>
+            )}
+          </>
+        ) : null}
+        {step === 3 ? (
+          <>
+            <h2>Review your submission</h2>
+            <dl className="submission-summary">
+              <dt>Title</dt>
+              <dd>{title || 'Not entered'}</dd>
+              <dt>Authors</dt>
+              <dd>{supplied.map((a) => a.name).join(', ') || 'Not entered'}</dd>
+              <dt>Manuscript</dt>
+              <dd>
+                {typed
+                  ? 'Typed conjecture'
+                  : files.map((f) => f.name).join(', ') || 'No files selected'}
+              </dd>
+              <dt>Purpose</dt>
+              <dd>{reviewOnly ? 'Private research feedback' : 'AI review for publication'}</dd>
+            </dl>
+            <Field
+              label="AI use in this work"
+              htmlFor="ai-level"
+              hint={AI_USE_DESCRIPTIONS[aiLevel]}
+            >
+              <select
+                id="ai-level"
+                value={aiLevel}
+                onChange={(e) => setAiLevel(e.target.value as AiUseLevel)}
+              >
+                {AI_USES.map((level) => (
+                  <option key={level} value={level}>
+                    {AI_USE_LABELS[level]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Cover note (optional)"
+              htmlFor="review-scope"
+              hint="Mention a particular result or question you would like the review to address."
+            >
+              <textarea
+                id="review-scope"
+                rows={3}
+                maxLength={5000}
+                value={reviewScope}
+                onChange={(e) => setReviewScope(e.target.value)}
+              />
+            </Field>
+            {!reviewOnly ? (
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={makePublic}
+                  onChange={(e) => setMakePublic(e.target.checked)}
+                />
+                <span>Publish the manuscript if accepted</span>
+              </label>
+            ) : null}
+            <p className="hint">
+              {reviewOnly
+                ? 'Your manuscript and report remain private. This submission does not request publication.'
+                : 'The publication result is accepted or not accepted. Accepted work receives a report on its contributions and possible extensions; a refusal explains the reasons.'}
+            </p>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                required
+              />
+              <span>{PROCESSING_CONSENT_TEXT}</span>
+            </label>
+          </>
+        ) : null}
+        <InlineError error={error} />
+        <div className="submission-navigation">
+          {step > 0 ? (
+            <button
+              type="button"
+              className="button button-quiet"
+              disabled={busy}
+              onClick={() => changeStep(step - 1)}
+            >
+              Back
+            </button>
+          ) : (
+            <span />
+          )}
+          {step < 3 ? (
+            <button type="button" className="button" onClick={() => changeStep(step + 1)}>
+              Continue
+            </button>
+          ) : (
+            <button type="submit" className="button" disabled={busy}>
+              {busy ? 'Uploading…' : 'Upload manuscript'}
+            </button>
+          )}
         </div>
-
-        {!reviewOnly ? (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={openToContributors}
-              onChange={(e) => setOpen(e.target.checked)}
-            />
-            <span>
-              Optional: let volunteer contributors help analyse the paper. They will see the
-              statements, the title and the abstract while the paper is in review. You can change
-              this later.
-            </span>
-          </label>
+        {step === 3 ? (
+          <p className="hint">You can check the manuscript PDF before starting the review.</p>
         ) : null}
-      </section>
+      </div>
     </form>
   );
 }

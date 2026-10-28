@@ -11,7 +11,7 @@ use mathesis_latex::{
     LatexError, StatementKind,
     archive::{Limits, unpack},
     compile::Compiler,
-    parse,
+    parse, pdf,
 };
 
 fn kind(kind: StatementKind) -> ClaimKind {
@@ -46,7 +46,11 @@ impl PaperReader for LatexReader {
     }
     fn read(&self, bytes: &[u8], filename: &str) -> Result<ReadPaper, String> {
         let files = unpack(bytes, filename, Limits::default()).map_err(reason)?;
-        let paper = parse::parse(&files).map_err(reason)?;
+        let paper = if let Some((path, bytes)) = pdf::manuscript(&files)? {
+            pdf::read(bytes, path)?
+        } else {
+            parse::parse(&files).map_err(reason)?
+        };
         Ok(ReadPaper {
             evidence: mathesis_core::model::evidence_inventory(&files)
                 .map_err(|e| e.to_string())?,
@@ -76,6 +80,9 @@ impl PaperReader for LatexReader {
 /// The source with inputs inlined and comments removed, for review models.
 pub fn source_text(bytes: &[u8], filename: &str) -> Result<String, String> {
     let files = unpack(bytes, filename, Limits::default()).map_err(reason)?;
+    if let Some((_, bytes)) = pdf::manuscript(&files)? {
+        return pdf::text(bytes);
+    }
     let main = parse::main_file(&files).map_err(reason)?;
     let mut warnings = Vec::new();
     Ok(parse::strip_comments(&parse::expand(
@@ -107,6 +114,11 @@ impl Compile {
         };
         tokio::task::spawn_blocking(move || {
             let files = unpack(&bytes, &filename, Limits::default()).map_err(reason)?;
+            if let Some((_, bytes)) = pdf::manuscript(&files)? {
+                // The uploaded PDF is the reading copy; never re-render or substitute it.
+                pdf::text(bytes)?;
+                return Ok(bytes.to_vec());
+            }
             let main = parse::main_file(&files).map_err(reason)?;
             let work = tempfile::tempdir().map_err(|e| e.to_string())?;
             compiler
@@ -122,6 +134,89 @@ impl Compile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn pdf_intake_preserves_original_bytes_metadata_and_review_text() {
+        if std::process::Command::new("pdftotext")
+            .arg("-v")
+            .output()
+            .is_err()
+        {
+            eprintln!("PDF integration test needs Poppler pdftotext");
+            return;
+        }
+        use mathesis_core::{
+            app::{App, Upload},
+            memory::MemoryStores,
+            model::*,
+            policy::Policy,
+            ports::SystemClock,
+        };
+        use std::{collections::BTreeSet, sync::Arc};
+        let bytes = include_bytes!("../../layer3-latex/tests/fixtures/manuscript.pdf").to_vec();
+        let read = LatexReader.read(&bytes, "paper.pdf").unwrap();
+        assert_eq!(read.main_file, "paper.pdf");
+        assert_eq!(read.statements.len(), 2);
+        assert!(
+            source_text(&bytes, "paper.pdf")
+                .unwrap()
+                .contains("Proof. This follows")
+        );
+        let cache = tempfile::tempdir().unwrap();
+        let compiler = Compile {
+            tex_bin: "/nonexistent".into(),
+            cache_dir: cache.path().into(),
+            texmf_home: None,
+            timeout: std::time::Duration::from_secs(1),
+        };
+        assert_eq!(
+            compiler
+                .pdf(bytes.clone(), "paper.pdf".into())
+                .await
+                .unwrap(),
+            bytes
+        );
+        let stores = Arc::new(MemoryStores::default());
+        let app = App::new(
+            stores.ports(Arc::new(SystemClock), Arc::new(LatexReader)),
+            Policy::default(),
+            BTreeSet::new(),
+        );
+        let author = app
+            .ensure_service_account(&"pdf-author".into(), "A. Author", Role::Endorser)
+            .await
+            .unwrap();
+        let metadata: NewPaper = serde_json::from_value(serde_json::json!({
+            "title":"Explicit PDF title", "abstract_text":"Abstract supplied by the author.",
+            "purpose":"review_only", "processing_consent":"ai-review-2026-10-11",
+            "ai_disclosure":{"level":"none","statement":"No AI used."}, "authors":[{"name":"A. Author","affiliation":"Example University"}]
+        })).unwrap();
+        let paper = app
+            .submit_paper(
+                &author,
+                metadata,
+                Upload {
+                    filename: "paper.pdf".into(),
+                    bytes: bytes.clone(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(paper.title, "Explicit PDF title");
+        assert_eq!(paper.abstract_text, "Abstract supplied by the author.");
+        assert_eq!(
+            paper.authors[0].affiliation.as_deref(),
+            Some("Example University")
+        );
+        assert_eq!(paper.purpose, SubmissionPurpose::ReviewOnly);
+        assert_eq!(paper.analysis_visibility, Visibility::Private);
+        assert_eq!(paper.status, SubmissionStatus::Draft);
+        let saved = app
+            .paper_file(Some(&author), &paper.id, None, false)
+            .await
+            .unwrap();
+        assert_eq!(saved.bytes, bytes);
+    }
 
     #[test]
     fn reads_a_single_file_paper() {

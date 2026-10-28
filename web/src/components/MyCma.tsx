@@ -173,14 +173,30 @@ const STEP_LABELS = {
   legacy_unknown: 'Earlier review step',
 };
 
-export function CmaHistory({ attempts }: { attempts: CmaAttemptView[] }) {
+export function CmaHistory({
+  attempts,
+  currentRound,
+}: {
+  attempts: CmaAttemptView[];
+  currentRound?: number;
+}) {
   if (attempts.length === 0) return null;
   return (
-    <section className="cma-history" aria-label="Who ran each step">
-      <h2>Who ran each step</h2>
+    <section className="cma-history" aria-label="Execution records">
+      <h2>Execution records</h2>
+      <p className="hint">
+        Each entry is one technical attempt. Earlier failures remain in the record after a
+        successful recovery.
+      </p>
       <ul className="entry-list">
         {attempts.map((attempt, index) => (
           <li key={`${attempt.step}-${attempt.attempt}-${index}`}>
+            <span className="small muted">
+              {attempt.step.match(/^r(\d+):/)
+                ? `Round ${attempt.step.match(/^r(\d+):/)![1]}${currentRound && attempt.step.startsWith(`r${currentRound}:`) ? ' · current' : ' · previous'}`
+                : 'Recorded attempt'}{' '}
+              ·{' '}
+            </span>
             <strong>
               {attempt.kind
                 ? (STEP_LABELS[attempt.kind] ?? 'Other automated step')

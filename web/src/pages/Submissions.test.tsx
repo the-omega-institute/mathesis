@@ -1,54 +1,78 @@
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import { authorStanding } from '../lib/authorStanding';
-import { authorStandingCases } from '../test/authorStanding';
-import { author, submission } from '../test/fixtures';
-import { queuedRound, refereeFile } from '../test/referee';
+import { author, submission, editor } from '../test/fixtures';
 import { fakeApi, renderWithApp } from '../test/render';
 import { SubmissionsPage } from './Submissions';
-
-it('uses the same author standing and next action on a My work row', async () => {
-  const review = refereeFile({ rounds: [queuedRound] });
+const delivered = {
+  round: 3,
+  version: 1,
+  claims_revision: 1,
+  delivered_at: '2026-10-27T21:00:00Z',
+  in_progress: false,
+  interrupted: false,
+  has_execution_limits: false,
+};
+const paper = {
+  ...submission,
+  purpose: 'review_only' as const,
+  status: { state: 'review_complete' as const },
+};
+it('loads only the small current summary and shows a delivered report', async () => {
+  const reviewSummary = vi.fn(async () => delivered);
   const api = fakeApi(
-    {
-      listSubmissions: vi.fn(async () => ({ items: [submission], next_before: null })),
-      referee: vi.fn(async () => review),
-    },
+    { listSubmissions: vi.fn(async () => ({ items: [paper], next_before: null })), reviewSummary },
     author,
   );
   renderWithApp(<SubmissionsPage scope="mine" />, api);
-  const title = await screen.findByRole('link', { name: submission.title });
-  const row = title.closest('li')!;
-  expect(await within(row).findByText(/Next action:/)).toBeVisible();
-  const standing = authorStanding(submission, review);
-  expect(row).toHaveTextContent(standing.nextAction);
-  expect(row.querySelector('.author-next-action')).toHaveAttribute(
-    'title',
-    expect.stringContaining(standing.doing),
-  );
-  expect(api.referee).toHaveBeenCalledWith(submission.id, expect.any(Object));
-  // List rows fetch once; a window focus must not start per-row polling.
+  expect(await screen.findByText('Report ready')).toBeVisible();
+  expect(screen.queryByText(/Review progress unavailable/)).toBeNull();
+  expect(api.referee).not.toHaveBeenCalled();
+  expect(reviewSummary).toHaveBeenCalledOnce();
   window.dispatchEvent(new Event('focus'));
-  expect(api.referee).toHaveBeenCalledTimes(1);
-  expect(row).toHaveTextContent('Paper');
-  expect(row).not.toHaveTextContent('Private review · Private review');
+  expect(reviewSummary).toHaveBeenCalledOnce();
 });
-
-it.each(authorStandingCases)(
-  'keeps the My work badge and standing headline equal for $paper.status.state / $paper.kind',
-  async ({ paper, review }) => {
-    const api = fakeApi(
+it('distinguishes loading and network failures from failed reviews, and supports retry', async () => {
+  let reject!: (error: Error) => void;
+  const reviewSummary = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, no) => {
+          reject = no;
+        }),
+    )
+    .mockResolvedValue(delivered);
+  renderWithApp(
+    <SubmissionsPage scope="mine" />,
+    fakeApi(
       {
         listSubmissions: vi.fn(async () => ({ items: [paper], next_before: null })),
-        referee: vi.fn(async () => review),
+        reviewSummary,
       },
       author,
-    );
-    renderWithApp(<SubmissionsPage scope="mine" />, api);
-    const row = (await screen.findByRole('link', { name: paper.title })).closest('li')!;
-    const standing = authorStanding(paper, review);
-    expect(await within(row).findByText(`${standing.headline} · Next action:`)).toBeVisible();
-    expect(row.querySelector('.entry-meta .badge')).toHaveTextContent(standing.headline);
-    expect(row.querySelector('.entry-meta .badge')?.textContent).toBe(standing.headline);
-  },
-);
+    ),
+  );
+  expect(await screen.findByText('Loading review status…')).toBeVisible();
+  reject(new Error('Network unavailable'));
+  expect(await screen.findByText('Review status could not be loaded')).toBeVisible();
+  expect(screen.queryByText('Review interrupted')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Retry status' }));
+  expect(await screen.findByText('Report ready')).toBeVisible();
+});
+it('uses the staff route and qualifies delivered reports with limits', async () => {
+  renderWithApp(
+    <SubmissionsPage scope="queue" />,
+    fakeApi(
+      {
+        listSubmissions: vi.fn(async () => ({ items: [paper], next_before: null })),
+        reviewSummary: vi.fn(async () => ({ ...delivered, has_execution_limits: true })),
+      },
+      editor,
+    ),
+  );
+  const row = (await screen.findByRole('link', { name: paper.title })).closest('li')!;
+  expect(within(row).getByRole('link')).toHaveAttribute('href', `/staff/submissions/${paper.id}`);
+  expect(await within(row).findByText('Report ready')).toBeVisible();
+  expect(row).toHaveTextContent('recorded execution limitation');
+});

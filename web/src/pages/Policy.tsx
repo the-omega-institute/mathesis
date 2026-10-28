@@ -50,28 +50,27 @@ export function PolicyPage() {
         <div>
           <h1>Review policy</h1>
           <p className="lede">
-            Papers, short notes and conjectures use the same four review stages. The decision is a
-            published function of the stage reports; the same function gives the author a preview
-            while the work is in review.
+            Papers, short notes and conjectures receive AI review under the criteria below.
+            Publication submissions receive an acceptance or refusal decision and one final report.
           </p>
         </div>
       </header>
       <section aria-labelledby="plain-h" className="notice notice-info">
         <h2 id="plain-h">In plain words</h2>
         <ol>
-          <li>You upload LaTeX source and confirm the list of statements we read from it.</li>
+          <li>Upload a PDF or LaTeX project, check the manuscript PDF, and start the review.</li>
           <li>
-            A referee reads the manuscript and writes a report; an independent source check compares
-            that report with your source, line by line. Reviewed by GPT Pro and audited by Codex.
+            Mathesis reviews the arguments, checks findings against the manuscript and relevant
+            prior work, and delivers one final report with analysis and useful suggestions.
           </li>
           <li>
             Work is accepted when a main result adds something the cited results do not already
-            give, or settles a named open problem. Otherwise you receive the same letter and may
-            upload a revised version.
+            give, or settles a named open problem. Accepted reports explain the contribution and
+            possible extensions; refused submissions receive the reasons for the decision.
           </li>
           <li>
-            The letter arrives on this site. On this deployment a four-page note took about 45
-            minutes from upload to letter on 22 October 2026; times vary with the queue.
+            The final report appears on this site when it is ready. Review time varies with the
+            manuscript and queue. Private reviews provide feedback without a publication decision.
           </li>
         </ol>
       </section>

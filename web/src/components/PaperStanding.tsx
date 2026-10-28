@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RefereeFile, RejectReason, Submission } from '../api/types';
 import { authorStanding } from '../lib/authorStanding';
-import { REVIEW_STAGES } from '../lib/reviewProgress';
 import { rejectReasonText } from '../lib/labels';
 
 export function publicationReason(reason: RejectReason): string {
@@ -36,14 +35,6 @@ export function PaperStanding({
   }, []);
   const standing = authorStanding(submission, file, now);
   const status = submission.status;
-  const audit =
-    standing.round?.audit?.state.state === 'done' ? standing.round.audit.state.result : undefined;
-  const revisions =
-    audit?.verdict === 'minor_revision'
-      ? 'minor'
-      : audit?.verdict === 'major_revision'
-        ? 'major'
-        : undefined;
   const compileFailure = status.state === 'draft' && !!submission.versions.at(-1)?.compile_error;
   const mayRevise =
     compileFailure ||
@@ -80,32 +71,9 @@ export function PaperStanding({
           ))}
         </ul>
       ) : null}
-      <p role="status">
-        <strong>Mathesis now:</strong> {standing.doing}
-      </p>
-      <p className="standing-next">
-        <strong>Next action:</strong> {standing.nextAction}
-      </p>
+      <p role="status">{standing.doing}</p>
+      <p className="standing-next">{standing.nextAction}</p>
       <p className="small">{standing.timing}</p>
-      <p className="hint">{standing.observation}</p>
-      {standing.stage ? (
-        <ol className="standing-steps" aria-label="Review progress">
-          {REVIEW_STAGES.filter(([key]) => key !== 'formal' || standing.stage === 'formal').map(
-            ([key, label]) => (
-              <li
-                key={key}
-                aria-current={key === standing.stage ? 'step' : undefined}
-                className={key === standing.stage ? 'is-current' : undefined}
-              >
-                {label}
-              </li>
-            ),
-          )}
-        </ol>
-      ) : null}
-      {status.state === 'accepted' && standing.delivered && revisions ? (
-        <p>The referee suggests {revisions} revisions — see the letter.</p>
-      ) : null}
       {mayRevise && onRevise ? (
         <div className="standing-next">
           <p>You can revise the paper and submit a new version.</p>

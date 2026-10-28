@@ -105,6 +105,7 @@ well-posed, open, content reading. Human-stage and endorsement gates are unchang
 | POST | `/submissions/{id}/withdraw` | submitting author (draft, in review) | → `Submission` |
 | PUT | `/submissions/{id}/contributors` | submitting author | `{ open: bool }` → `Submission` |
 | PUT | `/submissions/{id}/visibility` | submitting author, accepted | `{ visibility: "public"\|"private" }` → `Submission` |
+| GET | `/submissions/{id}/review-summary` | authors, staff | → `ReviewSummary`: current round/version/claims revision, delivered_at, in_progress, interrupted, has_execution_limits; no report bodies |
 | GET | `/submissions/{id}/referee` | authors, staff | → `RefereeView`; authors receive report/audit/probe projections plus sent letters; no advice, drafts or files |
 | POST | `/submissions/{id}/referee/restart` | editors, in review | → `RefereeFile`; 409 while the current round is unsettled |
 | POST | `/submissions/{id}/referee/letters` | editors, any status except withdrawn | `{ subject, body, note?, assessment? }` → 201 `FeedbackLetter` (in-app delivery) |
@@ -155,6 +156,8 @@ type Person = { id: string; display_name: string; email?: string; picture?: stri
 type SubmissionKind = "paper" | "note" | "conjecture";
 type TypedConjecture = { title: string; statement: string; background?: string; origin?: string };
 type NewPaper = {
+  title?: string;              // supplied title; required for PDF (max 1,000 characters)
+  abstract_text?: string;      // overrides source abstract (max 20,000 characters)
   processing_consent: "ai-review-2026-10-11"; // required explicit agreement
   kind?: SubmissionKind;          // default paper; also defaults on stored submissions/records
   make_public_after_acceptance?: boolean; // default true, maps to public/private
@@ -1007,3 +1010,31 @@ coverage-certificate support. It is public application metadata without private
 submission data. `coverage_certificates.supported` is false and
 `recognized_protocols` is empty in this build. Review JSON/Markdown also carries
 the current capability boundary; it is not a historical verification receipt.
+
+
+### Manuscript intake and final reports
+
+The submission form uses Manuscript, Authors, Files, and Review & submit tabs.
+It accepts a single PDF, TeX, ZIP, or tar.gz upload; selecting several source files
+creates one ZIP with their relative paths. Use a ZIP for a project with nested
+folders. PDFs must contain selectable text and numbered mathematical headings;
+scanned PDFs need OCR before upload. PDF text extraction is bounded to 500 pages,
+4 MB of text and 20 seconds, using Poppler in the API and worker runtime. The
+original PDF bytes remain the reading copy. Extracted statements carry a warning
+about symbols and boundaries; authors check the PDF before starting review.
+Word documents are not accepted in this release.
+
+`review-summary` selects the newest round matching the current source version
+and claims revision. Only a delivered letter sets `delivered_at`; a completed
+internal draft does not. Earlier failures cannot override a delivered current
+round. A delivered report can still carry `has_execution_limits`. The route uses
+the same author/staff access policy as the private submission. My work uses this
+small projection and distinguishes loading, request errors and an interrupted
+review. Details continue using the saved private referee view.
+
+New rounds pin `letter_contract: 1`, using final Mathesis report language:
+accepted work describes contributions and extensions; refused work states the
+applied reasons. Private reviews have no publication verdict. The automatic
+letter assessment follows the actual publication decision, never the internal
+minor/major revision recommendation. Historical reports are immutable and
+contract-0 rounds retain their original prompt bytes for retries.
