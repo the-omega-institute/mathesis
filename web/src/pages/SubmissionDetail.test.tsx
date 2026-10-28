@@ -109,9 +109,7 @@ describe('paper workspace', () => {
 
     const form = await screen.findByRole('form', { name: 'Confirm statements' });
     expect(screen.queryByRole('region', { name: 'Review' })).toBeNull();
-    expect(
-      screen.getByRole('heading', { name: 'One quick check before review' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Check your manuscript' })).toBeInTheDocument();
     expect(screen.getByText(/has no number; using "Conjecture"/)).toBeInTheDocument();
     // The statement is rendered with KaTeX.
     expect(form.querySelector('.katex')).not.toBeNull();
@@ -276,7 +274,8 @@ describe('paper workspace', () => {
       },
       editor,
     );
-    renderWithApp(<SubmissionDetailPage id="sub-1" />, api);
+    renderWithApp(<SubmissionDetailPage id="sub-1" staffView />, api);
+    await userEvent.click(await screen.findByText('Details: evidence, history and settings'));
     expect(await screen.findByRole('heading', { name: 'Editor tools' })).toBeInTheDocument();
     expect(screen.getByText('Pending — awaiting S2 Literature')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Apply decision' }));
@@ -348,8 +347,8 @@ it.each([
   );
   // Draft and withdrawn pages carry no review workspace; open every fold that exists.
   const reviewShown = paper.status.state !== 'draft' && paper.status.state !== 'withdrawn';
-  if (reviewShown) await screen.findByRole('region', { name: 'Current Feedback letter' });
-  else await screen.findByText(/Next action:/);
+  if (reviewShown) await screen.findByRole('region', { name: 'Final review report' });
+  else await screen.findByRole('region', { name: 'Paper standing' });
   for (const label of [
     'Details: evidence, history and settings',
     'Advanced: compute settings and history',
@@ -392,14 +391,14 @@ it.each([
     expect(text.toLowerCase()).not.toContain(raw.toLowerCase());
   if (!reviewShown) return;
   expect(text).toContain('Not checked');
-  expect(text).toContain('Follows from known results');
+  expect(text).not.toContain('Follows from known results');
   expect(text).toContain('Source check');
-  expect(screen.getByRole('region', { name: 'Readable review report' })).not.toHaveTextContent(
+  expect(screen.getByRole('region', { name: 'Final review report' })).not.toHaveTextContent(
     'b'.repeat(64),
   );
   expect(
     screen.getByText('Details: evidence, history and settings').closest('details'),
-  ).toHaveTextContent('b'.repeat(64));
+  ).not.toHaveTextContent('b'.repeat(64));
 });
 
 it.each(['submission', 'review'] as const)(
@@ -454,7 +453,7 @@ it('shows one loading shell for the shared review resource on the author page', 
       author,
     ),
   );
-  await screen.findByText(/Next action:/);
+  await screen.findByRole('region', { name: 'Paper standing' });
   await userEvent.click(screen.getByText('Details: evidence, history and settings'));
   expect(screen.getAllByText('Loading…')).toHaveLength(1);
   expect(container.querySelector('.author-details .referee-panel')).toBeNull();

@@ -12,6 +12,7 @@
 pub mod archive;
 pub mod compile;
 pub mod parse;
+pub mod pdf;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

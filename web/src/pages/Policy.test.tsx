@@ -11,9 +11,7 @@ it('opens the review policy with a plain-words summary before the formal definit
   });
   expect(plain.compareDocumentPosition(formal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const items = screen.getAllByRole('listitem').map((item) => item.textContent ?? '');
-  expect(items.some((text) => text.includes('confirm the list of statements'))).toBe(true);
-  expect(items.some((text) => text.includes('Reviewed by GPT Pro and audited by Codex'))).toBe(
-    true,
-  );
-  expect(items.some((text) => text.includes('about 45 minutes'))).toBe(true);
+  expect(items.some((text) => text.includes('check the manuscript PDF'))).toBe(true);
+  expect(items.some((text) => text.includes('one final report with analysis'))).toBe(true);
+  expect(items.some((text) => text.includes('Review time varies'))).toBe(true);
 });

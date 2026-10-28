@@ -4,6 +4,8 @@ import { parseRoute, routePath, type Route } from './routes';
 const ROUTES: Route[] = [
   { kind: 'home' },
   { kind: 'papers' },
+  { kind: 'papers', q: 'Ada Example' },
+  { kind: 'submission', id: 'sub-1', staff: true },
   { kind: 'formalizations' },
   { kind: 'submit', intake: 'lean' },
   { kind: 'submit', intake: 'review' },

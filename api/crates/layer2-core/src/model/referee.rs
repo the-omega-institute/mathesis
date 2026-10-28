@@ -371,6 +371,9 @@ impl<T> Step<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RefereeRound {
+    /// Final report style pinned independently; legacy admitted prompts stay exact.
+    #[serde(default)]
+    pub letter_contract: u32,
     #[serde(default)]
     pub computation_contract: u32,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -514,6 +517,79 @@ impl RefereeFile {
 
     pub fn current(&self) -> Option<&RefereeRound> {
         self.rounds.last()
+    }
+}
+
+/// Small, author-safe status for lists; no historical report bodies or query payloads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ReviewSummary {
+    pub round: Option<u32>,
+    pub version: Option<u32>,
+    pub claims_revision: u64,
+    pub delivered_at: Option<DateTime<Utc>>,
+    pub in_progress: bool,
+    pub interrupted: bool,
+    pub has_execution_limits: bool,
+}
+
+impl RefereeFile {
+    pub fn summary(&self, submission: &super::Submission) -> ReviewSummary {
+        let version = submission.current_version().map(|v| v.number);
+        let current = self
+            .rounds
+            .iter()
+            .filter(|r| {
+                Some(r.version) == version && r.claims_revision == submission.claims_revision
+            })
+            .max_by_key(|r| r.number);
+        let delivered_at = current.and_then(|r| {
+            self.letters
+                .iter()
+                .filter(|letter| letter.round == Some(r.number))
+                .map(|letter| letter.sent_at)
+                .max()
+        });
+        let progress = current.map(|r| {
+            [
+                &r.referee.state as &dyn SummaryStep,
+                &r.audit.state,
+                &r.advice.state,
+                &r.letter.state,
+            ]
+        });
+        let failed = progress
+            .as_ref()
+            .is_some_and(|steps| steps.iter().any(|step| step.failed()));
+        ReviewSummary {
+            round: current.map(|r| r.number),
+            version,
+            claims_revision: submission.claims_revision,
+            delivered_at,
+            in_progress: !failed
+                && delivered_at.is_none()
+                && progress
+                    .as_ref()
+                    .is_some_and(|steps| steps.iter().any(|step| step.live())),
+            interrupted: delivered_at.is_none() && failed,
+            has_execution_limits: failed
+                || current.is_some_and(|r| {
+                    r.referee
+                        .done()
+                        .is_some_and(|report| report.claims.is_empty())
+                }),
+        }
+    }
+}
+trait SummaryStep {
+    fn failed(&self) -> bool;
+    fn live(&self) -> bool;
+}
+impl<T> SummaryStep for StepState<T> {
+    fn failed(&self) -> bool {
+        matches!(self, Self::Failed { .. })
+    }
+    fn live(&self) -> bool {
+        matches!(self, Self::Pending | Self::Running { .. })
     }
 }
 

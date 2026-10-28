@@ -9,11 +9,17 @@ A venue where mathematicians submit their own papers, short notes and
 conjectures through one entry and one review pipeline. The venue reads their
 statements, audits the referee's mathematical reading, and gives accepted work
 one shared `WP-<year>-NNNN` record sequence. Authors may instead choose an independent
-private Orchestra review, which never applies publication policy or creates a record.
+private Mathesis review, which never applies publication policy or creates a record.
 Short notes follow exactly the paper
 pipeline; only their labels differ.
 
-- **Input**: papers and notes upload `.tex`, `.zip` or `.tar.gz` sources.
+- **Input**: papers and notes upload PDF, `.tex`, `.zip` or `.tar.gz` manuscripts.
+  PDF intake uses a bounded Poppler text read and numbered statement headings,
+  preserves the original PDF bytes, and requires supplied title/authors. Scans
+  without text or unreadable statement boundaries are refused with an actionable
+  explanation. PDF extraction warnings remain visible before confirmation.
+  The web form groups metadata, authors, files and confirmation into horizontal tabs;
+  multiple source files are packed into one path-preserving ZIP.
   Conjectures use the same endpoint with either LaTeX source or a typed title,
   statement (at most 20,000 characters), optional background (50,000) and origin.
   Typed input becomes a minimal stored `.tex`, using the same reader, blob store,
@@ -373,9 +379,16 @@ from `develop`. No force pushes to either.
   improvement suggestions to the letter. Formalization candidates are used only
   after acceptance. A sketch does not verify a theorem.
 - A completed letter step atomically delivers the letter in-app, with its round,
-  audited assessment, the auditor as sender, and `edited=false`. It states the
+  applied accept/reject outcome (no assessment for private or pending reviews),
+  the auditor as sender, and `edited=false`. It states the
   applied decision and record/reasons first, then audited feedback, confirmed
   changes, "please check" for unavailable facts, and improvement suggestions.
+  Author-facing reports do not use minor/major-revision outcome labels; accepted
+  reports describe contributions and extensions, refusals explain their reasons.
+  Internal mathematical recommendations and historical letters stay unchanged.
+  New rounds pin `letter_contract: 1`; legacy rounds retain their original prompts.
+  The My work list uses the private, version-bound `review-summary` projection;
+  delivery requires a saved current letter. Internal stages remain in staff details.
   It contains no Lean results. Private review letters state completion and feedback,
   never acceptance/rejection. Manual additional letters remain available.
 - Lean runs only after a delivered letter and acceptance, using advice's proved
@@ -565,7 +578,7 @@ funded; local elaboration and proof verification carry no CMA payer.
   once per run. CMA v2 rejects restricted delegated tokens: use the configured
   venue token, retain attribution, and show zero until a NyxID usage receipt is
   available. CMA/model/client token estimates never become metered usage.
-- Public accepted items say “Reviewed by GPT Pro and audited by Codex”.
+- Public-facing review copy says “AI reviewed”; provider details belong in staff execution records.
 
 ## 13. Research service intake and discovery
 
@@ -586,7 +599,7 @@ funded; local elaboration and proof verification carry no CMA payer.
   author-confirmed target. Reuse the ordinary attempt and independent verifier;
   link attempts under a revision fence. No separate acceptance route, arbitrary
   project execution or editor verification is introduced.
-- User-facing services are Orchestra review, deep reasoning and formalization.
+- User-facing services are Mathesis review and community formalization.
   CMA account configuration belongs in advanced compute settings. NyxID remains
   the identity and connection provider. API, OpenAPI, CLI and MCP project the
   same Layer 2 services. See `docs/RESEARCH_SERVICES.md` for exact current scope.

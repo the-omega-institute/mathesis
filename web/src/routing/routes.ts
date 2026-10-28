@@ -6,7 +6,7 @@ export type Route =
   | { kind: 'feedback'; id: string; key: string }
   | { kind: 'binding_profile'; person: string }
   | { kind: 'binding'; id: string; key: string }
-  | { kind: 'papers' }
+  | { kind: 'papers'; q?: string }
   | { kind: 'conjectures' }
   | { kind: 'formalizations' }
   | { kind: 'conjecture'; record: string; claim: string }
@@ -19,7 +19,7 @@ export type Route =
   | { kind: 'submit'; intake?: 'lean' | 'review'; record?: string; claim?: string }
   | { kind: 'submissions' }
   | { kind: 'queue' }
-  | { kind: 'submission'; id: string }
+  | { kind: 'submission'; id: string; staff?: boolean }
   | { kind: 'people' }
   | { kind: 'authors' }
   | { kind: 'author'; name: string }
@@ -63,8 +63,10 @@ export function parseRoute(pathname: string, search = ''): Route {
         return { kind: 'leaderboard' };
       case 'conjectures':
         return { kind: 'conjectures' };
-      case 'papers':
-        return { kind: 'papers' };
+      case 'papers': {
+        const q = new URLSearchParams(search).get('q')?.trim();
+        return { kind: 'papers', ...(q ? { q } : {}) };
+      }
       case 'policy':
         return { kind: 'policy' };
       case 'formalizations':
@@ -111,6 +113,8 @@ export function parseRoute(pathname: string, search = ''): Route {
     }
     return notFound;
   }
+  if (segments.length === 3 && first === 'staff' && second === 'submissions')
+    return { kind: 'submission', id: segments[2] as string, staff: true };
   if (segments.length === 4 && first === 'papers' && segments[2] === 'statements')
     return { kind: 'statement', record: second as string, claim: segments[3] as string };
   if (segments.length === 3 && first === 'feedback')
@@ -165,7 +169,7 @@ export function routePath(route: Route): string {
     case 'conjectures':
       return '/conjectures';
     case 'papers':
-      return '/papers';
+      return `/papers${route.q ? `?${new URLSearchParams({ q: route.q })}` : ''}`;
     case 'paper':
       return `/papers/${seg(route.record)}`;
     case 'policy':
@@ -186,7 +190,7 @@ export function routePath(route: Route): string {
     case 'queue':
       return '/queue';
     case 'submission':
-      return `/submissions/${seg(route.id)}`;
+      return `${route.staff ? '/staff' : ''}/submissions/${seg(route.id)}`;
     case 'people':
       return '/people';
     case 'authors':

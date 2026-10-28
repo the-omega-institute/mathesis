@@ -1,12 +1,12 @@
 import { EvidencePicker } from '../EvidenceFiles';
-import { withEvidence, type EvidenceInput } from '../../lib/sourceBundle';
+import { bundleManuscript, withEvidence, type EvidenceInput } from '../../lib/sourceBundle';
 import { PROCESSING_CONSENT_TEXT, PROCESSING_CONSENT_VERSION } from '../../api/types';
 import { useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
 import type { Submission } from '../../api/types';
 import { useSession } from '../../auth/session';
 import { VISIBILITY_LABELS } from '../../lib/labels';
-import { SOURCE_ACCEPT, sourceFileProblem } from '../../lib/upload';
+import { SOURCE_ACCEPT } from '../../lib/upload';
 import { Link } from '../../routing/router';
 import { ItemStateBadge } from '../badges';
 import { ClaimRef, StatementView } from '../claims';
@@ -130,19 +130,14 @@ export function NewVersionForm({
   const api = useApi();
   const m = useMutation(onChange);
   const [consent, setConsent] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
   const [note, setNote] = useState('');
   const [key, setKey] = useState(0);
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (file === null) {
-      m.setError('Choose the revised LaTeX source.');
-      return;
-    }
-    const problem = sourceFileProblem(file);
-    if (problem) {
-      m.setError(problem);
+    if (!files.length) {
+      m.setError('Choose the revised manuscript files.');
       return;
     }
     if (note.trim() === '') {
@@ -157,12 +152,12 @@ export function NewVersionForm({
       async () =>
         api.uploadVersion(
           submission.id,
-          await withEvidence(file, evidence),
+          await withEvidence(await bundleManuscript(files), evidence),
           note.trim(),
           PROCESSING_CONSENT_VERSION,
         ),
       () => {
-        setFile(null);
+        setFiles([]);
         setEvidence([]);
         setNote('');
         setKey((k) => k + 1);
@@ -177,16 +172,17 @@ export function NewVersionForm({
         confirm them again. Reports on the earlier statements no longer count.
       </p>
       <Field
-        label="Revised LaTeX source"
+        label="Revised manuscript files"
         htmlFor="version-file"
-        hint=".tex, .zip or .tar.gz, at most 30 MB"
+        hint="PDF, .tex, .zip, .tar.gz or multiple source files; at most 30 MB"
       >
         <input
           key={key}
           id="version-file"
           type="file"
           accept={SOURCE_ACCEPT}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          multiple
+          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
         />
       </Field>
       <EvidencePicker value={evidence} onChange={setEvidence} />

@@ -620,6 +620,8 @@ async fn donated_quota_retains_rotation_without_legacy_hosted_judgements() {
         .submit_paper(
             &author,
             NewPaper {
+                title: None,
+                abstract_text: None,
                 purpose: Default::default(),
                 review_scope: Default::default(),
                 processing_consent: Some("ai-review-2026-10-11".into()),

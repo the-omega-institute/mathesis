@@ -42,13 +42,29 @@ export function LeanDepositForm({
   const context = useAsync(load);
   return (
     <Async state={context.state} onRetry={context.reload}>
-      {(data) => (
-        <DepositForm
-          key={data?.statement.target?.digest ?? 'standalone'}
-          target={data?.statement}
-          originalAuthors={data?.authors}
-        />
-      )}
+      {(data) =>
+        data?.statement ? (
+          <DepositForm target={data.statement} originalAuthors={data.authors} />
+        ) : (
+          <>
+            <section className="community-proof-intro">
+              <h2>Prove an existing statement</h2>
+              <p>
+                Choose a conjecture or theorem in Mathesis and contribute its formal proof in Lean.
+                Your verified proof will be linked to the original result, with credit for your
+                contribution.
+              </p>
+              <Link className="button" to={{ kind: 'formalizations' }}>
+                Find a statement to formalize
+              </Link>
+            </section>
+            <details className="history">
+              <summary>Deposit an existing formalization without a linked statement</summary>
+              <DepositForm />
+            </details>
+          </>
+        )
+      }
     </Async>
   );
 }
@@ -194,7 +210,8 @@ function DepositForm({
   return (
     <>
       <p className="lede">
-        Submit an existing Lean formalization, with its original authors and research source.
+        Submit the Lean sources for your proof. Credit the original mathematical work and the people
+        who formalized it.
       </p>
       {target?.target ? (
         <div className="notice notice-info">
@@ -239,22 +256,12 @@ function DepositForm({
               onChange={(e) => setTitle(e.target.value)}
             />
           </Field>
-          <Field label="Original authors (one per line)" htmlFor="lean-authors">
-            <textarea
-              id="lean-authors"
-              required
-              value={authors}
-              onChange={(e) => setAuthors(e.target.value)}
-            />
-          </Field>
-          <Field label="Formalization contributors (one per line)" htmlFor="lean-formalizers">
-            <textarea
-              id="lean-formalizers"
-              value={formalizers}
-              onChange={(e) => setFormalizers(e.target.value)}
-              placeholder="People who wrote the Lean formalization"
-            />
-          </Field>
+          <NameEntries label="Original authors" value={authors} onChange={setAuthors} />
+          <NameEntries
+            label="Formalization contributors"
+            value={formalizers}
+            onChange={setFormalizers}
+          />
           <Field
             label="Git commit (optional)"
             htmlFor="lean-revision"
@@ -670,5 +677,51 @@ function PreflightReport({ report }: { report: LeanPreflight }) {
         </p>
       ))}
     </section>
+  );
+}
+
+function NameEntries({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const names = value.split('\n');
+  return (
+    <fieldset className="name-entries">
+      <legend>{label}</legend>
+      {names.map((name, index) => (
+        <div className="name-entry" key={index}>
+          <input
+            aria-label={`${label} ${index + 1}`}
+            value={name}
+            placeholder="Full name"
+            onChange={(event) =>
+              onChange(names.map((item, i) => (i === index ? event.target.value : item)).join('\n'))
+            }
+          />
+          {names.length > 1 ? (
+            <button
+              type="button"
+              className="button button-quiet button-small"
+              aria-label={`Remove ${label.toLowerCase()} ${index + 1}`}
+              onClick={() => onChange(names.filter((_, i) => i !== index).join('\n'))}
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+      ))}
+      <button
+        type="button"
+        className="button button-quiet button-small"
+        onClick={() => onChange([...names, ''].join('\n'))}
+      >
+        Add {label === 'Original authors' ? 'author' : 'contributor'}
+      </button>
+    </fieldset>
   );
 }

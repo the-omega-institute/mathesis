@@ -255,6 +255,8 @@ export type TypedConjecture = {
   origin?: string;
 };
 export type NewPaper = {
+  title?: string;
+  abstract_text?: string;
   purpose?: 'publication' | 'review_only';
   review_scope?: string;
   processing_consent?: string;
@@ -1340,4 +1342,14 @@ export type FeedbackExport = {
   payload: Record<string, unknown>;
   authorizations: FeedbackEvent[];
   proposal_markdown: string;
+};
+
+export type ReviewSummary = {
+  round: number | null;
+  version: number | null;
+  claims_revision: number;
+  delivered_at: string | null;
+  in_progress: boolean;
+  interrupted: boolean;
+  has_execution_limits: boolean;
 };

@@ -97,145 +97,143 @@ export function ConfirmStatements({
 
   return (
     <form className="confirm-form" onSubmit={submit} aria-label="Confirm statements">
-      <p>
-        We found {extracted.length} statement{extracted.length === 1 ? '' : 's'} in your source. The
-        extracted labels, roles and dependencies are accepted by default. Edit only anything we read
-        incorrectly or exclude anything that does not belong in the review. You do not need to
-        rewrite the mathematics.{' '}
-        {submission.kind === 'conjecture'
-          ? 'Mark at least one conjecture or question as main.'
-          : 'Mark at least one proved statement as a main result.'}
-      </p>
-      <div className="confirmation-navigation" ref={navigation}>
-        <div className="confirmation-progress" role="status">
-          <strong>
-            {rows.length} statement{rows.length === 1 ? '' : 's'} ready
-          </strong>
-          <span>Defaults accepted; edit exceptions only.</span>
-        </div>
-        <div className="confirmation-controls">
-          <label>
-            Find a statement
-            <input
-              type="search"
-              value={query}
-              placeholder="Label, section or mathematical text"
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(0);
-              }}
-            />
-          </label>
-          <label>
-            Show
-            <select
-              value={filter}
-              onChange={(e) => {
-                setFilter(e.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="all">All statements</option>
-              <option value="main">Main results</option>
-            </select>
-          </label>
-          <label>
-            Jump to statement
-            <select
-              value=""
-              onChange={(e) => {
-                const index = rows.findIndex((r) => r.id === e.target.value);
-                setFilter('all');
-                setQuery('');
-                moveTo(Math.floor(index / pageSize));
-              }}
-            >
-              <option value="" disabled>
-                Choose statement…
-              </option>
-              {extracted.map((claim) => (
-                <option key={claim.id} value={claim.id}>
-                  {claim.id} · {claim.label}
-                  {claim.section ? ` · ${claim.section}` : ''}
+      <p>{extracted.length} mathematical statements are ready for review.</p>
+      <details
+        className="history"
+        open={submission.versions.at(-1)?.parse_warnings.length ? true : undefined}
+      >
+        <summary>Inspect identified results (optional)</summary>
+        <div className="confirmation-navigation" ref={navigation}>
+          <div className="confirmation-progress" role="status">
+            <strong>
+              {rows.length} statement{rows.length === 1 ? '' : 's'} ready
+            </strong>
+            <span>Defaults accepted; edit exceptions only.</span>
+          </div>
+          <div className="confirmation-controls">
+            <label>
+              Find a statement
+              <input
+                type="search"
+                value={query}
+                placeholder="Label, section or mathematical text"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </label>
+            <label>
+              Show
+              <select
+                value={filter}
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <option value="all">All statements</option>
+                <option value="main">Main results</option>
+              </select>
+            </label>
+            <label>
+              Jump to statement
+              <select
+                value=""
+                onChange={(e) => {
+                  const index = rows.findIndex((r) => r.id === e.target.value);
+                  setFilter('all');
+                  setQuery('');
+                  moveTo(Math.floor(index / pageSize));
+                }}
+              >
+                <option value="" disabled>
+                  Choose statement…
                 </option>
-              ))}
-            </select>
-          </label>
+                {extracted.map((claim) => (
+                  <option key={claim.id} value={claim.id}>
+                    {claim.id} · {claim.label}
+                    {claim.section ? ` · ${claim.section}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="hint">
+            This is a one-time source check before review. You only need to edit a row when the
+            extraction is wrong; unedited statements keep the extracted defaults.
+          </p>
         </div>
-        <p className="hint">
-          This is a one-time source check before review. You only need to edit a row when the
-          extraction is wrong; unedited statements keep the extracted defaults.
+        <div className="table-wrap">
+          <table className="data-table confirm-table">
+            <caption className="visually-hidden">Extracted statements</caption>
+            <thead>
+              <tr>
+                <th scope="col">Statement</th>
+                <th scope="col" className="confirm-kind">
+                  Kind
+                </th>
+                <th scope="col" className="confirm-role">
+                  Role
+                </th>
+                <th scope="col" className="confirm-deps">
+                  Uses
+                </th>
+                <th scope="col" className="confirm-exclude">
+                  Exclude
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => {
+                const claim = extracted.find((c) => c.id === row.id) as Claim;
+                return (
+                  <ConfirmRowView
+                    key={row.id}
+                    row={row}
+                    claim={claim}
+                    rows={rows}
+                    extracted={extracted}
+                    onPatch={(patch) => {
+                      setRows((rs) => updateRow(rs, row.id, patch));
+                    }}
+                    onDependency={(dep, on) => {
+                      setRows((rs) => toggleDependency(rs, row.id, dep, on));
+                    }}
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!filtered.length ? <p role="status">No statements match this view.</p> : null}
+        <nav className="button-row confirmation-pages" aria-label="Statement pages">
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={activePage === 0}
+            onClick={() => moveTo(activePage - 1)}
+          >
+            Previous statements
+          </button>
+          <span aria-live="polite">
+            Page {activePage + 1} of {Math.max(1, Math.ceil(filtered.length / pageSize))} ·{' '}
+            {filtered.length} matching
+          </span>
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={(activePage + 1) * pageSize >= filtered.length}
+            onClick={() => moveTo(activePage + 1)}
+          >
+            Next statements
+          </button>
+        </nav>
+        <p className="small" aria-live="polite">
+          {mainCount} main result{mainCount === 1 ? '' : 's'} · {excludedCount} excluded ·{' '}
+          {rows.length - excludedCount} included in review
         </p>
-      </div>
-      <div className="table-wrap">
-        <table className="data-table confirm-table">
-          <caption className="visually-hidden">Extracted statements</caption>
-          <thead>
-            <tr>
-              <th scope="col">Statement</th>
-              <th scope="col" className="confirm-kind">
-                Kind
-              </th>
-              <th scope="col" className="confirm-role">
-                Role
-              </th>
-              <th scope="col" className="confirm-deps">
-                Uses
-              </th>
-              <th scope="col" className="confirm-exclude">
-                Exclude
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.map((row) => {
-              const claim = extracted.find((c) => c.id === row.id) as Claim;
-              return (
-                <ConfirmRowView
-                  key={row.id}
-                  row={row}
-                  claim={claim}
-                  rows={rows}
-                  extracted={extracted}
-                  onPatch={(patch) => {
-                    setRows((rs) => updateRow(rs, row.id, patch));
-                  }}
-                  onDependency={(dep, on) => {
-                    setRows((rs) => toggleDependency(rs, row.id, dep, on));
-                  }}
-                />
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {!filtered.length ? <p role="status">No statements match this view.</p> : null}
-      <nav className="button-row confirmation-pages" aria-label="Statement pages">
-        <button
-          type="button"
-          className="button button-quiet"
-          disabled={activePage === 0}
-          onClick={() => moveTo(activePage - 1)}
-        >
-          Previous statements
-        </button>
-        <span aria-live="polite">
-          Page {activePage + 1} of {Math.max(1, Math.ceil(filtered.length / pageSize))} ·{' '}
-          {filtered.length} matching
-        </span>
-        <button
-          type="button"
-          className="button button-quiet"
-          disabled={(activePage + 1) * pageSize >= filtered.length}
-          onClick={() => moveTo(activePage + 1)}
-        >
-          Next statements
-        </button>
-      </nav>
-      <p className="small" aria-live="polite">
-        {mainCount} main result{mainCount === 1 ? '' : 's'} · {excludedCount} excluded ·{' '}
-        {rows.length - excludedCount} included in review
-      </p>
+      </details>
       <div className="button-row">
         <button
           type="submit"

@@ -117,3 +117,177 @@
     gap: clamp(2rem, 4vw, 4rem);
   }
 }
+
+/* Academic submission: one centred working area, with horizontal section tabs. */
+.submission-page {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+.submission-wizard.form {
+  display: block;
+  max-width: none;
+}
+.submission-tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+}
+.submission-tabs [role='tab'] {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 1rem 0.15rem;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  font: inherit;
+  cursor: pointer;
+}
+.submission-tabs [aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.step-number {
+  font-size: 0.8rem;
+}
+.submission-panel {
+  max-width: 52rem;
+  margin-inline: auto;
+  padding-block: 2rem;
+}
+.submission-panel h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+.submission-panel .field {
+  margin-block: 1.25rem;
+}
+.submission-panel .author-card {
+  padding: 1.25rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+}
+.author-identifiers {
+  margin-block: 0.5rem 1rem;
+}
+.author-identifiers summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+.manuscript-upload {
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px dashed var(--rule-strong);
+}
+.upload-files {
+  padding: 0;
+  list-style: none;
+}
+.upload-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  overflow-wrap: anywhere;
+}
+.upload-files span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.submission-summary {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.8rem 1.5rem;
+  padding-block: 1rem;
+}
+.submission-summary dt {
+  color: var(--muted);
+}
+.submission-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.submission-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+}
+@media (max-width: 40rem) {
+  .submission-tabs {
+    gap: 1rem;
+  }
+  .submission-panel {
+    padding-block: 1.5rem;
+  }
+  .manuscript-upload {
+    padding: 1rem;
+  }
+}
+
+.global-search {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  margin-inline-start: auto;
+}
+.global-search input {
+  min-width: 10rem;
+  width: clamp(10rem, 17vw, 17rem);
+}
+.archive-search-advanced {
+  margin-top: 1rem;
+}
+.archive-search-advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.archive-search-filters {
+  margin-top: 1rem;
+}
+@media (max-width: 65rem) {
+  .global-search {
+    order: 4;
+    flex: 1 1 100%;
+  }
+  .global-search input {
+    flex: 1;
+  }
+}
+
+.community-proof-intro {
+  max-width: 48rem;
+  margin: 3rem auto;
+}
+.name-entries {
+  border: 0;
+  padding: 0;
+  margin-block: 1.5rem;
+}
+.name-entry {
+  display: flex;
+  gap: 0.5rem;
+  margin-block: 0.5rem;
+}
+.name-entry input {
+  flex: 1;
+  min-width: 0;
+}
+.final-review-report {
+  max-width: 88ch;
+}
+.final-review-report .section-heading {
+  align-items: center;
+}
+.review-analysis {
+  margin-block: 2rem;
+}
+.current-execution {
+  margin-block: 2rem;
+}

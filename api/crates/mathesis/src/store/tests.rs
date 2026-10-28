@@ -444,6 +444,8 @@ async fn paper_flow_against_mongo() {
     let helper = caller("helper", &[]).await;
 
     let new = NewPaper {
+        title: None,
+        abstract_text: None,
         purpose: Default::default(),
         review_scope: Default::default(),
         processing_consent: Some("ai-review-2026-10-11".into()),

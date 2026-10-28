@@ -5,16 +5,16 @@ import type { Parsed } from './parsed';
 
 /** The server's upload limit. */
 export const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
-export const SOURCE_EXTENSIONS = ['.tex', '.zip', '.tar.gz'] as const;
+export const SOURCE_EXTENSIONS = ['.pdf', '.tex', '.zip', '.tar.gz'] as const;
 /** For the file picker's `accept`. */
 export const SOURCE_ACCEPT =
-  '.tex,.zip,.tar.gz,.tgz,application/zip,application/gzip,application/x-tex';
+  '.pdf,.tex,.zip,.tar.gz,.tgz,.bib,.sty,.cls,.bst,.png,.jpg,.jpeg,.eps,application/pdf,application/zip,application/gzip,application/x-tex';
 
 /** Why a chosen file cannot be uploaded, or null when it can. */
 export function sourceFileProblem(file: Pick<File, 'name' | 'size'>): string | null {
   const name = file.name.toLowerCase();
   const known = SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) || name.endsWith('.tgz');
-  if (!known) return 'Choose a .tex file, or a .zip or .tar.gz archive of the LaTeX source.';
+  if (!known) return 'Choose a PDF, a .tex file, or a .zip or .tar.gz source archive.';
   if (file.size === 0) return 'The file is empty.';
   if (file.size > MAX_SOURCE_BYTES) return 'The source must be at most 30 MB.';
   return null;

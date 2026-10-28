@@ -83,7 +83,7 @@ describe('Optional own agents in pages', () => {
       await screen.findByRole('heading', { name: paper.title });
       if (role === 'public') {
         expect(referee).not.toHaveBeenCalled();
-        expect(screen.queryByRole('region', { name: 'Who ran each step' })).toBeNull();
+        expect(screen.queryByRole('region', { name: 'Execution records' })).toBeNull();
       } else {
         const advanced = screen
           .getByText('Advanced: compute settings and history')
@@ -92,7 +92,7 @@ describe('Optional own agents in pages', () => {
         if (role !== 'staff')
           await userEvent.click(screen.getByText('Details: evidence, history and settings'));
         await userEvent.click(screen.getByText('Advanced: compute settings and history'));
-        expect(await screen.findByRole('region', { name: 'Who ran each step' })).toHaveTextContent(
+        expect(await screen.findByRole('region', { name: 'Execution records' })).toHaveTextContent(
           'Source check · Your agents · In progress',
         );
         expect(referee).toHaveBeenCalled();
@@ -124,8 +124,8 @@ describe('Optional own agents in pages', () => {
   it('offers research and Lean intake without requiring a compute account', async () => {
     const api = fakeApi({}, author);
     renderWithApp(<SubmitPage />, api);
-    await screen.findByLabelText('LaTeX source (required)');
-    expect(screen.getByRole('button', { name: 'Lean formalization' })).toBeInTheDocument();
+    await screen.findByLabelText('Title');
+    expect(screen.getByRole('button', { name: 'Community formalization' })).toBeInTheDocument();
     expect(screen.queryByText(CMA_COPY)).toBeNull();
     expect(api.getCma).not.toHaveBeenCalled();
   });
@@ -138,9 +138,14 @@ describe('Optional own agents in pages', () => {
     renderWithApp(<SubmitPage />, fakeApi({ getCma, createSubmission }, author));
     const user = userEvent.setup();
     const file = new File(['source'], 'paper.tex', { type: 'application/x-tex' });
-    await user.upload(await screen.findByLabelText('LaTeX source (required)'), file);
+    await user.type(await screen.findByLabelText('Title'), 'A result');
+    await user.click(screen.getByRole('tab', { name: 'Authors' }));
+    await user.type(screen.getByLabelText('Name'), 'Ada Example');
+    await user.click(screen.getByRole('tab', { name: 'Files' }));
+    await user.upload(screen.getByLabelText('Choose manuscript files'), file);
+    await user.click(screen.getByRole('tab', { name: 'Review & submit' }));
     await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
-    await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
+    await user.click(screen.getByRole('button', { name: 'Upload manuscript' }));
     await waitFor(() => expect(createSubmission).toHaveBeenCalledWith(expect.any(Object), file));
     expect(getCma).not.toHaveBeenCalled();
     expect(screen.queryByText('CMA status unavailable')).toBeNull();

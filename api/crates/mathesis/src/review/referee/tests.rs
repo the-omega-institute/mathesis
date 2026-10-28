@@ -477,6 +477,8 @@ impl World {
             .submit_paper(
                 &author,
                 NewPaper {
+                    title: None,
+                    abstract_text: None,
                     purpose: Default::default(),
                     review_scope: Default::default(),
                     processing_consent: Some("ai-review-2026-10-11".into()),
@@ -752,10 +754,7 @@ async fn accepted_round_sends_letter_before_formalizing_proved_statements() {
     assert!(letter_at <= formal_at);
     assert_eq!(file.letters.len(), 1);
     assert_eq!(file.letters[0].sent_by.as_str(), "wishpool:auditor");
-    assert_eq!(
-        file.letters[0].assessment,
-        Some(Recommendation::MajorRevision)
-    );
+    assert_eq!(file.letters[0].assessment, Some(Recommendation::Accept));
     assert!(!file.letters[0].edited);
     assert!(round.letter.done().is_some());
 }
@@ -1268,10 +1267,7 @@ async fn known_main_result_gets_advice_and_auto_letter_but_no_formal_probe() {
         file.current().unwrap().formal.state,
         StepState::Skipped { .. }
     ));
-    assert_eq!(
-        file.letters[0].assessment,
-        Some(Recommendation::MajorRevision)
-    );
+    assert_eq!(file.letters[0].assessment, Some(Recommendation::Reject));
 }
 
 #[tokio::test]
@@ -1546,6 +1542,8 @@ async fn running_worker_compiles_another_submission_during_a_long_audit() {
             .submit_paper(
                 &author,
                 NewPaper {
+                    title: None,
+                    abstract_text: None,
                     purpose: Default::default(),
                     review_scope: String::new(),
                     processing_consent: Some("ai-review-2026-10-11".into()),
@@ -3781,7 +3779,7 @@ async fn review_only_worker_delivers_private_letter_without_publication_or_lean_
     assert!(
         file.letters[0]
             .body
-            .starts_with("Your private Orchestra review is complete.")
+            .starts_with("Your private Mathesis review is complete.")
     );
     assert_eq!(advisor.advice.load(Ordering::SeqCst), 1);
     assert_eq!(advisor.letters.load(Ordering::SeqCst), 1);
@@ -3856,7 +3854,7 @@ async fn private_followup_delivers_a_bound_conclusion_without_rewriting_the_orig
     );
     assert!(report.review.letters.iter().all(|l| {
         l.body
-            .starts_with("Your private Orchestra review is complete.")
+            .starts_with("Your private Mathesis review is complete.")
     }));
     assert!(
         report

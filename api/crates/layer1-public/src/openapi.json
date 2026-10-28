@@ -243,7 +243,7 @@
             "description": "Stored draft with version-bound source and evidence inventory"
           }
         },
-        "description": " Source ZIP/tar archives may include root mathesis-evidence.json (schema_version 1, files descriptors) and matching evidence files. Digests and byte counts are computed server-side and saved on PaperVersion.evidence. Revisions must carry their own evidence; no implicit carry-forward."
+        "description": "Upload PDF, TeX, ZIP or tar.gz; supply title and authors for PDF manuscripts. Optional metadata title and abstract_text override source metadata. PDF intake preserves original bytes and reads numbered statements from the text layer; scans without usable text are refused.  Source ZIP/tar archives may include root mathesis-evidence.json (schema_version 1, files descriptors) and matching evidence files. Digests and byte counts are computed server-side and saved on PaperVersion.evidence. Revisions must carry their own evidence; no implicit carry-forward."
       }
     },
     "/api/v1/submissions/{id}": {
@@ -2626,6 +2626,45 @@
           },
           "503": {
             "description": "Missing or corrupt saved evidence"
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{id}/review-summary": {
+      "get": {
+        "operationId": "review_summary",
+        "summary": "Current review delivery and execution status without report bodies. Authors and staff only.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current source/version-matched status; delivery requires a saved letter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid identity"
+          },
+          "404": {
+            "description": "Submission not visible to the caller"
           }
         }
       }
@@ -6042,6 +6081,51 @@
           "proposal_markdown"
         ],
         "additionalProperties": false
+      },
+      "ReviewSummary": {
+        "type": "object",
+        "required": [
+          "round",
+          "version",
+          "claims_revision",
+          "delivered_at",
+          "in_progress",
+          "interrupted",
+          "has_execution_limits"
+        ],
+        "properties": {
+          "round": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "claims_revision": {
+            "type": "integer"
+          },
+          "delivered_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "in_progress": {
+            "type": "boolean"
+          },
+          "interrupted": {
+            "type": "boolean"
+          },
+          "has_execution_limits": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }

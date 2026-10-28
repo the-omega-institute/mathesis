@@ -24,6 +24,10 @@ pub(super) fn routes() -> Router<Arc<App>> {
     Router::new()
         .route("/submissions/{id}/referee", axum::routing::get(referee))
         .route(
+            "/submissions/{id}/review-summary",
+            axum::routing::get(review_summary),
+        )
+        .route(
             "/submissions/{id}/referee/knowledge/{receipt}",
             axum::routing::get(knowledge_response),
         )
@@ -238,6 +242,14 @@ async fn referee(
     Path(id): Path<String>,
 ) -> ApiResult<impl IntoResponse> {
     Ok(Json(app.referee(&caller, &SubmissionId(id)).await?))
+}
+
+async fn review_summary(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(app.review_summary(&caller, &SubmissionId(id)).await?))
 }
 
 async fn restart_referee(

@@ -140,3 +140,34 @@ export async function withEvidence(source: File, evidence: EvidenceInput[]): Pro
     type: 'application/zip',
   });
 }
+
+/** Keep a single upload exact; bundle a multi-file manuscript with its paths intact. */
+export async function bundleManuscript(files: readonly File[]): Promise<File> {
+  if (!files.length) throw new Error('Choose manuscript files.');
+  if (files.length === 1) {
+    const file = files[0]!;
+    const { sourceFileProblem } = await import('./upload');
+    const problem = sourceFileProblem(file);
+    if (problem) throw new Error(problem);
+    return file;
+  }
+  if (files.length > 2000 || files.reduce((n, f) => n + f.size, 0) > 30 * 1024 * 1024)
+    throw new Error('Choose at most 2,000 files totalling 30 MB.');
+  if (!files.some((f) => f.name.toLowerCase().endsWith('.tex')))
+    throw new Error('Choose one PDF, or include a main .tex file in a multi-file manuscript.');
+  const entries: Record<string, Uint8Array> = Object.create(null) as Record<string, Uint8Array>;
+  const names = new Set<string>();
+  for (const file of files) {
+    if (/\.(zip|gz|tgz)$/i.test(file.name)) throw new Error('Upload a source archive on its own.');
+    const path = safePath(file.webkitRelativePath || file.name);
+    if (names.has(path.toLowerCase())) throw new Error(`Duplicate manuscript path: ${path}`);
+    names.add(path.toLowerCase());
+    entries[path] = new Uint8Array(await file.arrayBuffer());
+  }
+  const bytes = zipSync(entries);
+  if (bytes.length > 30 * 1024 * 1024)
+    throw new Error('The manuscript archive must be at most 30 MB.');
+  return new File([bytes as Uint8Array<ArrayBuffer>], 'manuscript.zip', {
+    type: 'application/zip',
+  });
+}

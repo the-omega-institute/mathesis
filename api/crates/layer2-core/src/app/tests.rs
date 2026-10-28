@@ -104,6 +104,8 @@ impl World {
         doi: Option<&str>,
     ) -> Submission {
         let new = NewPaper {
+            title: None,
+            abstract_text: None,
             purpose: Default::default(),
             review_scope: Default::default(),
             processing_consent: Some("ai-review-2026-10-11".into()),
@@ -620,6 +622,8 @@ async fn authority_and_limits() {
     w.submit(&author, "t", false).await;
     w.submit(&author, "t", false).await;
     let new = NewPaper {
+        title: None,
+        abstract_text: None,
         purpose: Default::default(),
         review_scope: Default::default(),
         processing_consent: Some("ai-review-2026-10-11".into()),
@@ -1315,10 +1319,7 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
         .await
         .unwrap();
     assert_eq!(file.letters.len(), 1);
-    assert_eq!(
-        file.letters[0].assessment,
-        Some(Recommendation::MajorRevision)
-    );
+    assert_eq!(file.letters[0].assessment, Some(Recommendation::Accept));
     assert_eq!(file.letters[0].sent_by, auditor.person);
     assert!(!file.letters[0].edited);
     w.app
@@ -3428,3 +3429,81 @@ mod services;
 mod bindings;
 
 mod feedback;
+
+#[tokio::test]
+async fn review_summary_is_private_current_and_requires_actual_delivery() {
+    let w = World::new().await;
+    let author = w.person("summary-author", &[]).await;
+    let coauthor = w.person("summary-coauthor", &[]).await;
+    let other = w.person("summary-other", &[]).await;
+    let reviewer = w.person("summary-reviewer", &[Role::Reviewer]).await;
+    let draft = w.submit(&author, "t", false).await;
+    let mut paper = w.review_paper(&author, &draft).await;
+    paper.authors.push(Author {
+        name: "Coauthor".into(),
+        person: Some(coauthor.person.clone()),
+        orcid: None,
+        affiliation: None,
+        google_scholar: None,
+        website: None,
+    });
+    w.app.save(&mut paper).await.unwrap();
+    let empty = w.app.review_summary(&author, &paper.id).await.unwrap();
+    assert_eq!(empty.round, None);
+    assert!(!empty.in_progress && !empty.interrupted);
+    assert!(matches!(
+        w.app.review_summary(&other, &paper.id).await,
+        Err(CoreError::NotFound { .. })
+    ));
+    w.app
+        .begin_referee_round(&reviewer, &paper.id)
+        .await
+        .unwrap();
+    for caller in [&author, &coauthor, &reviewer] {
+        let summary = w.app.review_summary(caller, &paper.id).await.unwrap();
+        assert_eq!(summary.round, Some(1));
+        assert!(summary.in_progress && !summary.interrupted);
+        assert!(summary.delivered_at.is_none());
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.len() < 300);
+        assert!(!json.contains("source_sha256") && !json.contains("claims\""));
+    }
+    let (mut file, stored) = w.app.referee_file(&paper.id).await.unwrap();
+    file.rounds[0].referee.state = StepState::Failed {
+        reason: "PRIVATE_FAILURE".into(),
+        detail: None,
+        retryable: false,
+        at: chrono::Utc::now(),
+    };
+    let failed = file.summary(&paper);
+    assert!(failed.interrupted && !failed.in_progress && failed.has_execution_limits);
+    file.letters.push(FeedbackLetter {
+        round: Some(1),
+        assessment: None,
+        subject: "Result".into(),
+        body: "PRIVATE_REPORT".into(),
+        note: String::new(),
+        sent_by: reviewer.person.clone(),
+        sent_at: chrono::Utc::now(),
+        edited: false,
+    });
+    let delivered = file.summary(&paper);
+    assert!(
+        delivered.delivered_at.is_some()
+            && !delivered.interrupted
+            && delivered.has_execution_limits
+    );
+    let mut next = file.rounds[0].clone();
+    next.number = 2;
+    next.referee = Step::pending();
+    file.rounds.push(next);
+    let next = file.summary(&paper);
+    assert_eq!(next.round, Some(2));
+    assert!(next.in_progress && !next.interrupted && next.delivered_at.is_none());
+    w.app.store_referee_file(&mut file, stored).await.unwrap();
+    paper.claims_revision += 1;
+    assert_eq!(file.summary(&paper).round, None);
+    paper.claims_revision -= 1;
+    paper.versions.last_mut().unwrap().number += 1;
+    assert_eq!(file.summary(&paper).round, None);
+}

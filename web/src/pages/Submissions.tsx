@@ -1,5 +1,3 @@
-import { useReferee } from '../api/useReferee';
-import { authorStanding } from '../lib/authorStanding';
 import type { Submission } from '../api/types';
 import { InlineLatex } from '../components/Markdown';
 import { LeanWorkspace } from '../components/LeanDeposit';
@@ -23,7 +21,7 @@ const COPY: { [K in SubmissionScope]: { title: string; lede: string; empty: stri
   },
   queue: {
     title: 'Review queue',
-    lede: 'Papers in review and drafts, for editors, reviewer accounts and admins.',
+    lede: 'Current outcomes for all submissions. Open a record to inspect its review history.',
     empty: 'The queue is empty.',
   },
 };
@@ -162,21 +160,39 @@ function SubmissionRow({
   submission: Submission;
   scope: SubmissionScope;
 }) {
-  const referee = useReferee(
-    s,
-    false,
-    scope === 'mine' && s.status.state !== 'draft' && s.status.state !== 'withdrawn',
-    false,
+  const api = useApi();
+  const load = useCallback(
+    (signal: AbortSignal) => api.reviewSummary(s.id, { signal }),
+    [api, s.id],
   );
-  const standing = scope === 'mine' ? authorStanding(s, referee.value) : undefined;
+  const summary = useAsync(
+    s.status.state !== 'draft' && s.status.state !== 'withdrawn' ? load : null,
+  );
+  const value = summary.value;
+  const label = value?.delivered_at
+    ? s.purpose === 'review_only'
+      ? 'Report ready'
+      : undefined
+    : summary.state.status === 'loading'
+      ? 'Loading review status…'
+      : summary.state.status === 'error'
+        ? 'Review status could not be loaded'
+        : value?.interrupted
+          ? 'Review interrupted'
+          : value?.in_progress
+            ? 'Review in progress'
+            : undefined;
   return (
     <li>
-      <Link to={{ kind: 'submission', id: s.id }} className="entry-title">
+      <Link
+        to={{ kind: 'submission', id: s.id, ...(scope === 'queue' ? { staff: true } : {}) }}
+        className="entry-title"
+      >
         <InlineLatex source={s.title} />
       </Link>
       <p className="entry-meta">
         <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
-        <SubmissionStatusBadge status={s.status} label={standing?.headline} />
+        <SubmissionStatusBadge status={s.status} label={label} />
         <span>{formatAuthors(s.authors)}</span>
         {newResultCount(s) > 0 ? <span>{newResults(newResultCount(s))}</span> : null}
         {s.formalization.items.some((i) => i.state.state === 'verified') ? (
@@ -194,18 +210,26 @@ function SubmissionRow({
           </span>
         ) : null}
       </p>
-      {standing ? <AuthorNextAction standing={standing} /> : null}
+      {value?.delivered_at ? (
+        <p className="small">
+          The final report is ready to read.
+          {value.has_execution_limits
+            ? ' A recorded execution limitation is explained in the report.'
+            : ''}
+        </p>
+      ) : null}
+      {summary.state.status === 'error' ? (
+        <p className="small">
+          Your manuscript is saved.{' '}
+          <button
+            type="button"
+            className="button button-quiet button-small"
+            onClick={summary.reload}
+          >
+            Retry status
+          </button>
+        </p>
+      ) : null}
     </li>
-  );
-}
-
-function AuthorNextAction({ standing }: { standing: ReturnType<typeof authorStanding> }) {
-  return (
-    <p
-      className="small author-next-action"
-      title={`${standing.doing} ${standing.timing} ${standing.observation}`}
-    >
-      <strong>{standing.headline} · Next action:</strong> {standing.nextAction}
-    </p>
   );
 }

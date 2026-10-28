@@ -44,6 +44,7 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     disconnectCma: vi.fn(notFound),
     listPeople: vi.fn(empty),
     setRoles: vi.fn(notFound),
+    reviewSummary: vi.fn(notFound),
     createSubmission: vi.fn(notFound),
     listSubmissions: vi.fn(empty),
     getSubmission: vi.fn(notFound),

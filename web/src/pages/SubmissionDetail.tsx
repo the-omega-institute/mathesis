@@ -45,7 +45,13 @@ import { currentMacros } from '../lib/macros';
 import { stageName } from '../lib/stages';
 import { Link } from '../routing/router';
 
-export function SubmissionDetailPage({ id }: { id: string }) {
+export function SubmissionDetailPage({
+  id,
+  staffView = false,
+}: {
+  id: string;
+  staffView?: boolean;
+}) {
   const api = useApi();
   const { session } = useSession();
   const load = useCallback((signal: AbortSignal) => api.getSubmission(id, { signal }), [api, id]);
@@ -54,7 +60,7 @@ export function SubmissionDetailPage({ id }: { id: string }) {
     <div className="page">
       {session.status === 'loading' ? <Loading /> : null}
       <Async state={submission.state} onRetry={submission.reload}>
-        {(s) => <Workspace submission={s} onChange={submission.replace} />}
+        {(s) => <Workspace submission={s} onChange={submission.replace} staffView={staffView} />}
       </Async>
     </div>
   );
@@ -68,7 +74,9 @@ function isAuthorOf(s: Submission, personId: string | undefined): boolean {
 export function Workspace({
   submission: s,
   onChange,
+  staffView = false,
 }: {
+  staffView?: boolean;
   submission: Submission;
   onChange: (s: Submission) => void;
 }) {
@@ -76,11 +84,12 @@ export function Workspace({
   const policy = usePolicy();
   const { person } = useSession();
   const isAuthor = isAuthorOf(s, person?.id);
-  const isEditor = hasRole(person, 'editor', 'admin');
-  const isStaff = hasRole(person, 'editor', 'reviewer', 'admin');
+  const isEditor = staffView && hasRole(person, 'editor', 'admin');
+  const isStaff = staffView && hasRole(person, 'editor', 'reviewer', 'admin');
+  const canInspect = hasRole(person, 'editor', 'reviewer', 'admin');
   const state = s.status.state;
   const reviewed = state !== 'draft' && s.claims.length > 0;
-  const referee = useReferee(s, isStaff, isStaff || isAuthor);
+  const referee = useReferee(s, isStaff, canInspect || isAuthor);
   const reviewRevision = referee.value?.revision;
   useEffect(() => {
     if (reviewRevision === undefined) return;
@@ -162,6 +171,13 @@ export function Workspace({
             <InlineLatex source={s.title || 'Untitled paper'} />
           </h1>
           <AuthorLine authors={s.authors} />
+          {canInspect ? (
+            <p className="small">
+              <Link to={{ kind: 'submission', id: s.id, ...(!staffView ? { staff: true } : {}) }}>
+                {staffView ? 'Author view' : 'Execution records'}
+              </Link>
+            </p>
+          ) : null}
           <p className="entry-meta">
             <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
             <SubmissionStatusBadge status={s.status} label={standing.headline} />
@@ -194,7 +210,7 @@ export function Workspace({
           </div>
         </header>
 
-        {isAuthor || isStaff ? (
+        {isAuthor || canInspect ? (
           <PaperStanding
             submission={s}
             file={referee.value}
@@ -213,7 +229,7 @@ export function Workspace({
           </div>
         ) : null}
 
-        {(state !== 'draft' || isStaff) && (isStaff || isAuthor) ? (
+        {(state !== 'draft' || isStaff) && (canInspect || isAuthor) ? (
           <RefereeWorkspace
             key={`${s.id}-${isStaff}`}
             submission={s}
@@ -224,16 +240,16 @@ export function Workspace({
             presentation="primary"
           />
         ) : null}
-        {reviewed && (isAuthor || isStaff) ? (
+        {reviewed && (isAuthor || canInspect) ? (
           <StatementSummary submission={s} round={currentReview} />
         ) : null}
         {state === 'draft' ? <DraftNotice submission={s} /> : null}
         {state === 'draft' && isAuthor ? (
           <section aria-labelledby="confirm-h">
-            <h2 id="confirm-h">One quick check before review</h2>
+            <h2 id="confirm-h">Check your manuscript</h2>
             <p className="lede">
-              We found these mathematical statements in your source. Keep the defaults when they
-              look right, change only anything we read incorrectly, and start the review.
+              Open the PDF to check your manuscript. You can inspect the identified results below
+              before starting the review.
             </p>
             <ConfirmStatements
               key={`${s.id}-${s.versions.length}`}
@@ -243,7 +259,7 @@ export function Workspace({
           </section>
         ) : null}
 
-        <details className="history author-details" open={isStaff ? true : undefined}>
+        <details className="history author-details">
           <summary>Details: evidence, history and settings</summary>
           {!isStaff && state !== 'draft' && isAuthor ? (
             <RefereeWorkspace
@@ -260,7 +276,7 @@ export function Workspace({
           isAuthor ? (
             <LeanStatementCard submission={s} onChange={onChange} />
           ) : null}
-          {state !== 'draft' && (isAuthor || isStaff) ? (
+          {state !== 'draft' && (isAuthor || canInspect) ? (
             <>
               <BindingWorkspace submission={s} />
               <FeedbackWorkspace submission={s} />
@@ -339,10 +355,13 @@ export function Workspace({
             </Fold>
 
             <VersionsSection submission={s} />
-            {isAuthor || isStaff ? (
+            {isAuthor || canInspect ? (
               <Fold id="compute-h" title="Advanced: compute settings and history">
                 {s.submitter === person?.id ? <MyCma /> : null}
-                <CmaHistory attempts={referee.value?.cma_attempts ?? []} />
+                <CmaHistory
+                  attempts={referee.value?.cma_attempts ?? []}
+                  currentRound={currentReview?.number}
+                />
               </Fold>
             ) : null}
 
