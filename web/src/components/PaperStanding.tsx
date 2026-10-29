@@ -37,8 +37,7 @@ export function PaperStanding({
   const status = submission.status;
   const compileFailure = status.state === 'draft' && !!submission.versions.at(-1)?.compile_error;
   const mayRevise =
-    compileFailure ||
-    ['in_review', 'accepted', 'not_accepted', 'review_complete'].includes(status.state);
+    compileFailure || ['accepted', 'not_accepted', 'review_complete'].includes(status.state);
   const tone =
     status.state === 'accepted'
       ? 'good'
@@ -47,6 +46,18 @@ export function PaperStanding({
         : status.state === 'withdrawn'
           ? 'muted'
           : 'accent';
+  if (status.state === 'in_review' && !standing.delivered) {
+    return (
+      <section className={`standing standing-${tone}`} aria-label="Paper standing">
+        <h2 className="standing-title">{standing.headline}</h2>
+        <p role="status">
+          {standing.headline === 'Review could not finish'
+            ? 'Your manuscript is saved. The review needs attention before it can continue.'
+            : 'Your manuscript is under AI review. The final report will appear here when the review is complete.'}
+        </p>
+      </section>
+    );
+  }
   return (
     <section className={`standing standing-${tone}`} aria-label="Paper standing">
       <div className="standing-head">

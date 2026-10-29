@@ -58,6 +58,49 @@ fn submission_request(s: &Submission) -> SubmitPrepared {
 }
 
 #[tokio::test]
+async fn in_review_sources_cannot_be_replaced_or_enqueue_another_compile() {
+    for purpose in [
+        SubmissionPurpose::Publication,
+        SubmissionPurpose::ReviewOnly,
+    ] {
+        let w = World::new().await;
+        let author = w.person("author", &[]).await;
+        let draft = prepare(&w, &author, purpose).await;
+        let bot = w.person("bot", &[Role::Reviewer]).await;
+        w.app
+            .record_compilation(&bot, &draft.id, 1, Ok(b"%PDF".to_vec()))
+            .await
+            .unwrap();
+        let mut request = submission_request(&draft);
+        request.metadata.make_public_after_acceptance = purpose == SubmissionPurpose::Publication;
+        let paper = w
+            .app
+            .submit_prepared(&author, &draft.id, request)
+            .await
+            .unwrap();
+        let before = w.stores.queued().await;
+        let result = w
+            .app
+            .upload_version(
+                &author,
+                &paper.id,
+                Upload {
+                    filename: "tt.tex".into(),
+                    bytes: b"replacement".to_vec(),
+                },
+                "Revision while reviewing".into(),
+                Some(AI_PROCESSING_REQUEST_VERSION.into()),
+            )
+            .await;
+        assert!(
+            matches!(result, Err(CoreError::Conflict(ref message)) if message.contains("Wait for the review to finish"))
+        );
+        assert_eq!(w.app.submission(&author, &paper.id).await.unwrap(), paper);
+        assert_eq!(w.stores.queued().await, before);
+    }
+}
+
+#[tokio::test]
 async fn preparation_compiles_privately_then_submits_once_with_corrected_metadata() {
     let w = World::new().await;
     let author = w.person("author", &[]).await;
@@ -266,6 +309,10 @@ async fn upload_action_marker_is_preserved_without_fabricating_checkbox_consent(
     let submitted = w.app.submit_prepared(&author, &s.id, input).await.unwrap();
     assert_eq!(submitted.purpose, SubmissionPurpose::ReviewOnly);
     assert_eq!(submitted.analysis_visibility, Visibility::Private);
+    // A revision is possible after this private review has completed.
+    let mut completed = submitted;
+    completed.status = SubmissionStatus::ReviewComplete;
+    w.app.save(&mut completed).await.unwrap();
     let revised = w
         .app
         .upload_version(

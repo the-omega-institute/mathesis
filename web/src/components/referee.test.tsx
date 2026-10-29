@@ -94,7 +94,7 @@ describe('referee workspace', () => {
       author,
     );
     expect(
-      await screen.findByText('The final report will appear here when the review is complete.'),
+      await screen.findByText(/The final report will appear here when the review is complete/),
     ).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Final review report' })).toBeNull();
     expect(screen.queryByText('Respond to the review')).toBeNull();
@@ -414,7 +414,7 @@ describe('referee workspace', () => {
     workspace({ referee }, author);
     await waitFor(() => {
       expect(referee).toHaveBeenCalledOnce();
-      expect(screen.getByRole('region', { name: 'Review' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Paper standing' })).toBeInTheDocument();
     });
     expect(screen.queryByText('Full referee report', { selector: 'summary' })).toBeNull();
     expect(screen.queryByText('No feedback letters have been sent.')).toBeNull();
@@ -932,7 +932,7 @@ it('does not mistake hidden author letter fields for a finished review without d
   );
   const panel = await screen.findByRole('region', { name: 'Paper standing' });
   expect(
-    await within(panel).findByText(/No feedback letter has been delivered for this round/),
+    await within(panel).findByText(/The final report will appear here when the review is complete/),
   ).toBeInTheDocument();
   expect(within(panel).queryByText('The review finished without a letter.')).toBeNull();
 });
@@ -1013,7 +1013,9 @@ it('shows a failed hidden letter without leaking its payload or claiming it is s
     author,
   );
   const panel = await screen.findByRole('region', { name: 'Paper standing' });
-  expect(await within(panel).findByText(/Feedback letter needs attention/)).toBeVisible();
+  expect(
+    await within(panel).findByText(/The review needs attention before it can continue/),
+  ).toBeVisible();
   expect(within(panel).queryByText(/has not been delivered yet/)).toBeNull();
 });
 

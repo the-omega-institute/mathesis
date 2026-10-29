@@ -166,6 +166,20 @@ async fn confirmed_delivery_starts_once_and_new_version_rejects_stale_confirmati
             .await,
         Err(CoreError::Conflict(_))
     ));
+    assert!(matches!(
+        w.app
+            .deliver_manuscript(&author, delivery("v2", Some(1)), upload(b"revision"))
+            .await,
+        Err(CoreError::Conflict(_))
+    ));
+    assert_eq!(
+        w.app.submission(&author, &a.submission).await.unwrap(),
+        before
+    );
+    // Preserve source/replay fencing after the publication review has ended.
+    let mut completed = before;
+    completed.status = SubmissionStatus::NotAccepted;
+    w.app.save(&mut completed).await.unwrap();
     let next = w
         .app
         .deliver_manuscript(&author, delivery("v2", Some(1)), upload(b"revision"))

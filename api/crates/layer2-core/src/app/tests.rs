@@ -840,6 +840,11 @@ async fn a_changed_claim_set_voids_judgements_and_tasks() {
             .is_some()
     );
 
+    // Source replacement is available after the current review has settled.
+    let mut completed = w.app.submission(&author, &paper.id).await.unwrap();
+    completed.status = SubmissionStatus::NotAccepted;
+    w.app.save(&mut completed).await.unwrap();
+
     let upload = Upload {
         filename: "tlt.tex".into(),
         bytes: b"v2".to_vec(),

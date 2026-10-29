@@ -793,3 +793,13 @@ funded; local elaboration and proof verification carry no CMA payer.
   and restrained rules. Avoid nested centred cards, rounded status pills or decorative
   borders. Keep real input boundaries, keyboard focus, error text and responsive layout.
 - See `docs/UPLOAD_FIRST_SUBMISSION.md` for draft preparation and client interfaces.
+
+- A manuscript in `in_review` cannot receive a new source version, including through
+  producer deliveries. Revision upload returns a conflict before source/blob/queue
+  changes. Exact delivery/confirmation retries retain their existing idempotence.
+- While the current review has no delivered final report, the in-review author page
+  contains manuscript metadata, PDF/source links, a short status and a folded
+  withdrawal control. Statements, execution history, compute settings, research
+  goals and downstream proposals are absent. Staff retain the separate execution view.
+  Public binding tools require accepted public work with contributor access;
+  knowledge proposals require accepted public work; research goals follow report delivery.

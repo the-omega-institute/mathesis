@@ -586,6 +586,11 @@ impl App {
                 "the predecessor manuscript version changed",
             ));
         }
+        if submission.status == SubmissionStatus::InReview {
+            return Err(CoreError::conflict(
+                "This manuscript is in review. Wait for the review to finish before uploading a new version.",
+            ));
+        }
         let processing_version = validate_processing_request(processing_consent.as_deref())?;
         submission.processing_consent = Some(ProcessingConsent {
             version: processing_version.into(),
@@ -594,7 +599,6 @@ impl App {
         if !matches!(
             submission.status,
             SubmissionStatus::Draft
-                | SubmissionStatus::InReview
                 | SubmissionStatus::ReviewComplete
                 | SubmissionStatus::NotAccepted
                 | SubmissionStatus::Accepted { .. }

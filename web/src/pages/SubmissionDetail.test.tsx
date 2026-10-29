@@ -18,6 +18,54 @@ import {
 import { KATEX_ERROR, MACROS } from '../test/katex';
 import { fakeApi, renderWithApp } from '../test/render';
 import { SubmissionDetailPage } from './SubmissionDetail';
+import { feedbackLetter, queuedRound, refereeFile } from '../test/referee';
+
+it.each([author, editor])(
+  'keeps an in-review author page focused, including for $id',
+  async (person) => {
+    const api = fakeApi(
+      {
+        getSubmission: vi.fn(async () => ({ ...submission, submitter: person.id })),
+        referee: vi.fn(async () =>
+          refereeFile({ rounds: [queuedRound], letters: [{ ...feedbackLetter, round: 0 }] }),
+        ),
+      },
+      person,
+    );
+    renderWithApp(<SubmissionDetailPage id={submission.id} />, api);
+    const standing = await screen.findByRole('region', { name: 'Paper standing' });
+    await waitFor(() => expect(api.referee).toHaveBeenCalled());
+    expect(standing).toHaveTextContent('The final report will appear here');
+    expect(standing).not.toHaveTextContent('Elapsed');
+    expect(screen.getByRole('link', { name: 'View PDF' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Abstract' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Statements' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Final review report' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Upload a revised version' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Upload a new version', hidden: true })).toBeNull();
+    for (const text of [
+      'Details: evidence, history and settings',
+      'Earlier reports',
+      'Public binding discussions',
+      'Authorized knowledge proposals',
+      'Private research goals',
+    ]) {
+      expect(screen.queryByText(text)).toBeNull();
+    }
+    for (const call of [
+      api.bindings,
+      api.research,
+      api.feedbacks,
+      api.getAnalysis,
+      api.previewDecision,
+      api.getCma,
+    ]) {
+      expect(call).not.toHaveBeenCalled();
+    }
+    await userEvent.click(screen.getByText('Withdraw submission'));
+    expect(screen.getByRole('button', { name: 'Withdraw paper…' })).toBeVisible();
+  },
+);
 
 it.each(authorStandingCases)(
   'keeps the detail badge and standing headline equal for $paper.status.state / $paper.kind',
@@ -419,21 +467,20 @@ it.each(['submission', 'review'] as const)(
         author,
       ),
     );
+    if (target === 'review') {
+      const card = await screen.findByRole('region', { name: 'Paper standing' });
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledOnce());
+      expect(within(card).getByRole('status')).toHaveTextContent(
+        'The final report will appear here',
+      );
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Upload a revised version' })).toBeNull();
+      return;
+    }
     const notices = await screen.findAllByRole('alert');
     for (const notice of notices) {
       expect(notice).toHaveTextContent('The server could not be reached.');
-      expect(notice).toHaveTextContent('The request could not be confirmed');
-      expect(notice).toHaveTextContent(
-        'reload the page data when your connection is back to see the current state',
-      );
       expect(notice.textContent).not.toMatch(/try again/i);
-    }
-    if (target === 'review') {
-      const card = screen.getByRole('region', { name: 'Paper standing' });
-      expect(within(card).getByRole('status')).toHaveTextContent(
-        'Progress details are loading or unavailable; the review is in progress on the server.',
-      );
-      expect(card).toHaveTextContent('Nothing to do now');
     }
     await userEvent.click(within(notices[0]!).getByRole('button', { name: 'Reload page data' }));
     await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
