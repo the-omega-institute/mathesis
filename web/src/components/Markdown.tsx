@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { latexToMarkdown } from '../lib/latex';
 import { normaliseMacros, type Macros } from '../lib/macros';
+import { reportMath } from '../lib/reportMath';
 
 const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
 
@@ -42,13 +43,17 @@ export function Markdown({
   text,
   className,
   lineBreaks = false,
+  texDelimiters = false,
 }: {
   text: string;
   className?: string;
   /** Keep single line breaks, as in a letter's sign-off. */
   lineBreaks?: boolean;
+  /** Reports may use conventional TeX delimiters as well as dollar math. */
+  texDelimiters?: boolean;
 }) {
   const macros = useContext(MacrosContext);
+  const content = texDelimiters ? reportMath(text) : text;
   return (
     <div className={className ? `prose ${className}` : 'prose'}>
       <ReactMarkdown
@@ -56,7 +61,7 @@ export function Markdown({
         rehypePlugins={rehypePlugins(macros)}
         components={components}
       >
-        {lineBreaks ? hardBreaks(text) : text}
+        {lineBreaks ? hardBreaks(content) : content}
       </ReactMarkdown>
     </div>
   );

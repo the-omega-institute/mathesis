@@ -40,6 +40,10 @@ files and bibliographic metadata before final submission.
   an editor; additional requests are a deliberate, folded action.
 - Feedback delivered before a publication decision remains a folded secondary
   section explicitly marked decision pending. It is not labelled a final report.
+- Legacy generic result labels use their manuscript section and stable claim
+  identifier instead of repeated unnamed headings. Review reports render both
+  dollar and conventional TeX math delimiters, preserving code examples and the
+  original stored/downloaded report text.
 
 ## Boundaries
 
