@@ -60,6 +60,33 @@ fn main() -> ExitCode {
         .collect::<Vec<_>>()
         .as_slice()
     {
+        ["prepare-submission", metadata, source] => print((|| {
+            let metadata = read_json(metadata).map_err(|detail| client::ApiError {
+                status: 422,
+                detail,
+            })?;
+            let bytes = std::fs::read(source).map_err(|e| client::ApiError {
+                status: 422,
+                detail: e.to_string(),
+            })?;
+            let filename = std::path::Path::new(source)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or_else(|| client::ApiError {
+                    status: 422,
+                    detail: "invalid source filename".into(),
+                })?;
+            client.prepare_submission(&metadata, filename, &bytes)
+        })()),
+        ["submission", id] => print(client.submission(id)),
+        ["submit-prepared", id, file] => print(
+            read_json(file)
+                .map_err(|detail| client::ApiError {
+                    status: 422,
+                    detail,
+                })
+                .and_then(|body| client.submit_prepared(id, &body)),
+        ),
         ["deliver-manuscript", metadata, source] => {
             print(deliver_manuscript(&client, metadata, source, None))
         }
@@ -301,7 +328,7 @@ fn main() -> ExitCode {
         },
         _ => {
             eprintln!(
-                "usage: mathesis-contribute deliver-manuscript <metadata.json> <source> [--confirm claims.json] | manuscript-status <id> | find-manuscript <producer> <work-id> <publication|review_only> | confirm-manuscript <id> <confirmation.json> | formalization-opportunities [query] | formalizations | formalization-project <id> | papers [query] | paper <record> | review <submission-id> | feedbacks <submission> | feedback <submission> <proposal> | preview-feedback <submission> <route.json> | prepare-feedback <submission> <proposal.json> | authorize-feedback <submission> <proposal> <authorization.json> | revoke-feedback <submission> <proposal> <reason> | export-feedback <submission> <proposal> | feedback-readback <submission> <proposal> <observation.json> | feedback-observation <submission> <proposal> <request> | knowledge-capabilities | binding-profile <person> [cursor] | bindings [cursor] | private-bindings <submission-id> | binding <submission-id> <board-id> | publish-binding <submission-id> <summary.json> | revoke-binding <submission-id> <board-id> <reason> | contribute-binding <submission-id> <board-id> <binding.json> | challenge-binding <submission-id> <board-id> <challenge.json> | research <submission-id> | adopt-research <submission-id> <obligation.json> | research-attempt <submission-id> <obligation-id> <attempt.json> | research-attempt-status <submission-id> <obligation-id> <attempt-id> | recheck-research <submission-id> <obligation-id> <attempt-id> | stop-research <submission-id> <obligation-id> <reason> | knowledge-response <submission-id> <receipt-id> | respond-review <submission-id> <response.json> | verification-bundle <record> <claim> <attempt> | preflight-formalization <deposit.json> | submit-formalization <deposit.json> | formalization <id> | verify-formalization <id> <record> <claim> [Solution.lean] | conjectures | target <record> <claim> | attempt <record> <claim> <file> [--as-agent NAME] | attempt-status <id> | report <record> <report.json> | report-status <id> | tasks [kind] | show <task> | lease <task> | release <task> | submit <task> <result.json> | mcp"
+                "usage: mathesis-contribute prepare-submission <preparation.json> <source> | submission <id> | submit-prepared <id> <confirmation.json> | deliver-manuscript <metadata.json> <source> [--confirm claims.json] | manuscript-status <id> | find-manuscript <producer> <work-id> <publication|review_only> | confirm-manuscript <id> <confirmation.json> | formalization-opportunities [query] | formalizations | formalization-project <id> | papers [query] | paper <record> | review <submission-id> | feedbacks <submission> | feedback <submission> <proposal> | preview-feedback <submission> <route.json> | prepare-feedback <submission> <proposal.json> | authorize-feedback <submission> <proposal> <authorization.json> | revoke-feedback <submission> <proposal> <reason> | export-feedback <submission> <proposal> | feedback-readback <submission> <proposal> <observation.json> | feedback-observation <submission> <proposal> <request> | knowledge-capabilities | binding-profile <person> [cursor] | bindings [cursor] | private-bindings <submission-id> | binding <submission-id> <board-id> | publish-binding <submission-id> <summary.json> | revoke-binding <submission-id> <board-id> <reason> | contribute-binding <submission-id> <board-id> <binding.json> | challenge-binding <submission-id> <board-id> <challenge.json> | research <submission-id> | adopt-research <submission-id> <obligation.json> | research-attempt <submission-id> <obligation-id> <attempt.json> | research-attempt-status <submission-id> <obligation-id> <attempt-id> | recheck-research <submission-id> <obligation-id> <attempt-id> | stop-research <submission-id> <obligation-id> <reason> | knowledge-response <submission-id> <receipt-id> | respond-review <submission-id> <response.json> | verification-bundle <record> <claim> <attempt> | preflight-formalization <deposit.json> | submit-formalization <deposit.json> | formalization <id> | verify-formalization <id> <record> <claim> [Solution.lean] | conjectures | target <record> <claim> | attempt <record> <claim> <file> [--as-agent NAME] | attempt-status <id> | report <record> <report.json> | report-status <id> | tasks [kind] | show <task> | lease <task> | release <task> | submit <task> <result.json> | mcp"
             );
             ExitCode::from(2)
         }
@@ -452,6 +479,9 @@ mod tests {
                 "export-feedback",
                 "feedback-readback",
                 "feedback-observation",
+                "prepare-submission",
+                "submission",
+                "submit-prepared",
                 "deliver-manuscript",
                 "manuscript-status",
                 "find-manuscript",

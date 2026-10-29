@@ -24,6 +24,9 @@ fn tools() -> Value {
         {"name": "challenge-binding", "description": "Submit challenge or appeal evidence for independent inspection, with explicit license and contribution consent. Never decides success.", "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}, "key": {"type": "string"}, "challenge": {"type": "object"}}, "required": ["id", "key", "challenge"]}},
     ]);
     let manuscript_tools = json!([
+        {"name":"prepare-submission","description":"Upload and compile a private draft before metadata is complete. Requires explicit processing consent. Does not start AI review.","inputSchema":{"type":"object","properties":{"metadata":{"type":"object","description":"kind, purpose, processing_consent"},"filename":string("Manuscript filename"),"source_base64":{"type":"string","maxLength":41943040}},"required":["metadata","filename","source_base64"]}},
+        {"name":"submission","description":"Read a private draft, metadata suggestions and PDF preparation state.","inputSchema":{"type":"object","properties":{"id":string("Submission id")},"required":["id"]}},
+        {"name":"submit-prepared","description":"Submit a checked PDF with author-approved metadata and statement confirmations. Requires exact version, source_sha256 and claims_revision. Does not guess consent or approval.","inputSchema":{"type":"object","properties":{"id":string("Submission id"),"confirmation":{"type":"object"}},"required":["id","confirmation"]}},
         {"name":"deliver-manuscript","description":"Deliver a versioned paper or short note with source associations. Exact retries recover the same manuscript. Optional already-approved confirmations start the ordinary review; publication still requires Mathesis acceptance.","inputSchema":{"type":"object","properties":{"metadata":{"type":"object","description":"mathesis.manuscript-delivery.v1 metadata, including explicit processing consent"},"filename":string("Source basename: PDF, TeX, ZIP or tar.gz"),"source_base64":{"type":"string","maxLength":41943040},"confirmations":{"type":"array","items":{"type":"object"},"description":"Optional author-approved ClaimConfirmation entries for this exact source; never infer consent or statements"}},"required":["metadata","filename","source_base64"]}},
         {"name":"manuscript-status","description":"Read the private, version-bound delivery, review and publication receipt.","inputSchema":{"type":"object","properties":{"id":string("Submission id"),"version":{"type":"integer","minimum":1}},"required":["id"]}},
         {"name":"find-manuscript","description":"Recover the submitting account's stable manuscript identity after an interrupted delivery.","inputSchema":{"type":"object","properties":{"producer":string("Producer namespace"),"work_id":string("Stable note/work id"),"purpose":{"enum":["publication","review_only"]}},"required":["producer","work_id","purpose"]}},
@@ -122,6 +125,15 @@ fn call(client: &Client, name: &str, args: &Value) -> Result<Value, String> {
             .ok_or_else(|| format!("{key} is required"))
     };
     let result = match name {
+        "prepare-submission" => {
+            use base64::Engine;
+            let encoded = required("source_base64")?;
+            if encoded.len() > 41943040 { return Err("manuscript exceeds 30 MiB".into()); }
+            let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|_| "invalid source_base64")?;
+            client.prepare_submission(&args["metadata"], required("filename")?, &bytes)
+        },
+        "submission" => client.submission(required("id")?),
+        "submit-prepared" => client.submit_prepared(required("id")?, &args["confirmation"]),
         "deliver-manuscript" => {
             use base64::Engine;
             let encoded = required("source_base64")?;

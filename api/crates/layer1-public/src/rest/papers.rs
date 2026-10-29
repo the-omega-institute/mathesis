@@ -16,7 +16,7 @@ use mathesis_core::{
     ids::{RecordId, SubmissionId},
     model::{
         ClaimConfirmation, ConfirmManuscriptDelivery, NewManuscriptDelivery, NewPaper,
-        SubmissionPurpose, Visibility,
+        PrepareSubmission, SubmissionPurpose, SubmitPrepared, Visibility,
     },
 };
 use serde::Deserialize;
@@ -31,6 +31,13 @@ pub(super) fn routes() -> Router<Arc<App>> {
             "/submissions",
             get(list_submissions).post(submit).layer(upload_limit),
         )
+        .route(
+            "/submissions/prepare",
+            post(prepare_submission).layer(DefaultBodyLimit::max(
+                MAX_UPLOAD_BYTES * 4 / 3 + 1024 * 1024,
+            )),
+        )
+        .route("/submissions/{id}/submit", post(submit_prepared))
         .route("/submissions/{id}", get(get_submission))
         .route(
             "/manuscript-deliveries",
@@ -561,4 +568,72 @@ async fn evidence_file(
         HeaderValue::from_static("private, no-store"),
     );
     Ok(response)
+}
+
+async fn prepare_submission(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    request: Request,
+) -> ApiResult<impl IntoResponse> {
+    let (preparation, source) = if request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| {
+            v.split(';')
+                .next()
+                .is_some_and(|v| v.trim() == "application/json")
+        }) {
+        use base64::Engine;
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct EncodedPreparation {
+            metadata: PrepareSubmission,
+            filename: String,
+            source_base64: String,
+        }
+        let Body(body) = Body::<EncodedPreparation>::from_request(request, &app).await?;
+        if body.source_base64.len() > MAX_UPLOAD_BYTES * 4 / 3 {
+            return Err(Problem(CoreError::invalid(
+                "manuscript source exceeds 30 MiB",
+            )));
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&body.source_base64)
+            .map_err(|_| Problem(CoreError::invalid("invalid source_base64")))?;
+        (
+            body.metadata,
+            Upload {
+                filename: body.filename,
+                bytes,
+            },
+        )
+    } else {
+        let multipart = Multipart::from_request(request, &app)
+            .await
+            .map_err(|e| Problem(CoreError::invalid(e.to_string())))?;
+        let form = read_form(multipart).await?;
+        let metadata = form
+            .metadata
+            .ok_or_else(|| Problem(CoreError::invalid("attach preparation metadata")))?;
+        let preparation: PrepareSubmission = serde_json::from_str(&metadata)
+            .map_err(|e| Problem(CoreError::invalid(format!("metadata: {e}"))))?;
+        (preparation, form.source.ok_or_else(missing_source)?)
+    };
+    Ok((
+        StatusCode::CREATED,
+        Json(app.prepare_submission(&caller, preparation, source).await?),
+    ))
+}
+
+async fn submit_prepared(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Body(request): Body<SubmitPrepared>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.submit_prepared(&caller, &SubmissionId(id), request)
+            .await?,
+    ))
 }

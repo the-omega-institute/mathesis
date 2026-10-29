@@ -206,6 +206,28 @@ impl Client {
         self.get(&format!("/submissions/{}/review", segment(id)))
     }
 
+    pub fn prepare_submission(
+        &self,
+        metadata: &Value,
+        filename: &str,
+        source: &[u8],
+    ) -> ApiResult<Value> {
+        use base64::Engine;
+        if source.is_empty() || source.len() > 30 * 1024 * 1024 {
+            return Err(ApiError {
+                status: 422,
+                detail: "manuscript must contain 1 byte to 30 MiB".into(),
+            });
+        }
+        self.post("/submissions/prepare", &json!({"metadata":metadata,"filename":filename,"source_base64":base64::engine::general_purpose::STANDARD.encode(source)}))
+    }
+    pub fn submit_prepared(&self, id: &str, input: &Value) -> ApiResult<Value> {
+        self.post(&format!("/submissions/{}/submit", segment(id)), input)
+    }
+    pub fn submission(&self, id: &str) -> ApiResult<Value> {
+        self.get(&format!("/submissions/{}", segment(id)))
+    }
+
     pub fn deliver_manuscript(
         &self,
         metadata: &Value,

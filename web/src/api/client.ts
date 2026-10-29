@@ -53,6 +53,8 @@ import type {
   NewContribution,
   NewJudgement,
   NewPaper,
+  PrepareSubmission,
+  SubmitPrepared,
   PaperAnalysis,
   PaperSummary,
   Person,
@@ -236,7 +238,7 @@ export const UPLOAD_FIELDS = { metadata: 'metadata', source: 'source', note: 'no
  * The multipart body of `POST /submissions`: `metadata` is the JSON text of
  * `NewPaper`, `source` the LaTeX file (.tex, .zip or .tar.gz).
  */
-export function uploadBody(metadata: NewPaper, source?: File): FormData {
+export function uploadBody(metadata: NewPaper | PrepareSubmission, source?: File): FormData {
   const form = new FormData();
   form.append(UPLOAD_FIELDS.metadata, JSON.stringify(metadata));
   if (source) form.append(UPLOAD_FIELDS.source, source, source.name);
@@ -326,6 +328,8 @@ export interface ApiClient {
   setRoles(id: string, roles: Role[]): Promise<Person>;
 
   // Authors.
+  prepareSubmission(metadata: PrepareSubmission, source: File): Promise<Submission>;
+  submitPrepared(id: string, request: SubmitPrepared): Promise<Submission>;
   createSubmission(metadata: NewPaper, source?: File): Promise<Submission>;
   listSubmissions(
     scope: SubmissionScope,
@@ -557,6 +561,9 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     listPeople: (p = {}, o) => request('GET', api(`/people${buildQuery(page(p))}`), undefined, o),
     setRoles: (id, roles) => request('PUT', api(`/people/${seg(id)}/roles`), { roles }),
 
+    prepareSubmission: (metadata, source) =>
+      request('POST', api('/submissions/prepare'), uploadBody(metadata, source)),
+    submitPrepared: (id, input) => request('POST', sub(id, '/submit'), input),
     createSubmission: (metadata, source) =>
       request('POST', api('/submissions'), uploadBody(metadata, source)),
     listSubmissions: (scope, p = {}, o) =>

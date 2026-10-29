@@ -20,7 +20,7 @@ it('deposits source and original attribution without presenting it as verified',
   const api = fakeApi({ submitFormalization }, author);
   renderWithApp(<SubmitPage />, api);
   const user = userEvent.setup();
-  await screen.findByLabelText('Title');
+  await screen.findByLabelText('Choose manuscript files');
   await user.click(screen.getByRole('button', { name: 'Community formalization' }));
   await user.click(
     screen.getByText('Deposit an existing formalization without a linked statement'),

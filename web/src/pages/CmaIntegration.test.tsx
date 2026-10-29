@@ -124,29 +124,24 @@ describe('Optional own agents in pages', () => {
   it('offers research and Lean intake without requiring a compute account', async () => {
     const api = fakeApi({}, author);
     renderWithApp(<SubmitPage />, api);
-    await screen.findByLabelText('Title');
+    await screen.findByLabelText('Choose manuscript files');
     expect(screen.getByRole('button', { name: 'Community formalization' })).toBeInTheDocument();
     expect(screen.queryByText(CMA_COPY)).toBeNull();
     expect(api.getCma).not.toHaveBeenCalled();
   });
 
   it('uploads without depending on CMA availability', async () => {
-    const createSubmission = vi.fn(async () => draft);
+    const prepareSubmission = vi.fn(async () => draft);
     const getCma = vi.fn(async () => {
       throw new ApiError({ status: 503, code: 'unavailable', detail: 'CMA status unavailable' });
     });
-    renderWithApp(<SubmitPage />, fakeApi({ getCma, createSubmission }, author));
+    renderWithApp(<SubmitPage />, fakeApi({ getCma, prepareSubmission }, author));
     const user = userEvent.setup();
     const file = new File(['source'], 'paper.tex', { type: 'application/x-tex' });
-    await user.type(await screen.findByLabelText('Title'), 'A result');
-    await user.click(screen.getByRole('tab', { name: 'Authors' }));
-    await user.type(screen.getByLabelText('Name'), 'Ada Example');
-    await user.click(screen.getByRole('tab', { name: 'Files' }));
-    await user.upload(screen.getByLabelText('Choose manuscript files'), file);
-    await user.click(screen.getByRole('tab', { name: 'Review & submit' }));
+    await user.upload(await screen.findByLabelText('Choose manuscript files'), file);
     await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
-    await user.click(screen.getByRole('button', { name: 'Upload manuscript' }));
-    await waitFor(() => expect(createSubmission).toHaveBeenCalledWith(expect.any(Object), file));
+    await user.click(screen.getByRole('button', { name: 'Upload and prepare PDF' }));
+    await waitFor(() => expect(prepareSubmission).toHaveBeenCalledWith(expect.any(Object), file));
     expect(getCma).not.toHaveBeenCalled();
     expect(screen.queryByText('CMA status unavailable')).toBeNull();
   });

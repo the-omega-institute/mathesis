@@ -2,6 +2,7 @@ use std::{collections::BTreeSet, sync::Arc};
 
 mod knowledge;
 mod manuscripts;
+mod preparation;
 mod research;
 
 use chrono::Datelike;

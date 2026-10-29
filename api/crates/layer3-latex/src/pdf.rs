@@ -7,6 +7,120 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Editable front-matter suggestions. Ambiguous fields remain empty.
+fn metadata(text: &str) -> (Option<String>, Option<String>) {
+    let front = text.split('\u{c}').next().unwrap_or_default();
+    let lines: Vec<&str> = front.lines().map(str::trim).collect();
+    let abstract_start = lines.iter().position(|line| {
+        let lower = line.to_ascii_lowercase();
+        lower == "abstract" || lower.starts_with("abstract.") || lower.starts_with("abstract:")
+    });
+    let abstract_text = abstract_start.and_then(|start| {
+        let mut body = Vec::new();
+        let first = lines[start]
+            .get(8..)
+            .unwrap_or_default()
+            .trim_start_matches(['.', ':', ' ']);
+        if !first.is_empty() {
+            body.push(first);
+        }
+        for line in lines.iter().skip(start + 1) {
+            let lower = line.to_ascii_lowercase();
+            if lower.starts_with("keywords")
+                || lower.starts_with("key words")
+                || lower.starts_with("mathematics subject")
+                || lower.starts_with("msc")
+                || lower == "introduction"
+                || lower.starts_with("1.")
+                || lower.starts_with("1 ")
+                || heading(line).is_some()
+            {
+                break;
+            }
+            if !line.is_empty() {
+                body.push(line);
+            }
+        }
+        let joined = body.join(" ");
+        (!joined.is_empty() && joined.chars().count() <= 20_000).then_some(joined)
+    });
+    // Require a separate first block before the abstract. Do not infer authors
+    // from dates, affiliations or flattened columns.
+    let before = &lines[..abstract_start.unwrap_or(0)];
+    let mut block = Vec::new();
+    for line in before {
+        if line.is_empty() {
+            if !block.is_empty() {
+                break;
+            }
+            continue;
+        }
+        if line.to_ascii_lowercase().starts_with("arxiv:")
+            || line.chars().all(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        if !block.is_empty() {
+            let words: Vec<_> = line.split_whitespace().collect();
+            let byline = (2..=6).contains(&words.len())
+                && words.iter().all(|word| {
+                    word.chars().next().is_some_and(char::is_uppercase)
+                        || matches!(*word, "and" | "de" | "van" | "von")
+                });
+            // Poppler often puts title, authors and date on adjacent lines.
+            // Author columns, a short name line, and a date terminate a title.
+            if line.contains("   ") || byline || line.chars().any(|c| c.is_ascii_digit()) {
+                break;
+            }
+        }
+        block.push(*line);
+    }
+    let title = block.join(" ");
+    let title = (block.len() <= 4
+        && title.chars().count() <= 1000
+        && title.split_whitespace().count() >= 3
+        && !title.contains('@')
+        && !title.to_ascii_lowercase().contains("university")
+        && !title.to_ascii_lowercase().contains("institute"))
+    .then_some(title)
+    .filter(|s| !s.is_empty());
+    (title, abstract_text)
+}
+
+#[cfg(test)]
+mod metadata_tests {
+    use super::metadata;
+    #[test]
+    fn reads_front_matter_without_authors_or_body() {
+        let text = "arXiv:2610.00001\n\nA bound for\nfinite graphs\n\nAda Example\nExample University\n\nAbstract. We prove a bound.\nIt is sharp.\n\n1 Introduction\nMain text.";
+        assert_eq!(
+            metadata(text),
+            (
+                Some("A bound for finite graphs".into()),
+                Some("We prove a bound. It is sharp.".into())
+            )
+        );
+    }
+    #[test]
+    fn leaves_ambiguous_front_matter_empty() {
+        assert_eq!(metadata("Theorem 1. A result.\nProof. Done."), (None, None));
+        assert_eq!(
+            metadata(
+                "Example University\nDepartment of Mathematics\n\nAbstract\nSome text.\nKeywords: graphs"
+            ),
+            (None, Some("Some text.".into()))
+        );
+    }
+
+    #[test]
+    fn separates_adjacent_title_author_columns_and_date() {
+        assert_eq!(metadata("A bound for finite graphs\nAda Example     Emmy Example\nOctober 29, 2026\n\nAbstract\nWe prove a bound.\n1 Introduction").0,
+            Some("A bound for finite graphs".into()));
+        assert_eq!(metadata("A bound for finite graphs\nAda Example\nOctober 29, 2026\n\nAbstract\nWe prove a bound.\n1 Introduction").0,
+            Some("A bound for finite graphs".into()));
+    }
+}
+
 pub fn manuscript(files: &Files) -> Result<Option<(&str, &[u8])>, String> {
     if files
         .keys()
@@ -175,7 +289,8 @@ fn statements(text: &str) -> Result<Vec<Statement>, String> {
 
 pub fn read(bytes: &[u8], filename: &str) -> Result<ParsedPaper, String> {
     let text = text(bytes)?;
-    Ok(ParsedPaper { main_file: filename.into(), title: None, authors: vec![], abstract_text: None, statements: statements(&text)?, macros: BTreeMap::new(), warnings: vec!["Statements were read from the PDF text layer; mathematical symbols and statement boundaries may need correction. The original PDF is preserved for review.".into()] })
+    let (title, abstract_text) = metadata(&text);
+    Ok(ParsedPaper { main_file: filename.into(), title, authors: vec![], abstract_text, statements: statements(&text)?, macros: BTreeMap::new(), warnings: vec!["Statements were read from the PDF text layer; mathematical symbols and statement boundaries may need correction. The original PDF is preserved for review.".into()] })
 }
 
 #[cfg(test)]

@@ -2,7 +2,6 @@ import { ArchiveSearch } from './ArchiveSearch';
 import { useState } from 'react';
 import { currentPath, devSignInHref, errorMessage } from '../api/client';
 import { hasRole, useSession } from '../auth/session';
-import { ROLE_LABELS } from '../lib/labels';
 import { Link, useRouter } from '../routing/router';
 import type { Route } from '../routing/routes';
 import { BrandMark } from './BrandMark';
@@ -94,7 +93,7 @@ export function Header() {
             />
           ) : null}
           {hasRole(person, 'admin') ? (
-            <NavLink to={{ kind: 'people' }} label="People" active={k === 'people'} />
+            <NavLink to={{ kind: 'people' }} label="Accounts" active={k === 'people'} />
           ) : null}
         </nav>
         <ArchiveSearch />
@@ -120,11 +119,7 @@ export function Header() {
                 <div className="user-panel">
                   <p className="user-name">{person.display_name}</p>
                   {person.email ? <p className="muted small">{person.email}</p> : null}
-                  <p className="small">
-                    {person.roles.length === 0
-                      ? 'No editorial roles'
-                      : person.roles.map((r) => ROLE_LABELS[r]).join(', ')}
-                  </p>
+                  {hasRole(person, 'admin') ? <p className="small muted">Administrator</p> : null}
                   <button
                     type="button"
                     className="button button-quiet"

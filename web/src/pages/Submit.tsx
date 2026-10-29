@@ -1,10 +1,8 @@
-import { EvidencePicker } from '../components/EvidenceFiles';
-import { bundleManuscript, withEvidence, type EvidenceInput } from '../lib/sourceBundle';
 import { useState, type FormEvent } from 'react';
 import { LeanDepositForm } from '../components/LeanDeposit';
 import { useApi } from '../api/context';
 import { PROCESSING_CONSENT_VERSION, PROCESSING_CONSENT_TEXT } from '../api/types';
-import type { AiUseLevel, Author, SubmissionKind } from '../api/types';
+import type { AiUseLevel, Submission } from '../api/types';
 import { useSession } from '../auth/session';
 import { Field, InlineError, Loading, SignInPrompt } from '../components/ui';
 import {
@@ -12,65 +10,36 @@ import {
   AI_USES,
   AI_USE_DESCRIPTIONS,
   AI_USE_LABELS,
-  formatBytes,
 } from '../lib/labels';
-import { SOURCE_ACCEPT, buildNewPaper, sourceFileProblem } from '../lib/upload';
-import { orcidHref, safeHttpUrl } from '../lib/links';
+import { buildNewPaper } from '../lib/upload';
+import {
+  AuthorFields,
+  emptyAuthor,
+  authorHasContent,
+  suppliedAuthors,
+  type AuthorDraft,
+} from '../components/AuthorFields';
+import { UploadSubmission } from '../components/UploadSubmission';
 import { LatexText } from '../components/Markdown';
 import { Link, useRouter } from '../routing/router';
-
-type AuthorDraft = {
-  name: string;
-  affiliation: string;
-  orcid: string;
-  googleScholar: string;
-  website: string;
-};
-
-function emptyAuthor(): AuthorDraft {
-  return { name: '', affiliation: '', orcid: '', googleScholar: '', website: '' };
-}
-
-function authorHasContent(author: AuthorDraft): boolean {
-  return Object.values(author).some((value) => value.trim() !== '');
-}
-
-function suppliedAuthors(
-  drafts: AuthorDraft[],
-): { ok: true; value: Author[] } | { ok: false; error: string } {
-  const value: Author[] = [];
-  for (const [index, draft] of drafts.entries()) {
-    const number = index + 1;
-    const name = draft.name.trim();
-    if (!name) return { ok: false, error: `Give a name for author ${number}.` };
-    if (draft.orcid.trim() && !orcidHref(draft.orcid.trim())) {
-      return { ok: false, error: `The ORCID for author ${number} is not valid.` };
-    }
-    for (const [label, raw] of [
-      ['Google Scholar URL', draft.googleScholar],
-      ['personal website', draft.website],
-    ] as const) {
-      if (raw.trim() && !safeHttpUrl(raw.trim())) {
-        return { ok: false, error: `${label} for author ${number} must be an http(s) URL.` };
-      }
-    }
-    value.push({
-      name,
-      ...(draft.affiliation.trim() ? { affiliation: draft.affiliation.trim() } : {}),
-      ...(draft.orcid.trim() ? { orcid: draft.orcid.trim() } : {}),
-      ...(draft.googleScholar.trim() ? { google_scholar: draft.googleScholar.trim() } : {}),
-      ...(draft.website.trim() ? { website: draft.website.trim() } : {}),
-    });
-  }
-  return { ok: true, value };
-}
 
 export function SubmitPage({
   initialIntake,
   targetRecord,
   targetClaim,
-}: { initialIntake?: 'lean' | 'review'; targetRecord?: string; targetClaim?: string } = {}) {
-  const [intake, setIntake] = useState<'research' | 'lean' | 'review'>(initialIntake ?? 'research');
+  initialSubmission,
+  onSubmitted,
+}: {
+  initialSubmission?: Submission;
+  onSubmitted?: (s: Submission) => void;
+  initialIntake?: 'lean' | 'review';
+  targetRecord?: string;
+  targetClaim?: string;
+} = {}) {
+  const [typedEntry, setTypedEntry] = useState(false);
+  const [intake, setIntake] = useState<'research' | 'lean' | 'review'>(
+    initialIntake ?? (initialSubmission?.purpose === 'review_only' ? 'review' : 'research'),
+  );
   const { session, person } = useSession();
   return (
     <div className="page submission-page">
@@ -99,7 +68,12 @@ export function SubmitPage({
       {session.status !== 'loading' && person === null ? (
         <SignInPrompt what="submit your work" />
       ) : null}
-      <div className="button-row" role="group" aria-label="Submission type">
+      <div
+        className="intake-links"
+        role="group"
+        aria-label="Submission type"
+        hidden={!!initialSubmission}
+      >
         <button
           className={`button ${intake === 'review' ? '' : 'button-quiet'}`}
           aria-pressed={intake === 'review'}
@@ -124,87 +98,28 @@ export function SubmitPage({
       </div>
       {person ? (
         intake !== 'lean' ? (
-          <SubmitForm key={intake} reviewOnly={intake === 'review'} />
+          typedEntry ? (
+            <SubmitForm key={intake} reviewOnly={intake === 'review'} />
+          ) : (
+            <UploadSubmission
+              key={intake}
+              reviewOnly={intake === 'review'}
+              initialSubmission={initialSubmission}
+              onSubmitted={onSubmitted}
+            />
+          )
         ) : (
           <LeanDepositForm targetRecord={targetRecord} targetClaim={targetClaim} />
         )
       ) : null}
-    </div>
-  );
-}
-
-function AuthorFields({
-  index,
-  author,
-  canRemove,
-  onChange,
-  onRemove,
-}: {
-  index: number;
-  author: AuthorDraft;
-  canRemove: boolean;
-  onChange: (author: AuthorDraft) => void;
-  onRemove: () => void;
-}) {
-  const patch = (key: keyof AuthorDraft, value: string) => onChange({ ...author, [key]: value });
-  return (
-    <div className="author-card">
-      <h3>Author {index + 1}</h3>
-      <div className="form-row">
-        <Field label="Name" htmlFor={`author-${index}-name`}>
-          <input
-            id={`author-${index}-name`}
-            value={author.name}
-            onChange={(e) => patch('name', e.target.value)}
-            autoComplete="name"
-          />
-        </Field>
-        <Field label="Affiliation" htmlFor={`author-${index}-affiliation`}>
-          <input
-            id={`author-${index}-affiliation`}
-            value={author.affiliation}
-            onChange={(e) => patch('affiliation', e.target.value)}
-            placeholder="University or institute"
-            autoComplete="organization"
-          />
-        </Field>
-      </div>
-      <details className="author-identifiers">
-        <summary>ORCID and academic profiles (optional)</summary>
-        <div className="form-row">
-          <Field label="ORCID" htmlFor={`author-${index}-orcid`} hint="e.g. 0000-0002-1825-0097">
-            <input
-              id={`author-${index}-orcid`}
-              value={author.orcid}
-              onChange={(e) => patch('orcid', e.target.value)}
-              placeholder="0000-0002-1825-0097"
-              inputMode="text"
-            />
-          </Field>
-          <Field label="Google Scholar" htmlFor={`author-${index}-scholar`}>
-            <input
-              id={`author-${index}-scholar`}
-              type="url"
-              value={author.googleScholar}
-              onChange={(e) => patch('googleScholar', e.target.value)}
-              placeholder="https://scholar.google.com/citations?..."
-            />
-          </Field>
-        </div>
-        <Field label="Personal website" htmlFor={`author-${index}-website`}>
-          <input
-            id={`author-${index}-website`}
-            type="url"
-            value={author.website}
-            onChange={(e) => patch('website', e.target.value)}
-            placeholder="https://example.edu/~name"
-          />
-        </Field>
-      </details>
-      {canRemove ? (
-        <button type="button" className="button button-quiet button-small" onClick={onRemove}>
-          Remove author
-        </button>
+      {person && intake !== 'lean' && !initialSubmission ? (
+        <p className="small intake-alternative">
+          <button type="button" className="text-button" onClick={() => setTypedEntry(!typedEntry)}>
+            {typedEntry
+              ? 'Upload a manuscript instead'
+              : 'No manuscript file? Write a conjecture here'}
+          </button>
+        </p>
       ) : null}
     </div>
   );
@@ -216,8 +131,6 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
   const { navigate } = useRouter();
   const [step, setStep] = useState(0);
   const [reviewScope, setReviewScope] = useState('');
-  const [kind, setKind] = useState<SubmissionKind>('paper');
-  const [mode, setMode] = useState<'upload' | 'type'>('upload');
   const [consent, setConsent] = useState(false);
   const [makePublic, setMakePublic] = useState(true);
   const [title, setTitle] = useState('');
@@ -226,23 +139,20 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
   const [background, setBackground] = useState('');
   const [origin, setOrigin] = useState('');
   const [authors, setAuthors] = useState<AuthorDraft[]>([emptyAuthor()]);
-  const [files, setFiles] = useState<File[]>([]);
-  const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
   const [aiLevel, setAiLevel] = useState<AiUseLevel>('none');
   const [msc, setMsc] = useState('');
   const [doi, setDoi] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const typed = kind === 'conjecture' && mode === 'type';
   const supplied = authors.filter(authorHasContent);
-  const tabs = ['Manuscript', 'Authors', 'Files', 'Review & submit'];
+  const tabs = ['Conjecture', 'Authors', 'Review & submit'];
   const changeStep = (next: number) => {
     setStep(next);
     setError(null);
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (step !== 3) {
+    if (step !== 2) {
       changeStep(step + 1);
       return;
     }
@@ -252,8 +162,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
       setError(message);
     };
     if (!title.trim()) return fail('Enter the manuscript title.', 0);
-    if (typed && !statement.trim()) return fail('Enter the conjecture statement.', 0);
-    if (!typed && !files.length) return fail('Choose a PDF, LaTeX source, or source archive.', 2);
+    if (!statement.trim()) return fail('Enter the conjecture statement.', 0);
     if (!supplied.length) return fail('Add the authors in the order shown on the manuscript.', 1);
     const parsedAuthors = suppliedAuthors(supplied);
     if (!parsedAuthors.ok) return fail(parsedAuthors.error, 1);
@@ -265,26 +174,21 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
       openToContributors: false,
     });
     if (!metadata.ok) return fail(metadata.error, 0);
-    if (!consent) return fail('Agree to third-party AI review before uploading.', 3);
+    if (!consent) return fail('Agree to third-party AI review before uploading.', 2);
     Object.assign(metadata.value, {
       title: title.trim(),
       abstract_text: abstract.trim() || undefined,
       authors: parsedAuthors.value,
       processing_consent: PROCESSING_CONSENT_VERSION,
-      kind,
+      kind: 'conjecture',
       purpose: reviewOnly ? 'review_only' : 'publication',
       review_scope: reviewScope,
       make_public_after_acceptance: !reviewOnly && makePublic,
-      ...(typed
-        ? { typed_conjecture: { title: title.trim(), statement, background, origin } }
-        : {}),
+      typed_conjecture: { title: title.trim(), statement, background, origin },
     });
     setBusy(true);
     try {
-      const source = typed
-        ? undefined
-        : await withEvidence(await bundleManuscript(files), evidence);
-      const submission = await api.createSubmission(metadata.value, source);
+      const submission = await api.createSubmission(metadata.value);
       navigate({ kind: 'submission', id: submission.id });
     } catch (e) {
       setError(e);
@@ -343,25 +247,14 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
         aria-labelledby={`submit-tab-${step}`}
       >
         <p className="eyebrow">
-          {reviewOnly ? 'Private review' : 'Research submission'} · Step {step + 1} of 4
+          {reviewOnly ? 'Private review' : 'Research submission'} · Step {step + 1} of 3
         </p>
         {step === 0 ? (
           <>
-            <h2>Manuscript details</h2>
+            <h2>State your conjecture</h2>
             <p className="hint">
-              Use the title and abstract from your manuscript. Mathematical notation is welcome.
+              Give the conjecture a title and a precise statement. Mathematical notation is welcome.
             </p>
-            <Field label="Type of work" htmlFor="submission-kind">
-              <select
-                id="submission-kind"
-                value={kind}
-                onChange={(e) => setKind(e.target.value as SubmissionKind)}
-              >
-                <option value="paper">Paper</option>
-                <option value="note">Short note</option>
-                <option value="conjecture">Conjecture</option>
-              </select>
-            </Field>
             <Field label="Title" htmlFor="manuscript-title">
               <input
                 id="manuscript-title"
@@ -380,56 +273,38 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
                 onChange={(e) => setAbstract(e.target.value)}
               />
             </Field>
-            {kind === 'conjecture' ? (
-              <>
-                <Field label="Manuscript format" htmlFor="conjecture-mode">
-                  <select
-                    id="conjecture-mode"
-                    value={mode}
-                    onChange={(e) => setMode(e.target.value as 'upload' | 'type')}
-                  >
-                    <option value="upload">Upload a manuscript</option>
-                    <option value="type">Enter the conjecture here</option>
-                  </select>
-                </Field>
-                {typed ? (
-                  <>
-                    <Field label="Conjecture statement" htmlFor="conjecture-statement">
-                      <textarea
-                        id="conjecture-statement"
-                        rows={5}
-                        required
-                        maxLength={20000}
-                        value={statement}
-                        onChange={(e) => setStatement(e.target.value)}
-                      />
-                    </Field>
-                    {statement ? (
-                      <div aria-label="Statement preview">
-                        <LatexText source={statement} />
-                      </div>
-                    ) : null}
-                    <Field label="Background (optional)" htmlFor="conjecture-background">
-                      <textarea
-                        id="conjecture-background"
-                        rows={3}
-                        maxLength={50000}
-                        value={background}
-                        onChange={(e) => setBackground(e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Original source (optional)" htmlFor="conjecture-origin">
-                      <input
-                        id="conjecture-origin"
-                        value={origin}
-                        maxLength={2000}
-                        onChange={(e) => setOrigin(e.target.value)}
-                      />
-                    </Field>
-                  </>
-                ) : null}
-              </>
+            <Field label="Conjecture statement" htmlFor="conjecture-statement">
+              <textarea
+                id="conjecture-statement"
+                rows={5}
+                required
+                maxLength={20000}
+                value={statement}
+                onChange={(e) => setStatement(e.target.value)}
+              />
+            </Field>
+            {statement ? (
+              <div aria-label="Statement preview">
+                <LatexText source={statement} />
+              </div>
             ) : null}
+            <Field label="Background (optional)" htmlFor="conjecture-background">
+              <textarea
+                id="conjecture-background"
+                rows={3}
+                maxLength={50000}
+                value={background}
+                onChange={(e) => setBackground(e.target.value)}
+              />
+            </Field>
+            <Field label="Original source (optional)" htmlFor="conjecture-origin">
+              <input
+                id="conjecture-origin"
+                value={origin}
+                maxLength={2000}
+                onChange={(e) => setOrigin(e.target.value)}
+              />
+            </Field>
             <div className="form-row">
               <Field label="MSC 2020 codes (optional)" htmlFor="msc" hint="e.g. 11B83, 05D10">
                 <input id="msc" value={msc} onChange={(e) => setMsc(e.target.value)} />
@@ -476,54 +351,6 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
         ) : null}
         {step === 2 ? (
           <>
-            <h2>Manuscript files</h2>
-            {typed ? (
-              <p>Your conjecture will be typeset from the statement entered in Manuscript.</p>
-            ) : (
-              <>
-                <div className="manuscript-upload">
-                  <h3>PDF or LaTeX manuscript</h3>
-                  <p>
-                    Choose a PDF, a source ZIP / tar.gz, or multiple TeX, bibliography and figure
-                    files. For a project with subfolders, upload the complete archive.
-                  </p>
-                  <Field
-                    label="Choose manuscript files"
-                    htmlFor="source-file"
-                    hint="Up to 30 MB. PDF manuscripts must contain selectable text; scanned pages need a text layer."
-                  >
-                    <input
-                      id="source-file"
-                      type="file"
-                      accept={SOURCE_ACCEPT}
-                      multiple
-                      onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-                    />
-                  </Field>
-                  {files.length ? (
-                    <ul className="upload-files" aria-label="Selected manuscript files">
-                      {files.map((file, i) => (
-                        <li key={i}>
-                          {file.name}
-                          <span>{formatBytes(file.size)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {files.length === 1 && sourceFileProblem(files[0]!) ? (
-                    <p className="form-error">{sourceFileProblem(files[0]!)}</p>
-                  ) : null}
-                </div>
-                <details className="history">
-                  <summary>Supplementary files (optional)</summary>
-                  <EvidencePicker value={evidence} onChange={setEvidence} />
-                </details>
-              </>
-            )}
-          </>
-        ) : null}
-        {step === 3 ? (
-          <>
             <h2>Review your submission</h2>
             <dl className="submission-summary">
               <dt>Title</dt>
@@ -531,11 +358,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               <dt>Authors</dt>
               <dd>{supplied.map((a) => a.name).join(', ') || 'Not entered'}</dd>
               <dt>Manuscript</dt>
-              <dd>
-                {typed
-                  ? 'Typed conjecture'
-                  : files.map((f) => f.name).join(', ') || 'No files selected'}
-              </dd>
+              <dd>Typed conjecture</dd>
               <dt>Purpose</dt>
               <dd>{reviewOnly ? 'Private research feedback' : 'AI review for publication'}</dd>
             </dl>
@@ -609,17 +432,17 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
           ) : (
             <span />
           )}
-          {step < 3 ? (
+          {step < 2 ? (
             <button type="button" className="button" onClick={() => changeStep(step + 1)}>
               Continue
             </button>
           ) : (
             <button type="submit" className="button" disabled={busy}>
-              {busy ? 'Uploading…' : 'Upload manuscript'}
+              {busy ? 'Preparing…' : 'Prepare conjecture PDF'}
             </button>
           )}
         </div>
-        {step === 3 ? (
+        {step === 2 ? (
           <p className="hint">You can check the manuscript PDF before starting the review.</p>
         ) : null}
       </div>

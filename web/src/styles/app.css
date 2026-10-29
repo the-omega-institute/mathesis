@@ -54,7 +54,7 @@ h2 {
   font-size: 1.35rem;
   margin-top: var(--space-6);
   padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 0;
 }
 h3 {
   font-size: 1.1rem;
@@ -358,12 +358,13 @@ img {
 }
 .button-quiet {
   background: transparent;
-  border-color: var(--rule-strong);
+  border-color: transparent;
   color: var(--accent);
 }
 .button-quiet:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: underline;
 }
 .button-danger {
   background: var(--bad);
@@ -386,32 +387,32 @@ img {
   display: inline-block;
   font-size: 0.78rem;
   line-height: 1.4;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--rule-strong);
+  padding: 0;
+  border-radius: 0;
+  border: 0;
   color: var(--ink-soft);
-  background: var(--surface);
+  background: transparent;
   white-space: nowrap;
   vertical-align: 0.08em;
 }
 .badge-accent {
   border-color: transparent;
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--accent);
 }
 .badge-good {
   border-color: transparent;
-  background: var(--good-soft);
+  background: transparent;
   color: var(--good);
 }
 .badge-warn {
   border-color: transparent;
-  background: var(--warn-soft);
+  background: transparent;
   color: var(--warn);
 }
 .badge-bad {
   border-color: transparent;
-  background: var(--bad-soft);
+  background: transparent;
   color: var(--bad);
 }
 .badge-muted {
@@ -525,9 +526,9 @@ img {
   gap: var(--space-3);
   align-items: flex-end;
   margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-sunk);
-  border-radius: var(--radius);
+  padding: var(--space-3) 0;
+  background: transparent;
+  border-radius: 0;
 }
 .filters .field {
   margin: 0;

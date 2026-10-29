@@ -13,6 +13,7 @@ mod knowledge;
 mod lean_statements;
 mod manuscripts;
 mod papers;
+mod preparation;
 pub use manuscripts::ManuscriptReceipt;
 mod people;
 mod records;

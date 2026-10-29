@@ -278,6 +278,9 @@ pub struct ProcessingConsent {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Submission {
+    /// Upload-first draft; review is fenced until the author submits its metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intake: Option<SubmissionIntake>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manuscript: Option<super::ManuscriptIdentity>,
     #[serde(default)]
@@ -659,4 +662,28 @@ mod tests {
         typed.statement = r"\end{conjecture}".into();
         assert!(typed.source(&[]).is_err());
     }
+}
+
+/// The source is saved and compiled before bibliographic metadata is confirmed.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubmissionIntake {
+    pub confirmed_request: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PrepareSubmission {
+    pub kind: SubmissionKind,
+    pub purpose: SubmissionPurpose,
+    pub processing_consent: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SubmitPrepared {
+    pub version: u32,
+    pub source_sha256: String,
+    pub claims_revision: u64,
+    pub metadata: NewPaper,
+    pub claims: Vec<super::ClaimConfirmation>,
 }

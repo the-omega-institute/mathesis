@@ -108,9 +108,7 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
         <SignInPrompt what={`see ${copy.title.toLowerCase()}`} />
       ) : null}
       {person !== null && !allowed ? (
-        <p className="notice notice-info">
-          The review queue is for editors, reviewer accounts and admins.
-        </p>
+        <p className="notice notice-info">The review queue is available to authorized staff.</p>
       ) : null}
       {notifications.state.status === 'ok' && notifications.state.value.length ? (
         <section aria-label="Conjecture solutions">
@@ -188,7 +186,7 @@ function SubmissionRow({
         to={{ kind: 'submission', id: s.id, ...(scope === 'queue' ? { staff: true } : {}) }}
         className="entry-title"
       >
-        <InlineLatex source={s.title} />
+        <InlineLatex source={s.title || s.versions.at(-1)?.filename || 'Untitled manuscript'} />
       </Link>
       <p className="entry-meta">
         <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
@@ -210,6 +208,11 @@ function SubmissionRow({
           </span>
         ) : null}
       </p>
+      {s.intake && !s.intake.confirmed_request && s.status.state === 'draft' ? (
+        <p className="small">
+          Continue submission: check the PDF and complete the manuscript details.
+        </p>
+      ) : null}
       {value?.delivered_at ? (
         <p className="small">
           The final report is ready to read.
