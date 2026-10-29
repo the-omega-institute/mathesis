@@ -92,7 +92,7 @@ describe('Optional own agents in pages', () => {
         expect(screen.queryByRole('region', { name: 'Execution records' })).toBeNull();
       }
       if (role === 'public') expect(referee).not.toHaveBeenCalled();
-      else expect(referee).toHaveBeenCalled();
+      else await waitFor(() => expect(referee).toHaveBeenCalled());
       expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
       expect(getCma).not.toHaveBeenCalled();
       for (const sentinel of Object.values(privateFields)) {

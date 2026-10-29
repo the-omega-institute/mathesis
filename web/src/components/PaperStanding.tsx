@@ -63,7 +63,9 @@ export function PaperStanding({
           : standing.headline === 'Review could not finish'
             ? 'Your manuscript is saved. The review needs attention before it can continue.'
             : standing.delivered
-              ? 'Your review report is ready below.'
+              ? status.state === 'in_review'
+                ? 'The publication decision is pending. Available feedback is below.'
+                : 'Your review report is ready below.'
               : status.state === 'in_review'
                 ? 'Your manuscript is under AI review. The final report will appear here when the review is complete.'
                 : !standing.round

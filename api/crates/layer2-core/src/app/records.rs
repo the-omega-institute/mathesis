@@ -52,6 +52,8 @@ pub struct PublicClaim {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicVersion {
+    #[serde(default)]
+    pub source_is_pdf: bool,
     pub number: u32,
     pub uploaded_at: DateTime<Utc>,
     pub has_pdf: bool,
@@ -59,6 +61,9 @@ pub struct PublicVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPaper {
+    /// Identity of the immutable accepted statement set, never a private revision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication: Option<PublicPublication>,
     /// Public source associations from the accepted version only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<ManuscriptOrigin>,
@@ -78,6 +83,12 @@ pub struct PublicPaper {
     pub new_content: Vec<PublicWitness>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lean_statements: Vec<PublicLeanStatement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicPublication {
+    pub version: u32,
+    pub claims_revision: u64,
 }
 
 /// Public mathematical propositions only; never comments or review rationale.
@@ -532,6 +543,16 @@ impl App {
             })
             .count();
         Ok(PublicPaper {
+            publication: public
+                .then(|| {
+                    submission
+                        .current_version()
+                        .map(|version| PublicPublication {
+                            version: version.number,
+                            claims_revision: submission.claims_revision,
+                        })
+                })
+                .flatten(),
             origin: if public {
                 submission
                     .current_version()
@@ -566,6 +587,7 @@ impl App {
                     .versions
                     .iter()
                     .map(|v| PublicVersion {
+                        source_is_pdf: v.filename.to_ascii_lowercase().ends_with(".pdf"),
                         number: v.number,
                         uploaded_at: v.uploaded_at,
                         has_pdf: v.pdf.is_some(),

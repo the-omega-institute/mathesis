@@ -366,6 +366,7 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const report = await screen.findByRole('region', { name: 'Final review report' });
     expect(within(report).getByRole('heading', { name: feedbackLetter.subject })).toBeVisible();
@@ -397,6 +398,7 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const report = await screen.findByRole('region', { name: 'Final review report' });
     expect(within(report).getByRole('heading', { name: feedbackLetter.subject })).toBeVisible();
@@ -442,6 +444,7 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
     const panel = heading.closest('section')!;
@@ -462,6 +465,7 @@ describe('referee workspace', () => {
         ),
       },
       author,
+      { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const heading = await screen.findByRole('heading', { name: feedbackLetter.subject });
     const panel = heading.closest('section')!;
@@ -973,7 +977,10 @@ it('shows safe hidden-stage progress, survives a fetch error and stops polling a
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30_000);
   });
-  expect(screen.getByRole('region', { name: 'Final review report' })).toBeVisible();
+  expect(screen.getByText('Available feedback — decision pending')).toBeVisible();
+  expect(screen.queryByRole('region', { name: 'Final review report' })).toBeNull();
+  fireEvent.click(screen.getByText('Available feedback — decision pending'));
+  expect(screen.getByRole('region', { name: 'Review feedback' })).toBeVisible();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(90_000);
   });

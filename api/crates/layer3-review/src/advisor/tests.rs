@@ -237,6 +237,14 @@ fn final_report_style_is_pinned_without_changing_legacy_prompt_bytes() {
     assert!(new.contains("never present minor revision"));
     assert!(new.contains("Sign as Mathesis"));
     assert!(new.contains("For private reviews"));
+    current.letter_contract = 2;
+    let academic = referee_prompts::letter(&current, None);
+    assert!(academic.starts_with(referee_prompts::ACADEMIC_REPORT));
+    assert!(academic.contains("## Review analysis"));
+    assert!(academic.contains("## Further directions"));
+    assert!(academic.contains("Formalization opportunities"));
+    current.letter_contract = 1;
+    assert_eq!(referee_prompts::letter(&current, None), new);
     current.letter_contract = 0;
     assert_eq!(referee_prompts::letter(&current, None), old);
 }

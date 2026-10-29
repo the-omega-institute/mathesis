@@ -395,7 +395,9 @@ it.each([
   );
   // Draft and withdrawn pages carry no review workspace; open every fold that exists.
   const reviewShown = paper.status.state !== 'draft' && paper.status.state !== 'withdrawn';
-  if (reviewShown) await screen.findByRole('region', { name: 'Final review report' });
+  if (reviewShown && paper.status.state === 'in_review')
+    await userEvent.click(await screen.findByText('Available feedback — decision pending'));
+  else if (reviewShown) await screen.findByRole('region', { name: 'Final review report' });
   else await screen.findByRole('region', { name: 'Paper standing' });
   for (const label of ['Manuscript details', 'Results in this manuscript']) {
     const toggle = screen.queryByText(label);
@@ -447,9 +449,11 @@ it.each([
     'Elapsed since',
   ])
     expect(text).not.toContain(label);
-  expect(screen.getByRole('region', { name: 'Final review report' })).not.toHaveTextContent(
-    'b'.repeat(64),
-  );
+  expect(
+    screen.getByRole('region', {
+      name: paper.status.state === 'in_review' ? 'Review feedback' : 'Final review report',
+    }),
+  ).not.toHaveTextContent('b'.repeat(64));
   expect(screen.getByText('Manuscript details').closest('details')).not.toHaveTextContent(
     'b'.repeat(64),
   );

@@ -622,6 +622,10 @@ pub struct RefereeView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RefereeRoundView {
+    pub letter_contract: u32,
+    /// Selected mathematical plans, available only after a letter for this round.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub formalization_suggestions: Option<Vec<FormalizationSuggestion>>,
     pub computation_contract: u32,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub computation_receipts: Vec<super::ComputationReceipt>,
@@ -647,6 +651,42 @@ pub struct RefereeRoundView {
     pub formal: Step<FormalProbeView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub letter: Option<Step<LetterDraft>>,
+}
+
+/// A recommendation is neither author approval nor a verified formalization.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FormalizationSuggestion {
+    pub excerpt: bool,
+    pub claim: ClaimId,
+    pub feasibility: Feasibility,
+    pub plan: String,
+}
+
+impl RefereeRound {
+    fn formalization_suggestions(&self) -> Option<Vec<FormalizationSuggestion>> {
+        let advice = self.advice.done()?;
+        let audit = self.audit.done()?;
+        let mut seen = std::collections::BTreeSet::new();
+        Some(
+            advice
+                .formalization
+                .iter()
+                .filter(|candidate| {
+                    audit.claims.iter().any(|claim| {
+                        claim.claim == candidate.claim && claim.correctness == Correctness::Correct
+                    }) && !candidate.plan.trim().is_empty()
+                        && seen.insert(candidate.claim.clone())
+                })
+                .take(10)
+                .map(|candidate| FormalizationSuggestion {
+                    excerpt: candidate.plan.chars().count() > 3_000,
+                    claim: candidate.claim.clone(),
+                    feasibility: candidate.feasibility,
+                    plan: candidate.plan.chars().take(3_000).collect(),
+                })
+                .collect(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -778,6 +818,11 @@ impl RefereeFile {
                 b.attempt,
             ))
         });
+        let delivered: std::collections::BTreeSet<_> = self
+            .letters
+            .iter()
+            .filter_map(|letter| letter.round)
+            .collect();
         RefereeView {
             finding_responses: self.finding_responses,
             cma_attempts: attempts,
@@ -788,6 +833,11 @@ impl RefereeFile {
                 .rounds
                 .into_iter()
                 .map(|r| RefereeRoundView {
+                    letter_contract: r.letter_contract,
+                    formalization_suggestions: delivered
+                        .contains(&r.number)
+                        .then(|| r.formalization_suggestions())
+                        .flatten(),
                     computation_contract: r.computation_contract,
                     computation_receipts: r.computation_receipts.clone(),
                     knowledge_contract: r.knowledge_contract,

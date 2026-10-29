@@ -812,3 +812,21 @@ funded; local elaboration and proof verification carry no CMA payer.
   Author details retain source versions, supplements, visibility and formalization controls.
   Developer integration instructions are collapsed on the contribution page. The public
   review policy explains mathematical criteria and privacy without internal stage names.
+
+- New rounds pin `letter_contract: 2` for an academic report with Review analysis
+  and Further directions. Contracts 0/1 retain their prompt bytes. The existing
+  venue-authored decision remains authoritative. After same-round letter delivery,
+  a bounded projection exposes selected correct-statement formalization plans;
+  it never exposes raw advice, sketches, files or provider data. Recommendations
+  are separate from approvals and checked proofs. Pending decisions show optional
+  feedback, without claiming the review is complete.
+- Public abstract pages include pinned PDF/source downloads, subject links,
+  version history, plain-text/BibTeX citations and reference-manager metadata.
+  Named result pages use the immutable accepted record even without a Lean target.
+  Within-paper dependencies retain their manuscript-declared basis; open assumptions
+  are explicitly conditional. No bibliography citation, similarity or local edge
+  is promoted to an independently checked cross-paper dependency.
+- Archive queries retain text, author, MSC and work-type filters in shareable URLs.
+  Author-name links search the archive; supplied ORCID/Scholar/site links remain
+  distinct, without treating a name match as a verified personal identity.
+  See `docs/ACADEMIC_ARCHIVE.md` for the arXiv reference and delivered scope.

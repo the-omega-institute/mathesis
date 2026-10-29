@@ -139,7 +139,15 @@ export type Step<T> = {
   input_digest?: string;
   state: StepState<T>;
 };
+export type FormalizationSuggestion = {
+  excerpt?: boolean;
+  claim: string;
+  feasibility: Feasibility;
+  plan: string;
+};
 export type RefereeRound = {
+  letter_contract?: number;
+  formalization_suggestions?: FormalizationSuggestion[];
   computation_contract?: number;
   computation_receipts?: ComputationReceipt[];
   knowledge_contract?: number;
@@ -656,10 +664,11 @@ export type PublicClaim = {
   lean?: FormalArtifact | null;
 };
 export type PublicPaper = {
+  publication?: { version: number; claims_revision: number };
   origin?: ManuscriptOrigin;
   summary: PaperSummary;
   confirmed_error_reports?: number;
-  versions?: { number: number; uploaded_at: string; has_pdf: boolean }[];
+  versions?: { number: number; uploaded_at: string; has_pdf: boolean; source_is_pdf?: boolean }[];
   claims?: PublicClaim[];
   formalization_repository?: string;
   macros?: Record<string, string>;

@@ -243,17 +243,18 @@ describe('solving pages', () => {
     );
     expect(await screen.findByRole('link', { name: paperSummary.title })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'An open bound' })).toBeInTheDocument();
-    const intro = screen.getByRole('region', { name: 'Where mathematics takes form.' });
-    expect(within(intro).getByRole('link', { name: 'Browse papers' })).toHaveAttribute(
-      'href',
-      '/papers',
-    );
+    const intro = screen.getByRole('heading', { name: 'Mathematical research' }).closest('header')!;
+    expect(within(intro).getByRole('search', { name: 'Search research' })).toBeVisible();
     expect(
       within(intro).getByRole('link', { name: 'Submit a paper or conjecture' }),
     ).toHaveAttribute('href', '/submit');
-    expect(within(intro).getByRole('link', { name: 'Contribute a formalization' })).toHaveAttribute(
+    expect(within(intro).getByRole('link', { name: 'Contribute a formal proof' })).toHaveAttribute(
       'href',
-      '/submit?type=lean',
+      '/formalizations',
+    );
+    expect(screen.getByRole('link', { name: 'Number theory' })).toHaveAttribute(
+      'href',
+      '/papers?msc=11',
     );
     const research = screen.getByRole('heading', { name: 'Latest research' });
     const conjectures = screen.getByRole('heading', { name: 'Open conjectures' });

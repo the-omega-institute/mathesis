@@ -96,7 +96,8 @@ export function RefereeWorkspace(
                 <p role="status">A follow-up review is queued.</p>
               ) : null}
               <FinalReviewReport submission={submission} file={file} />
-              {file.letters.some(
+              {submission.status.state !== 'in_review' &&
+              file.letters.some(
                 (letter) => letter.round === currentAuthorRound(submission, file)?.number,
               ) ? (
                 <details className="history">

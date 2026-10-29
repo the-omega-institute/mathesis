@@ -54,3 +54,17 @@ describe('routes', () => {
     expect(parseRoute(p)).toEqual({ kind: 'not_found', path: p });
   });
 });
+
+it('round-trips a shareable academic search and a permanent result link', () => {
+  const route = {
+    kind: 'papers' as const,
+    q: 'prime gaps',
+    author: 'A. Author',
+    msc: '11',
+    work: 'paper' as const,
+  };
+  const url = new URL(routePath(route), 'https://mathesis.example');
+  expect(parseRoute(url.pathname, url.search)).toEqual(route);
+  const result = { kind: 'result' as const, record: 'WP-2026-0001', claim: 'C1' };
+  expect(parseRoute(routePath(result))).toEqual(result);
+});

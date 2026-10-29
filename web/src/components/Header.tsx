@@ -65,7 +65,7 @@ export function Header() {
           <NavLink
             to={{ kind: 'papers' }}
             label="Papers"
-            active={k === 'papers' || k === 'paper'}
+            active={k === 'papers' || k === 'paper' || k === 'result'}
           />
           <NavLink
             to={{ kind: 'conjectures' }}
@@ -96,7 +96,7 @@ export function Header() {
             <NavLink to={{ kind: 'people' }} label="Accounts" active={k === 'people'} />
           ) : null}
         </nav>
-        <ArchiveSearch />
+        {k !== 'home' ? <ArchiveSearch /> : null}
         <div className="account">
           {session.status === 'loading' ? <span className="muted small">…</span> : null}
           {session.status === 'anonymous' || session.status === 'error' ? (

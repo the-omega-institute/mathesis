@@ -1,84 +1,61 @@
-/* Research first: a short introduction followed by the publication archive. */
+/* A research archive: search, subjects and recent work in document order. */
 .archive-intro {
-  padding: 0.5rem 0 2rem;
-  border-bottom: 1px solid var(--rule);
-}
-.archive-intro .eyebrow,
-.archive-guide > .eyebrow {
-  color: var(--accent);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  margin-bottom: var(--space-4);
+  padding: 0.5rem 0 1.75rem;
 }
 .archive-intro h1 {
-  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  font-size: clamp(2rem, 3vw, 2.65rem);
   font-weight: 400;
-  letter-spacing: -0.045em;
-  line-height: 1.15;
-  margin-bottom: var(--space-4);
+  line-height: 1.2;
+  margin-bottom: 1rem;
 }
 .archive-intro .lede {
-  max-width: 39rem;
-  font-size: 1.05rem;
-  line-height: 1.8;
+  max-width: 70ch;
 }
-.archive-intro .intro-actions {
-  margin-top: var(--space-5);
+.home-search {
+  max-width: 48rem;
+  margin-block: 1.5rem;
+}
+.home-search label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.intro-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: 0.5rem 1.5rem;
 }
-.archive-intro .button {
-  gap: var(--space-5);
+.subject-browse {
+  padding-block: 1.25rem 1.75rem;
+  border-block: 1px solid var(--rule);
 }
-.archive-layout {
+.subject-browse ul {
+  list-style: none;
+  padding: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: 2rem;
-  padding-top: 2rem;
-}
-.archive-main {
-  min-width: 0;
-}
-.archive-section + .archive-section {
-  margin-top: 3rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem 2rem;
 }
 .home h2 {
-  font-size: 1.65rem;
+  font-size: 1.5rem;
   font-weight: 400;
-  letter-spacing: -0.025em;
-  margin: 0;
+  border: 0;
+  margin-top: 0;
   padding: 0;
-  border: none;
+}
+.archive-section {
+  margin-top: 2rem;
 }
 .section-heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 .section-heading p {
-  font-size: 0.85rem;
   color: var(--muted);
-  margin: var(--space-2) 0 0;
-}
-.text-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--accent);
-  font-size: 0.85rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-.text-link:hover {
-  text-decoration: underline;
-}
-.section-heading > .text-link {
-  flex-shrink: 0;
+  font-size: 0.9rem;
 }
 .archive-entries > li {
   background: transparent;
@@ -86,101 +63,26 @@
   border-bottom: 1px solid var(--rule);
   border-radius: 0;
   margin: 0;
-  padding: var(--space-5) 0;
+  padding: 1.25rem 0;
 }
 .archive-entries > li:first-child {
-  border-top: 1px solid var(--rule);
+  padding-top: 0;
 }
 .archive-entries > li:has(.entry-title):hover {
   box-shadow: none;
   border-color: var(--rule);
 }
 .archive-entries .entry-title {
-  font-size: 1.35rem;
-}
-.archive-empty {
-  border-block: 1px solid var(--rule);
-  padding: var(--space-5) 0;
-}
-.archive-empty h3 {
-  font-weight: 400;
-  font-size: 1.2rem;
-}
-.archive-empty p {
-  color: var(--muted);
-  font-size: 0.9rem;
-  max-width: 34rem;
-}
-.archive-guide {
-  border-top: 1px solid var(--rule);
-  padding-top: var(--space-5);
-}
-.home .archive-guide h2 {
-  font-size: 1.35rem;
-}
-.archive-review-note {
-  margin-top: var(--space-6);
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--rule);
-}
-.archive-review-note h3 {
-  font-family: var(--font-sans);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.archive-review-note p {
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.8;
-}
-@media (min-width: 64rem) {
-  .archive-main {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-    gap: clamp(2rem, 4vw, 5rem);
-    align-items: start;
-  }
-  .archive-section + .archive-section {
-    margin-top: 0;
-  }
-  .archive-guide {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-    column-gap: clamp(2rem, 4vw, 5rem);
-  }
-  .archive-guide > :not(.archive-review-note) {
-    grid-column: 1;
-  }
-  .archive-review-note {
-    grid-column: 2;
-    grid-row: 1 / span 4;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
+  font-size: 1.25rem;
 }
 @media (max-width: 48rem) {
-  .archive-intro {
-    padding: var(--space-4) 0 var(--space-6);
+  .subject-browse ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 1rem;
   }
-  .archive-intro .lede {
-    font-size: 1rem;
-  }
-  .archive-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2.5rem;
-    padding-top: var(--space-6);
-  }
-  .archive-guide {
-    border-left: 0;
-    border-top: 1px solid var(--rule);
-    padding: var(--space-6) 0 0;
-  }
-  .section-heading {
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-4);
-  }
-  .home h2 {
-    font-size: 1.5rem;
+}
+@media (max-width: 28rem) {
+  .subject-browse ul {
+    grid-template-columns: 1fr;
   }
 }

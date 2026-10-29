@@ -256,8 +256,9 @@ type PaperSummary = { record: string; title: string; authors: Author[]; kind: Su
   basis?: "escape_witness" | "open_problem_settlement" | "open_conjecture";
   accepted_at?: string; main_results?: number; lean_verified?: number };
 type PublicPaper = { summary: PaperSummary;
+  publication?: { version: number; claims_revision: number }; // immutable accepted inputs, public only
   confirmed_error_reports?: number;
-  versions?: { number: number; uploaded_at: string; has_pdf: boolean }[];
+  versions?: { number: number; uploaded_at: string; has_pdf: boolean; source_is_pdf?: boolean }[];
   claims?: { id: string; kind: ClaimKind; role: "main" | "supporting"; label: string; statement: string;
     section?: string | null; depends_on: string[]; lean?: FormalArtifact | null }[];
   formalization_repository?: string;
@@ -388,6 +389,23 @@ source, axioms, notes, compiler logs or toolchain. Other callers get 404, includ
 contributors and readers of an accepted public paper. Older stored rounds
 without `audit` read as skipped with reason `not part of this round`.
 
+After an actual letter for the same round has been delivered, authors and staff
+also receive `formalization_suggestions` when both audit and advice are complete.
+It selects at most ten distinct candidates whose same-round audit marked the
+claim correct, with a nonempty plan. The projection includes only the claim,
+feasibility and at most 3,000 Unicode characters of the mathematical plan;
+`excerpt` records truncation. It excludes sketches, library inventories and
+provider fields. No letter means no suggestions projection. These are
+recommendations, not author-approved work, proof receipts or public credit.
+The client matches candidates to proved claims of the current source version.
+
+New rounds pin `letter_contract: 2`: the venue inserts the existing authoritative
+decision, and the report uses Review analysis and Further directions headings.
+The interface and its readable download add Formalization opportunities from
+the bounded projection. Stored contracts 0/1 and running rounds keep their
+original prompts and delivered letters. A delivered letter with a pending
+decision is optional feedback, never a final acceptance/refusal.
+
 Editors may still post additional letters. Posting stores subject, body and note
 as an in-app message. Body must have non-whitespace text; body/note are limited
 to 50,000 Unicode characters, subject to 300. `edited` compares all three fields
@@ -419,6 +437,8 @@ type RefereeView = {
   revision: number;                 // optimistic aggregate revision
 };
 type RefereeRound = {
+  letter_contract?: number;
+  formalization_suggestions?: { claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
   number: number;                   // 1-based, increases on restart
   version: number;                  // the paper version reviewed
   claims_revision: number;          // the confirmed statement set reviewed

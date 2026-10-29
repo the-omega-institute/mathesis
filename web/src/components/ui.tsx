@@ -1,3 +1,4 @@
+import { Link } from '../routing/router';
 import type { ReactNode } from 'react';
 import { isApiError, errorMessage, signIn } from '../api/client';
 import type { AsyncState } from '../api/useAsync';
@@ -142,7 +143,9 @@ export function MscList({ codes }: { codes: readonly string[] }) {
   return (
     <span className="msc" aria-label="MSC 2020 codes">
       {codes.map((code) => (
-        <code key={code}>{code}</code>
+        <Link key={code} to={{ kind: 'papers', msc: code }}>
+          {code}
+        </Link>
       ))}
     </span>
   );

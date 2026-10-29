@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { paperSummary, publicPaper, SHA } from '../test/fixtures';
 import { KATEX_ERROR, MACROS } from '../test/katex';
 import { fakeApi, renderWithApp } from '../test/render';
+import { ResultPage } from './Result';
 import { PaperPage, PapersPage } from './Papers';
 
 describe('public paper page', () => {
@@ -13,9 +14,9 @@ describe('public paper page', () => {
     });
     renderWithApp(<PaperPage record="WP-2026-0001" />, api);
     expect(
-      await screen.findByText(/This published version has 2 confirmed error report/),
+      await screen.findByText(/This version has 2 confirmed error report/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/acceptance is not a proof of correctness/)).toBeInTheDocument();
+    expect(screen.getByText(/Read the corrections/)).toBeInTheDocument();
   });
   it('shows the statements with KaTeX and a Lean badge, and hides the analysis when absent', async () => {
     const api = fakeApi({ getPaper: vi.fn(async () => publicPaper) });
@@ -24,29 +25,26 @@ describe('public paper page', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'On sums of integers' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('WP-2026-0001')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'doi:10.48550/arXiv.2609.33421' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'arXiv:2609.33421' })).toHaveAttribute(
       'href',
-      'https://doi.org/10.48550/arXiv.2609.33421',
+      'https://arxiv.org/abs/2609.33421',
     );
-    expect(screen.getByRole('link', { name: 'PDF (version 1)' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View PDF' })).toHaveAttribute(
       'href',
       '/api/v1/submissions/sub-acc/files/pdf?version=1',
     );
 
     const statements = screen
-      .getByRole('heading', { name: 'Statements' })
+      .getByRole('heading', { name: 'Results' })
       .closest('section') as HTMLElement;
-    expect(within(statements).getByText('C1')).toBeInTheDocument();
+    expect(within(statements).getByRole('link', { name: 'Theorem 1.1' })).toHaveAttribute(
+      'href',
+      '/papers/WP-2026-0001/results/C1',
+    );
     expect(statements.querySelector('.katex')).not.toBeNull();
-    // Only C1 carries a Lean proof.
-    expect(within(statements).getAllByText('Lean ✓')).toHaveLength(1);
-    expect(
-      within(statements).getByRole('link', {
-        name: `ada/sums-lean@${SHA.slice(0, 12)}`,
-        hidden: true,
-      }),
-    ).toHaveAttribute('href', `https://github.com/ada/sums-lean/tree/${SHA}`);
+    expect(within(statements).getAllByText('A verified formal proof is available.')).toHaveLength(
+      1,
+    );
 
     expect(screen.queryByRole('heading', { name: 'Analysis' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Conjecture follow-ups' })).toBeNull();
@@ -60,9 +58,15 @@ describe('public paper page', () => {
         new_content: [{ claim: 'C1', lemmas: ['A new intermediate identity $x = y$.'] }],
       })),
     });
-    renderWithApp(<PaperPage record="WP-2026-0001" />, api);
-    expect(await screen.findByRole('heading', { name: 'New in this paper' })).toBeInTheDocument();
-    expect(screen.getByText('Uses C3.')).toBeInTheDocument();
+    renderWithApp(<ResultPage record="WP-2026-0001" claim="C1" />, api);
+    expect(await screen.findByRole('heading', { name: 'Contribution' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Conditional on these assumptions' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Conjecture 4.1' })).toHaveAttribute(
+      'href',
+      '/papers/WP-2026-0001/results/C3',
+    );
     expect(screen.getByText(/A new intermediate identity/)).toBeInTheDocument();
     for (const text of [
       'Correct',
@@ -85,10 +89,12 @@ describe('public paper page', () => {
       })),
     });
     renderWithApp(<PaperPage record="WP-2026-0001" />, api);
-    const statements = (await screen.findByRole('heading', { name: 'Statements' })).closest(
+    const statements = (await screen.findByRole('heading', { name: 'Results' })).closest(
       'section',
     ) as HTMLElement;
-    expect(within(statements).getAllByText('Lean ✓')).toHaveLength(1);
+    expect(within(statements).getAllByText('A verified formal proof is available.')).toHaveLength(
+      1,
+    );
   });
 
   it('renders a private record with only its title, authors, kind and record', async () => {
@@ -104,7 +110,7 @@ describe('public paper page', () => {
     });
     renderWithApp(<PaperPage record="WP-2026-0002" />, api);
     expect(await screen.findByRole('heading', { name: 'A short note' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Statements' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Abstract' })).not.toBeInTheDocument();
   });
 
@@ -118,9 +124,9 @@ describe('public paper page', () => {
       })),
     });
     const { container } = renderWithApp(<PaperPage record="WP-2026-0001" />, api);
-    await screen.findByRole('heading', { name: 'Statements' });
-    // The abstract, the row preview and the expandable statement body.
-    expect(container.querySelectorAll('.mop')).toHaveLength(3);
+    await screen.findByRole('heading', { name: 'Results' });
+    // The abstract and the result excerpt both use the publication macros.
+    expect(container.querySelectorAll('.mop')).toHaveLength(2);
     expect(container.querySelector(KATEX_ERROR)).toBeNull();
   });
 
@@ -132,7 +138,7 @@ describe('public paper page', () => {
       })),
     });
     renderWithApp(<PaperPage record="WP-2026-0001" />, api);
-    expect(await screen.findByRole('heading', { name: 'Statements' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Results' })).toBeInTheDocument();
   });
 
   it('lists accepted papers', async () => {
@@ -263,7 +269,7 @@ it('does not derive an arXiv identifier from an unrelated DOI', async () => {
       })),
     }),
   );
-  expect(await screen.findByRole('link', { name: 'doi:10.1000/example' })).toBeVisible();
+  expect(await screen.findByRole('link', { name: '10.1000/example' })).toBeVisible();
   expect(screen.queryByText(/^arXiv:/)).toBeNull();
 });
 
@@ -296,5 +302,32 @@ it('shows manuscript evidence as source links without granting another Lean veri
     `https://github.com/example/research/blob/${SHA}/Proof.lean`,
   );
   expect(screen.getByText('Related problems: problem-a, problem-b')).toBeVisible();
-  expect(screen.getAllByText('Lean ✓')).toHaveLength(1);
+  expect(screen.getAllByText('A verified formal proof is available.')).toHaveLength(1);
+});
+
+it('provides source downloads and bibliographic metadata only for public publication inputs', async () => {
+  renderWithApp(
+    <PaperPage record={paperSummary.record} />,
+    fakeApi({
+      getPaper: vi.fn(async () => ({
+        ...publicPaper,
+        publication: { version: 1, claims_revision: 1 },
+        versions: [
+          { number: 1, uploaded_at: '2026-10-01T12:00:00Z', has_pdf: true, source_is_pdf: false },
+        ],
+      })),
+    }),
+  );
+  expect(await screen.findByRole('link', { name: 'Download source' })).toHaveAttribute(
+    'href',
+    '/api/v1/submissions/sub-acc/files/source?version=1',
+  );
+  expect(document.querySelector('meta[name="citation_pdf_url"]')).toHaveAttribute(
+    'content',
+    `${window.location.origin}/api/v1/submissions/sub-acc/files/pdf?version=1`,
+  );
+  await userEvent.click(screen.getByText('Cite this paper'));
+  await userEvent.selectOptions(screen.getByLabelText('Citation format'), 'bibtex');
+  expect(screen.getByText(/@misc\{WP-2026-0001,/)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Download BibTeX' })).toBeVisible();
 });
