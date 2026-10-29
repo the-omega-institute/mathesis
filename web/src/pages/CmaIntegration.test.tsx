@@ -139,7 +139,6 @@ describe('Optional own agents in pages', () => {
     const user = userEvent.setup();
     const file = new File(['source'], 'paper.tex', { type: 'application/x-tex' });
     await user.upload(await screen.findByLabelText('Choose manuscript files'), file);
-    await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
     await user.click(screen.getByRole('button', { name: 'Upload and prepare PDF' }));
     await waitFor(() => expect(prepareSubmission).toHaveBeenCalledWith(expect.any(Object), file));
     expect(getCma).not.toHaveBeenCalled();

@@ -45,7 +45,7 @@ pipeline; only their labels differ.
   has no publication decision/record, volunteer tasks or accepted-only Lean probe.
   Optional `review_scope` (5,000 characters) gives untrusted author-requested focus.
   Absent purpose defaults to `publication`; its acceptance policy is unchanged.
-- **Public layers**: the final-step checkbox “Publish my manuscript publicly if accepted.”
+- **Public layers**: the final-step checkbox “Make my results public once accepted.”
   defaults to checked for new submissions. Unchecking it selects `purpose: review_only`
   and private feedback without a publication decision; existing review-only drafts
   and legacy review links start unchecked. Purpose is chosen atomically with final
@@ -82,11 +82,17 @@ pipeline; only their labels differ.
   error reports earn separate profile credit. Donated NyxID quota is attributed
   to venue CMA probes, target generation and attempts by `wishpool-agent`, owned
   by the venue; Supporters lists only NyxID-reported usage, without ranking.
-- **Consent**: every source upload, including revisions and typed conjectures,
-  requires explicit, unchecked agreement to third-party AI processing (OpenAI
-  ChatGPT via Oracle, Codex on CMA). Store version `ai-review-2026-10-11` and
-  server time; missing or outdated consent is refused. Legacy records load
-  without a fabricated consent receipt.
+- **AI review requests**: uploading prepares a draft; clicking Submit for review
+  requests AI review. Do not require an extra processing, PDF or final acknowledgement
+  checkbox. The UI sends `ai-review-request-2026-10-29` for upload/submit actions;
+  store that exact marker and server time in the backward-compatible processing field.
+  It is distinct from legacy checkbox receipt `ai-review-2026-10-11`, which remains
+  accepted and readable. Never fabricate a legacy checkbox acknowledgement.
+  The only ordinary submission checkbox is public display after acceptance.
+  File intake does not ask authors to distinguish papers from short notes; both
+  use paper review. A prepared default-paper source consisting solely of open
+  statements is treated as a conjecture. Explicit note inputs stay compatible.
+
 
 
 Review stages:

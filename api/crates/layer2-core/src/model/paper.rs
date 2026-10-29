@@ -269,6 +269,19 @@ pub struct PublishedProgress {
 }
 
 pub const AI_PROCESSING_CONSENT_VERSION: &str = "ai-review-2026-10-11";
+/// Upload/submit action in the AI-review service; no separate checkbox receipt.
+pub const AI_PROCESSING_REQUEST_VERSION: &str = "ai-review-request-2026-10-29";
+
+pub fn validate_processing_request(version: Option<&str>) -> CoreResult<&str> {
+    match version {
+        Some(version @ (AI_PROCESSING_CONSENT_VERSION | AI_PROCESSING_REQUEST_VERSION)) => {
+            Ok(version)
+        }
+        _ => Err(CoreError::invalid(
+            "a current AI review request version is required",
+        )),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProcessingConsent {
@@ -393,11 +406,7 @@ impl NewPaper {
                 "private review requests cannot invite public contributors",
             ));
         }
-        if self.processing_consent.as_deref() != Some(AI_PROCESSING_CONSENT_VERSION) {
-            return Err(CoreError::invalid(
-                "agreement to third-party AI review is required",
-            ));
-        }
+        validate_processing_request(self.processing_consent.as_deref())?;
         if self.typed_conjecture.is_some() && self.kind != SubmissionKind::Conjecture {
             return Err(CoreError::invalid("typed input is only for conjectures"));
         }

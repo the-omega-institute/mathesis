@@ -31,7 +31,7 @@ export function suppliedAuthors(
     }
     for (const [label, raw] of [
       ['Google Scholar URL', draft.googleScholar],
-      ['personal website', draft.website],
+      ['Website or other link', draft.website],
     ] as const) {
       if (raw.trim() && !safeHttpUrl(raw.trim())) {
         return { ok: false, error: `${label} for author ${number} must be an http(s) URL.` };
@@ -63,8 +63,8 @@ export function AuthorFields({
 }) {
   const patch = (key: keyof AuthorDraft, value: string) => onChange({ ...author, [key]: value });
   return (
-    <div className="author-card">
-      <h3>Author {index + 1}</h3>
+    <fieldset className="author-fields">
+      <legend>Author {index + 1}</legend>
       <div className="form-row">
         <Field label="Name" htmlFor={`author-${index}-name`}>
           <input
@@ -84,10 +84,10 @@ export function AuthorFields({
           />
         </Field>
       </div>
-      <details className="author-identifiers">
-        <summary>ORCID and academic profiles (optional)</summary>
+      <div className="author-profiles">
+        <p className="hint">Academic profiles (optional)</p>
         <div className="form-row">
-          <Field label="ORCID" htmlFor={`author-${index}-orcid`} hint="e.g. 0000-0002-1825-0097">
+          <Field label="ORCID" htmlFor={`author-${index}-orcid`}>
             <input
               id={`author-${index}-orcid`}
               value={author.orcid}
@@ -106,7 +106,7 @@ export function AuthorFields({
             />
           </Field>
         </div>
-        <Field label="Personal website" htmlFor={`author-${index}-website`}>
+        <Field label="Website or other link" htmlFor={`author-${index}-website`}>
           <input
             id={`author-${index}-website`}
             type="url"
@@ -115,12 +115,12 @@ export function AuthorFields({
             placeholder="https://example.edu/~name"
           />
         </Field>
-      </details>
+      </div>
       {canRemove ? (
         <button type="button" className="button button-quiet button-small" onClick={onRemove}>
           Remove author
         </button>
       ) : null}
-    </div>
+    </fieldset>
   );
 }

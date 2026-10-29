@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { LeanDepositForm } from '../components/LeanDeposit';
 import { useApi } from '../api/context';
-import { PROCESSING_CONSENT_VERSION, PROCESSING_CONSENT_TEXT } from '../api/types';
+import { PROCESSING_REQUEST_VERSION } from '../api/types';
 import type { AiUseLevel, Submission } from '../api/types';
 import { useSession } from '../auth/session';
 import { Field, InlineError, Loading, SignInPrompt } from '../components/ui';
@@ -22,7 +22,7 @@ import {
 import { PublicationChoice } from '../components/PublicationChoice';
 import { UploadSubmission } from '../components/UploadSubmission';
 import { LatexText } from '../components/Markdown';
-import { Link, useRouter } from '../routing/router';
+import { useRouter } from '../routing/router';
 
 export function SubmitPage({
   initialIntake,
@@ -47,44 +47,30 @@ export function SubmitPage({
   const { session, person } = useSession();
   return (
     <div className="page submission-page">
-      <header className="page-head">
+      <header className="page-head submission-heading">
         <div>
-          <h1>{intake === 'lean' ? 'Contribute a formalization' : 'Submit your work'}</h1>
-          <p className="lede">
-            {intake === 'lean'
-              ? 'Contribute a Lean proof of an existing conjecture or theorem. Verified contributions credit both the original authors and the formalizers.'
-              : 'Submit a paper, short note or conjecture for AI review. Choose whether to publish if accepted in the final step.'}
-          </p>
-          <p className="small">
-            <Link to={{ kind: 'policy' }}>How work is reviewed</Link>
-          </p>
+          <h1>{intake === 'lean' ? 'Contribute a formalization' : 'New submission'}</h1>
+          {intake === 'lean' ? (
+            <p>
+              Submit a Lean proof of an existing conjecture or theorem. Verified contributions
+              credit the original authors and the formalizers.
+            </p>
+          ) : null}
         </div>
+        {!initialSubmission ? (
+          <button
+            type="button"
+            className="text-button submission-kind-link"
+            onClick={() => setIntake(intake === 'lean' ? 'research' : 'lean')}
+          >
+            {intake === 'lean' ? 'Submit a manuscript' : 'Community formalization'}
+          </button>
+        ) : null}
       </header>
       {session.status === 'loading' ? <Loading /> : null}
       {session.status !== 'loading' && person === null ? (
         <SignInPrompt what="submit your work" />
       ) : null}
-      <div
-        className="intake-links"
-        role="group"
-        aria-label="Submission type"
-        hidden={!!initialSubmission}
-      >
-        <button
-          className={`button ${intake === 'research' ? '' : 'button-quiet'}`}
-          aria-pressed={intake === 'research'}
-          onClick={() => setIntake('research')}
-        >
-          Manuscript
-        </button>
-        <button
-          className={`button ${intake === 'lean' ? '' : 'button-quiet'}`}
-          aria-pressed={intake === 'lean'}
-          onClick={() => setIntake('lean')}
-        >
-          Community formalization
-        </button>
-      </div>
       {person ? (
         intake !== 'lean' ? (
           typedEntry ? (
@@ -120,7 +106,6 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
   const { navigate } = useRouter();
   const [step, setStep] = useState(0);
   const [reviewScope, setReviewScope] = useState('');
-  const [consent, setConsent] = useState(false);
   const [makePublic, setMakePublic] = useState(!initiallyPrivate);
   const [title, setTitle] = useState('');
   const [abstract, setAbstract] = useState('');
@@ -163,12 +148,11 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
       openToContributors: false,
     });
     if (!metadata.ok) return fail(metadata.error, 0);
-    if (!consent) return fail('Agree to third-party AI review before uploading.', 2);
     Object.assign(metadata.value, {
       title: title.trim(),
       abstract_text: abstract.trim() || undefined,
       authors: parsedAuthors.value,
-      processing_consent: PROCESSING_CONSENT_VERSION,
+      processing_consent: PROCESSING_REQUEST_VERSION,
       kind: 'conjecture',
       purpose: makePublic ? 'publication' : 'review_only',
       review_scope: reviewScope,
@@ -292,6 +276,26 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
                 onChange={(e) => setOrigin(e.target.value)}
               />
             </Field>
+            <details className="plain-details">
+              <summary>AI use in the manuscript (optional)</summary>
+              <Field
+                label="AI use in this work"
+                htmlFor="ai-level"
+                hint={AI_USE_DESCRIPTIONS[aiLevel]}
+              >
+                <select
+                  id="ai-level"
+                  value={aiLevel}
+                  onChange={(e) => setAiLevel(e.target.value as AiUseLevel)}
+                >
+                  {AI_USES.map((level) => (
+                    <option key={level} value={level}>
+                      {AI_USE_LABELS[level]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </details>
             <div className="form-row">
               <Field label="MSC 2020 codes (optional)" htmlFor="msc" hint="e.g. 11B83, 05D10">
                 <input id="msc" value={msc} onChange={(e) => setMsc(e.target.value)} />
@@ -350,23 +354,6 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               <dd>{makePublic ? 'AI review for publication' : 'Private review feedback'}</dd>
             </dl>
             <Field
-              label="AI use in this work"
-              htmlFor="ai-level"
-              hint={AI_USE_DESCRIPTIONS[aiLevel]}
-            >
-              <select
-                id="ai-level"
-                value={aiLevel}
-                onChange={(e) => setAiLevel(e.target.value as AiUseLevel)}
-              >
-                {AI_USES.map((level) => (
-                  <option key={level} value={level}>
-                    {AI_USE_LABELS[level]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field
               label="Cover note (optional)"
               htmlFor="review-scope"
               hint="Mention a particular result or question you would like the review to address."
@@ -380,15 +367,6 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               />
             </Field>
             <PublicationChoice checked={makePublic} onChange={setMakePublic} />
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                required
-              />
-              <span>{PROCESSING_CONSENT_TEXT}</span>
-            </label>
           </>
         ) : null}
         <InlineError error={error} />

@@ -14,11 +14,10 @@ export function PublicationChoice({
           onChange={(event) => onChange(event.target.checked)}
           aria-describedby="publication-choice-hint"
         />
-        <span>Publish my manuscript publicly if accepted.</span>
+        <span>Make my results public once accepted.</span>
       </label>
       <p className="hint" id="publication-choice-hint">
-        If you only want review feedback, uncheck this box. Your manuscript and report will remain
-        private.
+        Uncheck this box if you only want a review. Your manuscript and report will remain private.
       </p>
     </div>
   );
