@@ -45,8 +45,11 @@ pipeline; only their labels differ.
   has no publication decision/record, volunteer tasks or accepted-only Lean probe.
   Optional `review_scope` (5,000 characters) gives untrusted author-requested focus.
   Absent purpose defaults to `publication`; its acceptance policy is unchanged.
-- **Public layers**: the upload checkbox “Make public after acceptance” defaults
-  to checked for all kinds. Publication happens at the decision, before advice,
+- **Public layers**: the final-step checkbox “Publish my manuscript publicly if accepted.”
+  defaults to checked for new submissions. Unchecking it selects `purpose: review_only`
+  and private feedback without a publication decision; existing review-only drafts
+  and legacy review links start unchecked. Purpose is chosen atomically with final
+  metadata/statement confirmation, before review begins. Publication happens at the decision, before advice,
   letter or Lean. The author may later change visibility through the existing
   route. Public details contain title, authors, abstract, DOI and record id;
   statements with dependencies; witness lemmas of audited-correct main content

@@ -19,6 +19,7 @@ import {
   suppliedAuthors,
   type AuthorDraft,
 } from '../components/AuthorFields';
+import { PublicationChoice } from '../components/PublicationChoice';
 import { UploadSubmission } from '../components/UploadSubmission';
 import { LatexText } from '../components/Markdown';
 import { Link, useRouter } from '../routing/router';
@@ -37,27 +38,22 @@ export function SubmitPage({
   targetClaim?: string;
 } = {}) {
   const [typedEntry, setTypedEntry] = useState(false);
-  const [intake, setIntake] = useState<'research' | 'lean' | 'review'>(
-    initialIntake ?? (initialSubmission?.purpose === 'review_only' ? 'review' : 'research'),
+  const [intake, setIntake] = useState<'research' | 'lean'>(
+    initialIntake === 'lean' ? 'lean' : 'research',
   );
+  const initiallyPrivate = initialSubmission
+    ? initialSubmission.purpose === 'review_only'
+    : initialIntake === 'review';
   const { session, person } = useSession();
   return (
     <div className="page submission-page">
       <header className="page-head">
         <div>
-          <h1>
-            {intake === 'lean'
-              ? 'Contribute a formalization'
-              : intake === 'review'
-                ? 'Request a private review'
-                : 'Submit your work'}
-          </h1>
+          <h1>{intake === 'lean' ? 'Contribute a formalization' : 'Submit your work'}</h1>
           <p className="lede">
-            {intake === 'review'
-              ? 'Submit a manuscript for private research feedback. We check arguments, examine prior work, and identify specific findings.'
-              : intake === 'lean'
-                ? 'Contribute a Lean proof of an existing conjecture or theorem. Verified contributions credit both the original authors and the formalizers.'
-                : 'Submit a paper, short note or conjecture for AI review and a publication decision.'}
+            {intake === 'lean'
+              ? 'Contribute a Lean proof of an existing conjecture or theorem. Verified contributions credit both the original authors and the formalizers.'
+              : 'Submit a paper, short note or conjecture for AI review. Choose whether to publish if accepted in the final step.'}
           </p>
           <p className="small">
             <Link to={{ kind: 'policy' }}>How work is reviewed</Link>
@@ -75,18 +71,11 @@ export function SubmitPage({
         hidden={!!initialSubmission}
       >
         <button
-          className={`button ${intake === 'review' ? '' : 'button-quiet'}`}
-          aria-pressed={intake === 'review'}
-          onClick={() => setIntake('review')}
-        >
-          Private review
-        </button>
-        <button
           className={`button ${intake === 'research' ? '' : 'button-quiet'}`}
           aria-pressed={intake === 'research'}
           onClick={() => setIntake('research')}
         >
-          Publication
+          Manuscript
         </button>
         <button
           className={`button ${intake === 'lean' ? '' : 'button-quiet'}`}
@@ -99,11 +88,11 @@ export function SubmitPage({
       {person ? (
         intake !== 'lean' ? (
           typedEntry ? (
-            <SubmitForm key={intake} reviewOnly={intake === 'review'} />
+            <SubmitForm key={intake} initiallyPrivate={initiallyPrivate} />
           ) : (
             <UploadSubmission
               key={intake}
-              reviewOnly={intake === 'review'}
+              initiallyPrivate={initiallyPrivate}
               initialSubmission={initialSubmission}
               onSubmitted={onSubmitted}
             />
@@ -125,14 +114,14 @@ export function SubmitPage({
   );
 }
 
-export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}) {
+export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: boolean } = {}) {
   const api = useApi();
   const { person } = useSession();
   const { navigate } = useRouter();
   const [step, setStep] = useState(0);
   const [reviewScope, setReviewScope] = useState('');
   const [consent, setConsent] = useState(false);
-  const [makePublic, setMakePublic] = useState(true);
+  const [makePublic, setMakePublic] = useState(!initiallyPrivate);
   const [title, setTitle] = useState('');
   const [abstract, setAbstract] = useState('');
   const [statement, setStatement] = useState('');
@@ -181,9 +170,9 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
       authors: parsedAuthors.value,
       processing_consent: PROCESSING_CONSENT_VERSION,
       kind: 'conjecture',
-      purpose: reviewOnly ? 'review_only' : 'publication',
+      purpose: makePublic ? 'publication' : 'review_only',
       review_scope: reviewScope,
-      make_public_after_acceptance: !reviewOnly && makePublic,
+      make_public_after_acceptance: makePublic,
       typed_conjecture: { title: title.trim(), statement, background, origin },
     });
     setBusy(true);
@@ -246,9 +235,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
         id={`submit-panel-${step}`}
         aria-labelledby={`submit-tab-${step}`}
       >
-        <p className="eyebrow">
-          {reviewOnly ? 'Private review' : 'Research submission'} · Step {step + 1} of 3
-        </p>
+        <p className="eyebrow">Research submission · Step {step + 1} of 3</p>
         {step === 0 ? (
           <>
             <h2>State your conjecture</h2>
@@ -360,7 +347,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               <dt>Manuscript</dt>
               <dd>Typed conjecture</dd>
               <dt>Purpose</dt>
-              <dd>{reviewOnly ? 'Private research feedback' : 'AI review for publication'}</dd>
+              <dd>{makePublic ? 'AI review for publication' : 'Private review feedback'}</dd>
             </dl>
             <Field
               label="AI use in this work"
@@ -392,21 +379,7 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
                 onChange={(e) => setReviewScope(e.target.value)}
               />
             </Field>
-            {!reviewOnly ? (
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={makePublic}
-                  onChange={(e) => setMakePublic(e.target.checked)}
-                />
-                <span>Publish the manuscript if accepted</span>
-              </label>
-            ) : null}
-            <p className="hint">
-              {reviewOnly
-                ? 'Your manuscript and report remain private. This submission does not request publication.'
-                : 'The publication result is accepted or not accepted. Accepted work receives a report on its contributions and possible extensions; a refusal explains the reasons.'}
-            </p>
+            <PublicationChoice checked={makePublic} onChange={setMakePublic} />
             <label className="checkbox">
               <input
                 type="checkbox"

@@ -87,12 +87,9 @@ impl App {
         }
         let new = &request.metadata;
         new.validate()?;
-        if new.kind != submission.kind
-            || new.purpose != submission.purpose
-            || new.typed_conjecture.is_some()
-        {
+        if new.kind != submission.kind || new.typed_conjecture.is_some() {
             return Err(CoreError::invalid(
-                "the manuscript type and review purpose must match the upload",
+                "the manuscript type must match the upload",
             ));
         }
         let title = new
@@ -110,6 +107,9 @@ impl App {
         submission.msc = new.msc.clone();
         submission.doi = new.doi.clone();
         submission.review_scope = new.review_scope.clone();
+        // Preparation runs no review. The author chooses its purpose when
+        // confirming the draft, within this same source-bound aggregate write.
+        submission.purpose = new.purpose;
         submission.open_to_contributors = new.open_to_contributors;
         submission.analysis_visibility =
             if new.purpose == SubmissionPurpose::Publication && new.make_public_after_acceptance {

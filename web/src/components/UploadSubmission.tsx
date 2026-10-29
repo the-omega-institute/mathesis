@@ -15,6 +15,7 @@ import {
   formatBytes,
 } from '../lib/labels';
 import { AuthorFields, emptyAuthor, suppliedAuthors, type AuthorDraft } from './AuthorFields';
+import { PublicationChoice } from './PublicationChoice';
 import { EvidencePicker } from './EvidenceFiles';
 import { Field, InlineError } from './ui';
 import { LatexText } from './Markdown';
@@ -32,11 +33,11 @@ const authorDrafts = (s?: Submission): AuthorDraft[] =>
     : [emptyAuthor()];
 
 export function UploadSubmission({
-  reviewOnly,
+  initiallyPrivate,
   initialSubmission,
   onSubmitted,
 }: {
-  reviewOnly: boolean;
+  initiallyPrivate: boolean;
   initialSubmission?: Submission;
   onSubmitted?: (s: Submission) => void;
 }) {
@@ -56,7 +57,7 @@ export function UploadSubmission({
   const [doi, setDoi] = useState(initialSubmission?.doi ?? '');
   const [aiLevel, setAiLevel] = useState<AiUseLevel>('none');
   const [reviewScope, setReviewScope] = useState('');
-  const [makePublic, setMakePublic] = useState(true);
+  const [makePublic, setMakePublic] = useState(!initiallyPrivate);
   const [confirmed, setConfirmed] = useState(false);
   const [rows, setRows] = useState(() => initialRows(initialSubmission?.extracted ?? []));
   const [busy, setBusy] = useState(false);
@@ -117,7 +118,7 @@ export function UploadSubmission({
         : await api.prepareSubmission(
             {
               kind,
-              purpose: reviewOnly ? 'review_only' : 'publication',
+              purpose: makePublic ? 'publication' : 'review_only',
               processing_consent: PROCESSING_CONSENT_VERSION,
             },
             source,
@@ -224,12 +225,12 @@ export function UploadSubmission({
         metadata: {
           ...built.value,
           kind,
-          purpose: reviewOnly ? 'review_only' : 'publication',
+          purpose: makePublic ? 'publication' : 'review_only',
           title: title.trim(),
           abstract_text: abstract.trim(),
           authors: parsed.value,
           processing_consent: PROCESSING_CONSENT_VERSION,
-          make_public_after_acceptance: !reviewOnly && makePublic,
+          make_public_after_acceptance: makePublic,
           review_scope: reviewScope,
         },
         claims: claims.value,
@@ -509,7 +510,7 @@ export function UploadSubmission({
         ) : null}
         {step === 4 ? (
           <>
-            <h2>Submit for {reviewOnly ? 'private review' : 'publication'}</h2>
+            <h2>Review and submit</h2>
             <div className="manuscript-summary">
               <h3>{title || 'Untitled manuscript'}</h3>
               <p>{authors.map((a) => a.name).join(', ')}</p>
@@ -592,18 +593,7 @@ export function UploadSubmission({
                 </div>
               ))}
             </details>
-            {!reviewOnly ? (
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={makePublic}
-                  onChange={(e) => setMakePublic(e.target.checked)}
-                />
-                <span>Publish the manuscript if accepted</span>
-              </label>
-            ) : (
-              <p className="hint">Your manuscript and report remain private.</p>
-            )}
+            <PublicationChoice checked={makePublic} onChange={setMakePublic} />
             <label className="checkbox">
               <input
                 type="checkbox"
