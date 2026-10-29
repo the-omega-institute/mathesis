@@ -67,6 +67,10 @@ function, [`policy.rs`](api/crates/layer2-core/src/policy.rs). The HTTP
 contract is [docs/API.md](docs/API.md); the design is
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+The next author-report and research-citation experience is specified in
+[Author outcomes, citations and mathematical dependencies](docs/RESEARCH_EXPERIENCE.md),
+including the distinction between bibliography citations and checked proof use.
+
 ## Run locally
 
 Requirements: Rust 1.95, Node 22, TeX Live (`pdflatex`), and either MongoDB 8
