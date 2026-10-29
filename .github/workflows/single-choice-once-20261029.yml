@@ -1,0 +1,82 @@
+name: Mathesis single submission choice images (2026-10-29 only)
+on:
+  push:
+    branches: [deploy/single-choice-20261029]
+    paths: [.github/workflows/single-choice-once-20261029.yml]
+permissions:
+  contents: read
+jobs:
+  images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        service: [api, web]
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SOURCE_COMMIT: 46fba1acbae611abb108921e8b27257b1d180dd2
+      API_BASE: ghcr.io/the-omega-institute/mathesis-api@sha256:a85da079fd05ddce78fd716634bb8e20dc8d2d787fe66faaf59732ea162c0799
+      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:single-choice-20261029
+      SERVICE: ${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify reviewed application inputs
+        run: git diff --exit-code "$SOURCE_COMMIT" HEAD -- api web infra
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build API and retain the existing production runtime
+        if: matrix.service == 'api'
+        shell: bash
+        run: |
+          set -euo pipefail
+          task_dir="$RUNNER_TEMP/mathesis-image"
+          mkdir -p "$task_dir/runtime" "$task_dir/receipt"
+          docker build --target build -f infra/api/Dockerfile -t mathesis-api-build:once .
+          docker create --name mathesis-binary mathesis-api-build:once
+          trap 'docker rm -f mathesis-binary >/dev/null 2>&1 || true' EXIT
+          docker cp mathesis-binary:/usr/local/bin/mathesis "$task_dir/runtime/mathesis"
+          printf 'FROM %s\nCOPY --chown=65532:65532 mathesis /usr/local/bin/mathesis\n' "$API_BASE" > "$task_dir/runtime/Dockerfile"
+          docker build --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
+            --label "org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis" \
+            -t "$IMAGE" "$task_dir/runtime"
+          docker run --rm --network none --read-only --tmpfs /tmp --entrypoint /bin/sh \
+            -v "$PWD/api/crates/layer3-latex/tests/fixtures:/fixtures:ro" "$IMAGE" -ec \
+            'test "$(id -u)" = 65532; test -x /usr/local/bin/mathesis; ldd /usr/local/bin/mathesis; pdftotext -q -layout /fixtures/manuscript.pdf /tmp/manuscript.txt; grep -q "Every even integer" /tmp/manuscript.txt' > "$task_dir/receipt/runtime-check.log"
+          if grep -q 'not found' "$task_dir/receipt/runtime-check.log"; then exit 1; fi
+          sha256sum "$task_dir/runtime/mathesis" > "$task_dir/receipt/binary.sha256"
+      - name: Build web from the reviewed source
+        if: matrix.service == 'web'
+        run: |
+          mkdir -p "$RUNNER_TEMP/mathesis-image/receipt"
+          docker build -f infra/web/Dockerfile \
+            --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
+            --label "org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis" \
+            -t "$IMAGE" .
+      - name: Push immutable deployment receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE"
+          docker image inspect --format '{{json .RepoDigests}}' "$IMAGE" > "$RUNNER_TEMP/mathesis-image/receipt/repo-digests.json"
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'mathesis-image/receipt'
+          image = os.environ['IMAGE'].split(':')[0]
+          digests = [d for d in json.loads((root / 'repo-digests.json').read_text()) if re.fullmatch(re.escape(image)+r'@sha256:[0-9a-f]{64}',d)]
+          assert len(digests) == 1
+          (root/'receipt.json').write_text(json.dumps(dict(image=digests[0], source_commit=os.environ['SOURCE_COMMIT'], service=os.environ['SERVICE'], workflow_commit=os.environ['GITHUB_SHA'], api_base=os.environ['API_BASE'], workflow_run=os.environ['GITHUB_RUN_ID']),indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-single-choice-${{ matrix.service }}-receipt
+          path: ${{ runner.temp }}/mathesis-image/receipt/
+          if-no-files-found: error
+          retention-days: 90
