@@ -76,3 +76,27 @@ it('uses the staff route and qualifies delivered reports with limits', async () 
   expect(await within(row).findByText('Report ready')).toBeVisible();
   expect(row).toHaveTextContent('checks remain incomplete');
 });
+
+it.each(['publication', 'review_only'] as const)(
+  'keeps a delivered internal %s letter pending in My work',
+  async (purpose) => {
+    const reviewSummary = vi.fn(async () => delivered);
+    renderWithApp(
+      <SubmissionsPage scope="mine" />,
+      fakeApi(
+        {
+          listSubmissions: vi.fn(async () => ({
+            items: [{ ...submission, purpose }],
+            next_before: null,
+          })),
+          reviewSummary,
+        },
+        author,
+      ),
+    );
+    expect(await screen.findByText('In review')).toBeVisible();
+    expect(screen.queryByText('Report ready')).toBeNull();
+    expect(screen.queryByText('The final report is ready to read.')).toBeNull();
+    expect(screen.queryByText(/new results?/)).toBeNull();
+  },
+);
