@@ -9,6 +9,11 @@ import { ContributePage, GrantView } from './Contribute';
 describe('ContributePage', () => {
   it('shows the MCP setup for this origin and the four task kinds', async () => {
     renderWithApp(<ContributePage />, fakeApi());
+    const tools = screen
+      .getByText('Tools for developers and automated contributors')
+      .closest('details')!;
+    expect(tools).not.toHaveAttribute('open');
+    await userEvent.click(screen.getByText('Tools for developers and automated contributors'));
     const mcp = screen.getByLabelText('MCP setup command');
     expect(mcp).toHaveTextContent(
       'claude mcp add mathesis -e WISHPOOL_NYXID_SERVICE=mathesis -- mathesis-contribute mcp',
@@ -29,7 +34,7 @@ describe('ContributePage', () => {
     expect(screen.getByText('Escape judgement')).toBeInTheDocument();
     expect(screen.getByText('Conjecture probe')).toBeInTheDocument();
     expect(
-      screen.getByText(/first verified answer appears on the leaderboard/),
+      screen.getByText(/your contribution appears with your name and proof/),
     ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/trureturing/i);
     expect(await screen.findByText('Sign in to donate model quota.')).toBeInTheDocument();

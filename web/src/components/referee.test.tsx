@@ -403,7 +403,7 @@ describe('referee workspace', () => {
     expect(within(report).queryByText('Earlier feedback')).toBeNull();
     expect(report.querySelector('.mop')).toHaveTextContent('rep');
     expect(report.querySelector(KATEX_ERROR)).toBeNull();
-    await userEvent.click(screen.getByText('Details: evidence, history and settings'));
+    await userEvent.click(screen.getByText('Manuscript details'));
     await userEvent.click(screen.getByText('Earlier reports'));
     expect(screen.getByRole('heading', { name: 'Earlier feedback' })).toBeVisible();
     expect(screen.queryByRole('form', { name: 'Send feedback to the author' })).toBeNull();
@@ -908,14 +908,12 @@ it('shows private review completion without requesting a publication decision', 
   expect(
     await screen.findByRole('heading', { name: 'Private review in progress' }),
   ).toBeInTheDocument();
-  await userEvent.click(screen.getByText('Details: evidence, history and settings'));
+  await userEvent.click(screen.getByText('Manuscript details'));
   expect(screen.queryByRole('button', { name: 'Download report' })).toBeNull();
   expect(screen.queryByRole('heading', { name: 'Publication decision' })).toBeNull();
   expect(previewDecision).not.toHaveBeenCalled();
   expect(screen.queryByText(/Volunteer contributors may help analyse/)).toBeNull();
-  expect(
-    screen.getByText('Advanced: compute settings and history').closest('details'),
-  ).not.toHaveAttribute('open');
+  expect(screen.queryByText('Advanced: compute settings and history')).toBeNull();
 });
 
 it('does not mistake hidden author letter fields for a finished review without delivery', async () => {

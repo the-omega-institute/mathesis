@@ -397,10 +397,7 @@ it.each([
   const reviewShown = paper.status.state !== 'draft' && paper.status.state !== 'withdrawn';
   if (reviewShown) await screen.findByRole('region', { name: 'Final review report' });
   else await screen.findByRole('region', { name: 'Paper standing' });
-  for (const label of [
-    'Details: evidence, history and settings',
-    'Advanced: compute settings and history',
-  ]) {
+  for (const label of ['Manuscript details', 'Results in this manuscript']) {
     const toggle = screen.queryByText(label);
     if (toggle) await userEvent.click(toggle);
   }
@@ -440,13 +437,22 @@ it.each([
   if (!reviewShown) return;
   expect(text).toContain('Not checked');
   expect(text).not.toContain('Follows from known results');
-  expect(text).toContain('Source check');
+  expect(text).not.toContain('Source check');
+  for (const label of [
+    'Advanced: compute settings and history',
+    'Public binding discussions',
+    'Authorized knowledge proposals',
+    'Private research goals',
+    'SHA-256',
+    'Elapsed since',
+  ])
+    expect(text).not.toContain(label);
   expect(screen.getByRole('region', { name: 'Final review report' })).not.toHaveTextContent(
     'b'.repeat(64),
   );
-  expect(
-    screen.getByText('Details: evidence, history and settings').closest('details'),
-  ).not.toHaveTextContent('b'.repeat(64));
+  expect(screen.getByText('Manuscript details').closest('details')).not.toHaveTextContent(
+    'b'.repeat(64),
+  );
 });
 
 it.each(['submission', 'review'] as const)(
@@ -501,7 +507,7 @@ it('shows one loading shell for the shared review resource on the author page', 
     ),
   );
   await screen.findByRole('region', { name: 'Paper standing' });
-  await userEvent.click(screen.getByText('Details: evidence, history and settings'));
+  await userEvent.click(screen.getByText('Manuscript details'));
   expect(screen.getAllByText('Loading…')).toHaveLength(1);
   expect(container.querySelector('.author-details .referee-panel')).toBeNull();
   expect(screen.getByRole('region', { name: 'Review' })).toHaveTextContent('Loading…');

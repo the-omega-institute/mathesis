@@ -103,6 +103,7 @@ describe('Optional own agents in pages', () => {
 
   it('keeps optional compute settings in the advanced section', async () => {
     renderWithApp(<ContributePage />, fakeApi({}, author));
+    await userEvent.click(screen.getByText('Tools for developers and automated contributors'));
     const advanced = screen.getByText('Advanced: use your own compute account').closest('details');
     expect(advanced).toHaveAttribute('id', 'own-agents');
     expect(advanced).not.toHaveAttribute('open');

@@ -61,7 +61,7 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
           <LatexText source={s.statement} />
         </section>
         <section>
-          <h2>Lean target</h2>
+          <h2>Formal statement</h2>
           {c.target ? (
             <>
               <p>The author confirmed these exact definitions and statement.</p>
@@ -69,8 +69,8 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
                 record={s.record}
                 subject={{ kind: 'target', claim: s.claim, digest: c.target.digest }}
               />
-              <details open>
-                <summary>View Target.lean</summary>
+              <details>
+                <summary>View Lean statement</summary>
                 <pre>
                   <code>{c.target.lean}</code>
                 </pre>
@@ -83,9 +83,6 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
                 >
                   {copied ? 'Copied' : 'Copy target'}
                 </button>
-                <p className="small muted">
-                  SHA-256: <code>{c.target.digest}</code>
-                </p>
               </details>
               <a className="button button-quiet" href={path} download="Target.lean">
                 Download Target.lean
@@ -110,21 +107,26 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
               Import Target and prove <code>wishpool_solution : wishpool_target_prop</code>, or
               disprove it with <code>wishpool_disproof : ¬ wishpool_target_prop</code>.
             </p>
-            <pre>
-              <code>{`mathesis-contribute attempt ${s.record} ${s.claim} Solution.lean`}</code>
-            </pre>
+            <details className="history">
+              <summary>Submit from the command line</summary>
+              <pre>
+                <code>{`mathesis-contribute attempt ${s.record} ${s.claim} Solution.lean`}</code>
+              </pre>
+            </details>
             <AttemptForm record={s.record} claim={s.claim} />
           </section>
         ) : null}
         {winner ? (
           <section>
             <h2>Verified solution</h2>
-            <pre>
-              <code>{winner.solution}</code>
-            </pre>
-            <details open>
-              <summary>Verification receipt</summary>
-              <pre>{JSON.stringify(winner.receipt, null, 2)}</pre>
+            <p>
+              Checked in Lean on <DateText iso={winner.receipt.checked_at} />.
+            </p>
+            <details>
+              <summary>View Lean proof</summary>
+              <pre>
+                <code>{winner.solution}</code>
+              </pre>
             </details>
           </section>
         ) : null}
@@ -139,18 +141,17 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
                   <a
                     href={`/api/v1/papers/${encodeURIComponent(s.record)}/statements/${encodeURIComponent(s.claim)}/attempts/${encodeURIComponent(a.id)}/bundle`}
                   >
-                    Download verification bundle
+                    Download proof and verification details
                   </a>
                   <p>
                     {a.also_verified ? 'Also verified' : 'First verified'} ·{' '}
                     <DateText iso={a.receipt.checked_at} />
                   </p>
                   <details>
-                    <summary>Solution and receipt</summary>
+                    <summary>View Lean proof</summary>
                     <pre>
                       <code>{a.solution}</code>
                     </pre>
-                    <pre>{JSON.stringify(a.receipt, null, 2)}</pre>
                   </details>
                 </li>
               ))}

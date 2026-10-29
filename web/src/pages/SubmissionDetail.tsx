@@ -178,7 +178,7 @@ export function Workspace({
 
   return (
     <MacrosProvider macros={currentMacros(s.versions)}>
-      <article className={`workspace${awaitingReview ? ' workspace-waiting' : ''}`}>
+      <article className={`workspace${!isStaff ? ' workspace-author' : ''}`}>
         <header className="record-head">
           <h1>
             <InlineLatex source={s.title || 'Untitled paper'} />
@@ -223,7 +223,7 @@ export function Workspace({
           </div>
         </header>
 
-        {awaitingReview && s.abstract_text ? (
+        {!isStaff && s.abstract_text ? (
           <section aria-labelledby="manuscript-abstract-h">
             <h2 id="manuscript-abstract-h">Abstract</h2>
             <LatexText source={s.abstract_text} className="abstract" />
@@ -234,6 +234,7 @@ export function Workspace({
           <PaperStanding
             submission={s}
             file={referee.value}
+            showExecutionDetails={isStaff}
             onRevise={isAuthor && !showRevisionForm ? () => setRevising(true) : undefined}
           />
         ) : null}
@@ -260,8 +261,15 @@ export function Workspace({
             presentation="primary"
           />
         ) : null}
-        {!awaitingReview && reviewed && (isAuthor || canInspect) ? (
-          <StatementSummary submission={s} round={currentReview} />
+        {!awaitingReview &&
+        reviewed &&
+        standing.delivered &&
+        !isStaff &&
+        (isAuthor || canInspect) ? (
+          <details className="history">
+            <summary>Results in this manuscript</summary>
+            <StatementSummary submission={s} round={currentReview} />
+          </details>
         ) : null}
         {state === 'draft' ? <DraftNotice submission={s} /> : null}
         {state === 'draft' && isAuthor ? (
@@ -288,7 +296,9 @@ export function Workspace({
 
         {!awaitingReview ? (
           <details className="history author-details">
-            <summary>Details: evidence, history and settings</summary>
+            <summary>
+              {isStaff ? 'Details: evidence, history and settings' : 'Manuscript details'}
+            </summary>
             {!isStaff && state !== 'draft' && isAuthor ? (
               <RefereeWorkspace
                 submission={s}
@@ -304,7 +314,7 @@ export function Workspace({
             isAuthor ? (
               <LeanStatementCard submission={s} onChange={onChange} />
             ) : null}
-            {isAuthor || canInspect ? (
+            {isStaff ? (
               <>
                 {acceptedPublic && s.open_to_contributors ? (
                   <BindingWorkspace submission={s} />
@@ -314,7 +324,7 @@ export function Workspace({
               </>
             ) : null}
             {state === 'accepted' && isAuthor ? (
-              <section aria-labelledby="accepted-h">
+              <section id="formalization" aria-labelledby="accepted-h">
                 <h2 id="accepted-h">After acceptance</h2>
                 <p>
                   Record <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
@@ -365,27 +375,26 @@ export function Workspace({
                 </Fold>
               ) : null}
 
-              {current ? (
+              {current && isStaff ? (
                 <EvidenceInventory
                   files={current.evidence}
                   submission={s.id}
                   version={current.number}
+                  technicalDetails
                 />
               ) : null}
-              <Fold id="abstract-h" title="Abstract" open>
-                {s.abstract_text ? (
+              <Fold id="abstract-h" title={isStaff ? 'Abstract' : 'Author disclosure'} open>
+                {isStaff && s.abstract_text ? (
                   <LatexText source={s.abstract_text} className="abstract" />
-                ) : (
-                  <p className="muted">No abstract was found in the source.</p>
-                )}
+                ) : null}
                 <p className="small">
                   <strong>AI disclosure:</strong> {AI_USE_LABELS[s.ai_disclosure.level]} —{' '}
                   {s.ai_disclosure.statement}
                 </p>
               </Fold>
 
-              <VersionsSection submission={s} />
-              {isAuthor || canInspect ? (
+              <VersionsSection submission={s} technicalDetails={isStaff} />
+              {isStaff ? (
                 <Fold id="compute-h" title="Advanced: compute settings and history">
                   {s.submitter === person?.id ? <MyCma /> : null}
                   <CmaHistory
@@ -504,15 +513,26 @@ export function ReasonList({ reasons }: { reasons: readonly RejectReason[] }) {
   );
 }
 
-function VersionsSection({ submission }: { submission: Submission }) {
+function VersionsSection({
+  submission,
+  technicalDetails = false,
+}: {
+  submission: Submission;
+  technicalDetails?: boolean;
+}) {
   return (
     <Fold id="versions-h" title="Versions" hint={submission.versions.length} open>
       <ul className="version-list">
         {[...submission.versions].reverse().map((v) => (
           <li key={v.number}>
             <strong>Version {v.number}</strong> · <DateText iso={v.uploaded_at} withTime /> ·{' '}
-            <code>{v.filename}</code> ({formatBytes(v.archive.bytes)}), main file{' '}
-            <code>{v.main_file}</code>
+            <span>{v.filename}</span> ({formatBytes(v.archive.bytes)})
+            {technicalDetails ? (
+              <>
+                {' '}
+                · main file <code>{v.main_file}</code>
+              </>
+            ) : null}
             {v.pdf ? (
               <>
                 {' '}
@@ -525,7 +545,12 @@ function VersionsSection({ submission }: { submission: Submission }) {
               </>
             ) : null}{' '}
             · <a href={sourceFileHref(submission.id, v.number)}>source</a>
-            <EvidenceInventory files={v.evidence} submission={submission.id} version={v.number} />
+            <EvidenceInventory
+              files={v.evidence}
+              submission={submission.id}
+              version={v.number}
+              technicalDetails={technicalDetails}
+            />
             {v.note ? <span className="muted"> — {v.note}</span> : null}
           </li>
         ))}

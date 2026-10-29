@@ -34,7 +34,7 @@ export function FinalReviewReport({
   const download = () => {
     const blob = new Blob(
       [
-        `# ${letter.subject}\n\n${limitations || missingReadings ? '> Delivered with a recorded execution limitation. See the saved execution history.\n\n' : ''}${letter.body}\n\n${letter.note}\n`,
+        `# ${letter.subject}\n\n${limitations || missingReadings ? '> Some checks could not be completed. The report describes the available findings and remaining uncertainties.\n\n' : ''}${letter.body}\n\n${letter.note}\n`,
       ],
       { type: 'text/markdown;charset=utf-8' },
     );
@@ -58,8 +58,8 @@ export function FinalReviewReport({
       </p>
       {limitations || missingReadings ? (
         <p className="notice notice-info">
-          The report is available, with a recorded execution limitation. Some checks could not be
-          completed; the original record is retained in the review history.
+          Some checks could not be completed. The report describes the available findings and
+          remaining uncertainties.
         </p>
       ) : null}
       <h3>

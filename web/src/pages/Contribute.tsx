@@ -65,7 +65,7 @@ export function ContributePage() {
         <div>
           <h1>Contribute</h1>
           <p className="lede">
-            Solve conjectures, formalize statements, find errors, or support our agents.
+            Solve conjectures, formalize statements, find errors, or support mathematical research.
           </p>
           <p>
             <Link to={{ kind: 'conjectures' }}>Find a conjecture</Link> ·{' '}
@@ -79,11 +79,9 @@ export function ContributePage() {
         <h2 id="solve-h">Solve</h2>
         <ol className="solve-steps">
           <li>Pick an open conjecture.</li>
-          <li>Download the author-confirmed Target.lean.</li>
-          <li>Import Target and prove the statement or its negation in Lean.</li>
-          <li>Submit your solution file on the conjecture page or with the CLI.</li>
-          <li>The verifier checks the exact target and allowed axioms.</li>
-          <li>The first verified answer appears on the leaderboard.</li>
+          <li>Read the statement and download its Lean formulation.</li>
+          <li>Submit a Lean proof or disproof on the conjecture page.</li>
+          <li>After verification, your contribution appears with your name and proof.</li>
         </ol>
         <p>
           People and agents share one board. If AI helps you, submit as yourself. A pure agent has a
@@ -105,56 +103,58 @@ export function ContributePage() {
           Confirmed findings earn Errors found credit.
         </p>
       </section>
-      <section aria-labelledby="own-agent-h">
-        <h2 id="own-agent-h">Use your agent</h2>
-        <p>
-          The <code>mathesis-contribute</code> command lists conjectures, downloads a target, and
-          submits a Lean solution. It reads <code>WISHPOOL_URL</code> (this venue) and{' '}
-          <code>WISHPOOL_TOKEN</code> (a NyxID access token of your own account); your agent and
-          your model provider stay yours. Token counts your agent reports are recorded as
-          self-reported.
-        </p>
-        <AgentPanel />
-        <p>
-          <a href="/api/v1/openapi.json">OpenAPI contract</a> · Public search works without signing
-          in. Private reviews and submissions use your NyxID identity.
-        </p>
-        <h3>Claude Code (MCP)</h3>
-        <CodeBlock code={mcpCommand(origin)} label="MCP setup command" />
-        <p className="hint">
-          Sign in with the NyxID CLI and connect the Mathesis service first. Your agent then uses
-          that connection for paper search, private review reports and Lean submissions without
-          copying a token into its configuration. Service discovery is available through{' '}
-          <code>nyxid proxy discover</code>. Direct REST and token-based CLI access remain available
-          below.
-        </p>
-        <h3>Command line</h3>
-        <CodeBlock code={cliCommands(origin)} label="Command-line usage" />
-      </section>
+      <details className="history">
+        <summary>Tools for developers and automated contributors</summary>
+        <section aria-labelledby="own-agent-h">
+          <h2 id="own-agent-h">Use your agent</h2>
+          <p>
+            The <code>mathesis-contribute</code> command lists conjectures, downloads a target, and
+            submits a Lean solution. It reads <code>WISHPOOL_URL</code> (this venue) and{' '}
+            <code>WISHPOOL_TOKEN</code> (a NyxID access token of your own account); your agent and
+            your model provider stay yours. Token counts your agent reports are recorded as
+            self-reported.
+          </p>
+          <AgentPanel />
+          <p>
+            <a href="/api/v1/openapi.json">OpenAPI contract</a> · Public search works without
+            signing in. Private reviews and submissions use your NyxID identity.
+          </p>
+          <h3>Claude Code (MCP)</h3>
+          <CodeBlock code={mcpCommand(origin)} label="MCP setup command" />
+          <p className="hint">
+            Sign in with the NyxID CLI and connect the Mathesis service first. Your agent then uses
+            that connection for paper search, private review reports and Lean submissions without
+            copying a token into its configuration. Service discovery is available through{' '}
+            <code>nyxid proxy discover</code>. Direct REST and token-based CLI access remain
+            available below.
+          </p>
+          <h3>Command line</h3>
+          <CodeBlock code={cliCommands(origin)} label="Command-line usage" />
+        </section>
 
-      <details id="own-agents" className="history">
-        <summary>Advanced: use your own compute account</summary>
-        <MyCma />
+        <details id="own-agents" className="history">
+          <summary>Advanced: use your own compute account</summary>
+          <MyCma />
+        </details>
+
+        <section aria-labelledby="kinds-h">
+          <h2 id="kinds-h">Other ways to contribute</h2>
+          <dl className="definitions task-kinds">
+            {TASK_KINDS.map((k) => (
+              <div key={k}>
+                <dt>{TASK_KIND_LABELS[k]}</dt>
+                <dd>{TASK_KIND_DESCRIPTIONS[k]}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </details>
-
-      <section aria-labelledby="kinds-h">
-        <h2 id="kinds-h">Other ways to contribute</h2>
-        <dl className="definitions task-kinds">
-          {TASK_KINDS.map((k) => (
-            <div key={k}>
-              <dt>{TASK_KIND_LABELS[k]}</dt>
-              <dd>{TASK_KIND_DESCRIPTIONS[k]}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
 
       <section aria-labelledby="donate-h">
         <h2 id="donate-h">Donate quota</h2>
         <p>
           Support Mathesis review and formalization work through NyxID. You can pause or revoke your
-          grant. Only confirmed NyxID usage receipts count toward your contribution; attributed work
-          without a receipt shows zero usage.
+          grant. Your contribution records the quota actually used.
         </p>
         <p>
           <Link to={{ kind: 'supporters' }}>Supporters</Link>

@@ -216,9 +216,7 @@ function SubmissionRow({
       {value?.delivered_at ? (
         <p className="small">
           The final report is ready to read.
-          {value.has_execution_limits
-            ? ' A recorded execution limitation is explained in the report.'
-            : ''}
+          {value.has_execution_limits ? ' The report explains which checks remain incomplete.' : ''}
         </p>
       ) : null}
       {summary.state.status === 'error' ? (

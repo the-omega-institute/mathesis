@@ -803,3 +803,12 @@ funded; local elaboration and proof verification carry no CMA payer.
   goals and downstream proposals are absent. Staff retain the separate execution view.
   Public binding tools require accepted public work with contributor access;
   knowledge proposals require accepted public work; research goals follow report delivery.
+
+- Author and public pages present manuscript content, the decision, one final report,
+  contributor credit and optional formalization. Internal stages, execution timers,
+  hashes and raw verification JSON belong in staff views or explicit downloads.
+  Manuscript binding/proposal/research panels and per-review compute history are staff-view
+  tools; this UI choice never expands API authority or substitutes for owner consent.
+  Author details retain source versions, supplements, visibility and formalization controls.
+  Developer integration instructions are collapsed on the contribution page. The public
+  review policy explains mathematical criteria and privacy without internal stage names.

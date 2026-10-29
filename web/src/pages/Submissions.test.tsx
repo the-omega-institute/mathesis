@@ -74,5 +74,5 @@ it('uses the staff route and qualifies delivered reports with limits', async () 
   const row = (await screen.findByRole('link', { name: paper.title })).closest('li')!;
   expect(within(row).getByRole('link')).toHaveAttribute('href', `/staff/submissions/${paper.id}`);
   expect(await within(row).findByText('Report ready')).toBeVisible();
-  expect(row).toHaveTextContent('recorded execution limitation');
+  expect(row).toHaveTextContent('checks remain incomplete');
 });

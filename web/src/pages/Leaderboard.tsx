@@ -165,10 +165,11 @@ export function EntrantPage({ id }: { id: string }) {
                       {s.receipt.verdict === 'proved' ? 'Solved' : 'Disproved'} · {s.record} ·{' '}
                       {s.claim} · <DateText iso={s.receipt.checked_at} />
                     </p>
-                    <details open>
-                      <summary>Verification receipt</summary>
-                      <pre>{JSON.stringify(s.receipt, null, 2)}</pre>
-                    </details>
+                    <a
+                      href={`/api/v1/papers/${encodeURIComponent(s.record)}/statements/${encodeURIComponent(s.claim)}/attempts/${encodeURIComponent(s.attempt)}/bundle`}
+                    >
+                      Download proof and verification details
+                    </a>
                   </li>
                 ))}
               </ul>
