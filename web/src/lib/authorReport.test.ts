@@ -5,6 +5,44 @@ import { authorReport, publicationReason, reportOpening } from './authorReport';
 import { manuscriptReferences } from './statements';
 
 describe('author publication reports', () => {
+  it('explains contribution and significance decisions without internal policy vocabulary', () => {
+    const overlap = publicationReason(
+      {
+        reason: 'insufficient_evidence',
+        claim: 'C1',
+        detail:
+          'Statement C1 is covered by the source-audited pinned knowledge comparison and cannot support admission as a new result. Any claimed named open-problem settlement needs its independent audited evidence.',
+      },
+      submission,
+    );
+    expect(overlap).toBe(
+      'Theorem 1.1 follows from the compared prior results. A claimed resolution of an open problem needs separate mathematical justification.',
+    );
+    const unclear = publicationReason(
+      {
+        reason: 'insufficient_evidence',
+        claim: 'C1',
+        detail:
+          'Statement C1 has an undetermined proof-escape reading; further evidence is needed.',
+      },
+      submission,
+    );
+    expect(unclear).toContain('could not establish a distinct new mathematical contribution');
+    expect(unclear).not.toContain('proof-escape');
+    const utility = publicationReason(
+      {
+        reason: 'insufficient_utility',
+        claim: 'C1',
+        detail:
+          'Statement C1 has no established independent utility under its mathematical or computational category: The finite sample does not distinguish the proposed bound from the known bound.',
+      },
+      submission,
+    );
+    expect(utility).toContain(
+      'The finite sample does not distinguish the proposed bound from the known bound.',
+    );
+    expect(utility).not.toMatch(/C1|category|independent utility/);
+  });
   it('withholds a pending report even when the letter recommends acceptance', () => {
     expect(
       authorReport(submission, refereeRound, { ...feedbackLetter, assessment: 'accept' }),

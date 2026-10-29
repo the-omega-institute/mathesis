@@ -24,6 +24,35 @@ export function publicationReason(reason: RejectReason, submission?: Submission)
     case 'unchecked_result':
       text = `The correctness of ${name} has not been established by this review. This is a limitation of the review, not a demonstrated mathematical error.`;
       break;
+    case 'insufficient_evidence': {
+      // These are the venue's stored policy explanations, not model-written prose.
+      // Preserve any mathematical qualification after the standard policy sentence.
+      if (reason.detail.includes('has an undetermined proof-escape reading;')) {
+        text = `The review could not establish a distinct new mathematical contribution in ${name}. Further mathematical evidence is needed.`;
+      } else if (
+        reason.detail.includes('is covered by the source-audited pinned knowledge comparison')
+      ) {
+        text = `${name} follows from the compared prior results. A claimed resolution of an open problem needs separate mathematical justification.`;
+      } else {
+        text = reason.detail.replace(
+          /lacks sufficient evidence for its prerequisite comparison, new content or claimed open-problem settlement\./,
+          'does not yet have sufficient support for its relationship to prior results, its claimed new contribution or its resolution of an open problem.',
+        );
+      }
+      break;
+    }
+    case 'insufficient_utility':
+      text = reason.detail.replace(
+        /has no established independent utility under its mathematical or computational category:/,
+        'does not yet have a demonstrated mathematical use or significance:',
+      );
+      break;
+    case 'conjecture':
+      text = reason.detail.replace(
+        'would only re-bind known results:',
+        'follows from known results:',
+      );
+      break;
     default:
       text = reason.detail;
   }
