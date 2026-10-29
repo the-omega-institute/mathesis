@@ -1,23 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { RefereeFile, RejectReason, Submission } from '../api/types';
+import type { RefereeFile, Submission } from '../api/types';
 import { authorStanding } from '../lib/authorStanding';
-import { rejectReasonText } from '../lib/labels';
-
-export function publicationReason(reason: RejectReason): string {
-  switch (reason.reason) {
-    case 'known_result':
-      return `Statement ${reason.claim} already follows from ${reason.prior.locator}.`;
-    case 'bind_only':
-      return 'No checked main result carries new mathematical content.';
-    case 'no_main_result':
-      return 'The paper has no proved main result.';
-    case 'incorrect_result':
-    case 'unchecked_result':
-      return rejectReasonText(reason);
-    default:
-      return reason.detail;
-  }
-}
+import { publicationReason } from '../lib/authorReport';
+export { publicationReason } from '../lib/authorReport';
 
 export function PaperStanding({
   submission,
@@ -64,7 +49,7 @@ export function PaperStanding({
             ? 'Your manuscript is saved. The review needs attention before it can continue.'
             : standing.delivered
               ? status.state === 'in_review'
-                ? 'The publication decision is pending. Available feedback is below.'
+                ? 'Your manuscript is under AI review. You will receive the decision and final report here.'
                 : 'Your review report is ready below.'
               : status.state === 'in_review'
                 ? 'Your manuscript is under AI review. The final report will appear here when the review is complete.'
@@ -91,7 +76,7 @@ export function PaperStanding({
       {status.state === 'not_accepted' && submission.decision?.decision === 'not_accepted' ? (
         <ul className="standing-reasons">
           {submission.decision.reasons.map((reason, i) => (
-            <li key={i}>{publicationReason(reason)}</li>
+            <li key={i}>{publicationReason(reason, submission)}</li>
           ))}
         </ul>
       ) : null}

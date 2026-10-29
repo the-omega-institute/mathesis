@@ -167,19 +167,24 @@ function SubmissionRow({
     s.status.state !== 'draft' && s.status.state !== 'withdrawn' ? load : null,
   );
   const value = summary.value;
-  const label = value?.delivered_at
-    ? s.purpose === 'review_only'
-      ? 'Report ready'
-      : undefined
-    : summary.state.status === 'loading'
-      ? 'Loading review status…'
-      : summary.state.status === 'error'
-        ? 'Review status could not be loaded'
-        : value?.interrupted
-          ? 'Review interrupted'
-          : value?.in_progress
-            ? 'Review in progress'
-            : undefined;
+  const reportReady =
+    value?.delivered_at && ['accepted', 'not_accepted', 'review_complete'].includes(s.status.state);
+  const label =
+    s.status.state === 'in_review'
+      ? 'In review'
+      : reportReady
+        ? s.purpose === 'review_only'
+          ? 'Report ready'
+          : undefined
+        : summary.state.status === 'loading'
+          ? 'Loading review status…'
+          : summary.state.status === 'error'
+            ? 'Review status could not be loaded'
+            : value?.interrupted
+              ? 'Review interrupted'
+              : value?.in_progress
+                ? 'Review in progress'
+                : undefined;
   return (
     <li>
       <Link
@@ -192,7 +197,9 @@ function SubmissionRow({
         <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
         <SubmissionStatusBadge status={s.status} label={label} />
         <span>{formatAuthors(s.authors)}</span>
-        {newResultCount(s) > 0 ? <span>{newResults(newResultCount(s))}</span> : null}
+        {s.status.state !== 'in_review' && newResultCount(s) > 0 ? (
+          <span>{newResults(newResultCount(s))}</span>
+        ) : null}
         {s.formalization.items.some((i) => i.state.state === 'verified') ? (
           <span>
             Lean ✓ {s.formalization.items.filter((i) => i.state.state === 'verified').length}
@@ -213,7 +220,7 @@ function SubmissionRow({
           Continue submission: check the PDF and complete the manuscript details.
         </p>
       ) : null}
-      {value?.delivered_at ? (
+      {reportReady ? (
         <p className="small">
           The final report is ready to read.
           {value.has_execution_limits ? ' The report explains which checks remain incomplete.' : ''}

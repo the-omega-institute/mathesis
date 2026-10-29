@@ -255,10 +255,12 @@ describe('paper workspace', () => {
 
     const section = await screen.findByRole('region', { name: 'Paper standing' });
     expect(
-      within(section).getByText('Statement C1 already follows from 1901.00001.'),
+      within(section).getByText('Theorem 1.1 already follows from 1901.00001.'),
     ).toBeInTheDocument();
     expect(
-      within(section).getByText('No checked main result carries new mathematical content.'),
+      within(section).getByText(
+        'The main results follow from existing results without establishing a distinct new mathematical contribution.',
+      ),
     ).toBeInTheDocument();
     await userEvent.click(
       within(section).getByRole('button', { name: 'Upload a revised version' }),
@@ -394,10 +396,8 @@ it.each([
     ),
   );
   // Draft and withdrawn pages carry no review workspace; open every fold that exists.
-  const reviewShown = paper.status.state !== 'draft' && paper.status.state !== 'withdrawn';
-  if (reviewShown && paper.status.state === 'in_review')
-    await userEvent.click(await screen.findByText('Available feedback — decision pending'));
-  else if (reviewShown) await screen.findByRole('region', { name: 'Final review report' });
+  const reviewShown = !['draft', 'withdrawn', 'in_review'].includes(paper.status.state);
+  if (reviewShown) await screen.findByRole('region', { name: 'Final review report' });
   else await screen.findByRole('region', { name: 'Paper standing' });
   for (const label of ['Manuscript details', 'Results in this manuscript']) {
     const toggle = screen.queryByText(label);

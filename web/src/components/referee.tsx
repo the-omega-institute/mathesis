@@ -1,4 +1,4 @@
-import { FinalReviewReport, currentReport } from './FinalReviewReport';
+import { FinalReviewReport } from './FinalReviewReport';
 import { useState, type FormEvent } from 'react';
 import { ReviewFindings } from './ReviewFindings';
 import { MethodologyEvidence } from './MethodologyEvidence';
@@ -75,18 +75,7 @@ export function RefereeWorkspace(
   };
 
   if (!isStaff) {
-    if (presentation === 'details')
-      return resource.value ? (
-        <details className="history">
-          <summary>Earlier reports</summary>
-          <SentLetters
-            authorView
-            letters={resource.value.letters.filter(
-              (letter) => letter !== currentReport(submission, resource.value!),
-            )}
-          />
-        </details>
-      ) : null;
+    if (presentation === 'details' || submission.status.state === 'in_review') return null;
     return (
       <section className="referee-panel" aria-label="Review">
         <Async state={resource.state} onRetry={reload}>

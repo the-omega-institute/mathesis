@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { ClaimKind, ClaimRole, EscapeAssessment, FormalArtifact, Settles } from '../api/types';
 import { MethodologyEvidence } from './MethodologyEvidence';
 import { isStandardAxiom, nonStandardAxioms } from '../lib/axioms';
-import { CLAIM_KIND_LABELS } from '../lib/labels';
+import { resultLabel } from '../lib/statements';
 import { artifactLabel, commitHref, safeHttpUrl } from '../lib/links';
 import { escapeRateTrend, formatEscapeRate } from '../lib/ratio';
 import { KindBadge, LeanBadge, RoleBadge, ShapeBadge } from './badges';
@@ -29,8 +29,7 @@ export function claimAnchor(id: string, scope = 'statement'): string {
 
 /** `Theorem 2.1`, or the kind and id when the paper gave no number. */
 export function statementTitle(s: Pick<StatementLike, 'kind' | 'label' | 'id'>): string {
-  const label = s.label.trim();
-  return label !== '' ? label : `${CLAIM_KIND_LABELS[s.kind]} ${s.id}`;
+  return resultLabel(s);
 }
 
 export function ClaimRef({
@@ -43,7 +42,7 @@ export function ClaimRef({
   scope?: string;
 }) {
   const claim = claims.find((c) => c.id === id);
-  if (!claim) return <code title="Not among the confirmed statements">{id}</code>;
+  if (!claim) return <span>Unidentified prerequisite</span>;
   return (
     <a href={`#${claimAnchor(id, scope)}`} className="claim-ref">
       {statementTitle(claim)}
@@ -67,7 +66,6 @@ export function StatementView({
     <div className="claim" id={claimAnchor(claim.id, scope)}>
       <div className="claim-head">
         <span className="claim-label">{statementTitle(claim)}</span>
-        <code className="claim-id">{claim.id}</code>
         <KindBadge kind={claim.kind} />
         <RoleBadge role={claim.role} />
         {claim.has_proof === false && claim.kind !== 'conjecture' && claim.kind !== 'question' ? (

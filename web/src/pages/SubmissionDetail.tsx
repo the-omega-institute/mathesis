@@ -172,7 +172,7 @@ export function Workspace({
   const current = s.versions[s.versions.length - 1];
   const standing = authorStanding(s, referee.value);
   const currentReview = standing.round;
-  const awaitingReview = state === 'in_review' && !standing.delivered && !isStaff;
+  const awaitingReview = state === 'in_review' && !isStaff;
   const acceptedPublic =
     state === 'accepted' && s.purpose !== 'review_only' && s.analysis_visibility === 'public';
 

@@ -626,6 +626,9 @@ pub struct RefereeRoundView {
     /// Selected mathematical plans, available only after a letter for this round.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub formalization_suggestions: Option<Vec<FormalizationSuggestion>>,
+    /// Selected author feedback, without internal summaries, sketches or execution data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub research_suggestions: Option<Vec<ResearchSuggestion>>,
     pub computation_contract: u32,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub computation_receipts: Vec<super::ComputationReceipt>,
@@ -662,7 +665,34 @@ pub struct FormalizationSuggestion {
     pub plan: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ResearchSuggestion {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claim: Option<ClaimId>,
+    pub kind: ImprovementKind,
+    pub suggestion: String,
+    pub excerpt: bool,
+}
+
 impl RefereeRound {
+    fn research_suggestions(&self) -> Option<Vec<ResearchSuggestion>> {
+        let advice = self.advice.done()?;
+        self.audit.done()?;
+        Some(
+            advice
+                .improvements
+                .iter()
+                .filter(|item| !item.suggestion.trim().is_empty())
+                .map(|item| ResearchSuggestion {
+                    claim: item.claim.clone(),
+                    kind: item.kind,
+                    suggestion: item.suggestion.chars().take(6_000).collect(),
+                    excerpt: item.suggestion.chars().count() > 6_000,
+                })
+                .collect(),
+        )
+    }
+
     fn formalization_suggestions(&self) -> Option<Vec<FormalizationSuggestion>> {
         let advice = self.advice.done()?;
         let audit = self.audit.done()?;
@@ -837,6 +867,10 @@ impl RefereeFile {
                     formalization_suggestions: delivered
                         .contains(&r.number)
                         .then(|| r.formalization_suggestions())
+                        .flatten(),
+                    research_suggestions: delivered
+                        .contains(&r.number)
+                        .then(|| r.research_suggestions())
                         .flatten(),
                     computation_contract: r.computation_contract,
                     computation_receipts: r.computation_receipts.clone(),

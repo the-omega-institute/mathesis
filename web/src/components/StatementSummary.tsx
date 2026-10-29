@@ -8,6 +8,7 @@ import type {
   Submission,
 } from '../api/types';
 import { CLAIM_KIND_LABELS, isOpenKind } from '../lib/labels';
+import { manuscriptReferences, resultLabel } from '../lib/statements';
 import { LeanBadge } from './badges';
 import { LatexText } from './Markdown';
 import { claimAnchor, type StatementLike } from './claims';
@@ -45,7 +46,16 @@ export function StatementSummary({
   submission: Submission;
   round?: RefereeRound;
 }) {
-  const audit = round?.audit?.state.state === 'done' ? round.audit.state.result : undefined;
+  const rawAudit = round?.audit?.state.state === 'done' ? round.audit.state.result : undefined;
+  const audit = rawAudit
+    ? {
+        ...rawAudit,
+        claims: rawAudit.claims.map((reading) => ({
+          ...reading,
+          comment: manuscriptReferences(reading.comment, submission.claims),
+        })),
+      }
+    : undefined;
   const probe = round?.formal?.state.state === 'done' ? round.formal.state.result : undefined;
   const main = submission.claims.filter((c) => c.role === 'main');
   const supporting = submission.claims.filter((c) => c.role !== 'main');
@@ -102,7 +112,10 @@ export function PublicStatements({ claims }: { claims: readonly StatementLike[] 
       claim={claim}
       reviewed={false}
       proved={Boolean(claim.lean)}
-      uses={claim.depends_on ?? []}
+      uses={(claim.depends_on ?? []).map((id) => {
+        const dependency = claims.find((item) => item.id === id);
+        return dependency ? resultLabel(dependency) : 'Unidentified prerequisite';
+      })}
       artifact={claim.lean ?? undefined}
       anchor={claimAnchor(claim.id, 'public')}
     />
@@ -162,7 +175,7 @@ function StatementRow({
         onClick={() => setOpen(!open)}
       >
         <span className="statement-kind">
-          {CLAIM_KIND_LABELS[claim.kind]} <span className="statement-id">{claim.id}</span>
+          {name ? CLAIM_KIND_LABELS[claim.kind] : resultLabel({ ...claim, section: undefined })}
         </span>
         <span className="statement-name">
           <LatexText source={name ?? claim.statement} className="statement-preview" />

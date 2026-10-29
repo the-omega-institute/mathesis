@@ -148,6 +148,12 @@ export type FormalizationSuggestion = {
 export type RefereeRound = {
   letter_contract?: number;
   formalization_suggestions?: FormalizationSuggestion[];
+  research_suggestions?: {
+    claim?: string;
+    kind: ImprovementKind;
+    suggestion: string;
+    excerpt: boolean;
+  }[];
   computation_contract?: number;
   computation_receipts?: ComputationReceipt[];
   knowledge_contract?: number;

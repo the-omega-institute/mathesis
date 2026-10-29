@@ -42,9 +42,9 @@ describe('statement summary', () => {
     expect(within(supporting!).getAllByRole('listitem')).toHaveLength(2);
     const toggles = within(section).getAllByRole('button');
     expect(toggles).toHaveLength(submission.claims.length);
-    expect(toggles[0]).toHaveTextContent('Theorem C1');
-    expect(toggles[1]).toHaveTextContent('Conjecture C3');
-    expect(toggles[2]).toHaveTextContent('Lemma C2');
+    expect(toggles[0]).toHaveTextContent('Theorem 1.1');
+    expect(toggles[1]).toHaveTextContent('Conjecture 4.1');
+    expect(toggles[2]).toHaveTextContent('Lemma 2.1');
     const toggle = toggles[0]!;
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(toggle.querySelector('.katex')).not.toBeNull();
@@ -72,7 +72,7 @@ describe('statement summary', () => {
         }}
       />,
     );
-    const toggle = screen.getByRole('button', { name: /^Theorem C1.*The summation formula$/ });
+    const toggle = screen.getByRole('button', { name: /^Theorem.*The summation formula$/ });
     expect(toggle).not.toHaveTextContent('thm:sum');
     expect(toggle).not.toHaveTextContent('For every');
     await userEvent.click(toggle);
@@ -106,7 +106,7 @@ describe('statement summary', () => {
     'shows audited %s and keeps comments in the intended place',
     async (correctness, label) => {
       render(<StatementSummary submission={submission} round={round(correctness)} />);
-      const toggle = screen.getByRole('button', { name: /^Theorem C1/ });
+      const toggle = screen.getByRole('button', { name: /^Theorem 1.1/ });
       expect(within(toggle).getByText(label)).toBeVisible();
       if (correctness === 'correct') expect(within(toggle).getByText('New')).toBeVisible();
       else expect(within(toggle).queryByText('New')).toBeNull();
@@ -133,10 +133,10 @@ describe('statement summary', () => {
     (reading, novelty) => {
       render(<StatementSummary submission={submission} round={round('correct', reading)} />);
       expect(
-        within(screen.getByRole('button', { name: /^Theorem C1/ })).getByText(novelty),
+        within(screen.getByRole('button', { name: /^Theorem 1.1/ })).getByText(novelty),
       ).toBeVisible();
       expect(
-        within(screen.getByRole('button', { name: /^Lemma C2/ })).queryByText(
+        within(screen.getByRole('button', { name: /^Lemma 2.1/ })).queryByText(
           /^(New|Follows from known results|Already known)$/,
         ),
       ).toBeNull();
@@ -146,7 +146,7 @@ describe('statement summary', () => {
   it('marks statements missing from a completed audit as not checked', () => {
     render(<StatementSummary submission={submission} round={refereeRound} />);
     expect(
-      within(screen.getByRole('button', { name: /^Conjecture C3/ })).getByText('Not checked'),
+      within(screen.getByRole('button', { name: /^Conjecture 4.1/ })).getByText('Not checked'),
     ).toBeVisible();
   });
 
@@ -172,11 +172,11 @@ describe('statement summary', () => {
         }}
       />,
     );
-    const toggle = screen.getByRole('button', { name: /^Theorem C1/ });
+    const toggle = screen.getByRole('button', { name: /^Theorem 1.1/ });
     expect(within(toggle).getByText('Lean ✓')).toBeVisible();
     expect(screen.getByText('Mathesis.C1.main')).not.toBeVisible();
     expect(
-      within(screen.getByRole('button', { name: /^Lemma C2/ })).queryByText('Lean ✓'),
+      within(screen.getByRole('button', { name: /^Lemma 2.1/ })).queryByText('Lean ✓'),
     ).toBeNull();
     await userEvent.click(toggle);
     expect(screen.getByText('Mathesis.C1.main')).toBeVisible();
@@ -211,7 +211,7 @@ describe('statement summary', () => {
       />,
     );
     expect(
-      within(screen.getByRole('button', { name: /^Theorem C1/ })).getByText('Lean ✓'),
+      within(screen.getByRole('button', { name: /^Theorem 1.1/ })).getByText('Lean ✓'),
     ).toBeVisible();
   });
 

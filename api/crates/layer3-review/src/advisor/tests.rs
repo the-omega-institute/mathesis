@@ -240,6 +240,11 @@ fn final_report_style_is_pinned_without_changing_legacy_prompt_bytes() {
     current.letter_contract = 2;
     let academic = referee_prompts::letter(&current, None);
     assert!(academic.starts_with(referee_prompts::ACADEMIC_REPORT));
+    current.letter_contract = 3;
+    let outcome = referee_prompts::letter(&current, None);
+    assert!(outcome.starts_with(referee_prompts::OUTCOME_REPORT));
+    assert!(outcome.contains("## Suggestions"));
+    assert!(outcome.contains("Never expose internal identifiers"));
     assert!(academic.contains("## Review analysis"));
     assert!(academic.contains("## Further directions"));
     assert!(academic.contains("Formalization opportunities"));
@@ -247,4 +252,17 @@ fn final_report_style_is_pinned_without_changing_legacy_prompt_bytes() {
     assert_eq!(referee_prompts::letter(&current, None), new);
     current.letter_contract = 0;
     assert_eq!(referee_prompts::letter(&current, None), old);
+}
+
+#[test]
+fn report_style_does_not_change_source_comparison_requirements() {
+    let mut current = input();
+    current.knowledge = Some(serde_json::json!({"queries": []}));
+    let original = referee_prompts::audit(&current);
+    current.letter_contract = 3;
+    assert_eq!(referee_prompts::audit(&current), original);
+    assert!(original.contains("For EACH audited claim, return a coverage object"));
+    assert!(
+        !referee_prompts::letter(&current, None).contains("explain the exact saved limitation")
+    );
 }
