@@ -61,4 +61,25 @@ describe('public result', () => {
       '/api/v1/submissions/sub-acc/files/pdf?version=1',
     );
   });
+
+  it('does not describe an unproved conjecture as a proof', async () => {
+    renderWithApp(
+      <ResultPage record="WP-2026-0001" claim="C2" />,
+      fakeApi({
+        getPaper: vi.fn(async () => ({
+          ...publicPaper,
+          claims: claims.map((claim) => ({
+            ...claim,
+            ...(claim.id === 'C2' ? { kind: 'conjecture' as const, has_proof: false } : {}),
+            lean: null,
+          })),
+        })),
+      }),
+    );
+    expect(
+      await screen.findByRole('link', { name: 'Read the statement in the paper (PDF)' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Read the proof in the paper (PDF)' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Assumed in these statements' })).toBeVisible();
+  });
 });

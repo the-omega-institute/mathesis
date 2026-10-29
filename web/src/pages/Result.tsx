@@ -72,7 +72,9 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
         paper.versions?.find((item) => item.number === version)?.has_pdf ? (
           <p>
             <a href={pdfHref(paper.summary.submission, version)}>
-              Read the proof in the paper (PDF)
+              {claim.has_proof
+                ? 'Read the proof in the paper (PDF)'
+                : 'Read the statement in the paper (PDF)'}
             </a>
             {claim.section ? ` · ${claim.section}` : ''}
           </p>
@@ -106,7 +108,7 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
             {usedBy.length ? (
               <>
                 <h3>
-                  {isOpenKind(claim.kind) ? 'Assumed in these statements' : 'Used in these proofs'}
+                  {isOpenKind(claim.kind) ? 'Assumed in these statements' : 'Used in these results'}
                 </h3>
                 {relations(usedBy)}
               </>
