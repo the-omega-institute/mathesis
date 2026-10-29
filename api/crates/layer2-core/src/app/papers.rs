@@ -182,6 +182,15 @@ impl App {
         }
         let read = self.read(&upload)?;
         let mut extracted = claims_from(&read);
+        // Unified file intake needs no paper/short-note selector. A manuscript
+        // consisting solely of open statements follows conjecture review.
+        if preparing
+            && new.kind == SubmissionKind::Paper
+            && !extracted.is_empty()
+            && extracted.iter().all(|claim| claim.kind.is_open())
+        {
+            new.kind = SubmissionKind::Conjecture;
+        }
         if new.kind == SubmissionKind::Conjecture {
             for claim in &mut extracted {
                 if claim.kind.is_open() {
@@ -244,7 +253,7 @@ impl App {
             purpose: new.purpose,
             review_scope: new.review_scope,
             processing_consent: Some(ProcessingConsent {
-                version: AI_PROCESSING_CONSENT_VERSION.into(),
+                version: new.processing_consent.clone().unwrap(),
                 at: now,
             }),
             problem_check_requested: false,
@@ -577,13 +586,9 @@ impl App {
                 "the predecessor manuscript version changed",
             ));
         }
-        if processing_consent.as_deref() != Some(AI_PROCESSING_CONSENT_VERSION) {
-            return Err(CoreError::invalid(
-                "agreement to third-party AI review is required",
-            ));
-        }
+        let processing_version = validate_processing_request(processing_consent.as_deref())?;
         submission.processing_consent = Some(ProcessingConsent {
-            version: AI_PROCESSING_CONSENT_VERSION.into(),
+            version: processing_version.into(),
             at: self.ports.clock.now(),
         });
         if !matches!(

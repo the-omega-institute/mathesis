@@ -21,12 +21,12 @@ async function upload(
   files: File | File[] = new File(['source'], 'paper.tex'),
 ) {
   await user.upload(await screen.findByLabelText('Choose manuscript files'), files);
-  await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
   await user.click(screen.getByRole('button', { name: 'Upload and prepare PDF' }));
 }
 async function checkPdf(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole('checkbox', { name: /I have checked the PDF/ }));
-  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  const next = await screen.findByRole('button', { name: 'Continue to details' });
+  await waitFor(() => expect(next).toBeEnabled());
+  await user.click(next);
 }
 it('starts with upload and keeps metadata unavailable until the PDF is checked', async () => {
   const prepareSubmission = vi.fn(async () => prepared);
@@ -34,16 +34,18 @@ it('starts with upload and keeps metadata unavailable until the PDF is checked',
   const user = userEvent.setup();
   expect(await screen.findByRole('heading', { name: 'Upload your manuscript' })).toBeVisible();
   expect(screen.queryByLabelText('Title')).toBeNull();
+  expect(screen.queryByLabelText('Type of work')).toBeNull();
+  expect(screen.queryByRole('checkbox')).toBeNull();
   expect(screen.getByRole('tab', { name: 'Details' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Private review' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Upload and prepare PDF' }));
   expect(prepareSubmission).not.toHaveBeenCalled();
   await upload(user);
   expect(prepareSubmission).toHaveBeenCalledWith(
-    { kind: 'paper', purpose: 'publication', processing_consent: 'ai-review-2026-10-11' },
+    { kind: 'paper', purpose: 'publication', processing_consent: 'ai-review-request-2026-10-29' },
     expect.any(File),
   );
-  expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Continue to details' })).toBeEnabled();
   expect(screen.getByTitle('Manuscript PDF preview')).toBeVisible();
   await checkPdf(user);
   expect(screen.getByLabelText('Title')).toHaveValue(prepared.title);
@@ -122,11 +124,15 @@ it('submits corrected metadata and source-bound results, keeping private review 
   await user.type(screen.getByLabelText('Title'), 'Corrected title');
   await user.click(screen.getByRole('tab', { name: 'Authors' }));
   await user.type(screen.getByLabelText('Affiliation'), 'Example University');
+  await user.type(screen.getByLabelText('ORCID'), '0000-0002-1825-0097');
+  await user.type(
+    screen.getByLabelText('Google Scholar'),
+    'https://scholar.google.com/citations?user=ada',
+  );
+  await user.type(screen.getByLabelText('Website or other link'), 'https://example.edu/ada');
   await user.click(screen.getByRole('tab', { name: 'Submit' }));
-  expect(screen.getByRole('checkbox', { name: /Publish my manuscript/ })).not.toBeChecked();
-  await user.click(screen.getByRole('button', { name: 'Submit for review' }));
-  expect(submitPrepared).not.toHaveBeenCalled();
-  await user.click(screen.getByRole('checkbox', { name: /I confirm the manuscript details/ }));
+  expect(screen.getByRole('checkbox', { name: /Make my results public/ })).not.toBeChecked();
+  expect(screen.queryByText(/I confirm the manuscript details/)).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Submit for review' }));
   expect(submitPrepared).toHaveBeenCalledWith(
     prepared.id,
@@ -135,7 +141,15 @@ it('submits corrected metadata and source-bound results, keeping private review 
       source_sha256: prepared.versions[0]!.archive.sha256,
       metadata: expect.objectContaining({
         title: 'Corrected title',
-        authors: [{ name: 'Ada Example', affiliation: 'Example University' }],
+        authors: [
+          {
+            name: 'Ada Example',
+            affiliation: 'Example University',
+            orcid: '0000-0002-1825-0097',
+            google_scholar: 'https://scholar.google.com/citations?user=ada',
+            website: 'https://example.edu/ada',
+          },
+        ],
         purpose: 'review_only',
         make_public_after_acceptance: false,
       }),
@@ -166,10 +180,9 @@ it.each([true, false])(
     await user.click(screen.getByRole('tab', { name: 'Authors' }));
     await user.type(screen.getByLabelText('Name'), 'Ada Example');
     await user.click(screen.getByRole('tab', { name: 'Review & submit' }));
-    const publication = screen.getByRole('checkbox', { name: /Publish my manuscript/ });
+    const publication = screen.getByRole('checkbox', { name: /Make my results public/ });
     expect(publication).toBeChecked();
     if (!publish) await user.click(publication);
-    await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
     await user.click(screen.getByRole('button', { name: 'Prepare conjecture PDF' }));
     expect(createSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -197,13 +210,10 @@ it.each([true, false])(
     const user = userEvent.setup();
     await checkPdf(user);
     await user.click(screen.getByRole('tab', { name: 'Submit' }));
-    const publication = screen.getByRole('checkbox', { name: /Publish my manuscript/ });
+    const publication = screen.getByRole('checkbox', { name: /Make my results public/ });
     expect(publication).toBeChecked();
-    expect(publication).toHaveAccessibleDescription(
-      /If you only want review feedback, uncheck this box/,
-    );
+    expect(publication).toHaveAccessibleDescription(/Uncheck this box if you only want a review/);
     if (!publish) await user.click(publication);
-    await user.click(screen.getByRole('checkbox', { name: /I confirm the manuscript details/ }));
     await user.click(screen.getByRole('button', { name: 'Submit for review' }));
     expect(submitPrepared).toHaveBeenCalledWith(
       prepared.id,

@@ -182,13 +182,12 @@ describe('standing in the workspace', () => {
     const source = new File(['source'], 'revision.tex', { type: 'text/plain' });
     await user.upload(within(form).getByLabelText('Revised manuscript files'), source);
     await user.type(within(form).getByLabelText('What changed'), 'Clarified the base case.');
-    await user.click(within(form).getByRole('checkbox', { name: /I agree that the source/ }));
     await user.click(within(form).getByRole('button', { name: 'Upload version' }));
     expect(uploadVersion).toHaveBeenCalledExactlyOnceWith(
       accepted.id,
       source,
       'Clarified the base case.',
-      'ai-review-2026-10-11',
+      'ai-review-request-2026-10-29',
     );
     expect(await screen.findByRole('form', { name: 'Confirm statements' })).toBeInTheDocument();
   });

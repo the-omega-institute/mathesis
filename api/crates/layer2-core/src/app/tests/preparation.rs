@@ -227,3 +227,104 @@ async fn author_chooses_purpose_at_final_submission_then_cannot_change_it_by_rep
         assert_eq!(w.app.submission(&author, &s.id).await.unwrap(), submitted);
     }
 }
+
+#[tokio::test]
+async fn upload_action_marker_is_preserved_without_fabricating_checkbox_consent() {
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let s = w
+        .app
+        .prepare_submission(
+            &author,
+            PrepareSubmission {
+                kind: SubmissionKind::Paper,
+                purpose: SubmissionPurpose::Publication,
+                processing_consent: Some(AI_PROCESSING_REQUEST_VERSION.into()),
+            },
+            Upload {
+                filename: "t.tex".into(),
+                bytes: b"source".to_vec(),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        s.processing_consent.as_ref().unwrap().version,
+        AI_PROCESSING_REQUEST_VERSION
+    );
+    assert_eq!(s.status, SubmissionStatus::Draft);
+    assert_eq!(s.analysis_visibility, Visibility::Private);
+    let bot = w.person("bot", &[Role::Reviewer]).await;
+    w.app
+        .record_compilation(&bot, &s.id, 1, Ok(b"%PDF".to_vec()))
+        .await
+        .unwrap();
+    let mut input = submission_request(&s);
+    input.metadata.processing_consent = Some(AI_PROCESSING_REQUEST_VERSION.into());
+    input.metadata.purpose = SubmissionPurpose::ReviewOnly;
+    input.metadata.make_public_after_acceptance = false;
+    let submitted = w.app.submit_prepared(&author, &s.id, input).await.unwrap();
+    assert_eq!(submitted.purpose, SubmissionPurpose::ReviewOnly);
+    assert_eq!(submitted.analysis_visibility, Visibility::Private);
+    let revised = w
+        .app
+        .upload_version(
+            &author,
+            &s.id,
+            Upload {
+                filename: "tt.tex".into(),
+                bytes: b"revision".to_vec(),
+            },
+            "Revision".into(),
+            Some(AI_PROCESSING_REQUEST_VERSION.into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        revised.processing_consent.as_ref().unwrap().version,
+        AI_PROCESSING_REQUEST_VERSION
+    );
+}
+
+#[tokio::test]
+async fn unified_file_intake_distinguishes_open_statements_from_papers() {
+    for (filename, requested, expected) in [
+        ("c.tex", SubmissionKind::Paper, SubmissionKind::Conjecture),
+        ("tc.tex", SubmissionKind::Paper, SubmissionKind::Paper),
+        ("t.tex", SubmissionKind::Note, SubmissionKind::Note),
+    ] {
+        let w = World::new().await;
+        let author = w.person("author", &[]).await;
+        let s = w
+            .app
+            .prepare_submission(
+                &author,
+                PrepareSubmission {
+                    kind: requested,
+                    purpose: SubmissionPurpose::Publication,
+                    processing_consent: Some(AI_PROCESSING_REQUEST_VERSION.into()),
+                },
+                Upload {
+                    filename: filename.into(),
+                    bytes: b"source".to_vec(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(s.kind, expected);
+        let bot = w.person("bot", &[Role::Reviewer]).await;
+        w.app
+            .record_compilation(&bot, &s.id, 1, Ok(b"%PDF".to_vec()))
+            .await
+            .unwrap();
+        let input = submission_request(&s);
+        assert_eq!(
+            w.app
+                .submit_prepared(&author, &s.id, input)
+                .await
+                .unwrap()
+                .status,
+            SubmissionStatus::InReview
+        );
+    }
+}

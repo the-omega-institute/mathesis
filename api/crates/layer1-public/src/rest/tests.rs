@@ -755,7 +755,7 @@ async fn solving_routes_are_public_where_intended_and_agents_require_ownership()
 }
 
 #[tokio::test]
-async fn uploads_require_explicit_current_consent_and_retired_proof_routes_are_absent() {
+async fn uploads_require_current_request_marker_and_retired_proof_routes_are_absent() {
     let router = router();
     for consent in [None, Some("old-version")] {
         let mut metadata =
@@ -780,7 +780,12 @@ async fn uploads_require_explicit_current_consent_and_retired_proof_routes_are_a
             .unwrap();
         let (status, json, _) = send(&router, request).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-        assert!(json["detail"].as_str().unwrap().contains("agreement"));
+        assert!(
+            json["detail"]
+                .as_str()
+                .unwrap()
+                .contains("AI review request version")
+        );
     }
     for (method, path) in [
         ("PUT", "/submissions/s/formalization/repository"),

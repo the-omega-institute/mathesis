@@ -901,6 +901,8 @@ export type CmaAttemptView = {
 };
 
 export const PROCESSING_CONSENT_VERSION = 'ai-review-2026-10-11';
+/** Upload/submit action, not a separate AI-processing acknowledgement. */
+export const PROCESSING_REQUEST_VERSION = 'ai-review-request-2026-10-29';
 export const PROCESSING_CONSENT_TEXT =
   'I agree that the source and statements may be processed by external AI systems for mathematical review.';
 export type ErrorSubject =

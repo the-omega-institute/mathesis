@@ -1,6 +1,6 @@
 import { EvidencePicker } from '../EvidenceFiles';
 import { bundleManuscript, withEvidence, type EvidenceInput } from '../../lib/sourceBundle';
-import { PROCESSING_CONSENT_TEXT, PROCESSING_CONSENT_VERSION } from '../../api/types';
+import { PROCESSING_REQUEST_VERSION } from '../../api/types';
 import { useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
 import type { Submission } from '../../api/types';
@@ -129,7 +129,6 @@ export function NewVersionForm({
 }) {
   const api = useApi();
   const m = useMutation(onChange);
-  const [consent, setConsent] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
   const [note, setNote] = useState('');
@@ -144,17 +143,13 @@ export function NewVersionForm({
       m.setError('Say what changed in this version.');
       return;
     }
-    if (!consent) {
-      m.setError('Agree to third-party AI review before uploading.');
-      return;
-    }
     m.run(
       async () =>
         api.uploadVersion(
           submission.id,
           await withEvidence(await bundleManuscript(files), evidence),
           note.trim(),
-          PROCESSING_CONSENT_VERSION,
+          PROCESSING_REQUEST_VERSION,
         ),
       () => {
         setFiles([]);
@@ -194,15 +189,6 @@ export function NewVersionForm({
           onChange={(e) => setNote(e.target.value)}
         />
       </Field>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          required
-          checked={consent}
-          onChange={(e) => setConsent(e.target.checked)}
-        />
-        <span>{PROCESSING_CONSENT_TEXT}</span>
-      </label>
       <button type="submit" className="button" disabled={m.busy}>
         {m.busy ? 'Uploading…' : 'Upload version'}
       </button>

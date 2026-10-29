@@ -6806,7 +6806,9 @@
             ]
           },
           "processing_consent": {
-            "const": "ai-review-2026-10-11"
+            "type": "string",
+            "description": "The upload action requests AI processing. Use ai-review-request-2026-10-29; the legacy explicit-consent marker remains accepted for compatible clients.",
+            "enum": ["ai-review-2026-10-11", "ai-review-request-2026-10-29"]
           }
         }
       },

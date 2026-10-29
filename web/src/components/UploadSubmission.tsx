@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { pdfHref } from '../api/client';
-import { PROCESSING_CONSENT_TEXT, PROCESSING_CONSENT_VERSION } from '../api/types';
-import type { AiUseLevel, Submission, SubmissionKind } from '../api/types';
-import { useRouter, Link } from '../routing/router';
+import { PROCESSING_REQUEST_VERSION } from '../api/types';
+import type { AiUseLevel, Submission } from '../api/types';
+import { useRouter } from '../routing/router';
 import { bundleManuscript, withEvidence, type EvidenceInput } from '../lib/sourceBundle';
 import { SOURCE_ACCEPT, buildNewPaper } from '../lib/upload';
 import { buildConfirmations, initialRows, updateRow } from '../lib/confirm';
@@ -45,10 +45,9 @@ export function UploadSubmission({
   const { navigate } = useRouter();
   const [draft, setDraft] = useState(initialSubmission);
   const [step, setStep] = useState(initialSubmission ? 1 : 0);
-  const [kind, setKind] = useState<SubmissionKind>(initialSubmission?.kind ?? 'paper');
+  const kind = draft?.kind ?? 'paper';
   const [files, setFiles] = useState<File[]>([]);
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
-  const [consent, setConsent] = useState(false);
   const [pdfChecked, setPdfChecked] = useState(false);
   const [title, setTitle] = useState(initialSubmission?.title ?? '');
   const [abstract, setAbstract] = useState(initialSubmission?.abstract_text ?? '');
@@ -58,7 +57,6 @@ export function UploadSubmission({
   const [aiLevel, setAiLevel] = useState<AiUseLevel>('none');
   const [reviewScope, setReviewScope] = useState('');
   const [makePublic, setMakePublic] = useState(!initiallyPrivate);
-  const [confirmed, setConfirmed] = useState(false);
   const [rows, setRows] = useState(() => initialRows(initialSubmission?.extracted ?? []));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -100,10 +98,6 @@ export function UploadSubmission({
       setError('Choose a PDF, LaTeX file or source archive.');
       return;
     }
-    if (!consent) {
-      setError('Agree to the processing terms before uploading.');
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -113,13 +107,13 @@ export function UploadSubmission({
             draft.id,
             source,
             'Updated during submission preparation',
-            PROCESSING_CONSENT_VERSION,
+            PROCESSING_REQUEST_VERSION,
           )
         : await api.prepareSubmission(
             {
               kind,
               purpose: makePublic ? 'publication' : 'review_only',
-              processing_consent: PROCESSING_CONSENT_VERSION,
+              processing_consent: PROCESSING_REQUEST_VERSION,
             },
             source,
           );
@@ -129,7 +123,6 @@ export function UploadSubmission({
       setAuthors(authorDrafts(s));
       setRows(initialRows(s.extracted));
       setPdfChecked(false);
-      setConfirmed(false);
       setStep(1);
       if (!draft) navigate({ kind: 'submission', id: s.id });
     } catch (e) {
@@ -163,9 +156,9 @@ export function UploadSubmission({
       else await upload();
       return;
     }
-    if (step === 1 && (!ready || !pdfChecked)) {
-      setError('Check the prepared PDF before continuing.');
-      return;
+    if (step === 1) {
+      if (!ready) return;
+      setPdfChecked(true);
     }
     if (step === 2 && !validateDetails()) return;
     if (step === 3) {
@@ -204,10 +197,6 @@ export function UploadSubmission({
       setError(claims.error);
       return;
     }
-    if (!confirmed) {
-      setError('Confirm the manuscript details before submitting.');
-      return;
-    }
     const built = buildNewPaper({
       aiLevel,
       aiStatement: AI_DISCLOSURE_STATEMENTS[aiLevel],
@@ -229,7 +218,7 @@ export function UploadSubmission({
           title: title.trim(),
           abstract_text: abstract.trim(),
           authors: parsed.value,
-          processing_consent: PROCESSING_CONSENT_VERSION,
+          processing_consent: PROCESSING_REQUEST_VERSION,
           make_public_after_acceptance: makePublic,
           review_scope: reviewScope,
         },
@@ -303,18 +292,6 @@ export function UploadSubmission({
               Start with your paper. We will prepare a PDF and fill in the details we can read from
               it.
             </p>
-            <Field label="Type of work" htmlFor="upload-kind">
-              <select
-                id="upload-kind"
-                value={kind}
-                disabled={!!draft}
-                onChange={(e) => setKind(e.target.value as SubmissionKind)}
-              >
-                <option value="paper">Paper</option>
-                <option value="note">Short note</option>
-                <option value="conjecture">Conjecture</option>
-              </select>
-            </Field>
             <Field
               label={draft ? 'Replace manuscript files' : 'Choose manuscript files'}
               htmlFor="source-file"
@@ -352,18 +329,6 @@ export function UploadSubmission({
               <summary>Supplementary material (optional)</summary>
               <EvidencePicker value={evidence} onChange={setEvidence} />
             </details>
-            <label className="checkbox upload-consent">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-              />
-              <span>{PROCESSING_CONSENT_TEXT}</span>
-            </label>
-            <p className="hint">
-              Your upload is saved as a private draft. AI review starts only after you submit in the
-              final step.
-            </p>
           </>
         ) : null}
         {step === 1 ? (
@@ -381,7 +346,7 @@ export function UploadSubmission({
             </div>
             {preparing ? (
               <p role="status" className="preparation-status">
-                Preparing your PDF… You can leave and return to this draft from My work.
+                Preparing your PDF…
               </p>
             ) : null}
             <InlineError error={pollError} />
@@ -422,14 +387,6 @@ export function UploadSubmission({
                     </details>
                   </div>
                 ) : null}
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={pdfChecked}
-                    onChange={(e) => setPdfChecked(e.target.checked)}
-                  />
-                  <span>I have checked the PDF and it is the manuscript I intend to submit.</span>
-                </label>
               </>
             ) : null}
           </>
@@ -461,6 +418,26 @@ export function UploadSubmission({
                 onChange={(e) => setAbstract(e.target.value)}
               />
             </Field>
+            <details className="plain-details">
+              <summary>AI use in the manuscript (optional)</summary>
+              <Field
+                label="AI use in this work"
+                htmlFor="ai-level"
+                hint={AI_USE_DESCRIPTIONS[aiLevel]}
+              >
+                <select
+                  id="ai-level"
+                  value={aiLevel}
+                  onChange={(e) => setAiLevel(e.target.value as AiUseLevel)}
+                >
+                  {AI_USES.map((level) => (
+                    <option key={level} value={level}>
+                      {AI_USE_LABELS[level]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </details>
             <details className="plain-details">
               <summary>Classification and DOI (optional)</summary>
               <div className="form-row">
@@ -522,23 +499,6 @@ export function UploadSubmission({
                 </button>
               </p>
             </div>
-            <Field
-              label="AI use in this work"
-              htmlFor="ai-level"
-              hint={AI_USE_DESCRIPTIONS[aiLevel]}
-            >
-              <select
-                id="ai-level"
-                value={aiLevel}
-                onChange={(e) => setAiLevel(e.target.value as AiUseLevel)}
-              >
-                {AI_USES.map((level) => (
-                  <option key={level} value={level}>
-                    {AI_USE_LABELS[level]}
-                  </option>
-                ))}
-              </select>
-            </Field>
             <Field label="Cover note (optional)" htmlFor="review-scope">
               <textarea
                 id="review-scope"
@@ -594,17 +554,6 @@ export function UploadSubmission({
               ))}
             </details>
             <PublicationChoice checked={makePublic} onChange={setMakePublic} />
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-              />
-              <span>
-                I confirm the manuscript details, authorship and results, and am ready to submit for
-                AI review.
-              </span>
-            </label>
           </>
         ) : null}
         <InlineError error={error} />
@@ -621,11 +570,7 @@ export function UploadSubmission({
               </button>
             ) : null}
           </div>
-          <button
-            type="submit"
-            className="button"
-            disabled={busy || (step === 1 && (!ready || !pdfChecked))}
-          >
+          <button type="submit" className="button" disabled={busy || (step === 1 && !ready)}>
             {busy
               ? step === 0
                 ? 'Uploading…'
@@ -636,14 +581,11 @@ export function UploadSubmission({
                   : 'Upload and prepare PDF'
                 : step === 4
                   ? 'Submit for review'
-                  : 'Continue'}
+                  : step === 1
+                    ? 'Continue to details'
+                    : 'Continue'}
           </button>
         </div>
-        {draft ? (
-          <p className="draft-save-note">
-            Manuscript saved. <Link to={{ kind: 'submissions' }}>Return to My work</Link>
-          </p>
-        ) : null}
       </div>
     </form>
   );
