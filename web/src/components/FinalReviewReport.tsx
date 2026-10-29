@@ -71,14 +71,14 @@ export function FinalReviewReport({
       <h3>
         <InlineLatex source={letter.subject} />
       </h3>
-      <Markdown text={letter.body} lineBreaks />
+      <Markdown text={letter.body} lineBreaks texDelimiters />
       {letter.note ? (
         <div className="review-analysis">
-          <Markdown text={letter.note} />
+          <Markdown text={letter.note} texDelimiters />
         </div>
       ) : null}
       <div className="formalization-opportunities">
-        <Markdown text={formalization} />
+        <Markdown text={formalization} texDelimiters />
       </div>
     </section>
   );
