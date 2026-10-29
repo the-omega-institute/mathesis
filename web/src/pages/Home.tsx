@@ -44,11 +44,6 @@ export function HomePage() {
             Contribute a formalization <Arrow />
           </Link>
         </div>
-        <p className="small">
-          <Link className="text-link" to={{ kind: 'submit', intake: 'review' }}>
-            Request a private review without publication <Arrow />
-          </Link>
-        </p>
       </section>
 
       <div className="archive-layout">

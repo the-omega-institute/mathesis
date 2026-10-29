@@ -131,7 +131,7 @@ async fn submission_requires_owner_current_source_and_valid_author_metadata() {
     bad.metadata.authors.clear();
     assert!(w.app.submit_prepared(&author, &s.id, bad).await.is_err());
     let mut bad = input.clone();
-    bad.metadata.purpose = SubmissionPurpose::Publication;
+    bad.metadata.kind = SubmissionKind::Note;
     assert!(w.app.submit_prepared(&author, &s.id, bad).await.is_err());
     let stored = w.app.submission(&author, &s.id).await.unwrap();
     assert_eq!(stored.title, s.title);
@@ -173,4 +173,57 @@ async fn replacing_prepared_files_invalidates_the_old_submission_request() {
         w.app.submission(&author, &s.id).await.unwrap().status,
         SubmissionStatus::Draft
     );
+}
+
+#[tokio::test]
+async fn author_chooses_purpose_at_final_submission_then_cannot_change_it_by_replay() {
+    for (initial, final_purpose, visibility) in [
+        (
+            SubmissionPurpose::Publication,
+            SubmissionPurpose::ReviewOnly,
+            Visibility::Private,
+        ),
+        (
+            SubmissionPurpose::ReviewOnly,
+            SubmissionPurpose::Publication,
+            Visibility::Public,
+        ),
+    ] {
+        let w = World::new().await;
+        let author = w.person("author", &[]).await;
+        let s = prepare(&w, &author, initial).await;
+        let bot = w.person("bot", &[Role::Reviewer]).await;
+        w.app
+            .record_compilation(&bot, &s.id, 1, Ok(b"%PDF".to_vec()))
+            .await
+            .unwrap();
+        let mut input = submission_request(&s);
+        input.metadata.purpose = final_purpose;
+        // Even a conflicting public flag must not expose a review-only request.
+        input.metadata.make_public_after_acceptance = true;
+        let submitted = w
+            .app
+            .submit_prepared(&author, &s.id, input.clone())
+            .await
+            .unwrap();
+        assert_eq!(submitted.purpose, final_purpose);
+        assert_eq!(submitted.analysis_visibility, visibility);
+        assert_eq!(submitted.status, SubmissionStatus::InReview);
+        assert_eq!(
+            submitted.decision.is_none(),
+            final_purpose == SubmissionPurpose::ReviewOnly
+        );
+        let replay = w
+            .app
+            .submit_prepared(&author, &s.id, input.clone())
+            .await
+            .unwrap();
+        assert_eq!(replay, submitted);
+        input.metadata.purpose = initial;
+        assert!(matches!(
+            w.app.submit_prepared(&author, &s.id, input).await,
+            Err(CoreError::Conflict(_))
+        ));
+        assert_eq!(w.app.submission(&author, &s.id).await.unwrap(), submitted);
+    }
 }

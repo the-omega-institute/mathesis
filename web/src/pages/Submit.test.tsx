@@ -35,6 +35,7 @@ it('starts with upload and keeps metadata unavailable until the PDF is checked',
   expect(await screen.findByRole('heading', { name: 'Upload your manuscript' })).toBeVisible();
   expect(screen.queryByLabelText('Title')).toBeNull();
   expect(screen.getByRole('tab', { name: 'Details' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Private review' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Upload and prepare PDF' }));
   expect(prepareSubmission).not.toHaveBeenCalled();
   await upload(user);
@@ -122,7 +123,7 @@ it('submits corrected metadata and source-bound results, keeping private review 
   await user.click(screen.getByRole('tab', { name: 'Authors' }));
   await user.type(screen.getByLabelText('Affiliation'), 'Example University');
   await user.click(screen.getByRole('tab', { name: 'Submit' }));
-  expect(screen.queryByRole('checkbox', { name: /Publish/ })).toBeNull();
+  expect(screen.getByRole('checkbox', { name: /Publish my manuscript/ })).not.toBeChecked();
   await user.click(screen.getByRole('button', { name: 'Submit for review' }));
   expect(submitPrepared).not.toHaveBeenCalled();
   await user.click(screen.getByRole('checkbox', { name: /I confirm the manuscript details/ }));
@@ -148,31 +149,70 @@ it('asks anonymous visitors to sign in', async () => {
   expect(await screen.findByText('Sign in to submit your work.')).toBeVisible();
 });
 
-it('keeps typed conjectures as a distinct, file-free preparation path', async () => {
-  const createSubmission = vi.fn(async () => draft);
-  renderWithApp(<SubmitPage />, fakeApi({ createSubmission }, author));
-  const user = userEvent.setup();
-  await user.click(await screen.findByRole('button', { name: /No manuscript file/ }));
-  expect(screen.queryByLabelText('Manuscript format')).toBeNull();
-  expect(screen.queryByLabelText('Type of work')).toBeNull();
-  await user.type(screen.getByLabelText('Title'), 'A finite graph conjecture');
-  await user.type(
-    screen.getByLabelText('Conjecture statement'),
-    'Every graph in this family is connected.',
-  );
-  await user.click(screen.getByRole('tab', { name: 'Authors' }));
-  await user.type(screen.getByLabelText('Name'), 'Ada Example');
-  await user.click(screen.getByRole('tab', { name: 'Review & submit' }));
-  await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
-  await user.click(screen.getByRole('button', { name: 'Prepare conjecture PDF' }));
-  expect(createSubmission).toHaveBeenCalledWith(
-    expect.objectContaining({
-      kind: 'conjecture',
-      title: 'A finite graph conjecture',
-      typed_conjecture: expect.objectContaining({
-        statement: 'Every graph in this family is connected.',
+it.each([true, false])(
+  'applies the final publication choice (%s) to typed conjectures',
+  async (publish) => {
+    const createSubmission = vi.fn(async () => draft);
+    renderWithApp(<SubmitPage />, fakeApi({ createSubmission }, author));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /No manuscript file/ }));
+    expect(screen.queryByLabelText('Manuscript format')).toBeNull();
+    expect(screen.queryByLabelText('Type of work')).toBeNull();
+    await user.type(screen.getByLabelText('Title'), 'A finite graph conjecture');
+    await user.type(
+      screen.getByLabelText('Conjecture statement'),
+      'Every graph in this family is connected.',
+    );
+    await user.click(screen.getByRole('tab', { name: 'Authors' }));
+    await user.type(screen.getByLabelText('Name'), 'Ada Example');
+    await user.click(screen.getByRole('tab', { name: 'Review & submit' }));
+    const publication = screen.getByRole('checkbox', { name: /Publish my manuscript/ });
+    expect(publication).toBeChecked();
+    if (!publish) await user.click(publication);
+    await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await user.click(screen.getByRole('button', { name: 'Prepare conjecture PDF' }));
+    expect(createSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'conjecture',
+        purpose: publish ? 'publication' : 'review_only',
+        make_public_after_acceptance: publish,
+        title: 'A finite graph conjecture',
+        typed_conjecture: expect.objectContaining({
+          statement: 'Every graph in this family is connected.',
+        }),
+        authors: [{ name: 'Ada Example' }],
       }),
-      authors: [{ name: 'Ada Example' }],
-    }),
-  );
-});
+    );
+  },
+);
+
+it.each([true, false])(
+  'uses the last-step publication choice (%s) for an uploaded manuscript',
+  async (publish) => {
+    const submitPrepared = vi.fn(async () => ({
+      ...prepared,
+      status: { state: 'in_review' as const },
+    }));
+    renderWithApp(<SubmitPage initialSubmission={prepared} />, fakeApi({ submitPrepared }, author));
+    const user = userEvent.setup();
+    await checkPdf(user);
+    await user.click(screen.getByRole('tab', { name: 'Submit' }));
+    const publication = screen.getByRole('checkbox', { name: /Publish my manuscript/ });
+    expect(publication).toBeChecked();
+    expect(publication).toHaveAccessibleDescription(
+      /If you only want review feedback, uncheck this box/,
+    );
+    if (!publish) await user.click(publication);
+    await user.click(screen.getByRole('checkbox', { name: /I confirm the manuscript details/ }));
+    await user.click(screen.getByRole('button', { name: 'Submit for review' }));
+    expect(submitPrepared).toHaveBeenCalledWith(
+      prepared.id,
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          purpose: publish ? 'publication' : 'review_only',
+          make_public_after_acceptance: publish,
+        }),
+      }),
+    );
+  },
+);
