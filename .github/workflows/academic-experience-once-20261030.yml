@@ -12,12 +12,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, web]
+        service: [web]
     permissions:
       contents: read
       packages: write
     env:
-      SOURCE_COMMIT: 41b73a36881f8a7c8361e89e2d07e2b61b63520e
+      SOURCE_COMMIT: c10be29bb0266c2790c25e917c19e67708a63e1d
       IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:academic-experience-20261030
     steps:
       - uses: actions/checkout@v4
