@@ -399,12 +399,20 @@ provider fields. No letter means no suggestions projection. These are
 recommendations, not author-approved work, proof receipts or public credit.
 The client matches candidates to proved claims of the current source version.
 
-New rounds pin `letter_contract: 2`: the venue inserts the existing authoritative
-decision, and the report uses Review analysis and Further directions headings.
-The interface and its readable download add Formalization opportunities from
-the bounded projection. Stored contracts 0/1 and running rounds keep their
-original prompts and delivered letters. A delivered letter with a pending
-decision is optional feedback, never a final acceptance/refusal.
+After same-round letter delivery and completed audit/advice, `research_suggestions`
+projects each nonempty improvement as `{claim?, kind, suggestion, excerpt}`. Suggestion
+text is limited to 6,000 Unicode characters per item, with explicit truncation status.
+It omits the internal recommendation summary, execution evidence, contributor promises,
+sketches and provider metadata. No storage migration or re-review is required.
+
+New rounds pin `letter_contract: 3`: mathematical sections use Review analysis,
+Suggestions and Further directions. The author interface supplies the fixed opening
+from the applied submission state and visibility; a private review has no publication
+verdict. Pending submissions have no author report or report download, even if an
+internal letter exists. Staff still receive the full original history. Completed legacy
+reports use saved mathematical findings and the delivered suggestions projection;
+new reports use the three authored mathematical sections. The download matches the
+rendered document. Contracts 0/1/2 and running rounds keep their original prompt bytes.
 
 Editors may still post additional letters. Posting stores subject, body and note
 as an in-app message. Body must have non-whitespace text; body/note are limited
@@ -438,6 +446,7 @@ type RefereeView = {
 };
 type RefereeRound = {
   letter_contract?: number;
+  research_suggestions?: { claim?: string; kind: ImprovementKind; suggestion: string; excerpt: boolean }[];
   formalization_suggestions?: { claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
   number: number;                   // 1-based, increases on restart
   version: number;                  // the paper version reviewed
@@ -1052,12 +1061,12 @@ the same author/staff access policy as the private submission. My work uses this
 small projection and distinguishes loading, request errors and an interrupted
 review. Details continue using the saved private referee view.
 
-New rounds pin `letter_contract: 1`, using final Mathesis report language:
+New rounds pin `letter_contract: 3`, using final Mathesis report language:
 accepted work describes contributions and extensions; refused work states the
 applied reasons. Private reviews have no publication verdict. The automatic
 letter assessment follows the actual publication decision, never the internal
 minor/major revision recommendation. Historical reports are immutable and
-contract-0 rounds retain their original prompt bytes for retries.
+contracts 0/1/2 retain their original prompt bytes for retries.
 
 ### Versioned downstream manuscripts
 

@@ -1,5 +1,5 @@
 import type { RefereeRound, Submission } from '../api/types';
-import { resultLabel } from './statements';
+import { manuscriptReferences, resultLabel } from './statements';
 
 export function formalizationAdvice(submission: Submission, round?: RefereeRound) {
   const candidates =
@@ -34,7 +34,7 @@ export function formalizationAdviceText(submission: Submission, round?: RefereeR
     ? candidates
         .map(
           ({ claim, plan, state }) =>
-            `### ${resultLabel(claim)}\n\n${plan}${state ? `\n\n${{ proposed: 'Awaiting your approval.', approved: 'You have approved formalization.', in_progress: 'Formalization is in progress.', verified: 'A verified formal proof is available.', declined: 'You have declined formalization.' }[state]}` : ''}`,
+            `### ${resultLabel(claim)}\n\n${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${{ proposed: 'Awaiting your approval.', approved: 'You have approved formalization.', in_progress: 'Formalization is in progress.', verified: 'A verified formal proof is available.', declined: 'You have declined formalization.' }[state]}` : ''}`,
         )
         .join('\n\n')
     : round?.formalization_suggestions

@@ -406,7 +406,7 @@ from `develop`. No force pushes to either.
   Author-facing reports do not use minor/major-revision outcome labels; accepted
   reports describe contributions and extensions, refusals explain their reasons.
   Internal mathematical recommendations and historical letters stay unchanged.
-  New rounds pin `letter_contract: 1`; legacy rounds retain their original prompts.
+  New rounds pin `letter_contract: 3`; legacy rounds retain their original prompts.
   The My work list uses the private, version-bound `review-summary` projection;
   delivery requires a saved current letter. Internal stages remain in staff details.
   It contains no Lean results. Private review letters state completion and feedback,
@@ -797,7 +797,7 @@ funded; local elaboration and proof verification carry no CMA payer.
 - A manuscript in `in_review` cannot receive a new source version, including through
   producer deliveries. Revision upload returns a conflict before source/blob/queue
   changes. Exact delivery/confirmation retries retain their existing idempotence.
-- While the current review has no delivered final report, the in-review author page
+- Throughout `in_review`, even after an internal letter is delivered, the author page
   contains manuscript metadata, PDF/source links, a short status and a folded
   withdrawal control. Statements, execution history, compute settings, research
   goals and downstream proposals are absent. Staff retain the separate execution view.
@@ -813,13 +813,20 @@ funded; local elaboration and proof verification carry no CMA payer.
   Developer integration instructions are collapsed on the contribution page. The public
   review policy explains mathematical criteria and privacy without internal stage names.
 
-- New rounds pin `letter_contract: 2` for an academic report with Review analysis
-  and Further directions. Contracts 0/1 retain their prompt bytes. The existing
+- New rounds pin `letter_contract: 3` for Review analysis, Suggestions and Further
+  directions. Contracts 0/1/2 retain their prompt bytes. The existing
   venue-authored decision remains authoritative. After same-round letter delivery,
   a bounded projection exposes selected correct-statement formalization plans;
   it never exposes raw advice, sketches, files or provider data. Recommendations
-  are separate from approvals and checked proofs. Pending decisions show optional
-  feedback, without claiming the review is complete.
+  are separate from approvals and checked proofs. Pending decisions expose no author report,
+  report download, results list or revision control. Staff retain the original letters.
+  Completed reports use a fixed opening from the applied state and visibility, never
+  from a model recommendation. Legacy mathematical analysis is drawn from the same-round
+  audit and delivered research suggestions, without displaying the old status prose.
+  Future reports use the three mathematical sections; malformed sections fall back to
+  the saved findings. The rendered and downloaded reports are identical. Author/public
+  references use manuscript names, printed numbers or sections, never internal claim IDs;
+  literal mathematics, code and source URLs remain unchanged.
 - Public abstract pages include pinned PDF/source downloads, subject links,
   version history, plain-text/BibTeX citations and reference-manager metadata.
   Named result pages use the immutable accepted record even without a Lean target.

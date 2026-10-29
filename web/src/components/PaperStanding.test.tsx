@@ -71,9 +71,11 @@ describe('paper standing', () => {
       />,
     );
     expect(screen.getByRole('heading', { name: 'Not accepted' })).toBeVisible();
-    expect(screen.getByText('Statement C1 already follows from 1901.00001.')).toBeVisible();
+    expect(screen.getByText('Theorem 1.1 already follows from 1901.00001.')).toBeVisible();
     expect(
-      screen.getByText('No checked main result carries new mathematical content.'),
+      screen.getByText(
+        'The main results follow from existing results without establishing a distinct new mathematical contribution.',
+      ),
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Upload a revised version' })).toBeVisible();
   });
@@ -128,7 +130,7 @@ describe('standing in the workspace', () => {
     const card = await screen.findByRole('region', { name: 'Paper standing' });
     const report = await screen.findByRole('region', { name: 'Final review report' });
     expect(within(card).queryByText(refereeAudit.summary)).toBeNull();
-    expect(within(report).getByText(feedbackLetter.subject)).toBeVisible();
+    expect(within(report).getByText(accepted.title)).toBeVisible();
     expect(within(report).queryByText(refereeAudit.summary)).toBeNull();
     expect(card.querySelector('.standing-facts')).toBeNull();
     const results = screen.getByText('Results in this manuscript').closest('details')!;

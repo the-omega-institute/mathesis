@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { RefereeFile, RefereeRound, Submission } from '../api/types';
 import { useApi } from '../api/context';
 import { useSession } from '../auth/session';
+import { manuscriptReferences } from '../lib/statements';
 import { AUDIT_FINDING_LABELS } from '../lib/labels';
 import { InlineLatex, Markdown } from './Markdown';
 import { DateText, Field, InlineError } from './ui';
@@ -21,6 +22,8 @@ export function ReviewFindings({
   showSourceIdentity?: boolean;
   onChange: (file: RefereeFile) => void;
 }) {
+  const readable = (text: string) =>
+    showSourceIdentity ? text : manuscriptReferences(text, submission.claims);
   const { person } = useSession();
   const author =
     !!person &&
@@ -69,12 +72,12 @@ export function ReviewFindings({
                         : `Finding ${index + 1}`}
                     </strong>{' '}
                     · {AUDIT_FINDING_LABELS[finding.status]} ·{' '}
-                    <InlineLatex source={finding.concern} />
+                    <InlineLatex source={readable(finding.concern)} />
                   </summary>
                   {finding.location ? (
                     <p className="small">Reported location: {finding.location}</p>
                   ) : null}
-                  <Markdown text={finding.note} />
+                  <Markdown text={readable(finding.note)} />
                   {finding.evidence ? (
                     <div className="finding-evidence">
                       <h5>Supporting evidence</h5>
@@ -83,7 +86,7 @@ export function ReviewFindings({
                           ? 'The reviewer reports opening the cited source; the citation has not been independently confirmed.'
                           : 'Supporting reasoning from the review.'}
                       </p>
-                      <Markdown text={finding.evidence} />
+                      <Markdown text={readable(finding.evidence)} />
                     </div>
                   ) : (
                     <p className="hint">No separate evidence was recorded for this finding.</p>
@@ -126,7 +129,7 @@ export function ReviewFindings({
                               </strong>{' '}
                               · round {checked!.number} · version {response.version}
                             </p>
-                            <Markdown text={assessment.explanation} />
+                            <Markdown text={readable(assessment.explanation)} />
                             {assessment.evidence.length ? (
                               <ul>
                                 {assessment.evidence.map((e) => (

@@ -1248,7 +1248,15 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
     );
     let advice = done_step(Advice {
         summary: "help".into(),
-        improvements: vec![],
+        improvements: vec![Improvement {
+            claim: Some(paper.claims[0].id.clone()),
+            kind: ImprovementKind::Generalize,
+            suggestion: "Study the same bound without the finiteness assumption.".into(),
+            how_we_help: "private contributor plan".into(),
+            status: ImprovementEvidence::Proposed,
+            evidence: "private execution details".into(),
+            effort: Effort::Medium,
+        }],
         formalization: vec![FormalizationCandidate {
             claim: paper.claims[0].id.clone(),
             feasibility: Feasibility::Ready,
@@ -1322,7 +1330,8 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
     );
     let before_letter = w.app.referee(&author, &paper.id).await.unwrap();
     assert!(before_letter.rounds[0].formalization_suggestions.is_none());
-    assert_eq!(before_letter.rounds[0].letter_contract, 2);
+    assert!(before_letter.rounds[0].research_suggestions.is_none());
+    assert_eq!(before_letter.rounds[0].letter_contract, 3);
     let file = w
         .app
         .update_referee_round(&auditor, &paper.id, 1, RoundUpdate::Letter(letter.clone()))
@@ -1367,6 +1376,43 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
         serde_json::to_value(w.app.referee(&author, &paper.id).await.unwrap()).unwrap();
     let r = &author_view["rounds"][0];
     assert!(r.get("advice").is_none());
+    let research = &r["research_suggestions"][0];
+    assert_eq!(research["kind"], "generalize");
+    assert_eq!(
+        research["suggestion"],
+        "Study the same bound without the finiteness assumption."
+    );
+    assert_eq!(research["excerpt"], false);
+    for field in [
+        "summary",
+        "how_we_help",
+        "evidence",
+        "status",
+        "effort",
+        "engine",
+        "model",
+    ] {
+        assert!(research.get(field).is_none());
+    }
+    assert!(
+        file.clone().view(false).rounds[0]
+            .research_suggestions
+            .is_some()
+    );
+    let mut no_delivery = file.clone();
+    no_delivery.letters.clear();
+    assert!(
+        no_delivery.view(false).rounds[0]
+            .research_suggestions
+            .is_none()
+    );
+    let mut no_audit = file.clone();
+    no_audit.rounds[0].audit = Step::pending();
+    assert!(
+        no_audit.view(false).rounds[0]
+            .research_suggestions
+            .is_none()
+    );
     let suggestion = &r["formalization_suggestions"][0];
     assert_eq!(suggestion["claim"], paper.claims[0].id.to_string());
     assert_eq!(suggestion["plan"], "state and prove");

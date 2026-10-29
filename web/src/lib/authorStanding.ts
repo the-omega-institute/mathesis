@@ -154,6 +154,12 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
     )
       headline = 'Your response is being reviewed';
   }
+  if (s.status.state === 'in_review' && delivered) {
+    headline = 'In review';
+    doing =
+      'Your manuscript is under AI review. You will receive the decision and final report here.';
+    nextAction = 'No action is needed from you.';
+  }
   return {
     headline,
     doing,
