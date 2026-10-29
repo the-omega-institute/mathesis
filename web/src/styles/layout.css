@@ -394,17 +394,17 @@
     display: block;
   }
 }
-.workspace.workspace-waiting {
+.workspace.workspace-author {
   display: block;
 }
-.workspace.workspace-waiting > .record-head {
+.workspace.workspace-author > .record-head {
   border-bottom: 0;
 }
-.workspace.workspace-waiting > .standing {
+.workspace.workspace-author > .standing {
   border: 0;
   padding: 0;
   margin: var(--space-5) 0;
 }
-.workspace.workspace-waiting > .standing .standing-title {
+.workspace.workspace-author > .standing .standing-title {
   font-size: 1.35rem;
 }

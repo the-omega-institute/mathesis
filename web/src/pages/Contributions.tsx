@@ -124,14 +124,14 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                         <a
                           href={`/api/v1/papers/${encodeURIComponent(record)}/statements/${encodeURIComponent(claim)}/attempts/${encodeURIComponent(a.id)}/bundle`}
                         >
-                          Download verification bundle
+                          Download proof and verification details
                         </a>
                         <p>
                           {a.receipt.verdict === 'proved' ? 'Proved' : 'Disproved'} the
                           author-confirmed Lean target.
                         </p>
-                        <details open>
-                          <summary>Solution and receipt</summary>
+                        <details>
+                          <summary>View Lean proof</summary>
                           <pre>{a.solution}</pre>
                           {Object.entries(a.modules ?? {}).map(([name, source]) => (
                             <div key={name}>
@@ -139,7 +139,6 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                               <pre>{source}</pre>
                             </div>
                           ))}
-                          <pre>{JSON.stringify(a.receipt, null, 2)}</pre>
                         </details>
                       </li>
                     ))}

@@ -40,7 +40,7 @@ describe('paper standing', () => {
     render(<PaperStanding submission={draft} />);
     expect(screen.getByRole('heading', { name: 'Ready for your check' })).toBeVisible();
     expect(screen.getByText(/Check the manuscript PDF/)).toBeVisible();
-    expect(screen.getByText(/Elapsed since/)).toBeVisible();
+    expect(screen.queryByText(/Elapsed since/)).toBeNull();
     expect(screen.queryByText(/Observed on this deployment/)).toBeNull();
   });
   it.each(['accept', 'minor_revision', 'major_revision', 'reject'] as const)(
@@ -131,8 +131,11 @@ describe('standing in the workspace', () => {
     expect(within(report).getByText(feedbackLetter.subject)).toBeVisible();
     expect(within(report).queryByText(refereeAudit.summary)).toBeNull();
     expect(card.querySelector('.standing-facts')).toBeNull();
+    const results = screen.getByText('Results in this manuscript').closest('details')!;
+    expect(results).not.toHaveAttribute('open');
+    await userEvent.click(screen.getByText('Results in this manuscript'));
     const statements = screen.getByRole('region', { name: 'Statements' });
-    const details = screen.getByText('Details: evidence, history and settings').closest('details')!;
+    const details = screen.getByText('Manuscript details').closest('details')!;
     for (const [first, second] of [
       [card, report],
       [report, statements],

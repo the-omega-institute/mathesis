@@ -9,12 +9,6 @@ export function ProofAttribution({ attribution }: { attribution?: FormalizationA
         <>Formalization: {attribution.formalizers.join(', ')} · </>
       ) : null}
       <SourceLink source={attribution.source_reference} /> · {attribution.license}
-      {attribution.source_revision ? (
-        <>
-          {' '}
-          · revision <code>{attribution.source_revision}</code>
-        </>
-      ) : null}
     </p>
   );
 }

@@ -109,18 +109,19 @@ export function EvidenceInventory({
   files,
   submission,
   version,
+  technicalDetails = false,
 }: {
   files?: EvidenceAttachment[];
   submission: string;
   version: number;
+  technicalDetails?: boolean;
 }) {
   if (!files?.length) return null;
   return (
     <section className="evidence-inventory" aria-label={`Evidence for version ${version}`}>
-      <h3>Evidence · version {version}</h3>
+      <h3>Supplementary material · version {version}</h3>
       <p className="hint">
-        Files are bound to this source version by SHA-256. Review coverage depends on format and
-        size; these are author-supplied materials.
+        Additional material supplied by the authors with this manuscript version.
       </p>
       <ul className="entry-list">
         {files.map((file) => (
@@ -143,15 +144,17 @@ export function EvidenceInventory({
                 </a>
               </p>
             ) : null}
-            {file.source_revision ? (
+            {technicalDetails && file.source_revision ? (
               <p className="small">
                 Source revision: <code>{file.source_revision}</code>
               </p>
             ) : null}
-            <details>
-              <summary>File fingerprint</summary>
-              <code className="evidence-hash">SHA-256 {file.sha256}</code>
-            </details>
+            {technicalDetails ? (
+              <details>
+                <summary>File fingerprint</summary>
+                <code className="evidence-hash">SHA-256 {file.sha256}</code>
+              </details>
+            ) : null}
           </li>
         ))}
       </ul>

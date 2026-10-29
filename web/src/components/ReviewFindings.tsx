@@ -39,14 +39,15 @@ export function ReviewFindings({
     <section className="review-findings" aria-label="Review findings and responses">
       <h3>Review findings</h3>
       <p className="small muted">
-        Open a finding to read its status and evidence. You may respond to any finding; only
-        confirmed findings need a response. You can explain a correction, or upload a revised
-        version and request another review. A response does not mark a finding resolved.
+        Read the findings below and respond with a clarification or correction. Your response will
+        be considered in a follow-up review.
       </p>
       {rounds.map((round) => (
         <div key={round.number}>
           <h4>
-            Round {round.number} · source version {round.version}
+            {showSourceIdentity
+              ? `Round ${round.number} · source version ${round.version}`
+              : `Review of version ${round.version}`}
           </h4>
           {showSourceIdentity && round.source_sha256 ? (
             <p className="hint">
@@ -63,7 +64,9 @@ export function ReviewFindings({
                 <details className="finding-card" key={index}>
                   <summary>
                     <strong>
-                      R{round.number}-A{index + 1}
+                      {showSourceIdentity
+                        ? `R${round.number}-A${index + 1}`
+                        : `Finding ${index + 1}`}
                     </strong>{' '}
                     · {AUDIT_FINDING_LABELS[finding.status]} ·{' '}
                     <InlineLatex source={finding.concern} />
@@ -77,8 +80,8 @@ export function ReviewFindings({
                       <h5>Supporting evidence</h5>
                       <p className="hint">
                         {finding.basis === 'opened_source'
-                          ? 'The reviewer reports opening the cited source; the platform has not independently authenticated it.'
-                          : 'Review evidence; this is not a Lean verification receipt.'}
+                          ? 'The reviewer reports opening the cited source; the citation has not been independently confirmed.'
+                          : 'Supporting reasoning from the review.'}
                       </p>
                       <Markdown text={finding.evidence} />
                     </div>
@@ -133,27 +136,28 @@ export function ReviewFindings({
                                     >
                                       {e.path}
                                     </a>
-                                    <p className="hint">
-                                      SHA-256:{' '}
-                                      <code style={{ overflowWrap: 'anywhere' }}>{e.sha256}</code>
-                                    </p>
+                                    {showSourceIdentity ? (
+                                      <p className="hint">
+                                        SHA-256:{' '}
+                                        <code style={{ overflowWrap: 'anywhere' }}>{e.sha256}</code>
+                                      </p>
+                                    ) : null}
                                   </li>
                                 ))}
                               </ul>
                             ) : null}
                             <p className="hint">
-                              Reviewer conclusion on this source version; not an independent proof
-                              or execution receipt.
+                              This assessment applies to the manuscript version reviewed.
                             </p>
                           </div>
                         ) : null}
                         <p className="hint">
                           {!current
-                            ? 'This response belongs to an earlier source or statement revision.'
+                            ? 'This response refers to an earlier version of the manuscript.'
                             : checked && !assessment
-                              ? `Re-reviewed in round ${checked.number}. Read that audit for the conclusion.`
+                              ? `Re-reviewed in round ${checked.number}. Read that report for the conclusion.`
                               : !checked
-                                ? 'Re-review requested. A new audit will address this response.'
+                                ? 'Re-review requested. A new review will address this response.'
                                 : null}
                         </p>
                       </div>

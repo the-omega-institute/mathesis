@@ -46,9 +46,7 @@ it.each<[RefereeAudit['concerns'][number]['status'], string]>([
   expect(screen.getByRole('form', { name: 'Respond to R1-A1' })).toBeVisible();
   expect(screen.getByLabelText('Your response or correction')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Send response & request re-review' })).toBeVisible();
-  expect(
-    screen.getByText(/You may respond to any finding; only confirmed findings need a response/),
-  ).toBeVisible();
+  expect(screen.getByText(/respond with a clarification or correction/)).toBeVisible();
 });
 
 it.each(['confirmed', 'refuted', 'not_checkable'] as const)(
@@ -91,7 +89,9 @@ it.each(['confirmed', 'refuted', 'not_checkable'] as const)(
     await user.click(await screen.findByText('R1-A1'));
     expect(screen.getByText('At n = 0 the sides are 1 and 0.')).toBeInTheDocument();
     expect(screen.getByText('Reported location: Lemma 2')).toBeInTheDocument();
-    expect(screen.getByText(/A response does not mark a finding resolved/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your response will be considered in a follow-up review/),
+    ).toBeInTheDocument();
     await user.type(
       await screen.findByLabelText('Your response or correction'),
       'The domain is n > 0.',
@@ -128,7 +128,7 @@ it('distinguishes re-reviewed responses from resolved findings', async () => {
     fakeApi({}, author),
   );
   expect(
-    await screen.findByText('Re-reviewed in round 2. Read that audit for the conclusion.'),
+    await screen.findByText('Re-reviewed in round 2. Read that report for the conclusion.'),
   ).toBeInTheDocument();
   expect(screen.queryByText('Resolved')).toBeNull();
 });
@@ -188,7 +188,9 @@ it('shows the response conclusion with version-bound evidence without claiming p
     'href',
     `/api/v1/submissions/${encodeURIComponent(submission.id)}/evidence?version=${response.version}&path=evidence%2Fcases%201.json`,
   );
-  expect(screen.getByText(/not an independent proof or execution receipt/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/This assessment applies to the manuscript version reviewed/),
+  ).toBeInTheDocument();
   expect(screen.queryByText('Resolved')).toBeNull();
 });
 
@@ -217,9 +219,9 @@ it('keeps an older source conclusion visibly historical', async () => {
   );
   await userEvent.click(await screen.findByText('R1-A1'));
   expect(
-    screen.getByText('This response belongs to an earlier source or statement revision.'),
+    screen.getByText('This response refers to an earlier version of the manuscript.'),
   ).toBeInTheDocument();
   expect(
-    screen.queryByText('Re-reviewed in round 2. Read that audit for the conclusion.'),
+    screen.queryByText('Re-reviewed in round 2. Read that report for the conclusion.'),
   ).toBeNull();
 });

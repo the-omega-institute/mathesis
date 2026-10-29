@@ -3,15 +3,22 @@ import { expect, it } from 'vitest';
 import { fakeApi, renderWithApp } from '../test/render';
 import { PolicyPage } from './Policy';
 
-it('opens the review policy with a plain-words summary before the formal definitions', async () => {
+it('explains mathematical criteria, decisions, privacy and formalization without internal stages', async () => {
   renderWithApp(<PolicyPage />, fakeApi({}));
-  const plain = await screen.findByRole('heading', { name: 'In plain words' });
-  const formal = await screen.findByRole('heading', {
-    name: 'Escape analysis: does the proof add new content?',
-  });
-  expect(plain.compareDocumentPosition(formal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  const items = screen.getAllByRole('listitem').map((item) => item.textContent ?? '');
-  expect(items.some((text) => text.includes('check the manuscript PDF'))).toBe(true);
-  expect(items.some((text) => text.includes('one final report with analysis'))).toBe(true);
-  expect(items.some((text) => text.includes('Review time varies'))).toBe(true);
+  expect(await screen.findByRole('heading', { name: 'Review policy' })).toBeVisible();
+  for (const heading of [
+    'Submitting your work',
+    'What we look for',
+    'Your decision and report',
+    'Publication and privacy',
+    'Formalization and corrections',
+  ]) {
+    expect(screen.getByRole('heading', { name: heading })).toBeVisible();
+  }
+  expect(screen.getByText(/Uncheck this option if you want only a private review/)).toBeVisible();
+  expect(screen.getByText(/interrupted review is not a mathematical rejection/)).toBeVisible();
+  expect(screen.getByText(/AI review does not constitute a formal proof/)).toBeVisible();
+  expect(document.body.textContent).not.toMatch(
+    /S0|S1|S2|S3|Trureturing|bind-only|Phase B|request version|Filed automatically/,
+  );
 });

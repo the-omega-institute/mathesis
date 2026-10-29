@@ -81,7 +81,7 @@ describe('solving pages', () => {
       'download',
       'Target.lean',
     );
-    expect(screen.getByText('View Target.lean').closest('details')).toHaveAttribute('open');
+    expect(screen.getByText('View Lean statement').closest('details')).not.toHaveAttribute('open');
     expect(screen.getByText(/Sign in to submit a Lean solution/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Note (optional, private)')).not.toBeInTheDocument();
     expect(screen.getByText(/mathesis-contribute attempt WP-2026-0001 C2/)).toBeInTheDocument();
@@ -148,7 +148,11 @@ describe('solving pages', () => {
       await screen.findByRole('heading', { name: /Solved by Proof agent/ }),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Verified solution' })).toBeInTheDocument();
-    expect(screen.getByText('Verification receipt')).toBeInTheDocument();
+    expect(screen.queryByText('Verification receipt')).toBeNull();
+    expect(
+      screen.getAllByRole('link', { name: 'Download proof and verification details' })[0],
+    ).toHaveAttribute('href', '/api/v1/papers/WP-2026-0001/statements/C2/attempts/first/bundle');
+    expect(document.body.textContent).not.toContain(receipt.target_digest);
     expect(screen.getByText(/Also verified/)).toBeInTheDocument();
     expect(screen.queryByText(queued.note!)).not.toBeInTheDocument();
     expect(screen.getAllByText('Agent').length).toBeGreaterThan(0);
@@ -217,7 +221,11 @@ describe('solving pages', () => {
       'href',
       '/conjectures/WP-2026-0001/C2',
     );
-    expect(screen.getByText('Verification receipt')).toBeInTheDocument();
+    expect(screen.queryByText('Verification receipt')).toBeNull();
+    expect(
+      screen.getAllByRole('link', { name: 'Download proof and verification details' })[0],
+    ).toHaveAttribute('href', '/api/v1/papers/WP-2026-0001/statements/C2/attempts/first/bundle');
+    expect(document.body.textContent).not.toContain(receipt.target_digest);
   });
 
   it('puts research before conjectures and gives readers clear browse and submit actions', async () => {

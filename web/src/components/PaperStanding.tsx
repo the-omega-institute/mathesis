@@ -23,16 +23,19 @@ export function PaperStanding({
   submission,
   file,
   onRevise,
+  showExecutionDetails = false,
 }: {
   submission: Submission;
   file?: RefereeFile;
   onRevise?: () => void;
+  showExecutionDetails?: boolean;
 }) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
+    if (!showExecutionDetails) return;
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [showExecutionDetails]);
   const standing = authorStanding(submission, file, now);
   const status = submission.status;
   const compileFailure = status.state === 'draft' && !!submission.versions.at(-1)?.compile_error;
@@ -46,18 +49,26 @@ export function PaperStanding({
         : status.state === 'withdrawn'
           ? 'muted'
           : 'accent';
-  if (status.state === 'in_review' && !standing.delivered) {
-    return (
-      <section className={`standing standing-${tone}`} aria-label="Paper standing">
-        <h2 className="standing-title">{standing.headline}</h2>
-        <p role="status">
-          {standing.headline === 'Review could not finish'
+  const authorMessage =
+    status.state === 'draft'
+      ? compileFailure
+        ? 'The PDF could not be prepared. Upload corrected files to continue.'
+        : !submission.versions.at(-1)?.pdf
+          ? 'Your manuscript PDF is being prepared.'
+          : 'Check the manuscript PDF, then submit for review.'
+      : status.state === 'withdrawn'
+        ? 'This submission has been withdrawn.'
+        : standing.headline.startsWith('Your response')
+          ? 'Your response is saved. A follow-up review will address it.'
+          : standing.headline === 'Review could not finish'
             ? 'Your manuscript is saved. The review needs attention before it can continue.'
-            : 'Your manuscript is under AI review. The final report will appear here when the review is complete.'}
-        </p>
-      </section>
-    );
-  }
+            : standing.delivered
+              ? 'Your review report is ready below.'
+              : status.state === 'in_review'
+                ? 'Your manuscript is under AI review. The final report will appear here when the review is complete.'
+                : !standing.round
+                  ? 'Review details are currently unavailable. Your manuscript is saved.'
+                  : 'Your final review report is being prepared.';
   return (
     <section className={`standing standing-${tone}`} aria-label="Paper standing">
       <div className="standing-head">
@@ -69,10 +80,10 @@ export function PaperStanding({
       {submission.decision?.decision === 'accept' ? (
         <p>
           {submission.decision.basis === 'escape_witness'
-            ? 'The source check found new mathematical content in a main result, without an identified prior result that states or directly implies it.'
+            ? 'The review found new mathematical content in a main result.'
             : submission.decision.basis === 'open_problem_settlement'
-              ? 'The source check found that a main result settles a named open problem.'
-              : 'The source check found a well-posed open conjecture whose resolution would carry new mathematical content.'}
+              ? 'The review found that a main result settles a named open problem.'
+              : 'The review found a well-posed open conjecture whose resolution would carry new mathematical content.'}
         </p>
       ) : null}
       {status.state === 'not_accepted' && submission.decision?.decision === 'not_accepted' ? (
@@ -82,12 +93,15 @@ export function PaperStanding({
           ))}
         </ul>
       ) : null}
-      <p role="status">{standing.doing}</p>
-      <p className="standing-next">{standing.nextAction}</p>
-      <p className="small">{standing.timing}</p>
+      <p role="status">{showExecutionDetails ? standing.doing : authorMessage}</p>
+      {showExecutionDetails ? (
+        <>
+          <p className="standing-next">{standing.nextAction}</p>
+          <p className="small">{standing.timing}</p>
+        </>
+      ) : null}
       {mayRevise && onRevise ? (
         <div className="standing-next">
-          <p>You can revise the paper and submit a new version.</p>
           <button
             type="button"
             className="button button-small"

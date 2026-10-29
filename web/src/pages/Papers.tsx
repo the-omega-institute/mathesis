@@ -309,7 +309,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
               {claims.map((claim) => (
                 <li key={claim.id}>
                   <Link to={{ kind: 'statement', record: s.record, claim: claim.id }}>
-                    {claim.label} · Lean target and attempts
+                    {claim.label} · Formalization
                   </Link>
                   {claim.verified ? (
                     <p>
@@ -329,9 +329,12 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
         {paper.lean_statements?.map((target) => (
           <section key={target.digest} aria-label="Author-confirmed Lean statement">
             <h2>Author-confirmed Lean statement</h2>
-            <pre className="lean-source">
-              <code>{target.lean}</code>
-            </pre>
+            <details>
+              <summary>View Lean statement</summary>
+              <pre className="lean-source">
+                <code>{target.lean}</code>
+              </pre>
+            </details>
             <ReportError
               record={s.record}
               subject={{ kind: 'target', claim: target.claim, digest: target.digest }}
