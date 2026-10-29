@@ -1320,6 +1320,9 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
             .await
             .is_err()
     );
+    let before_letter = w.app.referee(&author, &paper.id).await.unwrap();
+    assert!(before_letter.rounds[0].formalization_suggestions.is_none());
+    assert_eq!(before_letter.rounds[0].letter_contract, 2);
     let file = w
         .app
         .update_referee_round(&auditor, &paper.id, 1, RoundUpdate::Letter(letter.clone()))
@@ -1364,6 +1367,31 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
         serde_json::to_value(w.app.referee(&author, &paper.id).await.unwrap()).unwrap();
     let r = &author_view["rounds"][0];
     assert!(r.get("advice").is_none());
+    let suggestion = &r["formalization_suggestions"][0];
+    assert_eq!(suggestion["claim"], paper.claims[0].id.to_string());
+    assert_eq!(suggestion["plan"], "state and prove");
+    assert_eq!(suggestion["excerpt"], false);
+    for field in ["lean_sketch", "mathlib", "missing", "engine", "model"] {
+        assert!(suggestion.get(field).is_none());
+    }
+    let mut changed = file.clone();
+    if let StepState::Done { result, .. } = &mut changed.rounds[0].audit.state {
+        result.claims[0].correctness = Correctness::Gap;
+    }
+    assert!(
+        changed.view(false).rounds[0]
+            .formalization_suggestions
+            .as_ref()
+            .unwrap()
+            .is_empty()
+    );
+    let mut undelivered = file;
+    undelivered.letters.clear();
+    assert!(
+        undelivered.view(false).rounds[0]
+            .formalization_suggestions
+            .is_none()
+    );
     assert!(r.get("letter").is_none());
     for stage in ["referee", "audit", "advice", "letter", "formal"] {
         assert_eq!(r["progress"][stage]["state"], "done");
@@ -1705,6 +1733,11 @@ async fn audit_recovers_record_insert_and_preserves_publication_on_revision() {
     assert_eq!(revised.status, SubmissionStatus::Draft);
     assert!(revised.formalization.items.is_empty());
     assert!(revised.conjectures.is_empty());
+    assert_eq!(original.publication.as_ref().unwrap().version, 1);
+    assert_eq!(
+        original.publication.as_ref().unwrap().claims_revision,
+        paper.claims_revision
+    );
     assert_eq!(w.app.paper(record).await.unwrap(), original);
     assert_eq!(records.get(record).await.unwrap().unwrap(), immutable);
     assert!(

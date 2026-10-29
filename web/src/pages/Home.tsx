@@ -1,18 +1,31 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { Async } from '../components/ui';
-import { Link } from '../routing/router';
+import { Link, useRouter } from '../routing/router';
 import { PaperEntry } from './Papers';
 import { ConjectureEntry } from './Conjectures';
 import '../styles/home.css';
 
-function Arrow() {
-  return <span aria-hidden="true">→</span>;
-}
+const SUBJECTS = [
+  ['03', 'Logic and foundations'],
+  ['05', 'Combinatorics'],
+  ['11', 'Number theory'],
+  ['14', 'Algebraic geometry'],
+  ['20', 'Group theory'],
+  ['35', 'Partial differential equations'],
+  ['46', 'Functional analysis'],
+  ['51', 'Geometry'],
+  ['54', 'Topology'],
+  ['60', 'Probability'],
+  ['68', 'Computer science'],
+  ['81', 'Quantum theory'],
+] as const;
 
 export function HomePage() {
   const api = useApi();
+  const { navigate } = useRouter();
+  const [query, setQuery] = useState('');
   const loadPapers = useCallback(
     (signal: AbortSignal) => api.listPapers({ limit: 5 }, { signal }),
     [api],
@@ -23,121 +36,100 @@ export function HomePage() {
     [api],
   );
   const conjectures = useAsync(loadConjectures);
-
   return (
     <div className="page home">
-      <section className="archive-intro" aria-labelledby="intro-heading">
-        <p className="eyebrow">An open home for mathematical research</p>
-        <h1 id="intro-heading">Where mathematics takes form.</h1>
+      <header className="archive-intro">
+        <h1>Mathematical research</h1>
         <p className="lede">
-          Submit a paper, short note, or conjecture. Mathesis gives it a deep research review and a
-          durable home for the mathematics that follows.
+          An archive of papers, conjectures and formal proofs. Submit a manuscript for AI review, a
+          publication decision and suggestions for further research.
         </p>
-        <div className="intro-actions">
-          <Link to={{ kind: 'submit' }} className="button">
-            Submit a paper or conjecture <Arrow />
-          </Link>
-          <Link to={{ kind: 'papers' }} className="button button-quiet">
-            Browse papers <Arrow />
-          </Link>
-          <Link to={{ kind: 'submit', intake: 'lean' }} className="button button-quiet">
-            Contribute a formalization <Arrow />
-          </Link>
-        </div>
-      </section>
-
-      <div className="archive-layout">
-        <div className="archive-main">
-          <section aria-labelledby="recent-heading" className="archive-section">
-            <div className="section-heading">
-              <div>
-                <h2 id="recent-heading">Latest research</h2>
-                <p>Recently accepted papers, notes, and conjectures.</p>
-              </div>
-              <Link to={{ kind: 'papers' }} className="text-link">
-                Browse all <Arrow />
-              </Link>
-            </div>
-            <Async state={papers.state} onRetry={papers.reload}>
-              {(listing) =>
-                listing.items.length === 0 ? (
-                  <div className="archive-empty">
-                    <h3>Share your first contribution.</h3>
-                    <p>Accepted public research will appear here.</p>
-                    <Link to={{ kind: 'submit' }} className="text-link">
-                      Submit research <Arrow />
-                    </Link>
-                  </div>
-                ) : (
-                  <ul className="entry-list archive-entries">
-                    {listing.items.map((p) => (
-                      <li key={p.record}>
-                        <PaperEntry paper={p} />
-                      </li>
-                    ))}
-                  </ul>
-                )
-              }
-            </Async>
-          </section>
-
-          <section aria-labelledby="open-heading" className="archive-section">
-            <div className="section-heading">
-              <div>
-                <h2 id="open-heading">Open conjectures</h2>
-                <p>Research questions published for others to explore.</p>
-              </div>
-              <Link to={{ kind: 'conjectures' }} className="text-link">
-                View all <Arrow />
-              </Link>
-            </div>
-            <Async state={conjectures.state} onRetry={conjectures.reload}>
-              {(listing) => {
-                const open = listing.items.filter((c) => c.status === 'open').slice(0, 3);
-                return open.length ? (
-                  <ul className="entry-list archive-entries">
-                    {open.map((c) => (
-                      <li key={`${c.record}:${c.claim}`}>
-                        <ConjectureEntry conjecture={c} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="archive-empty">
-                    <h3>A question can be a contribution, too.</h3>
-                    <p>
-                      No open conjectures yet. Submit a standalone conjecture with its statement and
-                      background.
-                    </p>
-                    <Link to={{ kind: 'submit' }} className="text-link">
-                      Submit a conjecture <Arrow />
-                    </Link>
-                  </div>
-                );
-              }}
-            </Async>
-          </section>
-        </div>
-
-        <aside className="archive-guide" aria-labelledby="authors-heading">
-          <p className="eyebrow">Take part</p>
-          <h2 id="authors-heading">Every proof builds on something.</h2>
-          <p>Bring a new result, an open question, or a formal proof of someone else’s work.</p>
-          <Link to={{ kind: 'formalizations' }} className="text-link">
-            Find a statement to formalize <Arrow />
-          </Link>
-          <div className="archive-review-note">
-            <h3>Before publication</h3>
-            <p>
-              Submissions are reviewed. Accepted work receives a permanent record and appears
-              publicly when the author chooses to share it.
-            </p>
-            <Link to={{ kind: 'policy' }} className="text-link">
-              How review works <Arrow />
-            </Link>
+        <form
+          className="home-search"
+          role="search"
+          aria-label="Search research"
+          onSubmit={(event) => {
+            event.preventDefault();
+            navigate({ kind: 'papers', q: query.trim() });
+          }}
+        >
+          <label htmlFor="home-query">Search the archive</label>
+          <div className="archive-search-input">
+            <input
+              id="home-query"
+              type="search"
+              maxLength={300}
+              placeholder="Title, author, abstract, DOI or record"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <button type="submit" className="button">
+              Search
+            </button>
           </div>
-        </aside>
-      </div>
+        </form>
+        <nav className="intro-actions" aria-label="Research and submission">
+          <Link to={{ kind: 'submit' }}>Submit a paper or conjecture</Link>
+          <Link to={{ kind: 'formalizations' }}>Contribute a formal proof</Link>
+          <Link to={{ kind: 'policy' }}>Review policy</Link>
+        </nav>
+      </header>
+      <section className="subject-browse" aria-labelledby="subjects-h">
+        <h2 id="subjects-h">Browse by subject</h2>
+        <ul>
+          {SUBJECTS.map(([msc, title]) => (
+            <li key={msc}>
+              <Link to={{ kind: 'papers', msc }}>{title}</Link>
+            </li>
+          ))}
+        </ul>
+        <Link to={{ kind: 'papers' }}>All subjects and advanced search</Link>
+      </section>
+      <section aria-labelledby="recent-heading" className="archive-section">
+        <div className="section-heading">
+          <h2 id="recent-heading">Latest research</h2>
+          <Link to={{ kind: 'papers' }}>Browse all</Link>
+        </div>
+        <Async state={papers.state} onRetry={papers.reload}>
+          {(listing) =>
+            listing.items.length ? (
+              <ul className="entry-list archive-entries">
+                {listing.items.map((paper) => (
+                  <li key={paper.record}>
+                    <PaperEntry paper={paper} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">Accepted public papers and notes will appear here.</p>
+            )
+          }
+        </Async>
+      </section>
+      <section aria-labelledby="open-heading" className="archive-section">
+        <div className="section-heading">
+          <h2 id="open-heading">Open conjectures</h2>
+          <Link to={{ kind: 'conjectures' }}>Browse all</Link>
+        </div>
+        <Async state={conjectures.state} onRetry={conjectures.reload}>
+          {(listing) =>
+            listing.items.length ? (
+              <ul className="entry-list archive-entries">
+                {listing.items
+                  .filter((item) => item.status === 'open')
+                  .slice(0, 3)
+                  .map((item) => (
+                    <li key={`${item.record}:${item.claim}`}>
+                      <ConjectureEntry conjecture={item} />
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className="muted">Accepted open problems will appear here.</p>
+            )
+          }
+        </Async>
+      </section>
     </div>
   );
 }

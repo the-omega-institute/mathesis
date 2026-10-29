@@ -13,7 +13,7 @@ export function AuthorLine({ authors }: { authors: readonly Author[] }) {
         const website = a.website ? safeHttpUrl(a.website) : null;
         return (
           <li key={`${a.name}-${i}`}>
-            <Link className="author-name" to={{ kind: 'author', name: a.name }}>
+            <Link className="author-name" to={{ kind: 'papers', author: a.name }}>
               {texToText(a.name)}
             </Link>
             {orcid ? (

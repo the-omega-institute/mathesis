@@ -6,7 +6,13 @@ export type Route =
   | { kind: 'feedback'; id: string; key: string }
   | { kind: 'binding_profile'; person: string }
   | { kind: 'binding'; id: string; key: string }
-  | { kind: 'papers'; q?: string }
+  | {
+      kind: 'papers';
+      q?: string;
+      author?: string;
+      msc?: string;
+      work?: 'paper' | 'note' | 'conjecture';
+    }
   | { kind: 'conjectures' }
   | { kind: 'formalizations' }
   | { kind: 'conjecture'; record: string; claim: string }
@@ -15,6 +21,7 @@ export type Route =
   | { kind: 'statement'; record: string; claim: string }
   | { kind: 'entrant'; id: string }
   | { kind: 'paper'; record: string }
+  | { kind: 'result'; record: string; claim: string }
   | { kind: 'policy' }
   | { kind: 'submit'; intake?: 'lean' | 'review'; record?: string; claim?: string }
   | { kind: 'submissions' }
@@ -64,8 +71,18 @@ export function parseRoute(pathname: string, search = ''): Route {
       case 'conjectures':
         return { kind: 'conjectures' };
       case 'papers': {
-        const q = new URLSearchParams(search).get('q')?.trim();
-        return { kind: 'papers', ...(q ? { q } : {}) };
+        const params = new URLSearchParams(search);
+        const q = params.get('q')?.trim();
+        const author = params.get('author')?.trim();
+        const msc = params.get('msc')?.trim();
+        const work = params.get('type');
+        return {
+          kind: 'papers',
+          ...(q ? { q } : {}),
+          ...(author ? { author } : {}),
+          ...(msc ? { msc } : {}),
+          ...(work === 'paper' || work === 'note' || work === 'conjecture' ? { work } : {}),
+        };
       }
       case 'policy':
         return { kind: 'policy' };
@@ -115,6 +132,8 @@ export function parseRoute(pathname: string, search = ''): Route {
   }
   if (segments.length === 3 && first === 'staff' && second === 'submissions')
     return { kind: 'submission', id: segments[2] as string, staff: true };
+  if (segments.length === 4 && first === 'papers' && segments[2] === 'results')
+    return { kind: 'result', record: second as string, claim: segments[3] as string };
   if (segments.length === 4 && first === 'papers' && segments[2] === 'statements')
     return { kind: 'statement', record: second as string, claim: segments[3] as string };
   if (segments.length === 3 && first === 'feedback')
@@ -156,6 +175,8 @@ export function routePath(route: Route): string {
       return `/bindings/${seg(route.id)}/${seg(route.key)}`;
     case 'supporters':
       return '/supporters';
+    case 'result':
+      return `/papers/${seg(route.record)}/results/${seg(route.claim)}`;
     case 'statement':
       return `/papers/${seg(route.record)}/statements/${seg(route.claim)}`;
     case 'home':
@@ -168,8 +189,14 @@ export function routePath(route: Route): string {
       return `/conjectures/${seg(route.record)}/${seg(route.claim)}`;
     case 'conjectures':
       return '/conjectures';
-    case 'papers':
-      return `/papers${route.q ? `?${new URLSearchParams({ q: route.q })}` : ''}`;
+    case 'papers': {
+      const params = new URLSearchParams();
+      if (route.q) params.set('q', route.q);
+      if (route.author) params.set('author', route.author);
+      if (route.msc) params.set('msc', route.msc);
+      if (route.work) params.set('type', route.work);
+      return `/papers${params.size ? `?${params}` : ''}`;
+    }
     case 'paper':
       return `/papers/${seg(route.record)}`;
     case 'policy':

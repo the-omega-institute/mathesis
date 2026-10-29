@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
 import type { Submission } from '../../api/types';
 import { useSession } from '../../auth/session';
+import { resultLabel } from '../../lib/statements';
 import { VISIBILITY_LABELS } from '../../lib/labels';
 import { SOURCE_ACCEPT } from '../../lib/upload';
 import { Link } from '../../routing/router';
@@ -251,61 +252,85 @@ export function FormalizationForAuthor({
   submission: Submission;
   onChange: OnChange;
 }) {
-  const items = [
-    ...submission.formalization.items,
-    ...submission.claims
-      .filter(
-        (c) =>
-          c.has_proof &&
-          c.kind !== 'conjecture' &&
-          c.kind !== 'question' &&
-          !submission.formalization.items.some((i) => i.claim === c.id),
-      )
-      .map((c) => ({
-        claim: c.id,
-        reason: 'Prepare a Lean target for this statement.',
-        state: { state: 'proposed' as const },
-        updated_at: submission.updated_at,
-      })),
-  ];
-  if (items.length === 0) {
-    return <p className="muted">The editors have not proposed any statement for formalization.</p>;
-  }
+  const items = submission.formalization.items;
+  const available = submission.claims.filter(
+    (claim) =>
+      claim.has_proof &&
+      claim.kind !== 'conjecture' &&
+      claim.kind !== 'question' &&
+      !items.some((item) => item.claim === claim.id),
+  );
+  const [chosen, setChosen] = useState('');
+  const selected = available.find((claim) => claim.id === chosen) ?? available[0];
   return (
-    <ul className="formal-list">
-      {items.map((item) => {
-        const claim = submission.claims.find((c) => c.id === item.claim);
-        return (
-          <li key={item.claim}>
-            <div className="claim-head">
-              <ClaimRef id={item.claim} claims={submission.claims} scope="ws" />
-              <ItemStateBadge state={item.state} />
-            </div>
-            <p className="small">
-              <strong>Editors’ reason:</strong> {item.reason}
-            </p>
-            {item.state.state === 'declined' ? (
-              <p className="small muted">You declined: {item.state.reason}</p>
-            ) : null}
-            {item.state.state === 'proposed' ? (
-              <>
-                {claim ? (
-                  <details>
-                    <summary>Statement</summary>
-                    <StatementView claim={claim} claims={submission.claims} scope="proposal" />
-                  </details>
+    <>
+      {items.length ? (
+        <ul className="formal-list">
+          {items.map((item) => {
+            const claim = submission.claims.find((c) => c.id === item.claim);
+            return (
+              <li key={item.claim}>
+                <div className="claim-head">
+                  <ClaimRef id={item.claim} claims={submission.claims} scope="ws" />
+                  <ItemStateBadge state={item.state} />
+                </div>
+                <p className="small">
+                  <strong>Why this result:</strong> {item.reason}
+                </p>
+                {item.state.state === 'declined' ? (
+                  <p className="small muted">You declined: {item.state.reason}</p>
                 ) : null}
-                <FormalizationResponse
-                  submission={submission}
-                  claim={item.claim}
-                  onChange={onChange}
-                />
-              </>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+                {item.state.state === 'proposed' ? (
+                  <>
+                    {claim ? (
+                      <details>
+                        <summary>Statement</summary>
+                        <StatementView claim={claim} claims={submission.claims} scope="proposal" />
+                      </details>
+                    ) : null}
+                    <FormalizationResponse
+                      submission={submission}
+                      claim={item.claim}
+                      onChange={onChange}
+                    />
+                  </>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="muted">No formalization has been requested.</p>
+      )}
+      {selected ? (
+        <details>
+          <summary>
+            {items.length ? 'Choose another result to formalize' : 'Choose a result to formalize'}
+          </summary>
+          <p>
+            You can request a community formal proof. You will check the mathematical statement
+            before it is shared.
+          </p>
+          <label>
+            Result
+            <select value={selected.id} onChange={(event) => setChosen(event.target.value)}>
+              {available.map((claim) => (
+                <option key={claim.id} value={claim.id}>
+                  {resultLabel(claim)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <FormalizationResponse
+            key={selected.id}
+            submission={submission}
+            claim={selected.id}
+            onChange={onChange}
+            allowDecline={false}
+          />
+        </details>
+      ) : null}
+    </>
   );
 }
 
@@ -313,10 +338,12 @@ function FormalizationResponse({
   submission,
   claim,
   onChange,
+  allowDecline = true,
 }: {
   submission: Submission;
   claim: string;
   onChange: OnChange;
+  allowDecline?: boolean;
 }) {
   const api = useApi();
   const m = useMutation(onChange);
@@ -324,10 +351,12 @@ function FormalizationResponse({
   const id = `respond-${claim}`;
   return (
     <div className="inline-form">
-      <div className="field">
-        <label htmlFor={id}>Reason (needed when declining)</label>
-        <input id={id} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </div>
+      {allowDecline ? (
+        <div className="field">
+          <label htmlFor={id}>Reason (needed when declining)</label>
+          <input id={id} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+      ) : null}
       <div className="button-row">
         <button
           type="button"
@@ -342,27 +371,29 @@ function FormalizationResponse({
             )
           }
         >
-          Approve formalization
+          {allowDecline ? 'Approve formalization' : 'Request formalization'}
         </button>
-        <button
-          type="button"
-          className="button button-quiet button-small"
-          disabled={m.busy}
-          onClick={() => {
-            if (reason.trim() === '') {
-              m.setError('Give a reason for declining.');
-              return;
-            }
-            m.run(() =>
-              api.respondFormalization(submission.id, claim, {
-                approve: false,
-                reason: reason.trim(),
-              }),
-            );
-          }}
-        >
-          Decline
-        </button>
+        {allowDecline ? (
+          <button
+            type="button"
+            className="button button-quiet button-small"
+            disabled={m.busy}
+            onClick={() => {
+              if (reason.trim() === '') {
+                m.setError('Give a reason for declining.');
+                return;
+              }
+              m.run(() =>
+                api.respondFormalization(submission.id, claim, {
+                  approve: false,
+                  reason: reason.trim(),
+                }),
+              );
+            }}
+          >
+            Decline
+          </button>
+        ) : null}
       </div>
       <InlineError error={m.error} />
     </div>

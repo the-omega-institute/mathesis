@@ -227,3 +227,10 @@ Before calling these features complete, verify these concrete cases:
 
 This is a design deliverable. No reviews are rerun, no current records are
 published, and no new theorem relationships are asserted by adding this document.
+
+## Implementation update
+
+The author report, academic archive, citation and within-paper navigation work
+is described in [Academic archive and author report](ACADEMIC_ARCHIVE.md).
+That implementation preserves the distinction between manuscript-declared local
+connections and the independently checked cross-paper relations specified here.

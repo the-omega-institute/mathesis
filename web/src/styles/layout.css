@@ -299,6 +299,11 @@
 .final-review-report {
   max-width: 88ch;
 }
+.final-review-report > .prose,
+.final-review-report .review-analysis,
+.final-review-report .formalization-opportunities {
+  max-width: 88ch;
+}
 .final-review-report .section-heading {
   align-items: center;
 }
@@ -407,4 +412,111 @@
 }
 .workspace.workspace-author > .standing .standing-title {
   font-size: 1.35rem;
+}
+
+/* Public records use the familiar abstract, bibliography and version order. */
+.paper.academic-paper {
+  display: block;
+  max-width: 76rem;
+  margin-inline: auto;
+}
+.paper-access {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-block: 1rem 1.5rem;
+}
+.academic-paper .paper-abstract,
+.academic-paper .paper-metadata {
+  max-width: 88ch;
+}
+.paper-metadata {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin-block: 1.5rem;
+}
+.paper-metadata dt {
+  font-weight: 600;
+}
+.paper-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.paper-versions h2 {
+  font-size: 1.2rem;
+}
+.paper.academic-paper > .citation {
+  padding: 0;
+  border: 0;
+  margin-block: 1.5rem 2rem;
+}
+.citation summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.citation-format {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.citation-format select {
+  width: auto;
+}
+.citation-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.cite {
+  overflow-wrap: anywhere;
+}
+.result-list {
+  list-style: none;
+  padding: 0;
+}
+.result-list > li {
+  padding-block: 0.75rem 1rem;
+}
+.result-list h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+.result-excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-width: 88ch;
+}
+.result-page {
+  max-width: 76rem;
+  margin-inline: auto;
+}
+.result-page > section,
+.result-statement {
+  max-width: 88ch;
+}
+.result-statement {
+  margin-block: 1.75rem;
+  font-size: 1.1rem;
+}
+.result-relations ul {
+  padding-left: 1.25rem;
+}
+.result-relations h3 {
+  font: 600 1rem var(--font-sans);
+}
+.formalization-opportunities {
+  margin-top: 1.5rem;
+}
+@media (max-width: 30rem) {
+  .paper-metadata {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+  .paper-metadata dd {
+    margin-bottom: 0.75rem;
+  }
 }

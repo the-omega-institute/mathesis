@@ -1,23 +1,22 @@
 import { InlineLatex } from '../components/Markdown';
 import { ManuscriptSources } from '../components/ManuscriptSources';
-import { ProofAttribution } from '../components/ProofAttribution';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
-import { EntrantName } from './Leaderboard';
 import { useCallback, useState } from 'react';
-import { pdfHref, type PaperQuery } from '../api/client';
+import { pdfHref, sourceFileHref, type PaperQuery } from '../api/client';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { usePaged } from '../api/usePaged';
 import type { PaperSummary, PublicPaper } from '../api/types';
 import { AuthorLine } from '../components/AuthorLine';
-import { PublicStatements, statementName } from '../components/StatementSummary';
+import { Citation } from '../components/Citation';
+import { PaperMetadata } from '../components/PaperMetadata';
+import { PaperResults } from '../components/PaperResults';
 import { LatexText, MacrosProvider } from '../components/Markdown';
 import { Pager } from '../components/Pager';
 import { Async, Badge, DateText, ExternalLink, MscList } from '../components/ui';
-import { paperCitation } from '../lib/citation';
-import { CLAIM_KIND_LABELS, SUBMISSION_KIND_LABELS, newResults } from '../lib/labels';
+import { SUBMISSION_KIND_LABELS, newResults } from '../lib/labels';
 import { safeHttpUrl, sourceHref } from '../lib/links';
-import { Link } from '../routing/router';
+import { Link, useRouter } from '../routing/router';
 
 export function PaperEntry({ paper }: { paper: PaperSummary }) {
   return (
@@ -52,10 +51,17 @@ export function PaperEntry({ paper }: { paper: PaperSummary }) {
   );
 }
 
-export function PapersPage({ initialQuery = '' }: { initialQuery?: string } = {}) {
+export function PapersPage({
+  initialQuery = '',
+  initialFilters = {},
+}: { initialQuery?: string; initialFilters?: Pick<PaperQuery, 'author' | 'msc' | 'kind'> } = {}) {
   const api = useApi();
-  const [query, setQuery] = useState<PaperQuery>(initialQuery ? { q: initialQuery } : {});
-  const [draft, setDraft] = useState<PaperQuery>(initialQuery ? { q: initialQuery } : {});
+  const { navigate } = useRouter();
+  const [query, setQuery] = useState<PaperQuery>({
+    ...initialFilters,
+    ...(initialQuery ? { q: initialQuery } : {}),
+  });
+  const [draft, setDraft] = useState<PaperQuery>(query);
   const fetchPage = useCallback(
     (before: string | null, signal: AbortSignal) =>
       api.listPapers({ ...query, before, limit: 25 }, { signal }),
@@ -80,6 +86,13 @@ export function PapersPage({ initialQuery = '' }: { initialQuery?: string } = {}
         onSubmit={(event) => {
           event.preventDefault();
           setQuery({ ...draft });
+          navigate({
+            kind: 'papers',
+            q: draft.q?.trim(),
+            author: draft.author?.trim(),
+            msc: draft.msc?.trim(),
+            work: draft.kind || undefined,
+          });
         }}
       >
         <div className="archive-search-main">
@@ -98,7 +111,12 @@ export function PapersPage({ initialQuery = '' }: { initialQuery?: string } = {}
             </button>
           </div>
         </div>
-        <details className="archive-search-advanced">
+        <details
+          className="archive-search-advanced"
+          open={
+            Boolean(initialFilters.author || initialFilters.msc || initialFilters.kind) || undefined
+          }
+        >
           <summary>Advanced search</summary>
           <div className="archive-search-filters">
             <label>
@@ -137,6 +155,7 @@ export function PapersPage({ initialQuery = '' }: { initialQuery?: string } = {}
               onClick={() => {
                 setDraft({});
                 setQuery({});
+                navigate({ kind: 'papers' });
               }}
             >
               Clear filters
@@ -187,69 +206,108 @@ export function PaperPage({ record }: { record: string }) {
 
 export function PaperView({ paper }: { paper: PublicPaper }) {
   const s = paper.summary;
-  const latest = paper.versions?.at(-1);
+  const versions = paper.versions ?? [];
+  const latest = versions.at(-1);
   const claims = paper.claims ?? [];
   const repo = paper.formalization_repository ? safeHttpUrl(paper.formalization_repository) : null;
   const arxiv = /^10\.48550\/arxiv\.(.+)$/i.exec(s.doi ?? '')?.[1];
   const doiHref = s.doi ? sourceHref({ kind: 'doi', locator: s.doi }) : null;
   return (
     <MacrosProvider macros={paper.macros ?? {}}>
-      <article className="paper">
+      <article className="paper academic-paper">
+        <PaperMetadata paper={paper} />
+        <p className="entry-meta">
+          <Link to={{ kind: 'papers' }}>Research archive</Link> · {s.record} ·{' '}
+          {SUBMISSION_KIND_LABELS[s.kind]}
+        </p>
         <header className="record-head">
-          <p className="eyebrow">
-            Record <code className="record-id">{s.record}</code> · {SUBMISSION_KIND_LABELS[s.kind]}
-          </p>
           <h1>
             <InlineLatex source={s.title} />
           </h1>
           <AuthorLine authors={s.authors} />
-          {paper.confirmed_error_reports ? (
-            <p className="notice" role="status">
-              This published version has {paper.confirmed_error_reports} confirmed error report(s).
-              Read the error reports before relying on its results. The original acceptance record
-              is preserved; acceptance is not a proof of correctness.
-            </p>
-          ) : null}
-          {claims.length ? <ReportError record={s.record} subject={{ kind: 'review' }} /> : null}
           <p className="entry-meta">
+            {versions[0] ? (
+              <>
+                First version <DateText iso={versions[0].uploaded_at} /> ·{' '}
+              </>
+            ) : null}
             {s.accepted_at ? (
-              <span>
-                {s.kind === 'conjecture' ? 'Displayed' : 'Accepted'}{' '}
-                <DateText iso={s.accepted_at} />
-              </span>
+              <>
+                Accepted <DateText iso={s.accepted_at} />
+              </>
             ) : null}
-            <MscList codes={s.msc ?? []} />
-            {arxiv ? <span>arXiv:{arxiv}</span> : null}
-            {s.doi ? (
-              <span>
-                · {doiHref ? <ExternalLink href={doiHref}>doi:{s.doi}</ExternalLink> : s.doi}
-              </span>
-            ) : null}
+            {latest ? ` · version ${latest.number}` : null}
           </p>
-          <div className="button-row">
+          <nav className="paper-access" aria-label="Paper files and citation">
             {latest?.has_pdf && s.submission ? (
-              <a className="button" href={pdfHref(s.submission, latest.number)}>
-                PDF (version {latest.number})
+              <a href={pdfHref(s.submission, latest.number)}>View PDF</a>
+            ) : null}
+            {latest && s.submission && !latest.source_is_pdf ? (
+              <a href={sourceFileHref(s.submission, latest.number)}>
+                {latest.source_is_pdf === false ? 'Download source' : 'Original upload'}
               </a>
             ) : null}
-            {repo ? <ExternalLink href={repo}>Lean formalization repository</ExternalLink> : null}
-          </div>
+            <a
+              href="#citation"
+              onClick={() => document.getElementById('citation')?.setAttribute('open', '')}
+            >
+              Cite
+            </a>
+            {repo ? <ExternalLink href={repo}>Formal proofs</ExternalLink> : null}
+          </nav>
         </header>
-
+        {paper.confirmed_error_reports ? (
+          <p className="notice" role="status">
+            This version has {paper.confirmed_error_reports} confirmed error report(s). Read the
+            corrections before relying on its results.
+          </p>
+        ) : null}
         {s.abstract_text ? (
           <section aria-labelledby="abstract-h" className="paper-abstract">
             <h2 id="abstract-h">Abstract</h2>
             <LatexText source={s.abstract_text} className="abstract" />
           </section>
         ) : null}
-        {paper.versions?.length ? (
-          <section aria-labelledby="public-versions-h">
+        {s.msc?.length || s.doi ? (
+          <dl className="paper-metadata">
+            {s.msc?.length ? (
+              <>
+                <dt>Subjects</dt>
+                <dd>
+                  {s.msc.map((code, index) => (
+                    <span key={code}>
+                      {index ? '; ' : ''}
+                      <Link to={{ kind: 'papers', msc: code }}>MSC {code}</Link>
+                    </span>
+                  ))}
+                </dd>
+              </>
+            ) : null}
+            {s.doi ? (
+              <>
+                <dt>{arxiv ? 'arXiv' : 'DOI'}</dt>
+                <dd>
+                  {doiHref ? (
+                    <ExternalLink
+                      href={arxiv ? `https://arxiv.org/abs/${encodeURIComponent(arxiv)}` : doiHref}
+                    >
+                      {arxiv ? `arXiv:${arxiv}` : s.doi}
+                    </ExternalLink>
+                  ) : (
+                    s.doi
+                  )}
+                </dd>
+              </>
+            ) : null}
+          </dl>
+        ) : null}
+        {versions.length ? (
+          <section aria-labelledby="public-versions-h" className="paper-versions">
             <h2 id="public-versions-h">Version history</h2>
             <ol className="version-list">
-              {[...paper.versions].reverse().map((version) => (
+              {[...versions].reverse().map((version) => (
                 <li key={version.number}>
-                  <strong>Version {version.number}</strong> ·{' '}
-                  <DateText iso={version.uploaded_at} withTime />
+                  <strong>Version {version.number}</strong> · <DateText iso={version.uploaded_at} />
                   {version.has_pdf && s.submission ? (
                     <>
                       {' '}
@@ -259,117 +317,35 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                       </a>
                     </>
                   ) : null}
+                  {s.submission && !version.source_is_pdf ? (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <a href={sourceFileHref(s.submission, version.number)}>
+                        Version {version.number} source
+                      </a>
+                    </>
+                  ) : null}
                 </li>
               ))}
             </ol>
           </section>
         ) : null}
-        <Citation paper={s} />
+        <Citation paper={s} locator={{ version: paper.publication?.version ?? latest?.number }} />
         {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
-        {paper.new_content?.length ? (
-          <section aria-labelledby="new-content-h" className="new-content">
-            <h2 id="new-content-h">
-              {s.kind === 'note' ? 'New in this note' : 'New in this paper'}
-            </h2>
-            <ul className="new-content-list">
-              {paper.new_content.map((w) => {
-                const claim = claims.find((c) => c.id === w.claim);
-                return (
-                  <li key={w.claim}>
-                    <p className="new-content-claim">
-                      <span className="statement-kind">
-                        {claim ? CLAIM_KIND_LABELS[claim.kind] : 'Statement'}{' '}
-                        <span className="statement-id">{w.claim}</span>
-                      </span>{' '}
-                      {claim ? (
-                        <LatexText
-                          source={statementName(claim) ?? claim.statement}
-                          className="statement-preview"
-                        />
-                      ) : null}
-                    </p>
-                    <ul className="new-content-lemmas">
-                      {w.lemmas.map((lemma, i) => (
-                        <li key={i}>
-                          <LatexText source={lemma} />
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ) : null}
-        {claims.length > 0 ? (
-          <section aria-labelledby="statements-h" className="statements">
-            <h2 id="statements-h">Statements</h2>
-            <PublicStatements claims={claims} />
-            <ul className="entry-list">
-              {claims.map((claim) => (
-                <li key={claim.id}>
-                  <Link to={{ kind: 'statement', record: s.record, claim: claim.id }}>
-                    {claim.label} · Formalization
-                  </Link>
-                  {claim.verified ? (
-                    <p>
-                      <strong>Lean ✓</strong> · <EntrantName entrant={claim.verified.entrant} />{' '}
-                      proved the author-confirmed Lean target.
-                    </p>
-                  ) : null}
-                  <ProofAttribution attribution={claim.verified?.attribution} />
-                  <ReportError record={s.record} subject={{ kind: 'statement', claim: claim.id }} />
-                </li>
-              ))}
-            </ul>
-          </section>
+        {claims.length ? (
+          <PaperResults paper={paper} />
         ) : (
           <p className="muted">The author keeps the mathematical details private.</p>
         )}
-        {paper.lean_statements?.map((target) => (
-          <section key={target.digest} aria-label="Author-confirmed Lean statement">
-            <h2>Author-confirmed Lean statement</h2>
-            <details>
-              <summary>View Lean statement</summary>
-              <pre className="lean-source">
-                <code>{target.lean}</code>
-              </pre>
-            </details>
-            <ReportError
-              record={s.record}
-              subject={{ kind: 'target', claim: target.claim, digest: target.digest }}
-            />
-          </section>
-        ))}
-
-        {claims.length ? <ErrorReports record={s.record} /> : null}
+        {claims.length ? (
+          <details className="history">
+            <summary>Corrections</summary>
+            <ReportError record={s.record} subject={{ kind: 'review' }} />
+            <ErrorReports record={s.record} />
+          </details>
+        ) : null}
       </article>
     </MacrosProvider>
-  );
-}
-
-function Citation({ paper }: { paper: PaperSummary }) {
-  const [copied, setCopied] = useState(false);
-  const text = paperCitation(paper, window.location.origin);
-  const canCopy = typeof navigator !== 'undefined' && Boolean(navigator.clipboard);
-  return (
-    <section aria-labelledby="cite-h" className="citation">
-      <h2 id="cite-h">Cite</h2>
-      <p className="cite">{text}</p>
-      {canCopy ? (
-        <button
-          type="button"
-          className="button button-quiet button-small"
-          onClick={() =>
-            navigator.clipboard.writeText(text).then(
-              () => setCopied(true),
-              () => setCopied(false),
-            )
-          }
-        >
-          {copied ? 'Copied' : 'Copy citation'}
-        </button>
-      ) : null}
-    </section>
   );
 }

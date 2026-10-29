@@ -2,6 +2,7 @@ import type { RefereeFile, Submission } from '../api/types';
 import { currentAuthorRound } from '../lib/authorStanding';
 import { Markdown, InlineLatex } from './Markdown';
 import { DateText } from './ui';
+import { formalizationAdviceText } from '../lib/formalizationAdvice';
 
 export function currentReport(submission: Submission, file: RefereeFile) {
   const round = currentAuthorRound(submission, file);
@@ -31,10 +32,11 @@ export function FinalReviewReport({
     );
   const missingReadings =
     round?.referee.state.state === 'done' && !round.referee.state.result.claims.length;
+  const formalization = formalizationAdviceText(submission, round);
   const download = () => {
     const blob = new Blob(
       [
-        `# ${letter.subject}\n\n${limitations || missingReadings ? '> Some checks could not be completed. The report describes the available findings and remaining uncertainties.\n\n' : ''}${letter.body}\n\n${letter.note}\n`,
+        `# ${letter.subject}\n\n${limitations || missingReadings ? '> Some checks could not be completed. The report describes the available findings and remaining uncertainties.\n\n' : ''}${letter.body}\n\n${letter.note}\n\n${formalization}\n`,
       ],
       { type: 'text/markdown;charset=utf-8' },
     );
@@ -45,16 +47,20 @@ export function FinalReviewReport({
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return (
-    <section className="final-review-report" aria-label="Final review report">
+  const pending = submission.status.state === 'in_review';
+  const report = (
+    <section
+      className="final-review-report"
+      aria-label={pending ? 'Review feedback' : 'Final review report'}
+    >
       <div className="section-heading">
-        <h2>Review report</h2>
+        <h2>{pending ? 'Review feedback' : 'Review report'}</h2>
         <button type="button" className="button button-quiet button-small" onClick={download}>
           Download report
         </button>
       </div>
       <p className="entry-meta">
-        AI review completed · <DateText iso={letter.sent_at} />
+        {pending ? 'Feedback prepared' : 'Reviewed'} · <DateText iso={letter.sent_at} />
       </p>
       {limitations || missingReadings ? (
         <p className="notice notice-info">
@@ -71,19 +77,21 @@ export function FinalReviewReport({
           <Markdown text={letter.note} />
         </div>
       ) : null}
-      <p className="small">
-        {submission.purpose === 'review_only'
-          ? 'No formalization is scheduled for this private review.'
-          : submission.status.state === 'not_accepted'
-            ? 'Formalization is not scheduled for this submission.'
-            : submission.kind === 'conjecture'
-              ? 'Community members can contribute a proof once a Lean target is available.'
-              : round?.formal?.state.state === 'done'
-                ? 'Formalization results are available in the manuscript details.'
-                : round?.formal?.state.state === 'running'
-                  ? 'A formalization attempt is in progress.'
-                  : 'Any formalization plan will be shown separately when it is available.'}
-      </p>
+      <div className="formalization-opportunities">
+        <Markdown text={formalization} />
+      </div>
     </section>
+  );
+  return pending ? (
+    <details className="history pending-feedback">
+      <summary>Available feedback — decision pending</summary>
+      <p>
+        The publication decision is still pending. This feedback is not a final acceptance or
+        refusal.
+      </p>
+      {report}
+    </details>
+  ) : (
+    report
   );
 }

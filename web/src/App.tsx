@@ -13,6 +13,7 @@ import { ContributePage } from './pages/Contribute';
 import { ContributorsPage } from './pages/Contributors';
 import { HomePage } from './pages/Home';
 import { NotFoundPage } from './pages/NotFound';
+import { ResultPage } from './pages/Result';
 import { PaperPage, PapersPage } from './pages/Papers';
 import { PeoplePage } from './pages/People';
 import { AuthorPage } from './pages/Author';
@@ -52,6 +53,7 @@ function titleFor(route: Route): string {
       return 'Conjectures';
     case 'papers':
       return 'Accepted papers';
+    case 'result':
     case 'paper':
       return route.record;
     case 'policy':
@@ -108,7 +110,15 @@ function Page({ route }: { route: Route }) {
     case 'conjectures':
       return <ConjecturesPage />;
     case 'papers':
-      return <PapersPage key={route.q ?? ''} initialQuery={route.q} />;
+      return (
+        <PapersPage
+          key={routePath(route)}
+          initialQuery={route.q}
+          initialFilters={{ author: route.author, msc: route.msc, kind: route.work }}
+        />
+      );
+    case 'result':
+      return <ResultPage key={routePath(route)} record={route.record} claim={route.claim} />;
     case 'paper':
       return <PaperPage key={route.record} record={route.record} />;
     case 'policy':
