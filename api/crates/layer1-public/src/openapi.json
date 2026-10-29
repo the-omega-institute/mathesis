@@ -2923,6 +2923,143 @@
           }
         }
       }
+    },
+    "/api/v1/submissions/prepare": {
+      "post": {
+        "summary": "Prepare and compile a private draft before confirming bibliographic metadata; never starts review",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Missing identity"
+          },
+          "404": {
+            "description": "Not visible or missing"
+          },
+          "409": {
+            "description": "Version or request differs from the saved delivery"
+          },
+          "422": {
+            "description": "Invalid input or missing processing consent"
+          },
+          "201": {
+            "description": "Saved private Submission with intake.confirmed_request null and suggested title, abstract and authors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "$ref": "#/components/schemas/PrepareSubmission"
+                  },
+                  "source": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "metadata",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "encoding": {
+                "metadata": {
+                  "contentType": "application/json"
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "metadata",
+                  "filename",
+                  "source_base64"
+                ],
+                "properties": {
+                  "metadata": {
+                    "$ref": "#/components/schemas/PrepareSubmission"
+                  },
+                  "filename": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "source_base64": {
+                    "type": "string",
+                    "maxLength": 41943040,
+                    "description": "Standard base64 of the same source bytes; JSON transport for NyxID/MCP."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "prepare_submission"
+      }
+    },
+    "/api/v1/submissions/{id}/submit": {
+      "post": {
+        "operationId": "submit_prepared",
+        "summary": "Atomically confirm source-bound manuscript metadata and statements, then admit review. Exact retries are idempotent.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitPrepared"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed submission; saved requests replay without another review"
+          },
+          "401": {
+            "description": "Missing identity"
+          },
+          "404": {
+            "description": "Not visible"
+          },
+          "409": {
+            "description": "PDF incomplete, changed source/revision or conflicting completed request"
+          },
+          "422": {
+            "description": "Invalid metadata, statements or processing consent"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6645,6 +6782,69 @@
           "claims"
         ],
         "additionalProperties": false
+      },
+      "PrepareSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "purpose",
+          "processing_consent"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "paper",
+              "note",
+              "conjecture"
+            ]
+          },
+          "purpose": {
+            "enum": [
+              "publication",
+              "review_only"
+            ]
+          },
+          "processing_consent": {
+            "const": "ai-review-2026-10-11"
+          }
+        }
+      },
+      "SubmitPrepared": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "source_sha256",
+          "claims_revision",
+          "metadata",
+          "claims"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "claims_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Author-approved NewPaper metadata. Same kind/purpose as preparation; explicit title, authors, disclosure and consent required."
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Author-approved ClaimConfirmation entries for the exact prepared source."
+          }
+        }
       }
     }
   }

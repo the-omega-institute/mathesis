@@ -15,10 +15,17 @@ pipeline; only their labels differ.
 
 - **Input**: papers and notes upload PDF, `.tex`, `.zip` or `.tar.gz` manuscripts.
   PDF intake uses a bounded Poppler text read and numbered statement headings,
-  preserves the original PDF bytes, and requires supplied title/authors. Scans
+  preserves the original PDF bytes, and suggests bounded front-matter title/abstract.
+  Ambiguous fields stay empty; authors confirm bibliographic metadata before review. Scans
   without text or unreadable statement boundaries are refused with an actionable
   explanation. PDF extraction warnings remain visible before confirmation.
-  The web form groups metadata, authors, files and confirmation into horizontal tabs;
+  The web form uses Upload → Check PDF → Details → Authors → Submit tabs;
+  source-derived metadata is editable after the PDF check. Preparation persists a
+  private incomplete draft, using the ordinary durable compile lane. Its intake
+  marker blocks ordinary statement confirmation until metadata is supplied. Final
+  submission atomically confirms metadata/statements against the source version,
+  digest and claims revision; exact retries do not create new review rounds.
+  Legacy submissions and downstream manuscript delivery keep their existing paths;
   multiple source files are packed into one path-preserving ZIP.
   Conjectures use the same endpoint with either LaTeX source or a typed title,
   statement (at most 20,000 characters), optional background (50,000) and origin.
@@ -767,3 +774,13 @@ funded; local elaboration and proof verification carry no CMA payer.
 - Public source associations are projected only from accepted public inputs.
   External Lean links confer no verifier badge or credit. Knowledge import is
   unchanged. See `docs/MANUSCRIPT_DELIVERY.md` for API, CLI/MCP and producer handoff.
+
+## 19. Academic submission interface
+
+- People is an administrator account list, with only an Administrator access switch.
+  Legacy roles remain readable for historical access; the interface neither advertises
+  nor grants editor, reviewer or endorser roles. The account menu omits editorial labels.
+- Use the archive's page alignment, horizontal submission steps, readable text measures
+  and restrained rules. Avoid nested centred cards, rounded status pills or decorative
+  borders. Keep real input boundaries, keyboard focus, error text and responsive layout.
+- See `docs/UPLOAD_FIRST_SUBMISSION.md` for draft preparation and client interfaces.

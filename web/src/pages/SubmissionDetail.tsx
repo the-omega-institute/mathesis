@@ -1,3 +1,4 @@
+import { SubmitPage } from './Submit';
 import { FeedbackWorkspace } from '../components/FeedbackWorkspace';
 import { BindingWorkspace } from '../components/BindingWorkspace';
 import { InlineLatex } from '../components/Markdown';
@@ -53,14 +54,24 @@ export function SubmissionDetailPage({
   staffView?: boolean;
 }) {
   const api = useApi();
-  const { session } = useSession();
+  const { session, person } = useSession();
   const load = useCallback((signal: AbortSignal) => api.getSubmission(id, { signal }), [api, id]);
   const submission = useAsync(session.status === 'loading' ? null : load);
   return (
     <div className="page">
       {session.status === 'loading' ? <Loading /> : null}
       <Async state={submission.state} onRetry={submission.reload}>
-        {(s) => <Workspace submission={s} onChange={submission.replace} staffView={staffView} />}
+        {(s) =>
+          s.intake &&
+          !s.intake.confirmed_request &&
+          s.status.state === 'draft' &&
+          s.submitter === person?.id &&
+          !staffView ? (
+            <SubmitPage initialSubmission={s} onSubmitted={submission.replace} />
+          ) : (
+            <Workspace submission={s} onChange={submission.replace} staffView={staffView} />
+          )
+        }
       </Async>
     </div>
   );

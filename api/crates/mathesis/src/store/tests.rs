@@ -208,6 +208,7 @@ async fn knowledge_archive_upload_rejects_changed_or_oversized_bytes() {
 
 fn submission(id: &str, submitter: &str, status: SubmissionStatus) -> Submission {
     Submission {
+        intake: None,
         manuscript: None,
         purpose: Default::default(),
         review_scope: Default::default(),

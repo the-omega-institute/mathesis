@@ -144,9 +144,21 @@ impl App {
     pub(crate) async fn submit_paper_with_delivery(
         &self,
         caller: &Caller,
+        new: NewPaper,
+        upload: Upload,
+        delivery: Option<(ManuscriptIdentity, ManuscriptVersion)>,
+    ) -> CoreResult<Submission> {
+        self.submit_paper_inner(caller, new, upload, delivery, false)
+            .await
+    }
+
+    pub(super) async fn submit_paper_inner(
+        &self,
+        caller: &Caller,
         mut new: NewPaper,
         mut upload: Upload,
         delivery: Option<(ManuscriptIdentity, ManuscriptVersion)>,
+        preparing: bool,
     ) -> CoreResult<Submission> {
         new.normalise_doi();
         new.validate()?;
@@ -197,6 +209,7 @@ impl App {
             .map(|typed| typed.title.clone())
             .or_else(|| new.title.clone())
             .or_else(|| read.title.clone())
+            .or_else(|| preparing.then(String::new))
             .ok_or_else(|| CoreError::invalid("enter a manuscript title"))?;
         let authors = if new.authors.is_empty() {
             read.authors
@@ -213,7 +226,7 @@ impl App {
         } else {
             new.authors.clone()
         };
-        if authors.is_empty() {
+        if authors.is_empty() && !preparing {
             return Err(CoreError::invalid("list the manuscript authors"));
         }
         if let Some((_, delivered)) = &delivery {
@@ -226,6 +239,7 @@ impl App {
             identity
         });
         let submission = Submission {
+            intake: preparing.then(SubmissionIntake::default),
             manuscript,
             purpose: new.purpose,
             review_scope: new.review_scope,
@@ -327,9 +341,36 @@ impl App {
         confirmations: Vec<ClaimConfirmation>,
         binding: Option<&ConfirmManuscriptDelivery>,
     ) -> CoreResult<Submission> {
+        self.confirm_claims_inner(caller, id, confirmations, binding, None)
+            .await
+    }
+
+    pub(super) async fn confirm_claims_inner(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+        confirmations: Vec<ClaimConfirmation>,
+        binding: Option<&ConfirmManuscriptDelivery>,
+        prepared: Option<&SubmitPrepared>,
+    ) -> CoreResult<Submission> {
         use sha2::{Digest, Sha256};
         let mut submission = self.load(id).await?;
         Self::require_submitter(caller, &submission)?;
+        if let Some(prepared) = prepared {
+            if self.apply_prepared_metadata(&mut submission, prepared)? {
+                self.recover_manuscript_jobs(&submission, prepared.version)
+                    .await?;
+                return Ok(submission);
+            }
+        } else if submission
+            .intake
+            .as_ref()
+            .is_some_and(|i| i.confirmed_request.is_none())
+        {
+            return Err(CoreError::conflict(
+                "check the PDF and complete manuscript details before submitting for review",
+            ));
+        }
         let confirmation_digest = format!(
             "{:x}",
             Sha256::digest(
@@ -616,6 +657,29 @@ impl App {
             .await?;
         version.delivery = delivery.as_ref().map(|(_, d, _)| d.clone());
         submission.versions.push(version);
+        if submission
+            .intake
+            .as_ref()
+            .is_some_and(|i| i.confirmed_request.is_some())
+        {
+            submission.intake = None;
+        }
+        if submission.intake.is_some() {
+            submission.title = read.title.clone().unwrap_or_default();
+            submission.abstract_text = read.abstract_text.clone().unwrap_or_default();
+            submission.authors = read
+                .authors
+                .iter()
+                .map(|name| Author {
+                    name: name.clone(),
+                    person: None,
+                    orcid: None,
+                    affiliation: None,
+                    google_scholar: None,
+                    website: None,
+                })
+                .collect();
+        }
         submission.extracted = claims_from(&read);
         if submission.kind == SubmissionKind::Conjecture {
             for claim in &mut submission.extracted {

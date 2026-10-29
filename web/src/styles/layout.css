@@ -118,10 +118,9 @@
   }
 }
 
-/* Academic submission: one centred working area, with horizontal section tabs. */
+/* Align submission with the archive; keep fields at a readable measure. */
 .submission-page {
-  max-width: 72rem;
-  margin-inline: auto;
+  width: 100%;
 }
 .submission-wizard.form {
   display: block;
@@ -155,8 +154,8 @@
   font-size: 0.8rem;
 }
 .submission-panel {
-  max-width: 52rem;
-  margin-inline: auto;
+  max-width: 60rem;
+  margin-inline: 0;
   padding-block: 2rem;
 }
 .submission-panel h2 {
@@ -180,9 +179,9 @@
   cursor: pointer;
 }
 .manuscript-upload {
-  padding: 1.5rem;
-  background: var(--surface);
-  border: 1px dashed var(--rule-strong);
+  padding: 0;
+  background: transparent;
+  border: 0;
 }
 .upload-files {
   padding: 0;
@@ -290,4 +289,127 @@
 }
 .current-execution {
   margin-block: 2rem;
+}
+
+/* Submission is a document workflow, not a card or modal. */
+.intake-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-block: 1.5rem;
+}
+.intake-links[hidden] {
+  display: none;
+}
+.intake-links .button {
+  padding: 0.35rem 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+}
+.intake-links [aria-pressed='true'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.5rem;
+}
+.submission-panel h2 {
+  border: 0;
+}
+.submission-instruction {
+  max-width: 48rem;
+  color: var(--ink-soft);
+  margin-bottom: 2rem;
+}
+.submission-tabs {
+  gap: clamp(1rem, 3vw, 2.75rem);
+}
+.submission-tabs button:disabled {
+  cursor: default;
+  color: var(--muted);
+  opacity: 0.65;
+}
+.submission-panel select {
+  max-width: 22rem;
+}
+.submission-panel .form-row select {
+  max-width: none;
+}
+.submission-panel .plain-details {
+  margin-block: 1.5rem;
+}
+.plain-details summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.upload-consent {
+  margin-top: 2rem;
+}
+.text-button {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  color: var(--link);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+.pdf-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.pdf-heading p {
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.manuscript-pdf {
+  display: block;
+  width: 100%;
+  height: 68vh;
+  min-height: 28rem;
+  border: 1px solid var(--rule);
+  margin-bottom: 1.5rem;
+  background: var(--surface);
+}
+.preparation-status {
+  padding-block: 2rem;
+}
+.extraction-notes {
+  margin-block: 1rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+.manuscript-summary {
+  margin-block: 1.5rem 2rem;
+}
+.manuscript-summary h3 {
+  font-size: 1.5rem;
+}
+.intake-claim {
+  margin-block: 1.5rem;
+}
+.draft-save-note {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-top: 1.5rem;
+}
+.intake-alternative {
+  margin-top: 1rem;
+}
+@media (max-width: 40rem) {
+  .manuscript-pdf {
+    min-height: 22rem;
+    height: 60vh;
+  }
+  .pdf-heading {
+    display: block;
+  }
 }

@@ -39,10 +39,10 @@
   --callout-bg: #244b3b;
   --callout-ink: #f1f4e9;
   --callout-muted: #cedbcd;
-  --shadow: 0 8px 28px rgb(28 48 34 / 0.05);
+  --shadow: none;
   --border: var(--rule);
 
-  --radius: 8px;
+  --radius: 2px;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -51,14 +51,14 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --measure: 42rem;
-  --page: 112rem;
+  --page: 96rem;
   --gutter: 1.25rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --art-line: #8cbd99;
-    --shadow: 0 8px 28px rgb(0 0 0 / 0.14);
+    --shadow: none;
     --bg: #151c18;
     --surface: #1b241e;
     --surface-sunk: #111812;

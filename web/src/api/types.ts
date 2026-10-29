@@ -339,6 +339,7 @@ export type SubmissionStatus =
 export type AnalysisVisibility = 'undecided' | 'public' | 'private';
 
 export type Submission = {
+  intake?: { confirmed_request: string | null };
   purpose?: 'publication' | 'review_only';
   review_scope?: string;
   conjecture_dependencies?: {
@@ -1366,4 +1367,17 @@ export type ReviewSummary = {
   in_progress: boolean;
   interrupted: boolean;
   has_execution_limits: boolean;
+};
+
+export type PrepareSubmission = {
+  kind: SubmissionKind;
+  purpose: 'publication' | 'review_only';
+  processing_consent: string;
+};
+export type SubmitPrepared = {
+  version: number;
+  source_sha256: string;
+  claims_revision: number;
+  metadata: NewPaper;
+  claims: ClaimConfirmation[];
 };

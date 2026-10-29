@@ -5,7 +5,6 @@ import type { Person, Role } from '../api/types';
 import { hasRole, useSession } from '../auth/session';
 import { Pager } from '../components/Pager';
 import { Async, DateText, InlineError, Loading, SignInPrompt } from '../components/ui';
-import { ROLES, ROLE_LABELS } from '../lib/labels';
 
 export function PeoplePage() {
   const api = useApi();
@@ -23,8 +22,8 @@ export function PeoplePage() {
       <header className="page-head">
         <div>
           <p className="eyebrow">Admin</p>
-          <h1>People</h1>
-          <p className="lede">Everyone who has signed in, and the editorial roles they hold.</p>
+          <h1>Accounts</h1>
+          <p className="lede">Signed-in accounts and administrator access.</p>
         </div>
       </header>
       {session.status === 'loading' ? <Loading /> : null}
@@ -32,7 +31,7 @@ export function PeoplePage() {
         <SignInPrompt what="manage people" />
       ) : null}
       {person !== null && !isAdmin ? (
-        <p className="notice notice-info">Only admins can manage roles.</p>
+        <p className="notice notice-info">Only administrators can manage accounts.</p>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
@@ -68,9 +67,7 @@ function PersonRow({ person: initial, isSelf }: { person: Person; isSelf: boolea
   const toggle = (role: Role, on: boolean) => {
     setSaved(false);
     setRoles((current) =>
-      on
-        ? ROLES.filter((r) => r === role || current.includes(r))
-        : current.filter((r) => r !== role),
+      on ? [...current.filter((r) => r !== role), role] : current.filter((r) => r !== role),
     );
   };
   const save = () => {
@@ -105,21 +102,19 @@ function PersonRow({ person: initial, isSelf }: { person: Person; isSelf: boolea
         </p>
       </div>
       <fieldset className="role-boxes">
-        <legend className="visually-hidden">Roles of {person.display_name}</legend>
-        {ROLES.map((role) => (
-          <label key={role} className="checkbox">
-            <input
-              type="checkbox"
-              checked={roles.includes(role)}
-              onChange={(e) => toggle(role, e.target.checked)}
-            />
-            <span>{ROLE_LABELS[role]}</span>
-          </label>
-        ))}
+        <legend className="visually-hidden">Administrator access for {person.display_name}</legend>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={roles.includes('admin')}
+            onChange={(e) => toggle('admin', e.target.checked)}
+          />
+          <span>Administrator</span>
+        </label>
       </fieldset>
       <div className="person-actions">
         <button type="button" className="button" disabled={!dirty || busy} onClick={save}>
-          {busy ? 'Saving…' : 'Save roles'}
+          {busy ? 'Saving…' : 'Save access'}
         </button>
         {saved && !dirty ? (
           <span className="form-success small" role="status">
