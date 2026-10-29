@@ -56,7 +56,7 @@ describe('public result', () => {
       await screen.findByRole('heading', { name: 'Conditional on these assumptions' }),
     ).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Uses these results' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Read the proof in the paper (PDF)' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Read in the paper (PDF)' })).toHaveAttribute(
       'href',
       '/api/v1/submissions/sub-acc/files/pdf?version=1',
     );
@@ -76,9 +76,7 @@ describe('public result', () => {
         })),
       }),
     );
-    expect(
-      await screen.findByRole('link', { name: 'Read the statement in the paper (PDF)' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Read in the paper (PDF)' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Read the proof in the paper (PDF)' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Assumed in these statements' })).toBeVisible();
   });
