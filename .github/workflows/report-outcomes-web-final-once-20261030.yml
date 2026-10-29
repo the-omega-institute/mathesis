@@ -1,0 +1,58 @@
+name: Mathesis report outcomes web image (2026-10-30 only)
+on:
+  push:
+    branches: [deploy/report-outcomes-web-final-20261030]
+    paths: [.github/workflows/report-outcomes-web-final-once-20261030.yml]
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [web]
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SOURCE_COMMIT: 2658b96eb30916b0c131012f80386b584ed34224
+      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:report-outcomes-web-final-20261030
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify reviewed application inputs
+        run: git diff --exit-code "$SOURCE_COMMIT" HEAD -- api web infra
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish reviewed application image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build -f infra/${{ matrix.service }}/Dockerfile \
+            --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
+            --label "org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis" \
+            -t "$IMAGE" .
+          docker push "$IMAGE"
+          mkdir -p "$RUNNER_TEMP/mathesis-receipt"
+          docker image inspect --format '{{json .RepoDigests}}' "$IMAGE" > "$RUNNER_TEMP/mathesis-receipt/repo-digests.json"
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'mathesis-receipt'
+          image = os.environ['IMAGE'].split(':')[0]
+          digests = [d for d in json.loads((root/'repo-digests.json').read_text()) if re.fullmatch(re.escape(image)+r'@sha256:[0-9a-f]{64}',d)]
+          assert len(digests) == 1
+          (root/'receipt.json').write_text(json.dumps(dict(image=digests[0],source_commit=os.environ['SOURCE_COMMIT'],workflow_commit=os.environ['GITHUB_SHA'],workflow_run=os.environ['GITHUB_RUN_ID']),indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-report-outcomes-${{ matrix.service }}-receipt
+          path: ${{ runner.temp }}/mathesis-receipt/
+          if-no-files-found: error
+          retention-days: 90
