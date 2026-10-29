@@ -394,3 +394,17 @@
     display: block;
   }
 }
+.workspace.workspace-waiting {
+  display: block;
+}
+.workspace.workspace-waiting > .record-head {
+  border-bottom: 0;
+}
+.workspace.workspace-waiting > .standing {
+  border: 0;
+  padding: 0;
+  margin: var(--space-5) 0;
+}
+.workspace.workspace-waiting > .standing .standing-title {
+  font-size: 1.35rem;
+}

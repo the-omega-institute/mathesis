@@ -209,9 +209,14 @@ describe('one author standing for every state', () => {
       expect(JSON.stringify(standing)).not.toMatch(/try again/i);
       render(<PaperStanding submission={paper} file={review} />);
       expect(screen.getByRole('heading', { name: headline })).toBeVisible();
-      expect(screen.getByRole('status')).toHaveTextContent(standing.doing);
-      expect(screen.getByText(standing.nextAction)).toBeVisible();
-      expect(screen.getByText(/^Elapsed /)).toBeVisible();
+      if (paper.status.state === 'in_review' && !standing.delivered) {
+        expect(screen.getByRole('status')).toHaveTextContent('The final report will appear here');
+        expect(screen.queryByText(/^Elapsed /)).toBeNull();
+      } else {
+        expect(screen.getByRole('status')).toHaveTextContent(standing.doing);
+        expect(screen.getByText(standing.nextAction)).toBeVisible();
+        expect(screen.getByText(/^Elapsed /)).toBeVisible();
+      }
       expect(screen.queryByText(TIMING_OBSERVATION)).toBeNull();
     },
   );

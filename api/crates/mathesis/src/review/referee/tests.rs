@@ -1407,6 +1407,16 @@ async fn prepare_audit(w: &World) -> LeasedJob {
 #[tokio::test]
 async fn new_contract_delivers_actual_evidence_to_all_review_prompts_without_changing_legacy() {
     let w = World::new(vec![completed("accept")], true).await;
+    // This fixture changes attachments before the review it exercises.
+    let mut completed = w.paper.clone();
+    completed.status = SubmissionStatus::NotAccepted;
+    mathesis_core::ports::SubmissionStore::replace(
+        w.stores.as_ref(),
+        &completed,
+        completed.revision,
+    )
+    .await
+    .unwrap();
     let paper = w
         .worker
         .app
@@ -4831,6 +4841,16 @@ async fn a_response_from_the_wrong_ranker_cannot_complete_an_admitted_query() {
 }
 
 async fn with_computation_attachment(w: &mut World) {
+    // This fixture changes attachments before the review it exercises.
+    let mut completed = w.paper.clone();
+    completed.status = SubmissionStatus::NotAccepted;
+    mathesis_core::ports::SubmissionStore::replace(
+        w.stores.as_ref(),
+        &completed,
+        completed.revision,
+    )
+    .await
+    .unwrap();
     let paper = w
         .worker
         .app

@@ -36,7 +36,7 @@ const attempts = [
 
 describe('Optional own agents in pages', () => {
   it.each(['submitter', 'coauthor', 'staff', 'public'] as const)(
-    'shows pre-letter history to %s with submitter-only connection controls and safe fields',
+    'keeps pre-letter execution history in the staff view for %s',
     async (role) => {
       const coauthor = { ...author, id: 'linked-coauthor', display_name: 'Linked author' };
       const readers: Record<string, Person | undefined> = {
@@ -77,33 +77,24 @@ describe('Optional own agents in pages', () => {
         ...privateFields,
       }));
       renderWithApp(
-        <SubmissionDetailPage id={paper.id} />,
+        <SubmissionDetailPage id={paper.id} staffView={role === 'staff'} />,
         fakeApi({ getSubmission: vi.fn(async () => paper), referee, getCma }, readers[role]),
       );
       await screen.findByRole('heading', { name: paper.title });
-      if (role === 'public') {
-        expect(referee).not.toHaveBeenCalled();
-        expect(screen.queryByRole('region', { name: 'Execution records' })).toBeNull();
-      } else {
-        const advanced = screen
-          .getByText('Advanced: compute settings and history')
-          .closest('details');
-        expect(advanced).not.toHaveAttribute('open');
-        if (role !== 'staff')
-          await userEvent.click(screen.getByText('Details: evidence, history and settings'));
+      if (role === 'staff') {
+        await userEvent.click(screen.getByText('Details: evidence, history and settings'));
         await userEvent.click(screen.getByText('Advanced: compute settings and history'));
         expect(await screen.findByRole('region', { name: 'Execution records' })).toHaveTextContent(
           'Source check · Your agents · In progress',
         );
-        expect(referee).toHaveBeenCalled();
-      }
-      if (role === 'submitter') {
-        expect(await screen.findByRole('link', { name: 'Connect' })).toBeInTheDocument();
-        expect(getCma).toHaveBeenCalled();
       } else {
-        expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
-        expect(getCma).not.toHaveBeenCalled();
+        expect(screen.queryByText('Advanced: compute settings and history')).toBeNull();
+        expect(screen.queryByRole('region', { name: 'Execution records' })).toBeNull();
       }
+      if (role === 'public') expect(referee).not.toHaveBeenCalled();
+      else expect(referee).toHaveBeenCalled();
+      expect(screen.queryByRole('link', { name: 'Connect' })).toBeNull();
+      expect(getCma).not.toHaveBeenCalled();
       for (const sentinel of Object.values(privateFields)) {
         expect(document.body.innerHTML).not.toContain(sentinel);
       }

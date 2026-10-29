@@ -22,3 +22,10 @@ mathesis-contribute submit-prepared SUBMISSION confirmation.json
 ```
 
 MCP uses `prepare-submission` with `metadata`, `filename`, `source_base64`; `submission` with `id`; and `submit-prepared` with `id`, `confirmation`. The upload action prepares the manuscript; the final submit action confirms the source, metadata and statements and requests AI review. No separate acknowledgement checkbox is needed. Clients must act on an author’s request, and must not fabricate a legacy checkbox receipt. For durable producer/work deduplication, use the separate [manuscript delivery contract](MANUSCRIPT_DELIVERY.md).
+
+While a submission is `in_review`, source replacements return HTTP 409 through
+ordinary uploads and producer deliveries. Authors wait for the review outcome
+before revising. The waiting page shows manuscript information and a concise
+status, with withdrawal available separately. It displays no intermediate
+statement list, report placeholder, contribution tools or execution details.
+Administrators use the independent staff submission route for execution records.
