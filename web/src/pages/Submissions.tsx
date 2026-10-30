@@ -12,6 +12,7 @@ import { Pager } from '../components/Pager';
 import { Async, DateText, Loading, SignInPrompt } from '../components/ui';
 import { formatAuthors, SUBMISSION_KIND_LABELS, newResults } from '../lib/labels';
 import { Link } from '../routing/router';
+import { awaitingDecision, decisionWaitingMessage } from '../lib/authorStanding';
 
 const COPY: { [K in SubmissionScope]: { title: string; lede: string; empty: string } } = {
   mine: {
@@ -167,11 +168,14 @@ function SubmissionRow({
     s.status.state !== 'draft' && s.status.state !== 'withdrawn' ? load : null,
   );
   const value = summary.value;
+  const waitingForDecision = awaitingDecision(s, !!value?.delivered_at);
   const reportReady =
     value?.delivered_at && ['accepted', 'not_accepted', 'review_complete'].includes(s.status.state);
   const label =
     s.status.state === 'in_review'
-      ? 'In review'
+      ? waitingForDecision
+        ? 'Awaiting decision'
+        : 'In review'
       : reportReady
         ? s.purpose === 'review_only'
           ? 'Report ready'
@@ -226,6 +230,7 @@ function SubmissionRow({
           {value.has_execution_limits ? ' The report explains which checks remain incomplete.' : ''}
         </p>
       ) : null}
+      {waitingForDecision ? <p className="small">{decisionWaitingMessage(s)}</p> : null}
       {summary.state.status === 'error' ? (
         <p className="small">
           Your manuscript is saved.{' '}

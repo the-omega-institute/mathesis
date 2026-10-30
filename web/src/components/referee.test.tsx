@@ -369,7 +369,7 @@ describe('referee workspace', () => {
       { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const report = await screen.findByRole('region', { name: 'Final review report' });
-    expect(within(report).getByRole('heading', { name: submission.title })).toBeVisible();
+    expect(within(report).getByRole('heading', { name: 'Review report' })).toBeVisible();
     expect(screen.queryByText('Minor revision')).toBeNull();
   });
 
@@ -401,7 +401,7 @@ describe('referee workspace', () => {
       { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const report = await screen.findByRole('region', { name: 'Final review report' });
-    expect(within(report).getByRole('heading', { name: submission.title })).toBeVisible();
+    expect(within(report).getByRole('heading', { name: 'Review report' })).toBeVisible();
     expect(within(report).queryByText('Earlier feedback')).toBeNull();
     expect(report.querySelector(KATEX_ERROR)).toBeNull();
     await userEvent.click(screen.getByText('Manuscript details'));
@@ -441,9 +441,17 @@ describe('referee workspace', () => {
       { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const panel = await screen.findByRole('region', { name: 'Final review report' });
-    expect(within(panel).getByText('Please clarify the boundary case.')).toBeVisible();
+    const details = within(panel)
+      .getByText('Detailed report: findings and recommendations')
+      .closest('details')!;
+    expect(details).not.toHaveAttribute('open');
+    expect(within(details).getByText('A detailed mathematical argument.')).not.toBeVisible();
+    await userEvent.click(
+      within(details).getByText('Detailed report: findings and recommendations'),
+    );
+    expect(within(details).getByText('Please clarify the boundary case.')).toBeVisible();
     expect(
-      within(panel).getByText('Study the same identity for infinite sequences.'),
+      within(details).getByText('Study the same identity for infinite sequences.'),
     ).toBeVisible();
     expect(within(panel).getByText('A detailed mathematical argument.')).toBeVisible();
     expect(panel.querySelector('.mop')).toHaveTextContent('rep');
@@ -472,6 +480,8 @@ describe('referee workspace', () => {
       { ...submission, status: accepted.status, decision: accepted.decision },
     );
     const panel = await screen.findByRole('region', { name: 'Final review report' });
+    expect(within(panel).getByText(refereeAudit.claims[0]!.comment)).not.toBeVisible();
+    await userEvent.click(within(panel).getByText('Detailed report: findings and recommendations'));
     expect(within(panel).getByText(refereeAudit.claims[0]!.comment)).toBeVisible();
     expect(panel).toHaveTextContent('Congratulations!');
     expect(panel).not.toHaveTextContent(
@@ -876,7 +886,7 @@ describe('referee polling', () => {
     expect(referee).toHaveBeenCalledTimes(4);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole('region', { name: 'Review' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: accepted.title })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review report' })).toBeInTheDocument();
   });
 
   it('cleans up author polling, focus refresh and the request on unmount', async () => {

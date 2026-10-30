@@ -36,6 +36,35 @@ function audited(verdict = refereeAudit.verdict): RefereeRound {
 }
 
 describe('paper standing', () => {
+  it('distinguishes a completed analysis awaiting literature from an active review', () => {
+    const paper = {
+      ...submission,
+      decision: {
+        decision: 'pending' as const,
+        awaiting: 'literature' as const,
+        detail: 'Internal comparison C3',
+      },
+    };
+    const view = render(
+      <PaperStanding
+        submission={paper}
+        file={refereeFile({ letters: [feedbackLetter] })}
+        onRevise={() => {}}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Awaiting decision' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'A comparison with prior work is still needed',
+    );
+    expect(view.container).not.toHaveTextContent(/under AI|C3|automatically|report is ready/);
+    expect(screen.queryByRole('button', { name: 'Upload a revised version' })).toBeNull();
+    view.rerender(
+      <PaperStanding submission={paper} file={refereeFile({ rounds: [queuedRound] })} />,
+    );
+    expect(screen.getByRole('heading', { name: 'In review' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Your manuscript is under review.');
+    expect(screen.queryByText(/analysis is complete/)).toBeNull();
+  });
   it('explains a draft and the confirmation action', () => {
     render(<PaperStanding submission={draft} />);
     expect(screen.getByRole('heading', { name: 'Ready for your check' })).toBeVisible();
@@ -130,8 +159,9 @@ describe('standing in the workspace', () => {
     const card = await screen.findByRole('region', { name: 'Paper standing' });
     const report = await screen.findByRole('region', { name: 'Final review report' });
     expect(within(card).queryByText(refereeAudit.summary)).toBeNull();
-    expect(within(report).getByText(accepted.title)).toBeVisible();
-    expect(within(report).queryByText(refereeAudit.summary)).toBeNull();
+    expect(within(report).getByRole('heading', { name: 'Review report' })).toBeVisible();
+    expect(within(report).queryByText(accepted.title)).toBeNull();
+    expect(within(report).getByText(refereeAudit.summary)).toBeVisible();
     expect(card.querySelector('.standing-facts')).toBeNull();
     const results = screen.getByText('Results in this manuscript').closest('details')!;
     expect(results).not.toHaveAttribute('open');

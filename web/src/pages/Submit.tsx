@@ -351,7 +351,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               <dt>Manuscript</dt>
               <dd>Typed conjecture</dd>
               <dt>Purpose</dt>
-              <dd>{makePublic ? 'AI review for publication' : 'Private review feedback'}</dd>
+              <dd>{makePublic ? 'Review for publication' : 'Private review feedback'}</dd>
             </dl>
             <Field
               label="Cover note (optional)"

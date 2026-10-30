@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RefereeFile, Submission } from '../api/types';
-import { authorStanding } from '../lib/authorStanding';
+import { authorStanding, awaitingDecision, decisionWaitingMessage } from '../lib/authorStanding';
 import { publicationReason } from '../lib/authorReport';
 export { publicationReason } from '../lib/authorReport';
 
@@ -43,19 +43,21 @@ export function PaperStanding({
           : 'Check the manuscript PDF, then submit for review.'
       : status.state === 'withdrawn'
         ? 'This submission has been withdrawn.'
-        : standing.headline.startsWith('Your response')
-          ? 'Your response is saved. A follow-up review will address it.'
-          : standing.headline === 'Review could not finish'
-            ? 'Your manuscript is saved. The review needs attention before it can continue.'
-            : standing.delivered
-              ? status.state === 'in_review'
-                ? 'Your manuscript is under AI review. You will receive the decision and final report here.'
-                : 'Your review report is ready below.'
-              : status.state === 'in_review'
-                ? 'Your manuscript is under AI review. The final report will appear here when the review is complete.'
-                : !standing.round
-                  ? 'Review details are currently unavailable. Your manuscript is saved.'
-                  : 'Your final review report is being prepared.';
+        : awaitingDecision(submission, standing.delivered)
+          ? decisionWaitingMessage(submission)
+          : standing.headline.startsWith('Your response')
+            ? 'Your response is saved. A follow-up review will address it.'
+            : standing.headline === 'Review could not finish'
+              ? 'Your manuscript is saved. The review needs attention before it can continue.'
+              : standing.delivered
+                ? status.state === 'in_review'
+                  ? 'Your manuscript is under review. The final report will appear here when it is ready.'
+                  : 'Your review report is ready below.'
+                : status.state === 'in_review'
+                  ? 'Your manuscript is under review. The final report will appear here when the review is complete.'
+                  : !standing.round
+                    ? 'Review details are currently unavailable. Your manuscript is saved.'
+                    : 'Your final review report is being prepared.';
   return (
     <section className={`standing standing-${tone}`} aria-label="Paper standing">
       <div className="standing-head">
