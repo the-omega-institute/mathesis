@@ -1139,6 +1139,7 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
     let file = SolveFile {
         review_contract: 0,
         agent_attempted: Default::default(),
+        agent_rounds: Default::default(),
         id: "WP-2026-0001:C1:v1:c1".into(),
         record: "WP-2026-0001".into(),
         submission: "source".into(),

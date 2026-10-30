@@ -277,6 +277,7 @@ export function FormalizationForAuthor({
                 <p className="small">
                   <strong>Why this result:</strong> {item.reason}
                 </p>
+                {item.progress ? <FormalizationProgressView progress={item.progress} /> : null}
                 {item.state.state === 'declined' ? (
                   <p className="small muted">You declined: {item.state.reason}</p>
                 ) : null}
@@ -331,6 +332,39 @@ export function FormalizationForAuthor({
         </details>
       ) : null}
     </>
+  );
+}
+
+function FormalizationProgressView({
+  progress,
+}: {
+  progress: NonNullable<Submission['formalization']['items'][number]['progress']>;
+}) {
+  const labels: Record<typeof progress.state, string> = {
+    target_preparing: 'Preparing the exact Lean statement',
+    awaiting_author: 'Statement ready for your confirmation',
+    proof_queued: 'Proof work queued',
+    in_progress: 'Proof work in progress',
+    partial: 'Partial progress saved; proof work will continue',
+    verified: 'Proof verified independently',
+    blocked: 'Needs attention before work can continue',
+  };
+  return (
+    <div className="formal-progress" aria-label="Formalization progress">
+      <p className="small">
+        <strong>{labels[progress.state]}</strong>
+        {progress.attempts ? ` · ${progress.attempts} attempt${progress.attempts === 1 ? '' : 's'}` : ''}
+      </p>
+      {progress.next_step ? <p className="small muted">{progress.next_step}</p> : null}
+      {progress.note ? <p className="small muted">{progress.note}</p> : null}
+      {progress.remaining_obligations.length ? (
+        <ul className="small muted">
+          {progress.remaining_obligations.slice(0, 3).map((obligation) => (
+            <li key={obligation}>{obligation}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

@@ -116,7 +116,7 @@ export function Workspace({
     return () => controller.abort();
   }, [api, s.id, s.revision, reviewRevision, onChange]);
   useEffect(() => {
-    if (s.kind !== 'conjecture' || s.status.state !== 'accepted' || !isAuthor) return;
+    if (s.status.state !== 'accepted' || !isAuthor) return;
     const controller = new AbortController();
     const refresh = () => {
       void api
@@ -271,6 +271,30 @@ export function Workspace({
             <StatementSummary submission={s} round={currentReview} />
           </details>
         ) : null}
+        {state === 'accepted' && isAuthor ? (
+          <section className="post-acceptance" id="formalization" aria-labelledby="accepted-h">
+            <h2 id="accepted-h">After acceptance</h2>
+            <p>
+              Record <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
+              {s.decision?.decision === 'accept' ? (
+                <>
+                  {' '}
+                  · <BasisBadge basis={s.decision.basis} />
+                </>
+              ) : null}
+            </p>
+            <VisibilityChoice submission={s} onChange={onChange} />
+            {s.kind === 'conjecture' || s.lean_statements.length > 0 ? (
+              <LeanStatementCard submission={s} onChange={onChange} />
+            ) : null}
+            {s.kind !== 'conjecture' ? (
+              <>
+                <h3>Formalization in Lean</h3>
+                <FormalizationForAuthor submission={s} onChange={onChange} />
+              </>
+            ) : null}
+          </section>
+        ) : null}
         {state === 'draft' ? <DraftNotice submission={s} /> : null}
         {state === 'draft' && isAuthor ? (
           <section aria-labelledby="confirm-h">
@@ -309,11 +333,6 @@ export function Workspace({
                 presentation="details"
               />
             ) : null}
-            {state === 'accepted' &&
-            (s.kind === 'conjecture' || s.lean_statements.length > 0) &&
-            isAuthor ? (
-              <LeanStatementCard submission={s} onChange={onChange} />
-            ) : null}
             {isStaff ? (
               <>
                 {acceptedPublic && s.open_to_contributors ? (
@@ -323,28 +342,6 @@ export function Workspace({
                 {standing.delivered ? <ResearchWorkspace submission={s} /> : null}
               </>
             ) : null}
-            {state === 'accepted' && isAuthor ? (
-              <section id="formalization" aria-labelledby="accepted-h">
-                <h2 id="accepted-h">After acceptance</h2>
-                <p>
-                  Record <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
-                  {s.decision?.decision === 'accept' ? (
-                    <>
-                      {' '}
-                      · <BasisBadge basis={s.decision.basis} />
-                    </>
-                  ) : null}
-                </p>
-                <VisibilityChoice submission={s} onChange={onChange} />
-                {s.kind !== 'conjecture' ? (
-                  <>
-                    <h3>Formalization in Lean</h3>
-                    <FormalizationForAuthor submission={s} onChange={onChange} />
-                  </>
-                ) : null}
-              </section>
-            ) : null}
-
             <div className="folds">
               {reviewed && isStaff ? (
                 <Fold id="statements-h" title="Statements" hint={s.claims.length} open>

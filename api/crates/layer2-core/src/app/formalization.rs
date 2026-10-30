@@ -45,6 +45,7 @@ impl App {
             claim: claim.clone(),
             reason,
             state: ItemState::Proposed,
+            progress: None,
             updated_at: now,
         });
         self.save(&mut submission).await?;
@@ -82,6 +83,7 @@ impl App {
                 claim: claim.clone(),
                 reason: "Author requested formalization".into(),
                 state: ItemState::Proposed,
+                progress: None,
                 updated_at: self.ports.clock.now(),
             });
         }
@@ -105,6 +107,21 @@ impl App {
                 reason: reason.chars().take(2_000).collect(),
             }
         };
+        if approve {
+            item.progress = Some(FormalizationProgress {
+                state: FormalizationProgressState::TargetPreparing,
+                target_digest: None,
+                toolchain: None,
+                attempts: 0,
+                completed_lemmas: vec![],
+                remaining_obligations: vec![],
+                next_step: Some("Mathesis is preparing an exact Lean statement.".into()),
+                note: None,
+                updated_at: now,
+            });
+        } else {
+            item.progress = None;
+        }
         item.updated_at = now;
         self.save(&mut submission).await?;
         if approve {
@@ -113,6 +130,54 @@ impl App {
                 .enqueue(id, crate::ports::JobKind::LeanStatement)
                 .await?;
         }
+        Ok(submission)
+    }
+
+    /// Update the durable author-facing projection of the continuous service.
+    /// The worker is the only caller; provider transcripts remain in its
+    /// private run store and are never copied into this aggregate.
+    pub async fn record_formalization_progress(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+        claim: &ClaimId,
+        progress: FormalizationProgress,
+    ) -> CoreResult<Submission> {
+        caller.require(Role::Reviewer)?;
+        let mut submission = self.submission(caller, id).await?;
+        Self::require_accepted(&submission)?;
+        if submission.analysis_visibility != Visibility::Public {
+            return Err(CoreError::conflict(
+                "formalization requires a public accepted paper",
+            ));
+        }
+        let item = submission
+            .formalization
+            .items
+            .iter_mut()
+            .find(|item| &item.claim == claim)
+            .ok_or_else(|| CoreError::not_found("formalization item", claim.as_str()))?;
+        if matches!(item.state, ItemState::Declined { .. }) {
+            return Err(CoreError::conflict(
+                "the author declined this formalization",
+            ));
+        }
+        let progress = progress.bounded();
+        if progress.state != FormalizationProgressState::Verified
+            && matches!(
+                progress.state,
+                FormalizationProgressState::ProofQueued
+                    | FormalizationProgressState::InProgress
+                    | FormalizationProgressState::Partial
+                    | FormalizationProgressState::Blocked
+            )
+            && matches!(item.state, ItemState::Approved)
+        {
+            item.state = ItemState::InProgress;
+        }
+        item.progress = Some(progress);
+        item.updated_at = self.ports.clock.now();
+        self.save(&mut submission).await?;
         Ok(submission)
     }
 

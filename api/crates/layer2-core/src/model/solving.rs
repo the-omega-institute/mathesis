@@ -87,6 +87,11 @@ pub struct DependencyEdge {
 pub struct SolveFile {
     #[serde(default)]
     pub agent_attempted: std::collections::BTreeSet<String>,
+    /// Number of durable CMA continuation rounds per confirmed target. This
+    /// lets a formalization resume after a failed proof instead of replaying
+    /// one frozen response from the first run.
+    #[serde(default)]
+    pub agent_rounds: std::collections::BTreeMap<String, u32>,
     pub id: String,
     pub record: RecordId,
     pub submission: SubmissionId,

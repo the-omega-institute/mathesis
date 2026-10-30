@@ -7,6 +7,78 @@ use serde::{Deserialize, Serialize};
 use super::common::{is_web_url, require_text};
 use crate::{CoreError, CoreResult, ids::ClaimId};
 
+/// The user-facing lifecycle of an accepted result's formalization work.
+///
+/// This is deliberately separate from `ItemState`: the latter records the
+/// author's consent and the immutable publication artifact, while this value
+/// records the ongoing service work between those two points.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FormalizationProgressState {
+    TargetPreparing,
+    AwaitingAuthor,
+    ProofQueued,
+    InProgress,
+    Partial,
+    Verified,
+    Blocked,
+}
+
+impl FormalizationProgressState {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::TargetPreparing => "target_preparing",
+            Self::AwaitingAuthor => "awaiting_author",
+            Self::ProofQueued => "proof_queued",
+            Self::InProgress => "in_progress",
+            Self::Partial => "partial",
+            Self::Verified => "verified",
+            Self::Blocked => "blocked",
+        }
+    }
+}
+
+/// Durable, bounded progress for the continuous formalization service.
+///
+/// CMA transcripts and provider details stay in the private run store. This
+/// projection contains only what an author or contributor needs to understand
+/// what has happened and what can happen next.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FormalizationProgress {
+    pub state: FormalizationProgressState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub toolchain: Option<String>,
+    #[serde(default)]
+    pub attempts: u32,
+    #[serde(default)]
+    pub completed_lemmas: Vec<String>,
+    #[serde(default)]
+    pub remaining_obligations: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_step: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl FormalizationProgress {
+    pub fn bounded(mut self) -> Self {
+        self.completed_lemmas.truncate(50);
+        self.remaining_obligations.truncate(50);
+        self.next_step = self
+            .next_step
+            .take()
+            .map(|value| value.chars().take(4_000).collect());
+        self.note = self
+            .note
+            .take()
+            .map(|value| value.chars().take(4_000).collect());
+        self
+    }
+}
+
 /// A pinned Lean (or checker) artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FormalArtifact {
@@ -76,6 +148,10 @@ pub struct FormalizationItem {
     /// Why this statement is worth formalizing.
     pub reason: String,
     pub state: ItemState,
+    /// Progress is absent on legacy records and is safe to omit from public
+    /// publication projections until a target is author-confirmed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<FormalizationProgress>,
     pub updated_at: DateTime<Utc>,
 }
 

@@ -38,6 +38,35 @@ impl App {
             }
         }
     }
+
+    /// Advance the durable continuation counter for a formalization target.
+    /// A new counter means a new CMA run-store key, so a failed response is
+    /// never replayed forever while the target and source remain unchanged.
+    pub async fn advance_formalization_round(
+        &self,
+        caller: &Caller,
+        record: &RecordId,
+        claim: &ClaimId,
+        digest: &str,
+    ) -> CoreResult<u32> {
+        caller.require(Role::Reviewer)?;
+        if self.target(record, claim).await?.digest != digest {
+            return Err(CoreError::conflict("target changed"));
+        }
+        loop {
+            let mut file = self.solve_file(record, claim).await?;
+            let round = file.agent_rounds.entry(digest.into()).or_default();
+            *round = round.saturating_add(1);
+            let current = *round;
+            match self.save_solve_file(&mut file).await {
+                Err(CoreError::StaleRevision { .. }) => continue,
+                result => {
+                    result?;
+                    return Ok(current);
+                }
+            }
+        }
+    }
     pub async fn venue_agent(&self, caller: &Caller) -> CoreResult<(Caller, Entrant)> {
         caller.require(Role::Reviewer)?;
         let owner = self
@@ -177,6 +206,7 @@ impl App {
         }
         let file = SolveFile {
             agent_attempted: Default::default(),
+            agent_rounds: Default::default(),
             id: id.clone(),
             record: record.clone(),
             submission: s.id.clone(),
@@ -232,6 +262,42 @@ impl App {
                 && (s.kind != SubmissionKind::Conjecture || c.role == ClaimRole::Main)
         }) {
             files.push(self.solve_file(record, &claim.id).await?);
+        }
+        Ok(files)
+    }
+
+    /// Accepted, public paper statements whose authors approved a Lean target.
+    /// These use the same durable solve-file and independent verifier path as
+    /// community conjectures, but are kept separate from the open-problem
+    /// directory so an accepted theorem is never presented as a conjecture.
+    pub async fn formalization_files(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+    ) -> CoreResult<Vec<SolveFile>> {
+        caller.require(Role::Reviewer)?;
+        let s = self.submission(caller, id).await?;
+        let SubmissionStatus::Accepted { record } = &s.status else {
+            return Ok(vec![]);
+        };
+        if s.analysis_visibility != Visibility::Public {
+            return Ok(vec![]);
+        }
+        let mut files = Vec::new();
+        for claim in s.claims.iter().filter(|claim| {
+            !claim.kind.is_open()
+                && claim.has_proof
+                && s.formalization.item(&claim.id).is_some_and(|item| {
+                    matches!(
+                        item.state,
+                        ItemState::Approved | ItemState::InProgress | ItemState::Verified { .. }
+                    )
+                })
+        }) {
+            // A file exists only after the author confirmed the exact target.
+            if let Ok(file) = self.solve_file(record, &claim.id).await {
+                files.push(file);
+            }
         }
         Ok(files)
     }
@@ -712,12 +778,66 @@ impl App {
                 Err(CoreError::StaleRevision { .. }) => continue,
                 result => {
                     result?;
-                    return self
-                        .disproof_recheck(
-                            &current,
-                            current.attempts.iter().find(|a| a.id == id).unwrap(),
-                        )
-                        .await;
+                    let saved_attempt = current.attempts.iter().find(|a| a.id == id).unwrap();
+                    let result = self.disproof_recheck(&current, saved_attempt).await;
+                    // Keep the long-running formalization projection in sync
+                    // with the independent verifier. A receipt is the only
+                    // event that can move proof work to verified.
+                    if let Some(item) = self
+                        .load(&file.submission)
+                        .await?
+                        .formalization
+                        .item(&file.claim)
+                        .cloned()
+                    {
+                        if let Some(mut progress) = item.progress {
+                            progress.attempts = current
+                                .attempts
+                                .iter()
+                                .filter(|a| a.target_digest == attempt.target_digest)
+                                .count() as u32;
+                            progress.state = match saved_attempt.receipt.as_ref().map(|r| r.verdict)
+                            {
+                                Some(Verdict::Proved) => FormalizationProgressState::Verified,
+                                Some(Verdict::Rejected) => FormalizationProgressState::Partial,
+                                Some(Verdict::Disproved) => FormalizationProgressState::Blocked,
+                                None => progress.state,
+                            };
+                            progress.next_step = Some(match progress.state {
+                                FormalizationProgressState::Verified => {
+                                    "The independent Lean verifier accepted a proof for this target.".into()
+                                }
+                                FormalizationProgressState::Blocked => {
+                                    "The verifier did not establish the target; review the recorded result before continuing.".into()
+                                }
+                                _ => "CMA will continue from this verifier result.".into(),
+                            });
+                            progress.note = saved_attempt
+                                .receipt
+                                .as_ref()
+                                .map(|receipt| receipt.reason.clone());
+                            progress.updated_at = self.ports.clock.now();
+                            self.record_formalization_progress(
+                                caller,
+                                &file.submission,
+                                &file.claim,
+                                progress,
+                            )
+                            .await?;
+                            if saved_attempt
+                                .receipt
+                                .as_ref()
+                                .is_some_and(|receipt| receipt.verdict == Verdict::Rejected)
+                            {
+                                self.ports
+                                    .queue
+                                    .enqueue(&file.submission, JobKind::AgentAttempt)
+                                    .await?;
+                            }
+                        }
+                    }
+                    result?;
+                    return Ok(());
                 }
             }
         }

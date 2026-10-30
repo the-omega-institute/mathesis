@@ -34,11 +34,11 @@ export function formalizationAdviceText(submission: Submission, round?: RefereeR
     ? candidates
         .map(
           ({ claim, plan, state }) =>
-            `### ${resultLabel(claim)}\n\n${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${{ proposed: 'Awaiting your approval.', approved: 'You have approved formalization.', in_progress: 'Formalization is in progress.', verified: 'A verified formal proof is available.', declined: 'You have declined formalization.' }[state]}` : ''}`,
+            `### ${resultLabel(claim)}\n\n${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${{ proposed: 'You can request this result be formalized in Lean.', approved: 'The exact Lean statement is being prepared.', in_progress: 'Proof work is in progress and will continue from saved results.', verified: 'An independently verified formal proof is available.', declined: 'You declined this formalization.' }[state]}` : ''}`,
         )
         .join('\n\n')
     : round?.formalization_suggestions
       ? 'No specific formalization recommendation is available from this review.'
       : 'No formalization recommendation is available from this review.';
-  return `## Formalization opportunities\n\n${text}\n\n${submission.purpose === 'review_only' ? 'This private review does not schedule public formalization work.' : 'Recommendations do not schedule work. Public formalization requires author approval.'}`;
+  return `## Formalization opportunities\n\n${text}\n\n${submission.purpose === 'review_only' ? 'This private review does not schedule public formalization work.' : 'When you request a formalization, Mathesis keeps the work private until a proof has been independently checked.'}`;
 }

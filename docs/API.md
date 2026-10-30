@@ -120,6 +120,11 @@ well-posed, open, content reading. Human-stage and endorsement gates are unchang
 | GET, POST | `/submissions/{id}/endorsements` | GET authors, staff; POST endorsers | `NewEndorsement` → 201 `Endorsement` |
 | POST | `/submissions/{id}/formalization/items` | editors, accepted | `{ claim, reason }` → `Submission` |
 | POST | `/submissions/{id}/formalization/items/{claim}/response` | submitting author | `{ approve: bool, reason?: string }` → `Submission` |
+After an author approves an item, Mathesis prepares an exact Lean target. Once
+the author confirms that target, proof work is resumable: each CMA continuation
+round reuses the saved Lean target and the independent verifier's latest result.
+Only a verifier receipt can expose a proof publicly; a model response is never
+treated as a proof.
 | PUT | `/submissions/{id}/conjectures/{claim}` | editors, accepted | `{ state: ConjectureState }` → `Submission` |
 | POST | `/submissions/{id}/tasks` | editors; the author opted in | → `{ created, existing }` |
 | GET | `/papers` | anyone | → `Listing<PaperSummary>` |
@@ -245,7 +250,21 @@ type PaperAnalysis = { submission: string; main_results: number; main_with_conte
 type FormalArtifact = { repository: string; commit: string /* 40 hex */; declarations: string[] };
 type ItemState = { state: "proposed" } | { state: "approved" } | { state: "declined"; reason: string }
   | { state: "in_progress" } | { state: "verified"; artifact: FormalArtifact; axioms: string[]; contribution?: string };
-type FormalizationItem = { claim: string; reason: string; state: ItemState; updated_at: string };
+type FormalizationProgress = {
+  state: "target_preparing" | "awaiting_author" | "proof_queued" | "in_progress" |
+    "partial" | "verified" | "blocked";
+  target_digest?: string; toolchain?: string; attempts: number;
+  completed_lemmas: string[]; remaining_obligations: string[];
+  next_step?: string; note?: string; updated_at: string;
+};
+type FormalizationItem = {
+  claim: string; reason: string; state: ItemState;
+  progress?: FormalizationProgress; updated_at: string
+};
+// Once an author confirms a target, the service keeps proof work resumable.
+// CMA output is private working material; only an independent verifier can
+// produce the public proof receipt. `progress` is a compact author-facing
+// summary and does not expose provider, token, run or workspace details.
 type ConjectureState = { state: "screening" } | { state: "taken_up" } | { state: "not_pursued"; reason: string }
   | { state: "settled"; outcome: "proved" | "disproved" | "partial"; summary: string; evidence: Evidence[] };
 type ConjectureFollowUp = { claim: string; state: ConjectureState; updated_at: string };
