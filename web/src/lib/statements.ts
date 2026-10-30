@@ -13,7 +13,7 @@ export function resultLabel(
     )
   ) {
     const kind = label || CLAIM_KIND_LABELS[claim.kind];
-    return claim.section?.trim() ? `${kind} in “${claim.section.trim()}”` : kind;
+    return claim.section?.trim() || kind;
   }
   return label;
 }

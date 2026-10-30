@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { accepted, submission } from '../test/fixtures';
 import { feedbackLetter, refereeFile, refereeRound } from '../test/referee';
-import { authorReport } from '../lib/authorReport';
+import { authorReport, authorReportPreview } from '../lib/authorReport';
 import { FinalReviewReport } from './FinalReviewReport';
 
 afterEach(() => {
@@ -38,7 +38,7 @@ it('downloads exactly the same outcome and mathematical report as the page', () 
   fireEvent.click(screen.getByRole('button', { name: 'Download report' }));
   expect(click).toHaveBeenCalledOnce();
   expect(downloaded).toBe(
-    `# Mathesis review: ${accepted.title}\n\n${authorReport(accepted, refereeRound, feedbackLetter)}\n`,
+    `# Mathesis review: ${accepted.title}\n\n${authorReportPreview(accepted, refereeRound, feedbackLetter)}\n\n## Detailed report\n\n${authorReport(accepted, refereeRound, feedbackLetter)}\n`,
   );
   expect(downloaded).not.toContain(feedbackLetter.subject);
 });

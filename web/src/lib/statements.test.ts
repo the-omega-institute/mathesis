@@ -21,7 +21,7 @@ describe('result names', () => {
         label: 'Theorem [thm:clique]',
         section: 'The exact clique number',
       }),
-    ).toBe('Theorem in “The exact clique number”');
+    ).toBe('The exact clique number');
     expect(resultLabel({ id: 'C7', kind: 'theorem', label: 'Theorem [thm:bound]' })).toBe(
       'Theorem',
     );

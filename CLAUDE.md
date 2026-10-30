@@ -837,3 +837,16 @@ funded; local elaboration and proof verification carry no CMA payer.
   Author-name links search the archive; supplied ORCID/Scholar/site links remain
   distinct, without treating a name match as a verified personal identity.
   See `docs/ACADEMIC_ARCHIVE.md` for the arXiv reference and delivered scope.
+
+- A delivered analysis without a publication decision is labelled Awaiting decision,
+  with a brief mathematical reason such as a remaining comparison with prior work.
+  It must not imply that a completed execution is still running automatically.
+  Manuscript and submission pages use ordinary review language; venue-level AI
+  explanations belong on the homepage and policy, while author-supplied disclosures
+  remain part of the manuscript metadata.
+- Completed reports initially show a concise overall assessment, up to three useful
+  improvements and two proposed directions, and a short formalization status. Keep
+  full findings and plans in a closed Detailed report disclosure and include them in
+  the single download. Never truncate mathematical sentences or treat an excerpt as
+  the full report. Preserve named/numbered results; use a section topic directly when
+  a legacy result lacks a title, without inventing “Theorem in …” labels.

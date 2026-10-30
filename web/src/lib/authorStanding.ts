@@ -7,6 +7,16 @@ export const TIMING_OBSERVATION =
 export const SAVED_FAILURE =
   'Your upload and any report are saved. A failed step is not a verdict on the mathematics. A corrected version may be uploaded.';
 
+export function awaitingDecision(s: Submission, delivered: boolean): boolean {
+  return s.status.state === 'in_review' && s.purpose !== 'review_only' && delivered;
+}
+
+export function decisionWaitingMessage(s: Submission): string {
+  return s.decision?.decision === 'pending' && s.decision.awaiting === 'literature'
+    ? 'The review analysis is complete. A comparison with prior work is still needed before a publication decision.'
+    : 'The review analysis is complete. The publication decision is pending.';
+}
+
 export function currentAuthorRound(s: Submission, file?: RefereeFile): RefereeRound | undefined {
   return file?.rounds
     .filter(
@@ -154,10 +164,9 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
     )
       headline = 'Your response is being reviewed';
   }
-  if (s.status.state === 'in_review' && delivered) {
-    headline = 'In review';
-    doing =
-      'Your manuscript is under AI review. You will receive the decision and final report here.';
+  if (awaitingDecision(s, delivered)) {
+    headline = 'Awaiting decision';
+    doing = decisionWaitingMessage(s);
     nextAction = 'No action is needed from you.';
   }
   return {

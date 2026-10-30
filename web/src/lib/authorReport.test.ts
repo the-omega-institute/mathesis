@@ -1,10 +1,75 @@
 import { describe, expect, it } from 'vitest';
 import { accepted, notAccepted, submission } from '../test/fixtures';
 import { feedbackLetter, refereeAudit, refereeRound } from '../test/referee';
-import { authorReport, publicationReason, reportOpening } from './authorReport';
+import {
+  authorReport,
+  authorReportPreview,
+  publicationReason,
+  reportOpening,
+} from './authorReport';
 import { manuscriptReferences } from './statements';
 
 describe('author publication reports', () => {
+  it('keeps the initial report short while retaining every recommendation in the full report', () => {
+    const suggestions = Array.from({ length: 8 }, (_, i) => ({
+      kind: 'exposition' as const,
+      suggestion: `Clarify mathematical assumption number ${i + 1}.`,
+      excerpt: false,
+    }));
+    const round = { ...refereeRound, research_suggestions: suggestions };
+    const preview = authorReportPreview(accepted, round, feedbackLetter)!;
+    expect(preview).toContain(refereeAudit.summary);
+    expect(preview).toContain('assumption number 3');
+    expect(preview).not.toContain('assumption number 4');
+    expect(preview).not.toContain('### Theorem');
+    expect(preview.split(/\s+/).length).toBeLessThan(200);
+    const full = authorReport(accepted, round, feedbackLetter)!;
+    for (const suggestion of suggestions) expect(full).toContain(suggestion.suggestion);
+  });
+  it('does not conceal proof concerns behind a positive short assessment', () => {
+    const round = {
+      ...refereeRound,
+      audit: {
+        attempts: 1,
+        state: {
+          state: 'done' as const,
+          at: '',
+          result: {
+            ...refereeAudit,
+            claims: [{ ...refereeAudit.claims[0]!, correctness: 'gap' as const }],
+          },
+        },
+      },
+    };
+    expect(authorReportPreview(accepted, round, feedbackLetter)).toContain('proof gap or error');
+  });
+  it('distinguishes recommended formalization from approved and active work', () => {
+    const paper = {
+      ...accepted,
+      formalization: {
+        items: [
+          {
+            claim: 'C1',
+            reason: 'Formalize the induction.',
+            updated_at: '',
+            state: { state: 'in_progress' as const },
+          },
+        ],
+      },
+    };
+    const preview = authorReportPreview(
+      paper,
+      {
+        ...refereeRound,
+        formalization_suggestions: [
+          { claim: 'C1', plan: 'Formalize the induction.', feasibility: 'ready', excerpt: false },
+        ],
+      },
+      feedbackLetter,
+    )!;
+    expect(preview).toContain('1 being formalized');
+    expect(preview).not.toContain('require author approval');
+  });
   it('explains contribution and significance decisions without internal policy vocabulary', () => {
     const overlap = publicationReason(
       {

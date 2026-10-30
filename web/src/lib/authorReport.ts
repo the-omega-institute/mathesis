@@ -1,5 +1,5 @@
 import type { FeedbackLetter, RefereeRound, RejectReason, Submission } from '../api/types';
-import { formalizationAdviceText } from './formalizationAdvice';
+import { formalizationAdvice, formalizationAdviceText } from './formalizationAdvice';
 import { manuscriptReferences, resultLabel } from './statements';
 
 export function publicationReason(reason: RejectReason, submission?: Submission): string {
@@ -157,4 +157,136 @@ export function authorReport(
   ]
     .filter(Boolean)
     .join('\n\n');
+}
+
+const internalOrOutcome =
+  /\b(?:minor|major)[ -]revision\b|\brevise.and.resubmit\b|\b(?:decision|publication|review)\s+(?:is\s+)?(?:pending|complete)\b|\b(?:accepted|rejected|audit|audited|pipeline|coverage|receipt|query|queries|Codex|GPT|Orchestra|source-audited|bind.only|proof.escape)\b/i;
+
+/** Use a whole existing mathematical paragraph; never cut a proof or generate a new claim. */
+function overview(s: Submission, round: RefereeRound, letter: FeedbackLetter): string {
+  const audit = round.audit?.state.state === 'done' ? round.audit.state.result : undefined;
+  const analysis = authoredSections(round, letter)?.[0];
+  const paragraphs = (analysis ?? letter.body).split(/\n\s*\n/).map((text) => text.trim());
+  const paragraph = paragraphs.find(
+    (text) =>
+      text.split(/\s+/).length >= 20 &&
+      text.split(/\s+/).length <= 110 &&
+      !/^(?:Dear |Sincerely|#|[-*]|\d+[.)])/.test(text) &&
+      !/\b(?:please|suggest|recommend|should|must)\b/i.test(text) &&
+      !internalOrOutcome.test(text),
+  );
+  const summary = audit?.summary.trim();
+  let text =
+    paragraph ??
+    (summary && summary.split(/\s+/).length <= 110 && !internalOrOutcome.test(summary)
+      ? summary
+      : undefined);
+  if (!text) {
+    const main = s.claims.filter((claim) => claim.role === 'main');
+    const readings = main.map((claim) => audit?.claims.find((item) => item.claim === claim.id));
+    text =
+      readings.length && readings.every((item) => item?.correctness === 'correct')
+        ? 'The review supports the main mathematical results. The recommendations below address the manuscript and possible next steps.'
+        : 'The review findings and recommendations are available below. The detailed report explains the arguments and remaining uncertainties.';
+  }
+  // A positive overview never conceals a saved proof concern or an unchecked main result.
+  if (audit?.claims.some((item) => ['gap', 'error'].includes(item.correctness)))
+    text +=
+      '\n\nThe review also identifies a proof gap or error; see the detailed findings before relying on the affected result.';
+  if (
+    audit &&
+    s.claims.some(
+      (claim) =>
+        claim.role === 'main' &&
+        !audit.claims.some((item) => item.claim === claim.id && item.correctness !== 'not_checked'),
+    )
+  )
+    text +=
+      '\n\nSome main results could not be fully checked. The detailed report identifies the limitations.';
+  return manuscriptReferences(text, s.claims);
+}
+
+/** A short reading view, with all original findings retained in the expandable full report. */
+export function authorReportPreview(
+  s: Submission,
+  round: RefereeRound,
+  letter: FeedbackLetter,
+): string | undefined {
+  const opening = reportOpening(s);
+  if (!opening) return undefined;
+  const audit = round.audit?.state.state === 'done' ? round.audit.state.result : undefined;
+  const priorities: Record<string, number> = {
+    gap: 0,
+    literature: 1,
+    exposition: 2,
+    computation: 3,
+  };
+  const improvements = (round.research_suggestions ?? [])
+    .filter((item) => !['strengthen', 'generalize'].includes(item.kind))
+    .sort((a, b) => priorities[a.kind]! - priorities[b.kind]!);
+  const concise = (text: string) =>
+    text.trim().split(/\s+/).length <= 85 &&
+    !internalOrOutcome.test(text) &&
+    !/[a-f0-9]{40,64}/i.test(text);
+  const concerns =
+    audit?.concerns
+      .filter((item) => item.status !== 'refuted')
+      .map(
+        (item) =>
+          `${item.status === 'not_checkable' ? 'Please check: ' : ''}${item.concern} ${item.note}`,
+      ) ?? [];
+  const suggestions = (improvements.length ? improvements.map((item) => item.suggestion) : concerns)
+    .filter(concise)
+    .slice(0, 3);
+  const directions = (round.research_suggestions ?? [])
+    .filter((item) => ['strengthen', 'generalize'].includes(item.kind) && concise(item.suggestion))
+    .slice(0, 2)
+    .map((item) => item.suggestion);
+  const authored = authoredSections(round, letter);
+  const shortSection = (index: number) =>
+    authored?.[index] && authored[index]!.split(/\s+/).length <= (index === 1 ? 160 : 130)
+      ? authored[index]
+      : undefined;
+  const improvementText = suggestions.length
+    ? suggestions.map((text) => `- ${text}`).join('\n\n')
+    : (shortSection(1) ??
+      (improvements.length || concerns.length
+        ? 'The detailed report contains recommendations that need their full mathematical context.'
+        : undefined));
+  const directionText = directions.length
+    ? directions.map((text) => `- ${text}`).join('\n\n')
+    : shortSection(2);
+  const candidates = formalizationAdvice(s, round);
+  const states = [
+    ['verified', 'with a verified formal proof'],
+    ['in_progress', 'being formalized'],
+    ['approved', 'approved for formalization'],
+    ['declined', 'declined by the author'],
+  ] as const;
+  const progress = states.flatMap(([state, label]) => {
+    const count = candidates.filter((candidate) => candidate.state === state).length;
+    return count ? [`${count} ${label}`] : [];
+  });
+  const formal = candidates.length
+    ? `${candidates.length === 1 ? 'One result is' : `${candidates.length} results are`} recommended for formalization. ${progress.length ? `Current status: ${progress.join('; ')}. ` : ''}${s.purpose === 'review_only' ? 'This private review does not schedule formalization.' : candidates.some((candidate) => !candidate.state || candidate.state === 'proposed') ? 'Remaining recommendations require author approval before public formalization.' : ''} The targets and their scope are in the detailed report.`
+    : 'No formalization is recommended in the available review.';
+  const reasons =
+    s.status.state === 'not_accepted' && s.decision?.decision === 'not_accepted'
+      ? s.decision.reasons.map((reason) => `- ${publicationReason(reason, s)}`).join('\n\n')
+      : '';
+  return manuscriptReferences(
+    [
+      opening,
+      reasons ? `## Reasons for the decision\n\n${reasons}` : '',
+      overview(s, round, letter),
+      improvementText ? `## Suggestions\n\n${improvementText}` : '',
+      directionText
+        ? `## Further directions\n\nThese are proposed extensions, not established results.\n\n${directionText}`
+        : '',
+      `## Formalization\n\n${formal}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
+    s.claims,
+  );
 }

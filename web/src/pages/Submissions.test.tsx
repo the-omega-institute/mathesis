@@ -94,7 +94,9 @@ it.each(['publication', 'review_only'] as const)(
         author,
       ),
     );
-    expect(await screen.findByText('In review')).toBeVisible();
+    expect(
+      await screen.findByText(purpose === 'review_only' ? 'In review' : 'Awaiting decision'),
+    ).toBeVisible();
     expect(screen.queryByText('Report ready')).toBeNull();
     expect(screen.queryByText('The final report is ready to read.')).toBeNull();
     expect(screen.queryByText(/new results?/)).toBeNull();

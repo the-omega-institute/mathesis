@@ -1,7 +1,7 @@
 import type { RefereeFile, Submission } from '../api/types';
 import { currentAuthorRound } from '../lib/authorStanding';
-import { authorReport } from '../lib/authorReport';
-import { Markdown, InlineLatex } from './Markdown';
+import { authorReport, authorReportPreview } from '../lib/authorReport';
+import { Markdown } from './Markdown';
 import { DateText } from './ui';
 
 export function currentReport(submission: Submission, file: RefereeFile) {
@@ -26,11 +26,15 @@ export function FinalReviewReport({
   if (!round || !letter)
     return <p className="muted">The final report will appear here when the review is complete.</p>;
   const text = authorReport(submission, round, letter);
-  if (!text) return null;
+  const preview = authorReportPreview(submission, round, letter);
+  if (!text || !preview) return null;
   const download = () => {
-    const blob = new Blob([`# Mathesis review: ${submission.title}\n\n${text}\n`], {
-      type: 'text/markdown;charset=utf-8',
-    });
+    const blob = new Blob(
+      [`# Mathesis review: ${submission.title}\n\n${preview}\n\n## Detailed report\n\n${text}\n`],
+      {
+        type: 'text/markdown;charset=utf-8',
+      },
+    );
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -49,10 +53,11 @@ export function FinalReviewReport({
       <p className="entry-meta">
         Reviewed · <DateText iso={letter.sent_at} />
       </p>
-      <h3>
-        <InlineLatex source={submission.title} />
-      </h3>
-      <Markdown text={text} texDelimiters />
+      <Markdown text={preview} texDelimiters />
+      <details className="history report-details">
+        <summary>Detailed report: findings and recommendations</summary>
+        <Markdown text={text} texDelimiters />
+      </details>
     </section>
   );
 }
