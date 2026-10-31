@@ -4,6 +4,7 @@ use tokio::sync::Mutex;
 #[derive(Default)]
 struct Memory {
     state: Mutex<Option<Value>>,
+    history: Mutex<Vec<Value>>,
 }
 #[async_trait]
 impl RunStore for Memory {
@@ -14,6 +15,7 @@ impl RunStore for Memory {
         Ok(self.state.lock().await.clone())
     }
     async fn save(&self, state: Value) -> ReviewResult<()> {
+        self.history.lock().await.push(state.clone());
         *self.state.lock().await = Some(state);
         Ok(())
     }
@@ -571,21 +573,30 @@ async fn uncertain_mutations_reuse_the_exact_key_and_body() {
         Err(ReviewError::Transport("lost reply".into())),
         reply(json!({"id":"agt_test"})),
         Err(ReviewError::Provider {
-            status: 429,
-            body: "conversation_not_ready".into(),
+            status: 503,
+            body: "cma_request_failed".into(),
         }),
         receipt("resp_test"),
         completed("{}"),
         accepted(),
         accepted(),
     ]);
+    let store = Memory::default();
     client
-        .answer(&Memory::default(), "data".into(), Duration::from_secs(60))
+        .answer(&store, "data".into(), Duration::from_secs(60))
         .await
         .unwrap();
     let calls = fake.calls.lock().await;
     assert_eq!(calls[0], calls[1]);
     assert_eq!(calls[2], calls[3]);
+    let history = store.history.lock().await;
+    assert!(history.iter().any(|state| state["waiting_since"].is_u64()));
+    assert!(history.last().unwrap()["waiting_since"].is_null());
+    assert!(
+        history
+            .iter()
+            .all(|state| state["deadline"] == history[0]["deadline"])
+    );
 }
 #[tokio::test]
 async fn cancelled_active_turn_observes_control_revision_then_stops_and_deletes() {

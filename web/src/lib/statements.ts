@@ -12,8 +12,7 @@ export function resultLabel(
       label,
     )
   ) {
-    const kind = label || CLAIM_KIND_LABELS[claim.kind];
-    return claim.section?.trim() || kind;
+    return label || CLAIM_KIND_LABELS[claim.kind];
   }
   return label;
 }

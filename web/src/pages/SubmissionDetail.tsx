@@ -290,7 +290,7 @@ export function Workspace({
             {s.kind !== 'conjecture' ? (
               <>
                 <h3>Formalization in Lean</h3>
-                <FormalizationForAuthor submission={s} onChange={onChange} />
+                <FormalizationForAuthor submission={s} round={currentReview} onChange={onChange} />
               </>
             ) : null}
           </section>

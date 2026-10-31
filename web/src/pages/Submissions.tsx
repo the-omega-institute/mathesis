@@ -172,23 +172,28 @@ function SubmissionRow({
   const reportReady =
     value?.delivered_at && ['accepted', 'not_accepted', 'review_complete'].includes(s.status.state);
   const label =
-    s.status.state === 'in_review'
-      ? waitingForDecision
-        ? 'Awaiting decision'
-        : 'In review'
-      : reportReady
-        ? s.purpose === 'review_only'
-          ? 'Report ready'
-          : undefined
-        : summary.state.status === 'loading'
-          ? 'Loading review status…'
-          : summary.state.status === 'error'
-            ? 'Review status could not be loaded'
-            : value?.interrupted
-              ? 'Review interrupted'
-              : value?.in_progress
-                ? 'Review in progress'
-                : undefined;
+    value?.waiting_since &&
+    !value.interrupted &&
+    !reportReady &&
+    ['in_review', 'review_complete'].includes(s.status.state)
+      ? 'Review temporarily delayed'
+      : s.status.state === 'in_review'
+        ? waitingForDecision
+          ? 'Awaiting decision'
+          : 'In review'
+        : reportReady
+          ? s.purpose === 'review_only'
+            ? 'Report ready'
+            : undefined
+          : summary.state.status === 'loading'
+            ? 'Loading review status…'
+            : summary.state.status === 'error'
+              ? 'Review status could not be loaded'
+              : value?.interrupted
+                ? 'Review interrupted'
+                : value?.in_progress
+                  ? 'Review in progress'
+                  : undefined;
   return (
     <li>
       <Link

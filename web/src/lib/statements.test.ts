@@ -13,7 +13,7 @@ describe('result names', () => {
     ).toBe('Theorem 2.1');
   });
 
-  it('distinguishes legacy unnamed results without inventing manuscript numbering', () => {
+  it('keeps the result type when its manuscript number is unavailable', () => {
     expect(
       resultLabel({
         id: 'C4',
@@ -21,7 +21,15 @@ describe('result names', () => {
         label: 'Theorem [thm:clique]',
         section: 'The exact clique number',
       }),
-    ).toBe('The exact clique number');
+    ).toBe('Theorem');
+    expect(
+      resultLabel({
+        id: 'C1',
+        kind: 'theorem',
+        label: 'Theorem [thm:main]',
+        section: 'Introduction',
+      }),
+    ).toBe('Theorem');
     expect(resultLabel({ id: 'C7', kind: 'theorem', label: 'Theorem [thm:bound]' })).toBe(
       'Theorem',
     );

@@ -169,7 +169,20 @@ export function authorStanding(s: Submission, file?: RefereeFile, now = Date.now
     doing = decisionWaitingMessage(s);
     nextAction = 'No action is needed from you.';
   }
+  const waitingForService =
+    !delivered && !!round?.waiting_since && headline !== 'Review could not finish';
+  if (waitingForService) {
+    if (!['accepted', 'not_accepted'].includes(s.status.state))
+      headline = 'Review temporarily delayed';
+    doing =
+      'The review service is temporarily unavailable. Your manuscript and completed work are saved. This review will continue automatically when the service is available.';
+    nextAction =
+      'No action is needed from you. Please keep this submission; there is no need to upload it again.';
+    since = round!.waiting_since!;
+    elapsedLabel = 'Elapsed waiting for the review service';
+  }
   return {
+    waitingForService,
     headline,
     doing,
     nextAction,

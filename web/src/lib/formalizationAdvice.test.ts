@@ -1,13 +1,60 @@
 import { describe, expect, it } from 'vitest';
 import { submission, accepted } from '../test/fixtures';
-import { refereeRound } from '../test/referee';
+import { refereeAudit, refereeRound } from '../test/referee';
 import {
   formalizationAdvice,
   formalizationAdviceText,
+  hasReviewedProof,
   legacyFormalizationStatus,
 } from './formalizationAdvice';
 
 describe('author formalization advice', () => {
+  it('retains an audited recommendation when source extraction missed a prose proof', () => {
+    const paper = {
+      ...submission,
+      claims: submission.claims.map((claim) => ({ ...claim, has_proof: false })),
+    };
+    const round = {
+      ...refereeRound,
+      formalization_suggestions: [
+        {
+          claim: 'C1',
+          feasibility: 'ready' as const,
+          plan: 'Formalize the two-dimensional construction.',
+        },
+      ],
+    };
+    expect(formalizationAdvice(paper, round).map(({ claim }) => claim.id)).toEqual(['C1']);
+    expect(hasReviewedProof(paper.claims[0]!, round)).toBe(true);
+    expect(hasReviewedProof(paper.claims[0]!)).toBe(false);
+    expect(formalizationAdviceText(paper, round)).toContain('two-dimensional construction');
+  });
+
+  it('does not offer a claim whose audit identifies a proof gap', () => {
+    const round = {
+      ...refereeRound,
+      audit: {
+        ...refereeRound.audit,
+        state: {
+          state: 'done' as const,
+          at: submission.updated_at,
+          result: {
+            ...refereeAudit,
+            claims: [
+              {
+                claim: 'C1',
+                correctness: 'gap' as const,
+                comment: 'An assumption is missing.',
+                witnesses: [],
+                referee_agreed: true,
+              },
+            ],
+          },
+        },
+      },
+    };
+    expect(hasReviewedProof(submission.claims[0]!, round)).toBe(false);
+  });
   it('shows selected proved results without inventing recommendations for the other statements', () => {
     const round = {
       ...refereeRound,

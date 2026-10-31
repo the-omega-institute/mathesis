@@ -329,7 +329,7 @@ async fn real_lean_multimodule_proof_checks_helpers_and_wrong_type() {
         let request = Request {
             target_digest: digest(&target), target, toolchain: toolchain.clone(),
             solution: "import Target\nimport Research.Helpers\ntheorem wishpool_solution : wishpool_target_prop := Research.helper\n".into(),
-            modules: BTreeMap::from([("Research.Helpers".into(), "import Mathlib.Data.Nat.Basic\nnamespace Research\ntheorem helper : True := True.intro\nend Research\n".into())]),
+            modules: BTreeMap::from([("Research.Helpers".into(), "import Mathlib.Data.Nat.Basic\n/- Source issue #15580. /- Nested #42. -/ -/\nnamespace Research\ntheorem helper : True := True.intro\nend Research\n".into())]),
         };
         let receipt = checker.verify(&request).await;
         assert_eq!(receipt.verdict, expected, "{}", receipt.reason);
@@ -376,4 +376,33 @@ fn nested_outputs_cannot_follow_prepared_workspace_links() {
     assert!(work.path().join("Research/Part").is_dir());
     std::fs::write(work.path().join("Research/Part/Proof.lean"), "new source").unwrap();
     assert_eq!(std::fs::read_to_string(&victim).unwrap(), "original source");
+}
+
+#[test]
+fn supporting_module_issue_comments_are_inert_but_hash_commands_remain_forbidden() {
+    for source in [
+        "def quote : Char := '\"'\ndef text := \"/-\"\n#check True",
+        "def text := s!\"{\"/-\"}\"\n#check True",
+    ] {
+        assert!(forbidden_in(source, true).is_some());
+    }
+    let module = "/- Historical (#15580; Refuted). /- Nested #42. -/ -/\n-- Source #123\ntheorem lemma : True := True.intro\n";
+    assert!(forbidden_in(module, true).is_none());
+    assert!(
+        forbidden(module).is_some(),
+        "root Target/Solution profiles stay strict"
+    );
+    for suffix in [
+        "#check True",
+        "def text := \"/-\"\n#check True",
+        "def text := \"--\"\n#check True",
+        "/- outer /- inner -/ -/ #check True",
+        "-- source comment\n#check True",
+    ] {
+        assert!(
+            forbidden_in(&format!("{module}\n{suffix}"), true).is_some(),
+            "{suffix}"
+        );
+    }
+    assert!(forbidden_in("/- sorry -/", true).is_some());
 }

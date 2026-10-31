@@ -314,16 +314,11 @@ impl App {
             return Ok(vec![]);
         }
         let mut files = Vec::new();
-        for claim in s.claims.iter().filter(|claim| {
-            !claim.kind.is_open()
-                && claim.has_proof
-                && s.formalization.item(&claim.id).is_some_and(|item| {
-                    matches!(
-                        item.state,
-                        ItemState::Approved | ItemState::InProgress | ItemState::Verified { .. }
-                    )
-                })
-        }) {
+        for claim in s
+            .claims
+            .iter()
+            .filter(|claim| s.approved_statement(&claim.id))
+        {
             // A file exists only after the author confirmed the exact target.
             if let Ok(file) = self.solve_file(record, &claim.id).await {
                 files.push(file);
