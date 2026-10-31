@@ -685,7 +685,8 @@ funded; local elaboration and proof verification carry no CMA payer.
   each Mathlib import must resolve to a prepared artifact before Lean runs. Root target
   and adapter scans remain strict, including comments. Preflight is not a receipt.
   Supporting modules may contain issue-number hashes in line or nested block
-  comments. Hash commands outside those comments remain forbidden; all other
+  comments. Modules with quoted literals retain the conservative hash rule to avoid
+  confusing Lean interpolation with comments. Hash commands remain forbidden; all other
   restricted-construct, import, target, axiom and provenance checks are unchanged.
 - Manuscript archives may declare `mathesis-evidence.json` schema 1: up to 100
   relative-path attachments with kind, description, optional claims and full Git revision.

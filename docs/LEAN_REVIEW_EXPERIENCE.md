@@ -37,6 +37,10 @@ post-review Lean probe, which does not publish a proof or award contribution cre
 The theorem proved in Lean must match the mathematical statement: a proof of an
 older special case cannot verify a stronger new result.
 
+Supporting source comments can include issue references. Sources containing quoted
+literals retain the checker's conservative hash restriction; target and solution
+adapters keep their strict scan. Preflight acceptance alone is never verification.
+
 ## Participation and credit
 
 - Original mathematical authors retain their authorship and source references.
