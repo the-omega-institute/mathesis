@@ -637,6 +637,8 @@ impl App {
                 ));
             }
             let attempt = Attempt {
+                intermediate: None,
+                reuses: vec![],
                 id: crate::ids::new_uuid(),
                 owner: caller.person.clone(),
                 entrant: entrant.clone(),
@@ -780,6 +782,8 @@ impl App {
                     .ports
                     .verifier
                     .verify(&VerificationRequest {
+                        required_declaration: None,
+                        inspect_constants: vec![],
                         target: target.lean,
                         target_digest: target.digest,
                         toolchain: target.toolchain.clone(),

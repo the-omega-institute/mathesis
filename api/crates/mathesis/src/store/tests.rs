@@ -1136,7 +1136,40 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
         Err(CoreError::StaleRevision { .. })
     ));
     assert_eq!(store.agents().await.unwrap()[0].name, "Renamed");
+    // Storage fixture only: proof authority is exercised in the independent verifier suite.
+    let helper_source = "import Mathlib\ntheorem saved_helper : True := True.intro\n";
+    let adapter = "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := saved_helper\n";
+    let module_blob = store
+        .put(helper_source.as_bytes(), "text/plain")
+        .await
+        .unwrap();
+    let adapter_blob = store.put(adapter.as_bytes(), "text/plain").await.unwrap();
+    let proposition = IntermediateProposition {
+        name: "saved_helper".into(),
+        title: "Saved bridge".into(),
+        proposition: "True".into(),
+        license: "Apache-2.0".into(),
+    };
+    let helper_digest = lean_solution_digest(
+        adapter,
+        &std::collections::BTreeMap::from([("Saved.Work".into(), helper_source.into())]),
+    );
     let file = SolveFile {
+        authorization: Some(FormalizationAuthorization {
+            target_digest: "target-pin".into(),
+            authorized_by: "author".into(),
+            total_generations: 1,
+            expires_at: Utc::now() + chrono::Duration::hours(1),
+            paused: false,
+            admitted_rounds: BTreeSet::from([0]),
+            contexts: std::collections::BTreeMap::from([(
+                "0".into(),
+                GenerationContext {
+                    contract: 1,
+                    contributions: vec!["original-helper".into()],
+                },
+            )]),
+        }),
         review_contract: 0,
         agent_attempted: Default::default(),
         agent_rounds: Default::default(),
@@ -1154,7 +1187,38 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
         task: None,
         report: None,
         audit: None,
-        attempts: vec![],
+        attempts: vec![Attempt {
+            intermediate: Some(proposition.clone()),
+            reuses: vec![],
+            modules: std::collections::BTreeMap::from([("Saved.Work".into(), module_blob)]),
+            attribution: None,
+            id: "original-helper".into(),
+            owner: "author".into(),
+            entrant: agent.clone(),
+            target_digest: "target-pin".into(),
+            solution_digest: helper_digest.clone(),
+            solution: adapter_blob,
+            note: "storage fixture".into(),
+            submitted_at: Utc::now(),
+            invalidated: None,
+            receipt: Some(VerificationReceipt {
+                used_constants: vec![],
+                verdict: Verdict::Proved,
+                reason: "fixture receipt, not a proof assertion".into(),
+                target_digest: lean_solution_digest(
+                    &proposition.target(&std::collections::BTreeMap::from([(
+                        "Saved.Work".into(),
+                        helper_source,
+                    )])),
+                    &Default::default(),
+                ),
+                solution_digest: helper_digest,
+                toolchain: "fixture-pin".into(),
+                axioms: vec![],
+                checked_at: Utc::now(),
+                duration: 0,
+            }),
+        }],
         dependencies: vec![],
         downstream: 0,
     };
@@ -1172,6 +1236,42 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
     );
     assert_eq!(usize::from(one.is_ok()) + usize::from(two.is_ok()), 1);
     let stored = SolvingStore::get(store, &file.id).await.unwrap().unwrap();
+    assert_eq!(stored.authorization, file.authorization);
+    assert_eq!(stored.attempts, file.attempts);
+    let reopened = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        SolvingStore::get(&reopened, &file.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .authorization,
+        file.authorization
+    );
+    let restored = SolvingStore::get(&reopened, &file.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(restored.attempts, file.attempts);
+    assert_eq!(
+        reopened
+            .read_checked_blob(&restored.attempts[0].solution, 1024)
+            .await
+            .unwrap(),
+        adapter.as_bytes()
+    );
+    assert_eq!(
+        reopened
+            .read_checked_blob(&restored.attempts[0].modules["Saved.Work"], 1024)
+            .await
+            .unwrap(),
+        helper_source.as_bytes()
+    );
+    reopened.shutdown().await;
     assert_eq!(stored.revision, 1);
     assert!([1, 2].contains(&stored.downstream));
     assert_eq!(SolvingStore::all(store).await.unwrap().len(), 1);
@@ -1482,6 +1582,8 @@ async fn research_attempt_sources_survive_offline_collection_from_gridfs_history
         authorized_at: Utc::now(),
         events: vec![ResearchEvent::AttemptAdmitted {
             attempt: Box::new(Attempt {
+                intermediate: None,
+                reuses: vec![],
                 id: "attempt".into(),
                 owner: "author".into(),
                 entrant: Entrant {

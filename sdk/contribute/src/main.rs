@@ -12,6 +12,8 @@
 //!
 //! Claude Code: `claude mcp add mathesis -e MATHESIS_NYXID_SERVICE=mathesis -- mathesis-contribute mcp`.
 
+#![recursion_limit = "256"]
+
 mod client;
 mod mcp;
 mod rules;
@@ -206,6 +208,28 @@ fn main() -> ExitCode {
             }
         },
         ["knowledge-response", id, receipt] => print(client.knowledge_response(id, receipt)),
+        ["proof-work", record, claim] => print(client.proof_work(record, claim)),
+        ["checked-propositions", record, claim] => {
+            print(client.checked_propositions(record, claim))
+        }
+        ["result-uses", record, claim] => print(client.result_uses(record, claim)),
+        ["contribution-bundle", attempt] => print(client.contribution_bundle(attempt)),
+        [
+            command @ ("control-proof-work" | "contribute-proposition" | "reuse-proof"),
+            record,
+            claim,
+            file,
+        ] => match read_json(file) {
+            Ok(body) => print(match *command {
+                "control-proof-work" => client.control_proof_work(record, claim, &body),
+                "contribute-proposition" => client.contribute_proposition(record, claim, &body),
+                _ => client.reuse_proof(record, claim, &body),
+            }),
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        },
         ["verification-bundle", record, claim, attempt] => {
             print(client.verification_bundle(record, claim, attempt))
         }
@@ -328,7 +352,7 @@ fn main() -> ExitCode {
         },
         _ => {
             eprintln!(
-                "usage: mathesis-contribute prepare-submission <preparation.json> <source> | submission <id> | submit-prepared <id> <confirmation.json> | deliver-manuscript <metadata.json> <source> [--confirm claims.json] | manuscript-status <id> | find-manuscript <producer> <work-id> <publication|review_only> | confirm-manuscript <id> <confirmation.json> | formalization-opportunities [query] | formalizations | formalization-project <id> | papers [query] | paper <record> | review <submission-id> | feedbacks <submission> | feedback <submission> <proposal> | preview-feedback <submission> <route.json> | prepare-feedback <submission> <proposal.json> | authorize-feedback <submission> <proposal> <authorization.json> | revoke-feedback <submission> <proposal> <reason> | export-feedback <submission> <proposal> | feedback-readback <submission> <proposal> <observation.json> | feedback-observation <submission> <proposal> <request> | knowledge-capabilities | binding-profile <person> [cursor] | bindings [cursor] | private-bindings <submission-id> | binding <submission-id> <board-id> | publish-binding <submission-id> <summary.json> | revoke-binding <submission-id> <board-id> <reason> | contribute-binding <submission-id> <board-id> <binding.json> | challenge-binding <submission-id> <board-id> <challenge.json> | research <submission-id> | adopt-research <submission-id> <obligation.json> | research-attempt <submission-id> <obligation-id> <attempt.json> | research-attempt-status <submission-id> <obligation-id> <attempt-id> | recheck-research <submission-id> <obligation-id> <attempt-id> | stop-research <submission-id> <obligation-id> <reason> | knowledge-response <submission-id> <receipt-id> | respond-review <submission-id> <response.json> | verification-bundle <record> <claim> <attempt> | preflight-formalization <deposit.json> | submit-formalization <deposit.json> | formalization <id> | verify-formalization <id> <record> <claim> [Solution.lean] | conjectures | target <record> <claim> | attempt <record> <claim> <file> [--as-agent NAME] | attempt-status <id> | report <record> <report.json> | report-status <id> | tasks [kind] | show <task> | lease <task> | release <task> | submit <task> <result.json> | mcp"
+                "usage: mathesis-contribute prepare-submission <preparation.json> <source> | submission <id> | submit-prepared <id> <confirmation.json> | deliver-manuscript <metadata.json> <source> [--confirm claims.json] | manuscript-status <id> | find-manuscript <producer> <work-id> <publication|review_only> | confirm-manuscript <id> <confirmation.json> | formalization-opportunities [query] | formalizations | formalization-project <id> | papers [query] | paper <record> | review <submission-id> | feedbacks <submission> | feedback <submission> <proposal> | preview-feedback <submission> <route.json> | prepare-feedback <submission> <proposal.json> | authorize-feedback <submission> <proposal> <authorization.json> | revoke-feedback <submission> <proposal> <reason> | export-feedback <submission> <proposal> | feedback-readback <submission> <proposal> <observation.json> | feedback-observation <submission> <proposal> <request> | knowledge-capabilities | binding-profile <person> [cursor] | bindings [cursor] | private-bindings <submission-id> | binding <submission-id> <board-id> | publish-binding <submission-id> <summary.json> | revoke-binding <submission-id> <board-id> <reason> | contribute-binding <submission-id> <board-id> <binding.json> | challenge-binding <submission-id> <board-id> <challenge.json> | research <submission-id> | adopt-research <submission-id> <obligation.json> | research-attempt <submission-id> <obligation-id> <attempt.json> | research-attempt-status <submission-id> <obligation-id> <attempt-id> | recheck-research <submission-id> <obligation-id> <attempt-id> | stop-research <submission-id> <obligation-id> <reason> | knowledge-response <submission-id> <receipt-id> | respond-review <submission-id> <response.json> | verification-bundle <record> <claim> <attempt> | proof-work <record> <claim> | control-proof-work <record> <claim> <authorization.json> | checked-propositions <record> <claim> | contribute-proposition <record> <claim> <proposition.json> | reuse-proof <record> <claim> <attempt.json> | result-uses <record> <claim> | contribution-bundle <attempt> | preflight-formalization <deposit.json> | submit-formalization <deposit.json> | formalization <id> | verify-formalization <id> <record> <claim> [Solution.lean] | conjectures | target <record> <claim> | attempt <record> <claim> <file> [--as-agent NAME] | attempt-status <id> | report <record> <report.json> | report-status <id> | tasks [kind] | show <task> | lease <task> | release <task> | submit <task> <result.json> | mcp"
             );
             ExitCode::from(2)
         }
@@ -447,6 +471,13 @@ mod tests {
                 "knowledge-response",
                 "respond-review",
                 "verification-bundle",
+                "proof-work",
+                "control-proof-work",
+                "checked-propositions",
+                "contribute-proposition",
+                "reuse-proof",
+                "result-uses",
+                "contribution-bundle",
                 "submit-formalization",
                 "preflight-formalization",
                 "formalization",

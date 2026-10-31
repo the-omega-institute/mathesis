@@ -514,6 +514,67 @@ impl Client {
             body,
         )
     }
+    pub fn proof_work(&self, record: &str, claim: &str) -> ApiResult<Value> {
+        self.get(&format!(
+            "/papers/{}/statements/{}/work",
+            segment(record),
+            segment(claim)
+        ))
+    }
+    pub fn control_proof_work(&self, record: &str, claim: &str, body: &Value) -> ApiResult<Value> {
+        self.send(
+            self.http
+                .put(format!(
+                    "{}/papers/{}/statements/{}/work",
+                    self.base,
+                    segment(record),
+                    segment(claim)
+                ))
+                .json(body),
+        )
+    }
+    pub fn checked_propositions(&self, record: &str, claim: &str) -> ApiResult<Value> {
+        self.get(&format!(
+            "/papers/{}/statements/{}/contributions",
+            segment(record),
+            segment(claim)
+        ))
+    }
+    pub fn contribute_proposition(
+        &self,
+        record: &str,
+        claim: &str,
+        body: &Value,
+    ) -> ApiResult<Value> {
+        self.post(
+            &format!(
+                "/papers/{}/statements/{}/contributions",
+                segment(record),
+                segment(claim)
+            ),
+            body,
+        )
+    }
+    pub fn reuse_proof(&self, record: &str, claim: &str, body: &Value) -> ApiResult<Value> {
+        self.post(
+            &format!(
+                "/papers/{}/statements/{}/reuse",
+                segment(record),
+                segment(claim)
+            ),
+            body,
+        )
+    }
+    pub fn result_uses(&self, record: &str, claim: &str) -> ApiResult<Value> {
+        self.get(&format!(
+            "/papers/{}/statements/{}/uses",
+            segment(record),
+            segment(claim)
+        ))
+    }
+    pub fn contribution_bundle(&self, attempt: &str) -> ApiResult<Value> {
+        self.get(&format!("/contributions/{}/bundle", segment(attempt)))
+    }
     pub fn verification_bundle(
         &self,
         record: &str,
@@ -672,6 +733,41 @@ mod solving_tests {
                     "/api/v1/attempts/a1",
                     json!({"id":"a1", "state":"rejected", "receipt":{"reason":"Wrong target type"}}),
                 ),
+                (
+                    "GET",
+                    "/api/v1/papers/WP-2026-0001/statements/C1/work",
+                    json!({"used_generations":1}),
+                ),
+                (
+                    "PUT",
+                    "/api/v1/papers/WP-2026-0001/statements/C1/work",
+                    json!({"used_generations":1}),
+                ),
+                (
+                    "GET",
+                    "/api/v1/papers/WP-2026-0001/statements/C1/contributions",
+                    json!([]),
+                ),
+                (
+                    "POST",
+                    "/api/v1/papers/WP-2026-0001/statements/C1/contributions",
+                    json!({"state":"queued"}),
+                ),
+                (
+                    "POST",
+                    "/api/v1/papers/WP-2026-0001/statements/C1/reuse",
+                    json!({"state":"queued"}),
+                ),
+                (
+                    "GET",
+                    "/api/v1/papers/WP-2026-0001/statements/C1/uses",
+                    json!([]),
+                ),
+                (
+                    "GET",
+                    "/api/v1/contributions/original%2Fhelper/bundle",
+                    json!({"origin":{"attempt":"original/helper"}}),
+                ),
             ] {
                 let (mut stream, _) = listener.accept().unwrap();
                 stream
@@ -708,12 +804,25 @@ mod solving_tests {
                     assert!(count > 0);
                     bytes.extend_from_slice(&buf[..count]);
                 }
-                if method == "POST" {
+                if method == "POST" || method == "PUT" {
                     let submitted: Value = serde_json::from_slice(&bytes[header_end..]).unwrap();
-                    assert_eq!(
-                        submitted,
-                        json!({"solution":"import Target\nproof", "as_agent":"Proof agent"})
-                    );
+                    if path.ends_with("/work") {
+                        assert_eq!(
+                            submitted,
+                            json!({"target_digest":"exact-digest","total_generations":4,"expires_at":"2026-11-02T00:00:00Z","paused":false})
+                        );
+                    } else if path.ends_with("/contributions") {
+                        assert_eq!(submitted["expected_target"], "exact-digest");
+                        assert_eq!(submitted["intermediate"]["license"], "Apache-2.0");
+                    } else if path.ends_with("/reuse") {
+                        assert_eq!(submitted["contributions"], json!(["original/helper"]));
+                        assert_eq!(submitted["expected_target"], "exact-digest");
+                    } else {
+                        assert_eq!(
+                            submitted,
+                            json!({"solution":"import Target\nproof", "as_agent":"Proof agent"})
+                        );
+                    }
                     assert!(submitted.get("receipt").is_none());
                 }
                 let text = body.to_string();
@@ -762,6 +871,22 @@ mod solving_tests {
         assert_eq!(
             client.attempt_status("a1").unwrap()["receipt"]["reason"],
             "Wrong target type"
+        );
+        assert_eq!(
+            client.proof_work("WP-2026-0001", "C1").unwrap()["used_generations"],
+            1
+        );
+        assert_eq!(client.control_proof_work("WP-2026-0001", "C1", &json!({"target_digest":"exact-digest","total_generations":4,"expires_at":"2026-11-02T00:00:00Z","paused":false})).unwrap()["used_generations"], 1);
+        assert_eq!(
+            client.checked_propositions("WP-2026-0001", "C1").unwrap(),
+            json!([])
+        );
+        assert_eq!(client.contribute_proposition("WP-2026-0001", "C1", &json!({"expected_target":"exact-digest","intermediate":{"name":"Saved.helper","title":"Bridge","proposition":"True","license":"Apache-2.0"},"modules":{"Saved.Work":"exact module"}})).unwrap()["state"], "queued");
+        assert_eq!(client.reuse_proof("WP-2026-0001", "C1", &json!({"expected_target":"exact-digest","solution":"adapter","contributions":["original/helper"]})).unwrap()["state"], "queued");
+        assert_eq!(client.result_uses("WP-2026-0001", "C1").unwrap(), json!([]));
+        assert_eq!(
+            client.contribution_bundle("original/helper").unwrap()["origin"]["attempt"],
+            "original/helper"
         );
         server.join().unwrap();
     }

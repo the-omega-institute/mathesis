@@ -109,6 +109,7 @@ impl App {
                     Err(CoreError::NotFound { .. } | CoreError::Conflict(_)) => continue,
                     Err(e) => return Err(e),
                 };
+                let file = self.public_solve_file(&file.record, &file.claim).await?;
                 let winner = file.winner(&target.digest);
                 let status = match winner.and_then(|a| a.receipt.as_ref()).map(|r| r.verdict) {
                     Some(Verdict::Proved) => "verified",
@@ -144,7 +145,11 @@ impl App {
                     verified_count: file
                         .attempts
                         .iter()
-                        .filter(|a| a.verified() && a.target_digest == target.digest)
+                        .filter(|a| {
+                            a.intermediate.is_none()
+                                && a.verified()
+                                && a.target_digest == target.digest
+                        })
                         .count(),
                     contributor,
                     attribution: winner.and_then(|a| a.attribution.clone()),

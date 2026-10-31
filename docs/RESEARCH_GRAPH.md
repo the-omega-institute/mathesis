@@ -216,7 +216,7 @@ formalization/correction roles; and independent verifier receipts tied to exact
 confirmed targets. Indexing creates only the first. A verified theorem in a
 citing paper does not verify its citations as proof use.
 
-A future cross-paper proof-use relation needs exact versioned result identities,
+A general cross-paper implication claim needs exact versioned result identities,
 explicit source/target correspondence, complete jointly used premises, discharged
 hypotheses, evidence scope and an admission authority. A source-declared claim
 must remain distinguishable from an independently inspected argument and a
@@ -245,3 +245,15 @@ A shared inline/bbl fixture is checked against actual Rust
 parser/domain output and consumed by DOM tests for paper references, relationships
 and focused work with evidence both closed and open. Existing result/contribution/verifier behavior remains under
 its existing tests. These are local fixtures, not live test publications.
+
+## Checked contribution use alongside the citation map
+
+The result-specific `uses` projection is separate from the citation map. It links
+an independently checked final proof to exact named contributions retained from
+another public pinned result. The verifier's elaborated proof-value inspection
+supplies the `checked_proof_term` basis. Both directions retain original author,
+contributor, license and whole selected-context evidence. The source goal may
+remain unfinished, and an individual helper is not presented as sufficient.
+Citations and imports alone never enter this projection. Fresh reads and bundles
+recheck both endpoint visibility and exact source/target pins. No graph-editing
+step is added to author submission.

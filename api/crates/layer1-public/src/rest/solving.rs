@@ -19,6 +19,22 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/papers/{record}/statements/{claim}", get(statement))
         .route("/papers/{record}/statements/{claim}/target", get(target))
         .route(
+            "/papers/{record}/statements/{claim}/work",
+            get(work).put(control_work),
+        )
+        .route(
+            "/papers/{record}/statements/{claim}/contributions",
+            get(contributions)
+                .post(contribute)
+                .layer(DefaultBodyLimit::max(16 * 1024 * 1024)),
+        )
+        .route(
+            "/papers/{record}/statements/{claim}/reuse",
+            post(reuse).layer(DefaultBodyLimit::max(16 * 1024 * 1024)),
+        )
+        .route("/papers/{record}/statements/{claim}/uses", get(uses))
+        .route("/contributions/{attempt}/bundle", get(contribution_bundle))
+        .route(
             "/papers/{record}/statements/{claim}/attempts",
             get(verified)
                 .post(attempt)
@@ -262,5 +278,96 @@ async fn bundle(
             ),
         ],
         Json(bundle),
+    ))
+}
+
+async fn work(
+    State(app): AppState,
+    c: Option<AuthenticatedCaller>,
+    Path((r, k)): Path<(String, String)>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        [(header::CACHE_CONTROL, "no-store")],
+        Json(
+            app.formalization_work(c.as_ref().map(|c| &c.0), &RecordId(r), &ClaimId(k))
+                .await?,
+        ),
+    ))
+}
+async fn control_work(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path((r, c)): Path<(String, String)>,
+    Body(b): Body<mathesis_core::model::FormalizationControl>,
+) -> ApiResult<impl IntoResponse> {
+    let record = RecordId(r);
+    let claim = ClaimId(c);
+    app.control_formalization(&caller, &record, &claim, b)
+        .await?;
+    Ok(Json(
+        app.formalization_work(Some(&caller), &record, &claim)
+            .await?,
+    ))
+}
+
+async fn contributions(
+    State(app): AppState,
+    Path((r, c)): Path<(String, String)>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        [(header::CACHE_CONTROL, "no-store")],
+        Json(app.checked_contributions(&RecordId(r), &ClaimId(c)).await?),
+    ))
+}
+async fn contribute(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path((r, c)): Path<(String, String)>,
+    Body(b): Body<mathesis_core::model::NewIntermediate>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(
+            app.submit_intermediate(&caller, &RecordId(r), &ClaimId(c), b)
+                .await?,
+        ),
+    ))
+}
+async fn reuse(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path((r, c)): Path<(String, String)>,
+    Body(b): Body<mathesis_core::model::ReusingAttempt>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(
+            app.submit_reusing_attempt(&caller, &RecordId(r), &ClaimId(c), b)
+                .await?,
+        ),
+    ))
+}
+async fn uses(
+    State(app): AppState,
+    Path((r, c)): Path<(String, String)>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        [(header::CACHE_CONTROL, "no-store")],
+        Json(app.result_uses(&RecordId(r), &ClaimId(c)).await?),
+    ))
+}
+async fn contribution_bundle(
+    State(app): AppState,
+    Path(id): Path<String>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        [
+            (header::CACHE_CONTROL, "no-store"),
+            (
+                header::CONTENT_DISPOSITION,
+                "attachment; filename=mathesis-contribution.json",
+            ),
+        ],
+        Json(app.checked_contribution(&id).await?),
     ))
 }

@@ -1,3 +1,4 @@
+import { ProofWork } from '../components/ProofWork';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
@@ -145,6 +146,7 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                   </ul>
                 </section>
               ) : null}
+              {s.target ? <ProofWork record={record} claim={claim} /> : null}
               <ErrorReports record={record} />
             </article>
           </MacrosProvider>

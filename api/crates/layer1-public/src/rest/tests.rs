@@ -1633,3 +1633,70 @@ async fn research_graph_is_public_bounded_and_private_focus_is_not_found() {
         .unwrap();
     assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
 }
+
+#[tokio::test]
+async fn public_proof_work_contract_has_no_client_success_route_and_hides_missing_endpoints() {
+    let router = router();
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/papers/missing/statements/C1/contributions")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    let (_, spec, _) = call(&router, "GET", "/openapi.json", None, None).await;
+    for suffix in ["work", "contributions", "reuse", "uses"] {
+        let path = format!("/api/v1/papers/{{record}}/statements/{{claim}}/{suffix}");
+        assert!(spec["paths"][&path].is_object());
+    }
+    assert_eq!(
+        spec["components"]["schemas"]["FormalizationControl"]["properties"]["total_generations"]["maximum"],
+        20
+    );
+    assert_eq!(
+        spec["components"]["schemas"]["NewIntermediate"]["additionalProperties"],
+        false
+    );
+    assert!(spec["components"]["schemas"]["NewIntermediate"]["properties"]["receipt"].is_null());
+    for path in [
+        "/papers/missing/statements/C1/work",
+        "/papers/missing/statements/C1/contributions",
+        "/papers/missing/statements/C1/uses",
+        "/contributions/missing/bundle",
+    ] {
+        assert_eq!(
+            call(&router, "GET", path, None, None).await.0,
+            StatusCode::NOT_FOUND
+        );
+    }
+    for (method, suffix) in [
+        ("PUT", "work"),
+        ("POST", "contributions"),
+        ("POST", "reuse"),
+    ] {
+        let path = format!("/papers/missing/statements/C1/{suffix}");
+        assert_eq!(
+            call(&router, method, &path, None, Some(serde_json::json!({})))
+                .await
+                .0,
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            call(
+                &router,
+                method,
+                &path,
+                Some("solver"),
+                Some(serde_json::json!({"receipt":{"verdict":"proved"}}))
+            )
+            .await
+            .0,
+            StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+}

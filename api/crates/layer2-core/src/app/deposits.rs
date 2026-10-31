@@ -134,6 +134,13 @@ impl App {
                 .get(&blob.id)
                 .await?
                 .ok_or_else(|| CoreError::Unavailable("Lean module is missing".into()))?;
+            if bytes.len() as u64 != blob.bytes
+                || format!("{:x}", Sha256::digest(&bytes)) != blob.sha256
+            {
+                return Err(CoreError::Unavailable(
+                    "Lean module integrity failure".into(),
+                ));
+            }
             sources.insert(
                 name.clone(),
                 String::from_utf8(bytes)
@@ -214,6 +221,8 @@ impl App {
                 record,
                 claim,
                 super::solving::AttemptInput {
+                    intermediate: None,
+                    reuses: vec![],
                     expected_target: Some(target.digest),
                     solution: source,
                     modules,

@@ -35,14 +35,8 @@ impl Worker {
         &self,
         job: &LeasedJob,
     ) -> Result<bool, super::worker::Failure> {
-        let Some(client) = self.advisor.as_ref().and_then(|a| a.managed_client()) else {
-            return Ok(false);
-        };
+        let client = self.advisor.as_ref().and_then(|a| a.managed_client());
         let mut pending = false;
-        let paper = self
-            .app
-            .submission(&self.auditor_account, &job.submission)
-            .await?;
         for (key, step) in self
             .app
             .agent_steps(&self.auditor_account, &job.submission)
@@ -73,43 +67,19 @@ impl Worker {
                 if state.deleted {
                     continue;
                 }
-                let mut superseded = paper
-                    .current_version()
-                    .is_none_or(|v| v.number != step.version)
-                    || paper.claims_revision != step.claims_revision
-                    || matches!(
-                        paper.status,
-                        SubmissionStatus::Draft | SubmissionStatus::Withdrawn
-                    );
-                if let Some(step) = step.cma_attempts.last()
-                    && let Some(key) = step
-                        .step
-                        .strip_prefix("research:")
-                        .and_then(|s| s.split(':').next())
-                {
-                    superseded |= !self
-                        .app
-                        .research_active(&self.auditor_account, &paper.id, key)
-                        .await?;
-                }
-                if let Some(attempt) = step.cma_attempts.last()
-                    && let Some(board) = attempt
-                        .step
-                        .strip_prefix("binding:")
-                        .and_then(|s| s.split(':').next())
-                {
-                    superseded |= !self
-                        .app
-                        .binding_active(&self.auditor_account, &paper.id, board)
-                        .await?;
-                }
-                let expired = chrono::Utc::now().timestamp().max(0) as u64 >= state.deadline;
-                if !superseded && !expired && state.answer.is_none() && state.failure.is_none() {
+                let Some(client) = client else {
+                    // Configuration/service loss cannot erase ownership of saved work.
+                    pending |= state.agent_id.is_some() || state.create_intent.is_some();
                     continue;
-                }
+                };
                 let store = AgentStore {
                     factory: self.cma_factory.clone(),
-                    logical_step: String::new(),
+                    logical_step: step
+                        .cma_attempts
+                        .iter()
+                        .find(|a| Some(a.ordinal) == cleanup_ordinal)
+                        .map(|a| a.step.clone())
+                        .unwrap_or_default(),
                     cleanup_ordinal,
                     cleanup: true,
                     funded: false,
@@ -123,11 +93,20 @@ impl Worker {
                     version: step.version,
                     claims_revision: step.claims_revision,
                 };
+                let active = store.active().await.map_err(super::worker::model_failure)?;
+                let expired = chrono::Utc::now().timestamp().max(0) as u64 >= state.deadline;
+                if active && !expired && state.answer.is_none() && state.failure.is_none() {
+                    // A saved handle needs a queue owner even while it can still resume.
+                    pending |= state.agent_id.is_some() || state.create_intent.is_some();
+                    continue;
+                }
                 if let Err(error) = client.cancel(&store).await {
-                    tracing::warn!(%error,"CMA cleanup will be retried on the next paper job");
+                    tracing::warn!(%error,"CMA cleanup remains owned by the paper job");
                 }
                 if let Some(progress) = store.load().await.map_err(super::worker::model_failure)? {
-                    pending |= progress["agent_id"].is_string() && progress["deleted"] != true;
+                    pending |= (progress["agent_id"].is_string()
+                        || progress["create_intent"].is_array())
+                        && progress["deleted"] != true;
                 }
             }
         }
@@ -195,6 +174,34 @@ impl RunStore for AgentStore {
             .submission(&self.caller, &self.job.submission)
             .await
             .map_err(|_| fence())?;
+        if let Some(identity) = self.logical_step.strip_prefix("agent-formalization:") {
+            let parts: Vec<_> = identity.split(':').collect();
+            let Some(round) = parts
+                .get(2)
+                .and_then(|r| r.strip_prefix("round"))
+                .and_then(|r| r.parse::<u32>().ok())
+            else {
+                return Ok(false);
+            };
+            let SubmissionStatus::Accepted { record } = &paper.status else {
+                return Ok(false);
+            };
+            if parts.len() != 3
+                || !self
+                    .app
+                    .formalization_generation_active(
+                        &self.caller,
+                        record,
+                        &parts[0].into(),
+                        parts[1],
+                        round,
+                    )
+                    .await
+                    .map_err(|_| fence())?
+            {
+                return Ok(false);
+            }
+        }
         if let Some(key) = self
             .logical_step
             .strip_prefix("research:")

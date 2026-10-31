@@ -96,3 +96,37 @@ Versioned manuscript delivery is also supported through `deliver-manuscript`,
 See [the downstream delivery contract](../../docs/MANUSCRIPT_DELIVERY.md).
 The optional `--confirm claims.json` uses already-approved exact statement
 confirmations; it does not infer consent or publication acceptance.
+
+## Finite proof work and incremental contributions
+
+```sh
+mathesis-contribute proof-work RECORD CLAIM
+mathesis-contribute control-proof-work RECORD CLAIM control.json
+mathesis-contribute checked-propositions RECORD CLAIM
+mathesis-contribute contribute-proposition RECORD CLAIM proposition.json
+mathesis-contribute reuse-proof RECORD CLAIM reuse.json
+mathesis-contribute result-uses RECORD CLAIM
+mathesis-contribute contribution-bundle ATTEMPT > proposition-bundle.json
+```
+
+MCP exposes the same names and Layer 2 permissions. Control JSON contains
+`target_digest`, `total_generations` (1–20), `expires_at` (within 30 days) and
+`paused`. Pause/resume retains consumed generations and expiry; extensions are
+explicit. Only the submitting author controls approved public paper work.
+
+Proposition JSON contains `expected_target`, `intermediate` with `name`, `title`,
+`proposition`, `license`, and self-contained `modules` (or an owned `deposit`).
+It submits an ordinary verifier attempt; it cannot supply a receipt or successful
+verdict. Reuse JSON contains `expected_target`, `solution`, `contributions` (1–8
+checked attempt identities), optional new `modules`, `as_agent` and `note`.
+Original modules, source pins, license and credit remain intact. A checked helper
+can survive an unfinished source goal. Only actual checked proof-term occurrences
+produce result-use links. No new leaderboard points or retrospective evidence.
+
+A control request that changes an existing total or expiry must explicitly set
+`change_allowance: true`. Pause/resume sends `change_allowance: false` and the
+saved limits; a stale request with different limits returns a conflict. The
+first grant defines its limits. Consumed generations are always preserved.
+Rebinding an allowance to a corrected confirmed target also requires
+`change_allowance: true`. It keeps consumed generations and saved work under a
+fresh round identity; pause/resume cannot authorize the replacement target.

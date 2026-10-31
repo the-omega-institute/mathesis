@@ -56,22 +56,60 @@ adapters keep their strict scan. Preflight acceptance alone is never verificatio
   and re-review process. Unconfirmed reports are private.
 - Supporters fund venue work; funding does not make a supporter the proof author.
 
-## CMA continuation and current limits
+## Finite formalization and saved propositions
 
 CMA performs manuscript checking, advice, target preparation and proof attempts.
-The venue decides publication from saved evidence. The independent Lean verifier,
-not CMA's assertion of success, decides proof verification.
+The venue decides publication from saved evidence. Only the independent Lean
+verifier decides whether a submitted proof checks.
 
-An approved paper formalization can continue from its previous submitted Lean
-source and verifier feedback. A service interruption retains the same task identity;
-the author should not upload another copy to recover it. Each execution has a saved
-deadline. The present continuous formalization loop does not yet provide an author
-budget/pause control or a complete sequence of individually verified intermediate
-lemmas. An empty attempt can lead to another attempt without a reusable intermediate
-artifact. Do not describe this as a finished service for building a fully verified
-library one lemma at a time.
+After confirming an approved public paper target, the submitting author can
+allow 1–20 total generations with an expiry within 30 days. The result page and
+author workspace show consumed work, remaining authorization and pause/resume.
+Resuming preserves the original expiry and consumed allowance. An extension is
+an explicit author action. Source changes, expiry and pause fence new provider
+work; retries recover the same saved provider identity and input context.
+Provider input retains the original contributor snapshot, so a later profile
+rename cannot change the bytes of an admitted helper context. Public credit
+links resolve the contributor's current profile.
+Empty, malformed and rejected outputs consume a round and eventually stop.
+Public conjectures retain their existing single venue attempt per target.
 
-The research graph currently represents citations, manuscript-declared result
-dependencies and source-attributed contributions at their respective scopes.
-General cross-paper, verifier-backed theorem dependency edges and automatic
-per-lemma credit are not inferred from citations, imports or model prose.
+A participant or later CMA round can save a named auxiliary proposition through
+the ordinary attempt and independent verifier. The proposition is checked against
+its own exact type in self-contained supporting modules under the pinned workspace.
+The type may use definitions from those exact modules. They compile before the
+auxiliary target and cannot import Target; ordinary author targets retain their
+existing strict profile.
+It remains available when the main goal is unfinished. Unchecked names, progress
+text and rejected final solutions never become checked contributions.
+
+A later proof can select up to eight checked propositions. Their exact module
+bytes, original source/result pins, license and contributor attribution travel
+with the proof and its downloadable verification bundle. Reuse creates no extra
+leaderboard points. A source deposit retains its separate research-author,
+formalizer and submitter identities. No historical helper evidence is invented.
+
+Result pages show both directions of checked contribution use. The verifier
+inspects elaborated proof values and reports only requested proposition constants
+actually reached through the submitted proof context. Unused imports, bibliography
+citations and manuscript-declared dependencies retain their distinct meanings.
+The view identifies the exact source version and the complete selected joint
+context; it does not claim individual sufficiency or that an unfinished source
+result was proved. Every fresh public list, profile, count and bundle checks the
+visibility and current immutable pins of both ends. API responses use no-store.
+
+The REST, OpenAPI, web, CLI and MCP controls share the same Layer 2 authorization
+and verifier path. See [API.md](API.md) and the contributor SDK documentation.
+The verifier suite includes real pinned-Lean checks for helper scope, failed final
+proofs, actual versus unused imports and attribution rejection; these run in the
+existing Linux verifier image gate, never through a model or fixture verifier.
+
+A control request that changes an existing total or expiry must explicitly set
+`change_allowance: true`. Pause/resume sends `change_allowance: false` and the
+saved limits; a stale request with different limits returns a conflict. The
+first grant defines its limits. Consumed generations are always preserved.
+When the confirmed target changes within the same manuscript version, the author
+must explicitly save the allowance for the replacement target. This retains
+consumed generations and saved limits unless explicitly changed, assigns a fresh
+round identity and fences the old target; merely resuming cannot authorize the
+replacement.

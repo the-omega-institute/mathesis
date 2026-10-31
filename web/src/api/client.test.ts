@@ -302,3 +302,49 @@ describe('helpers', () => {
     );
   });
 });
+
+describe('finite proof-work client contract', () => {
+  it('uses the shared routes and preserves total allowance and immutable contribution selection', async () => {
+    const fetchImpl = vi.fn(async () => problem(200, {}, 'application/json'));
+    const api = createApiClient(fetchImpl);
+    const control = {
+      target_digest: 'exact-target',
+      total_generations: 4,
+      expires_at: '2026-11-02T00:00:00Z',
+      paused: false,
+    };
+    const helper = {
+      expected_target: 'exact-target',
+      intermediate: {
+        name: 'Saved.helper',
+        title: 'Bridge',
+        proposition: 'True',
+        license: 'Apache-2.0',
+      },
+      modules: { 'Saved.Work': 'exact source bytes' },
+    };
+    const reuse = {
+      expected_target: 'exact-target',
+      solution: 'adapter',
+      contributions: ['original-helper'],
+    };
+    await api.formalizationWork('record/1', 'C 1');
+    await api.controlFormalization('record/1', 'C 1', control);
+    await api.checkedContributions('record/1', 'C 1');
+    await api.submitIntermediate('record/1', 'C 1', helper);
+    await api.submitReusingAttempt('record/1', 'C 1', reuse);
+    await api.resultUses('record/1', 'C 1');
+    const calls = fetchImpl.mock.calls as unknown as [string, RequestInit][];
+    expect(calls.map(([url, init]) => `${init.method} ${url}`)).toEqual([
+      'GET /api/v1/papers/record%2F1/statements/C%201/work',
+      'PUT /api/v1/papers/record%2F1/statements/C%201/work',
+      'GET /api/v1/papers/record%2F1/statements/C%201/contributions',
+      'POST /api/v1/papers/record%2F1/statements/C%201/contributions',
+      'POST /api/v1/papers/record%2F1/statements/C%201/reuse',
+      'GET /api/v1/papers/record%2F1/statements/C%201/uses',
+    ]);
+    expect(JSON.parse(calls[1]![1].body as string)).toEqual(control);
+    expect(JSON.parse(calls[3]![1].body as string)).toEqual(helper);
+    expect(JSON.parse(calls[4]![1].body as string)).toEqual(reuse);
+  });
+});

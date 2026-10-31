@@ -1,3 +1,4 @@
+import { ProofWork } from '../components/ProofWork';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -8,7 +9,7 @@ import { ErrorReports, ReportError } from '../components/ErrorReports';
 import { InlineLatex, LatexText, MacrosProvider } from '../components/Markdown';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { Async } from '../components/ui';
-import { ResultConnections } from '../components/ResultConnections';
+import { ResultConnections, CheckedResultUses } from '../components/ResultConnections';
 import { ResultProvenance, matchesResult } from '../components/ResultProvenance';
 import { safeHttpUrl } from '../lib/links';
 import { resultLabel } from '../lib/statements';
@@ -87,6 +88,7 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
           checked dependencies of this result.
         </p>
         <ResultConnections paper={paper} claim={claim} />
+        <CheckedResultUses record={record} claim={claim.id} />
         <ResultProvenance paper={paper} claim={claim} />
         <section>
           <h2>Formalization</h2>
@@ -120,6 +122,7 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
             </Link>
           ) : null}
         </section>
+        {target ? <ProofWork record={record} claim={claim.id} /> : null}
         <details className="history">
           <summary>Corrections</summary>
           <ReportError record={record} subject={{ kind: 'statement', claim: claim.id }} />

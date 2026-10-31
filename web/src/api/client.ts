@@ -1,3 +1,11 @@
+import type {
+  FormalizationWork,
+  FormalizationControl,
+  CheckedContribution,
+  NewIntermediate,
+  ReusingAttempt,
+  ResultUse,
+} from './types';
 import type { ResearchGraph } from './types';
 import type {
   FeedbackKind,
@@ -403,6 +411,24 @@ export interface ApiClient {
     options?: RequestOptions,
   ): Promise<Listing<ConjectureSummary>>;
 
+  formalizationWork(
+    record: string,
+    claim: string,
+    options?: RequestOptions,
+  ): Promise<FormalizationWork>;
+  controlFormalization(
+    record: string,
+    claim: string,
+    body: FormalizationControl,
+  ): Promise<FormalizationWork>;
+  checkedContributions(
+    record: string,
+    claim: string,
+    options?: RequestOptions,
+  ): Promise<CheckedContribution[]>;
+  submitIntermediate(record: string, claim: string, body: NewIntermediate): Promise<AttemptView>;
+  submitReusingAttempt(record: string, claim: string, body: ReusingAttempt): Promise<AttemptView>;
+  resultUses(record: string, claim: string, options?: RequestOptions): Promise<ResultUse[]>;
   getConjecture(record: string, claim: string, options?: RequestOptions): Promise<ConjectureDetail>;
   submitAttempt(
     record: string,
@@ -605,6 +631,18 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     restartReferee: (id) => request('POST', sub(id, '/referee/restart')),
     sendFeedback: (id, letter) => request('POST', sub(id, '/referee/letters'), letter),
 
+    formalizationWork: (r, c, o) =>
+      request('GET', api(`/papers/${seg(r)}/statements/${seg(c)}/work`), undefined, o),
+    controlFormalization: (r, c, body) =>
+      request('PUT', api(`/papers/${seg(r)}/statements/${seg(c)}/work`), body),
+    checkedContributions: (r, c, o) =>
+      request('GET', api(`/papers/${seg(r)}/statements/${seg(c)}/contributions`), undefined, o),
+    submitIntermediate: (r, c, body) =>
+      request('POST', api(`/papers/${seg(r)}/statements/${seg(c)}/contributions`), body),
+    submitReusingAttempt: (r, c, body) =>
+      request('POST', api(`/papers/${seg(r)}/statements/${seg(c)}/reuse`), body),
+    resultUses: (r, c, o) =>
+      request('GET', api(`/papers/${seg(r)}/statements/${seg(c)}/uses`), undefined, o),
     getConjecture: (r, c, o) =>
       request('GET', api(`/conjectures/${seg(r)}/${seg(c)}`), undefined, o),
     submitAttempt: (r, c, solution, as_agent, note = '') =>

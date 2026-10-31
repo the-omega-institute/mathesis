@@ -150,6 +150,36 @@ export function EntrantPage({ id }: { id: string }) {
                 ))}
               </ul>
             ) : null}
+            {p.contributions?.length ? (
+              <section>
+                <h2>Checked propositions</h2>
+                <p>Independently checked auxiliary work; the final result may remain unfinished.</p>
+                <ul className="entry-list">
+                  {p.contributions.map((c) => (
+                    <li key={c.origin.attempt}>
+                      <strong>{c.intermediate.title}</strong>
+                      <p>
+                        <Link
+                          to={{ kind: 'result', record: c.origin.record, claim: c.origin.claim }}
+                        >
+                          <InlineLatex source={c.source_title} />
+                        </Link>{' '}
+                        · version {c.origin.version}
+                      </p>
+                      <p>
+                        Mathematical source: {c.source_authors.map((a) => a.name).join(', ')} ·{' '}
+                        {c.intermediate.license}
+                      </p>
+                      <a
+                        href={`/api/v1/contributions/${encodeURIComponent(c.origin.attempt)}/bundle`}
+                      >
+                        Download proposition and verification details
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             <h2>Verified solutions</h2>
             {p.solutions.length ? (
               <ul className="entry-list">

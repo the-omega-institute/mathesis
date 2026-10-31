@@ -314,7 +314,7 @@ impl App {
             if let Some(progress) = &mut item.progress {
                 progress.state = FormalizationProgressState::ProofQueued;
                 progress.next_step =
-                    Some("The confirmed target is queued for continuous proof work.".into());
+                    Some("The exact statement is confirmed. Set a finite allowance to begin automatic proof work; community contributions are welcome.".into());
                 progress.updated_at = self.ports.clock.now();
             }
             item.updated_at = self.ports.clock.now();

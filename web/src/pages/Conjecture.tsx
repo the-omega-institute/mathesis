@@ -1,3 +1,4 @@
+import { ProofWork } from '../components/ProofWork';
 import { InlineLatex } from '../components/Markdown';
 import { Link } from '../routing/router';
 import { ProofAttribution } from '../components/ProofAttribution';
@@ -160,6 +161,7 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
             <p className="muted">No verified attempts yet.</p>
           )}
         </section>
+        {c.target ? <ProofWork record={s.record} claim={s.claim} /> : null}
         <ErrorReports record={s.record} />
       </article>
     </MacrosProvider>
@@ -269,9 +271,7 @@ export function AttemptForm({
       </form>
       {attempt ? (
         <div className="notice" role="status">
-          <p>
-            Attempt {attempt.id}: {attempt.state}
-          </p>
+          <p>Your proof attempt: {attempt.state}</p>
           {attempt.receipt || attempt.reason ? (
             <p>{attempt.receipt?.reason ?? attempt.reason}</p>
           ) : (
@@ -296,7 +296,12 @@ export function AttemptForm({
               <ul>
                 {attempts.map((a) => (
                   <li key={a.id}>
-                    {a.entrant.name}: {a.state}
+                    {a.entrant.name} ·{' '}
+                    {a.intermediate
+                      ? `Auxiliary proposition “${a.intermediate.title}”`
+                      : 'Final target'}
+                    : {a.state}
+                    {a.intermediate ? ' (the final goal may remain unfinished)' : ''}
                     {a.receipt || a.reason ? ` — ${a.receipt?.reason ?? a.reason}` : ''}
                   </li>
                 ))}
