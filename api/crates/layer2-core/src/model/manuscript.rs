@@ -16,6 +16,9 @@ pub struct ManuscriptOrigin {
     pub license: String,
     #[serde(default)]
     pub evidence: Vec<ManuscriptEvidence>,
+    /// Existing upstream contributions, retained with their own identities.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contributions: Vec<SourceContribution>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,7 +110,7 @@ fn identifier(label: &str, text: &str) -> CoreResult<()> {
     Ok(())
 }
 
-fn public_link(value: &str) -> CoreResult<()> {
+pub(super) fn public_link(value: &str) -> CoreResult<()> {
     let host = value
         .strip_prefix("https://")
         .and_then(|s| s.split('/').next());
@@ -152,6 +155,7 @@ impl NewManuscriptDelivery {
                 return Err(CoreError::invalid("duplicate problem id"));
             }
         }
+        validate_source_contributions(&self.origin.contributions)?;
         if self.origin.evidence.len() > 100 {
             return Err(CoreError::invalid("at most 100 manuscript evidence links"));
         }

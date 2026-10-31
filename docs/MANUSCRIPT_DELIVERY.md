@@ -181,3 +181,31 @@ owns this intake, review, acceptance and public presentation. No upstream code,
 release format, scheduler, repository credentials or shared CI workflow is changed
 by this adapter. A real upstream producer must still call this contract; the API's
 existence alone is not evidence that every solved conjecture has a generated note.
+
+## Preserving existing contribution credit
+
+`origin.contributions` is an optional list of existing source contributions.
+Legacy payloads do not need it. Map only actual source attribution; never assign
+credit from the uploading account or generate a new mathematical contribution
+for receiving a note. See [CONTRIBUTION_GRAPH.md](CONTRIBUTION_GRAPH.md) for the
+scope, validation rules and public display.
+
+```json
+{
+  "id": "original-proof-id",
+  "claim_label": "thm:main",
+  "role": "mathematical_proof",
+  "contributors": [
+    {"name": "Original Author", "profile_url": "https://example.org/author"}
+  ],
+  "evidence_url": "https://example.org/research/note-example/v1/note.pdf",
+  "scope": "Proof of Theorem 1 under its stated hypotheses.",
+  "depends_on": []
+}
+```
+
+Each `depends_on` value names another contribution in the same source history.
+These links record how the source work builds on earlier contributions. Formal
+proof dependency claims require separate mathematical evidence. Source credits
+remain source credits even after manuscript acceptance; independently checked
+Mathesis attempts retain their own verification receipts and attribution.

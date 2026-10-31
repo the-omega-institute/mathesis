@@ -5,7 +5,7 @@ fn delivery(version: &str, previous: Option<u32>) -> NewManuscriptDelivery {
     serde_json::from_value(serde_json::json!({
         "schema":"mathesis.manuscript-delivery.v1", "producer":"paper", "work_id":"two-related-problems", "version":version, "previous_version":previous,
         "paper":{"kind":"note","purpose":"publication","title":"A short note", "authors":[{"name":"First Author"},{"name":"Second Author"}], "ai_disclosure":{"level":"assisted","statement":"Proofreading assistance."},"processing_consent":"ai-review-2026-10-11"},
-        "origin":{"problem_ids":["problem-a","problem-b"],"source_url":"https://example.org/note/v1","license":"CC-BY-4.0","evidence":[{"claim_label":"C1","kind":"written_proof","url":"https://example.org/note/v1.pdf","scope":"Theorem 1 proves the stated special case."}]}
+        "origin":{"problem_ids":["problem-a","problem-b"],"source_url":"https://example.org/note/v1","license":"CC-BY-4.0","contributions":[{"id":"original-proof-id","claim_label":"C1","role":"mathematical_proof","contributors":[{"name":"Original Researcher","profile_url":"https://example.org/researcher"}],"evidence_url":"https://example.org/note/v1.pdf","scope":"Original proof of Theorem 1."}],"evidence":[{"claim_label":"C1","kind":"written_proof","url":"https://example.org/note/v1.pdf","scope":"Theorem 1 proves the stated special case."}]}
     })).unwrap()
 }
 
@@ -249,6 +249,11 @@ async fn accepted_origin_is_pinned_and_private_or_revised_inputs_do_not_leak() {
     };
     let public = w.app.paper(&record).await.unwrap();
     assert_eq!(public.origin, Some(delivery("v1", None).origin));
+    assert!(public.claims.iter().all(|c| c.verified.is_none()));
+    assert_eq!(
+        public.origin.as_ref().unwrap().contributions[0].id,
+        "original-proof-id"
+    );
     let receipt = w
         .app
         .manuscript_receipt(&author, &p.id, Some(1))
@@ -300,6 +305,32 @@ async fn private_review_is_a_distinct_identity_and_requires_real_consent() {
     assert!(matches!(
         w.app
             .deliver_manuscript(&author, private, upload(b"source"))
+            .await,
+        Err(CoreError::Invalid(_))
+    ));
+}
+
+#[tokio::test]
+async fn delivery_credit_is_version_bound_and_must_name_an_extracted_result() {
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    w.app
+        .deliver_manuscript(&author, delivery("v1", None), upload(b"source"))
+        .await
+        .unwrap();
+    let mut changed = delivery("v1", None);
+    changed.origin.contributions[0].contributors[0].name = "Replacement".into();
+    assert!(matches!(
+        w.app
+            .deliver_manuscript(&author, changed, upload(b"source"))
+            .await,
+        Err(CoreError::Conflict(_))
+    ));
+    let mut unknown = delivery("v2", Some(1));
+    unknown.origin.contributions[0].claim_label = "unknown theorem".into();
+    assert!(matches!(
+        w.app
+            .deliver_manuscript(&author, unknown, upload(b"source two"))
             .await,
         Err(CoreError::Invalid(_))
     ));

@@ -679,6 +679,7 @@ export type PaperSummary = {
   lean_verified?: number;
 };
 export type PublicClaim = {
+  latex_label?: string;
   verified?: VerifiedAttempt | null;
   id: string;
   kind: ClaimKind;
@@ -702,7 +703,19 @@ export type PublicPaper = {
   lean_statements?: { claim: string; lean: string; digest: string; toolchain: string }[];
 };
 
+export type SourceContribution = {
+  id: string;
+  claim_label: string;
+  role: 'problem' | 'mathematical_proof' | 'exposition' | 'formalization' | 'correction';
+  contributors: { name: string; profile_url?: string }[];
+  evidence_url: string;
+  scope: string;
+  source_revision?: string;
+  depends_on?: string[];
+};
+
 export type ManuscriptOrigin = {
+  contributions?: SourceContribution[];
   problem_ids: string[];
   source_url: string;
   license: string;

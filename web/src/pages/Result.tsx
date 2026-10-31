@@ -8,7 +8,9 @@ import { ErrorReports, ReportError } from '../components/ErrorReports';
 import { InlineLatex, LatexText, MacrosProvider } from '../components/Markdown';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { Async } from '../components/ui';
-import { isOpenKind } from '../lib/labels';
+import { ResultConnections } from '../components/ResultConnections';
+import { ResultProvenance, matchesResult } from '../components/ResultProvenance';
+import { safeHttpUrl } from '../lib/links';
 import { resultLabel } from '../lib/statements';
 import { Link } from '../routing/router';
 import { EntrantName } from './Leaderboard';
@@ -35,24 +37,17 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
   const claim = paper.claims?.find((item) => item.id === claimId);
   if (!claim) return <p>This result is not available publicly.</p>;
   const record = paper.summary.record;
-  const dependencies = paper.claims!.filter((item) => claim.depends_on.includes(item.id));
-  const uses = dependencies.filter((item) => !isOpenKind(item.kind));
-  const assumptions = dependencies.filter((item) => isOpenKind(item.kind));
-  const usedBy = paper.claims!.filter((item) => item.depends_on.includes(claim.id));
   const version = paper.publication?.version ?? paper.versions?.at(-1)?.number;
   const witness = paper.new_content?.find((item) => item.claim === claim.id);
   const target = paper.lean_statements?.find((item) => item.claim === claim.id);
-  const relations = (items: typeof uses) => (
-    <ul>
-      {items.map((item) => (
-        <li key={item.id}>
-          <Link to={{ kind: 'result', record, claim: item.id }}>
-            <InlineLatex source={resultLabel(item)} />
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
+  const sourceProof =
+    paper.origin?.evidence.find(
+      (item) => item.kind === 'lean_source' && matchesResult(claim, item.claim_label),
+    )?.url ??
+    paper.origin?.contributions?.find(
+      (item) => item.role === 'formalization' && matchesResult(claim, item.claim_label),
+    )?.evidence_url;
+  const sourceProofHref = sourceProof ? safeHttpUrl(sourceProof) : null;
   return (
     <MacrosProvider macros={paper.macros ?? {}}>
       <article className="result-page">
@@ -84,33 +79,8 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
             ))}
           </section>
         ) : null}
-        {dependencies.length || usedBy.length ? (
-          <section className="result-relations">
-            <h2>Connections within this paper</h2>
-            <p className="small muted">Dependencies stated in the manuscript.</p>
-            {assumptions.length ? (
-              <>
-                <h3>Conditional on these assumptions</h3>
-                <p>The argument assumes these open statements.</p>
-                {relations(assumptions)}
-              </>
-            ) : null}
-            {uses.length ? (
-              <>
-                <h3>Uses these results</h3>
-                {relations(uses)}
-              </>
-            ) : null}
-            {usedBy.length ? (
-              <>
-                <h3>
-                  {isOpenKind(claim.kind) ? 'Assumed in these statements' : 'Used in these results'}
-                </h3>
-                {relations(usedBy)}
-              </>
-            ) : null}
-          </section>
-        ) : null}
+        <ResultConnections paper={paper} claim={claim} />
+        <ResultProvenance paper={paper} claim={claim} />
         <section>
           <h2>Formalization</h2>
           {claim.verified ? (
@@ -121,6 +91,13 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
               </p>
               <ProofAttribution attribution={claim.verified.attribution} />
             </>
+          ) : sourceProofHref && !claim.lean ? (
+            <p>
+              Formalization is available from the original source.{' '}
+              <a href={sourceProofHref} target="_blank" rel="noreferrer">
+                Read the Lean proof
+              </a>
+            </p>
           ) : (
             <p>
               {claim.lean

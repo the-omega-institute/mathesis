@@ -81,3 +81,87 @@ describe('public result', () => {
     expect(screen.getByRole('heading', { name: 'Assumed in these statements' })).toBeVisible();
   });
 });
+
+describe('source contribution history', () => {
+  it('preserves upstream credit and exact Lean evidence without claiming local verification', async () => {
+    const revision = 'a'.repeat(40);
+    renderWithApp(
+      <ResultPage record="WP-2026-0001" claim="C1" />,
+      fakeApi({
+        getPaper: vi.fn(async () => ({
+          ...publicPaper,
+          claims: claims.map((claim) => ({
+            ...claim,
+            latex_label: claim.id === 'C1' ? 'thm:main' : undefined,
+            lean: null,
+          })),
+          origin: {
+            problem_ids: ['original-problem'],
+            source_url: 'https://example.org/result',
+            license: 'CC-BY-4.0',
+            evidence: [
+              {
+                claim_label: 'thm:main',
+                kind: 'lean_source' as const,
+                url: `https://github.com/example/research/blob/${revision}/Proof.lean`,
+                scope: 'The original formal proof.',
+                source_revision: revision,
+              },
+            ],
+            contributions: [
+              {
+                id: 'formal',
+                claim_label: 'thm:main',
+                role: 'formalization' as const,
+                contributors: [{ name: 'Formal Proof Author' }],
+                evidence_url: `https://github.com/example/research/blob/${revision}/Proof.lean`,
+                scope: 'Exact finite case.',
+                source_revision: revision,
+                depends_on: ['proof'],
+              },
+              {
+                id: 'proof',
+                claim_label: 'thm:main',
+                role: 'mathematical_proof' as const,
+                contributors: [
+                  {
+                    name: 'Original Researcher',
+                    profile_url: 'https://orcid.org/0000-0002-1825-0097',
+                  },
+                ],
+                evidence_url: 'https://example.org/proof.pdf',
+                scope: 'Original argument.',
+              },
+              {
+                id: 'other',
+                claim_label: 'C2',
+                role: 'correction' as const,
+                contributors: [{ name: 'Other Contributor' }],
+                evidence_url: 'https://example.org/erratum',
+                scope: 'Different result.',
+              },
+            ],
+          },
+        })),
+      }),
+    );
+    expect(await screen.findByRole('heading', { name: 'Source and contributions' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Original Researcher' })).toHaveAttribute(
+      'href',
+      'https://orcid.org/0000-0002-1825-0097',
+    );
+    expect(screen.getAllByRole('link', { name: 'Lean source' })[0]).toHaveAttribute(
+      'href',
+      `https://github.com/example/research/blob/${revision}/Proof.lean`,
+    );
+    expect(screen.getByRole('link', { name: 'Read the Lean proof' })).toHaveAttribute(
+      'href',
+      `https://github.com/example/research/blob/${revision}/Proof.lean`,
+    );
+    expect(screen.queryByText('Other Contributor')).toBeNull();
+    expect(screen.queryByText('An independently checked proof is available.')).toBeNull();
+    expect(
+      screen.getByRole('link', { name: /Mathematical proof — Original Researcher/ }),
+    ).toHaveAttribute('href', 'https://example.org/proof.pdf');
+  });
+});
