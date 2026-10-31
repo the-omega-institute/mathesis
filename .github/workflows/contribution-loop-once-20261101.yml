@@ -12,13 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, web, verifier]
+        service: [api, web]
     permissions:
       contents: read
       packages: write
     env:
-      SOURCE_COMMIT: bc96b8fe34024c45876e30487590d4a84b8c0734
-      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:contribution-loop-20261101-v1
+      SOURCE_COMMIT: 2ac1dbd2ca5c82a21d8b47bba75a857a05af02d0
+      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:contribution-loop-20261101-v2
     steps:
       - uses: actions/checkout@v4
         with:

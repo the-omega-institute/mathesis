@@ -3127,6 +3127,109 @@ impl App {
 }
 
 #[tokio::test]
+async fn cleanup_can_cancel_running_work_but_cannot_file_or_replace_an_answer() {
+    let w = cma_world().await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let paper = w.submit(&author, "t", false).await;
+    let paper = w.review_paper(&author, &paper).await;
+    let job = cma_test_job(&paper);
+    w.app
+        .admit_cma_attempt(
+            &reviewer,
+            &job,
+            &TestAgentLease(true),
+            "cancel",
+            "r1:audit",
+            "wks_operator",
+        )
+        .await
+        .unwrap();
+    let (revision, _) = w
+        .app
+        .agent_step_snapshot(&reviewer, &paper.id, "cancel")
+        .await
+        .unwrap();
+    let original = serde_json::json!({"agent_id":"agt_original","response_id":"resp_original","input":"original-input","deadline":1234});
+    let update = |source_revision, progress, cleanup| AgentStepUpdate {
+        source_revision,
+        ordinal: Some(0),
+        version: 1,
+        claims_revision: paper.claims_revision,
+        progress,
+        cleanup,
+    };
+    let revision = w
+        .app
+        .persist_agent_step(
+            &reviewer,
+            &job,
+            &TestAgentLease(true),
+            "cancel",
+            update(revision, original.clone(), false),
+        )
+        .await
+        .unwrap();
+    let mut cleanup = original.clone();
+    cleanup["answer"] = serde_json::json!("fabricated success");
+    cleanup["failure"] = serde_json::json!("CMA work cancelled");
+    cleanup["typed_failure"] = serde_json::json!("quota");
+    cleanup["input"] = serde_json::json!("replacement-input");
+    let revision = w
+        .app
+        .persist_agent_step(
+            &reviewer,
+            &job,
+            &TestAgentLease(true),
+            "cancel",
+            update(revision, cleanup, true),
+        )
+        .await
+        .unwrap();
+    let saved = w
+        .app
+        .agent_step(&reviewer, &paper.id, "cancel")
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(saved.progress["answer"].is_null());
+    assert_eq!(saved.progress["input"], original["input"]);
+    assert_eq!(saved.progress["deadline"], original["deadline"]);
+    assert_eq!(saved.progress["response_id"], original["response_id"]);
+    assert_eq!(saved.progress["typed_failure"], "cancelled");
+    assert_eq!(saved.cma_attempts[0].outcome, CmaOutcome::Failed);
+    assert_eq!(saved.cma_attempts[0].failure, Some(CmaFailure::Cancelled));
+    assert!(saved.cma_attempts[0].finished_at.is_some());
+    let mut replacement = saved.progress.clone();
+    replacement["failure"] = serde_json::json!("replacement failure");
+    replacement["answer"] = serde_json::json!("replacement answer");
+    replacement["deleted"] = serde_json::json!(true);
+    w.app
+        .persist_agent_step(
+            &reviewer,
+            &job,
+            &TestAgentLease(true),
+            "cancel",
+            update(revision, replacement, true),
+        )
+        .await
+        .unwrap();
+    let final_step = w
+        .app
+        .agent_step(&reviewer, &paper.id, "cancel")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(final_step.progress["failure"], saved.progress["failure"]);
+    assert!(final_step.progress["answer"].is_null());
+    assert_eq!(final_step.progress["deleted"], true);
+    assert_eq!(
+        final_step.cma_attempts[0].finished_at,
+        saved.cma_attempts[0].finished_at
+    );
+}
+
+#[tokio::test]
 async fn cma_progress_fences_stale_snapshots_leases_and_terminal_answers() {
     let w = cma_world().await;
     let author = w.person("author", &[]).await;

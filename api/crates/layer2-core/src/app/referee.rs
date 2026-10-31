@@ -211,8 +211,7 @@ impl App {
                 &mut step.progress
             };
             persist_progress(progress, next, update.cleanup)?;
-            if !update.cleanup
-                && attempt.outcome == CmaOutcome::Running
+            if attempt.outcome == CmaOutcome::Running
                 && (progress["answer"].is_string() || progress["failure"].is_string())
             {
                 attempt.outcome = if progress["answer"].is_string() {
@@ -1171,6 +1170,12 @@ fn persist_progress(
         }
     }
     if cleanup || terminal {
+        // Cleanup can honestly terminate unfinished work, but cannot file an answer
+        // or replace a saved terminal result. All admitted inputs remain immutable.
+        if cleanup && !terminal && next["failure"].is_string() {
+            old["failure"] = next["failure"].clone();
+            old["typed_failure"] = serde_json::json!("cancelled");
+        }
         // Cleanup may add receipts and retain its exact control intent, never replace results.
         for field in ["agent_id", "cancel_intent", "stop_intent"] {
             if !next[field].is_null() {

@@ -259,14 +259,18 @@ export function authorReportPreview(
   const candidates = formalizationAdvice(s, round);
   const states = [
     ['verified', 'with a verified formal proof'],
-    ['in_progress', 'being formalized'],
+    ['in_progress', 'with saved unfinished proof work'],
     ['approved', 'approved for formalization'],
     ['declined', 'declined by the author'],
   ] as const;
   const progress = states.flatMap(([state, label]) => {
-    const count = candidates.filter((candidate) => candidate.state === state).length;
+    const count = candidates.filter(
+      (candidate) => candidate.state === state && candidate.progress !== 'blocked',
+    ).length;
     return count ? [`${count} ${label}`] : [];
   });
+  const blocked = candidates.filter((candidate) => candidate.progress === 'blocked').length;
+  if (blocked) progress.push(`${blocked} with blocked formalization requiring review`);
   const formal = candidates.length
     ? `${candidates.length === 1 ? 'One result is' : `${candidates.length} results are`} recommended for formalization. ${progress.length ? `Current status: ${progress.join('; ')}. ` : ''}${s.purpose === 'review_only' ? 'This private review does not schedule formalization.' : candidates.some((candidate) => !candidate.state || candidate.state === 'proposed') ? 'Remaining recommendations require author approval before public formalization.' : ''} The targets and their scope are in the detailed report.`
     : 'No formalization is recommended in the available review.';

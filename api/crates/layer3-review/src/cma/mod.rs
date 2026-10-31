@@ -379,7 +379,7 @@ impl Client {
         {
             let read = async {
                 if !store.active().await? {
-                    return Err(invalid("CMA work cancelled or superseded"));
+                    return Err(ReviewError::CmaRefusal(FailureKind::Cancelled));
                 }
                 self.advance(store, chunks, state).await
             };
@@ -399,7 +399,7 @@ impl Client {
     ) -> ReviewResult<()> {
         loop {
             if !store.active().await? {
-                return Err(invalid("CMA work cancelled or superseded"));
+                return Err(ReviewError::CmaRefusal(FailureKind::Cancelled));
             }
             let result = self.advance(store, chunks, state).await;
             if result.is_ok() && state.waiting_since.take().is_some() {
@@ -555,8 +555,9 @@ impl Client {
         if let Some(v) = store.load().await? {
             let mut state: RunState =
                 serde_json::from_value(v).map_err(|_| invalid("invalid stored CMA state"))?;
-            if state.answer.is_none() {
+            if state.answer.is_none() && state.failure.is_none() {
                 state.failure = Some("CMA work cancelled".into());
+                state.typed_failure = Some(FailureKind::Cancelled);
             }
             Self::save(store, &state).await?;
             self.cleanup(store, &mut state).await;

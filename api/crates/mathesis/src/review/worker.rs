@@ -153,6 +153,25 @@ impl Worker {
         }
         .instrument(span)
         .await;
+        // Public proof jobs own admitted provider work through authorization changes,
+        // failures and asynchronous cleanup. Deferral retains the original lease job
+        // without spending its retry budget or admitting a replacement generation.
+        if job.kind == JobKind::AgentAttempt
+            && !matches!(result, Ok(true) | Err(Failure::LeaseLost))
+        {
+            match self.cleanup_agents(&job).await {
+                Ok(false) => {}
+                pending => {
+                    if let Err(error) = pending {
+                        tracing::warn!(?error, "proof work cleanup will be resumed");
+                    }
+                    if let Err(error) = self.jobs.defer(&job, Duration::from_secs(30)).await {
+                        tracing::error!(%error, "could not defer proof cleanup; lease expiry will recover it");
+                    }
+                    return;
+                }
+            }
+        }
         let settled = match result {
             Ok(true) => Ok(()),
             Ok(false) => {

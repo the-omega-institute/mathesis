@@ -76,6 +76,20 @@ spending retry attempts. The saved answer and original payer remain unchanged.
 Missing agents count as already removed. Cleanup failures retain durable progress
 and never substitute another payer's credentials.
 
+Public formalization jobs also retain this ownership after pause, allowance expiry,
+provider failures and final answers. The worker checks the saved generation's current
+authorization before polling, cancels stopped work and defers the same job until
+stop and deletion are observed, including uncertain creation receipts. Cleanup can
+record a cancellation of unfinished work; it cannot replace an answer or file a
+successful result. The original generation, input, payer and consumed allowance
+remain saved. Reconciliation recovers pending public cleanup even when an allowance
+cannot admit work. Resuming an already cancelled generation spends no second charge
+for that generation; further generations still require the remaining allowance.
+
+The author report describes saved unfinished or blocked proof work without claiming
+that it is currently executing. Current automatic-work authority is shown by the
+proof-work controls; a saved partial result alone does not promise continuation.
+
 On normal worker shutdown, Mathesis cancels the local polling operation and its
 lease heartbeat before releasing that job back to the queue. The next worker can
 resume immediately with the same admitted provider handles, without spending a
