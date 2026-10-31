@@ -1,0 +1,44 @@
+[
+  {
+    "kind": "inline",
+    "source": "\\documentclass{article}\\begin{document}\\cite{internalKey17}\\begin{thebibliography}{9}\\bibitem[Earlier 1901]{internalKey17} E. Earlier, \\emph{Old result} (1901). \\doi{10.1234/old}\\end \n{thebibliography}\\end{document}",
+    "bbl": null,
+    "expected": {
+      "work": "doi:10.1234/old",
+      "display_text": "E. Earlier, Old result (1901). 10.1234/old",
+      "reference": {
+        "key": "internalKey17",
+        "title": null,
+        "authors": [],
+        "year": null,
+        "doi": "10.1234/old",
+        "arxiv": null,
+        "url": null,
+        "source_location": "main.tex",
+        "raw": "\\bibitem[Earlier 1901]{internalKey17} E. Earlier, \\emph{Old result} (1901). \\doi{10.1234/old}",
+        "raw_truncated": false
+      }
+    }
+  },
+  {
+    "kind": "bbl",
+    "source": "\\documentclass{article}\\begin{document}\\cite{internalKey17}\\bibliography{missing}\\end{document}",
+    "bbl": "\\begin{thebibliography}{9}\\bibitem{internalKey17} E. Earlier.\\newblock \\textit{Old result} (1901). \\href{https://doi.org/10.1234/old}{Original source}\\end \n{thebibliography}",
+    "expected": {
+      "work": "doi:10.1234/old",
+      "display_text": "E. Earlier. Old result (1901). Original source",
+      "reference": {
+        "key": "internalKey17",
+        "title": null,
+        "authors": [],
+        "year": null,
+        "doi": null,
+        "arxiv": null,
+        "url": "https://doi.org/10.1234/old",
+        "source_location": "main.bbl",
+        "raw": "\\bibitem{internalKey17} E. Earlier.\\newblock \\textit{Old result} (1901). \\href{https://doi.org/10.1234/old}{Original source}",
+        "raw_truncated": false
+      }
+    }
+  }
+]

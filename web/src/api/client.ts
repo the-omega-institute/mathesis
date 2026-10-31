@@ -1,3 +1,4 @@
+import type { ResearchGraph } from './types';
 import type {
   FeedbackKind,
   FeedbackPreview,
@@ -441,6 +442,10 @@ export interface ApiClient {
   // Public papers.
   listPapers(page?: PaperQuery, options?: RequestOptions): Promise<Listing<PaperSummary>>;
   getPaper(record: string, options?: RequestOptions): Promise<PublicPaper>;
+  researchGraph(
+    query?: { focus?: string; q?: string; before?: string; limit?: number },
+    options?: RequestOptions,
+  ): Promise<ResearchGraph>;
 
   // Contributors.
   listTasks(query?: TaskQuery, options?: RequestOptions): Promise<Listing<Task>>;
@@ -669,6 +674,8 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
         undefined,
         o,
       ),
+    researchGraph: (query, o) =>
+      request('GET', api(`/research-graph${buildQuery(query ?? {})}`), undefined, o),
     getPaper: (record, o) => request('GET', api(`/papers/${seg(record)}`), undefined, o),
 
     listTasks: (q = {}, o) =>

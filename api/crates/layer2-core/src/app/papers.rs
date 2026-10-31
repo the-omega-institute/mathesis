@@ -93,6 +93,9 @@ impl App {
             .reader
             .read(&upload.bytes, &upload.filename)
             .map_err(CoreError::Invalid)?;
+        if let Some(bibliography) = &read.bibliography {
+            bibliography.validate()?;
+        }
         if read.statements.is_empty() {
             return Err(CoreError::invalid(
                 "no theorem, lemma, proposition, corollary or conjecture environments were found; declare them with \\newtheorem",
@@ -114,6 +117,7 @@ impl App {
             .put(&upload.bytes, "application/octet-stream")
             .await?;
         Ok(PaperVersion {
+            bibliography: read.bibliography.clone(),
             delivery: None,
             evidence: read.evidence.clone(),
             number,

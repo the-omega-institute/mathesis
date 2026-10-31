@@ -108,3 +108,5 @@ pub struct ParsedPaper {
     /// Inputs that could not be resolved, and similar notes.
     pub warnings: Vec<String>,
 }
+
+pub mod bibliography;

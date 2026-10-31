@@ -173,6 +173,69 @@ impl EndorsementStore for MongoStore {
 
 #[async_trait]
 impl RecordStore for MongoStore {
+    async fn search_research(
+        &self,
+        search: &mathesis_core::model::ResearchSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<Record>> {
+        let limit = limit.clamp(1, 20) as usize;
+        let mut filter = doc! {};
+        if let Some(before) = before {
+            filter.insert("id", doc! {"$lt": before});
+        }
+        // Select only by cursor and live visibility. Mongo regex/lowercasing
+        // cannot implement Rust's Unicode lowercase substring semantics, even
+        // for ASCII queries against Unicode source text. Keeping every public
+        // candidate also covers exact identities and legacy accepted inputs;
+        // the shared domain predicate below is the only content/identity test.
+        let pipeline = vec![
+            doc! {"$match": filter},
+            doc! {"$sort": {"id": -1}},
+            doc! {"$lookup": {"from": SUBMISSIONS, "localField": "submission", "foreignField": "id", "pipeline": [{"$match": {"analysis_visibility": "public"}}], "as": "research_current"}},
+            doc! {"$unwind": "$research_current"},
+        ];
+        // Bound elapsed work including getMore batches. A timeout is an explicit
+        // unavailable result, never an empty/exhaustive graph or reset cursor.
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            let mut cursor = self
+                .raw(RECORDS)
+                .aggregate(pipeline)
+                .max_time(std::time::Duration::from_secs(10))
+                .batch_size(20)
+                .await
+                .map_err(unavailable)?;
+            let mut items = Vec::new();
+            while let Some(mut document) = cursor.try_next().await.map_err(unavailable)? {
+                let current = document
+                    .remove("research_current")
+                    .and_then(|v| v.as_document().cloned())
+                    .ok_or_else(|| {
+                        CoreError::Unavailable("missing research visibility input".into())
+                    })?;
+                let current: Submission = from_document(current)?;
+                let record: Record = from_document(document)?;
+                if search.matches_visible_record(&record, &current) {
+                    items.push(record);
+                    if items.len() > limit {
+                        break;
+                    }
+                }
+            }
+            let next_before = if items.len() > limit {
+                items.pop();
+                items.last().map(|r| r.id.to_string())
+            } else {
+                None
+            };
+            Ok(Listing { items, next_before })
+        })
+        .await
+        .map_err(|_| {
+            CoreError::Unavailable("research graph query exceeded its 10-second deadline".into())
+        })?
+    }
+
     async fn search(
         &self,
         search: &mathesis_core::model::PaperSearch,

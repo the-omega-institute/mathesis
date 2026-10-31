@@ -307,6 +307,21 @@ impl EndorsementStore for MemoryStores {
 
 #[async_trait]
 impl RecordStore for MemoryStores {
+    async fn search_research(
+        &self,
+        search: &ResearchSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<Record>> {
+        let records = self.records.lock().await;
+        let submissions = self.submissions.lock().await;
+        Ok(page(&records, limit.clamp(1, 20), before, |r| {
+            submissions
+                .get(r.submission.as_str())
+                .is_some_and(|s| search.matches_visible_record(r, s))
+        }))
+    }
+
     async fn search(
         &self,
         search: &PaperSearch,

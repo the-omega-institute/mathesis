@@ -60,6 +60,7 @@ impl PaperReader for OneTheorem {
             section: None,
         };
         Ok(ReadPaper {
+            bibliography: None,
             evidence: vec![],
             main_file: "main.tex".into(),
             title: Some("On gaps".into()),
@@ -1593,4 +1594,42 @@ async fn manuscript_json_transport_preserves_binary_source_bytes() {
         .0,
         StatusCode::UNPROCESSABLE_ENTITY
     );
+}
+
+#[tokio::test]
+async fn research_graph_is_public_bounded_and_private_focus_is_not_found() {
+    let router = router();
+    let (status, json, _) = call(&router, "GET", "/research-graph", None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json["nodes"], serde_json::json!([]));
+    assert_eq!(json["edges"], serde_json::json!([]));
+    assert!(json["scope"].as_str().unwrap().contains("not exhaustive"));
+    let (status, _, _) = call(
+        &router,
+        "GET",
+        "/research-graph?focus=paper%3AWP-2026-0001",
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _, _) = call(
+        &router,
+        "GET",
+        "/research-graph?focus=unsupported%3Aname",
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/research-graph")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
 }

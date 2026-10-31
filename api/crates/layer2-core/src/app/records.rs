@@ -63,6 +63,8 @@ pub struct PublicVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPaper {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bibliography: Option<super::PublicBibliography>,
     /// Identity of the immutable accepted statement set, never a private revision.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub publication: Option<PublicPublication>,
@@ -545,6 +547,13 @@ impl App {
             })
             .count();
         Ok(PublicPaper {
+            bibliography: if public {
+                submission
+                    .current_version()
+                    .and_then(|v| super::PublicBibliography::from_source(id, v))
+            } else {
+                None
+            },
             publication: public
                 .then(|| {
                     submission

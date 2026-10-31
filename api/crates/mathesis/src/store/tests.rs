@@ -1931,3 +1931,445 @@ async fn formalization_recovery_preserves_queued_backoff() {
     assert!(JobLease::claim(s).await.unwrap().is_none());
     db.drop().await;
 }
+
+#[tokio::test]
+async fn research_graph_persists_source_observations_and_rechecks_live_visibility() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let memory = Arc::new(mathesis_core::memory::MemoryStores::default());
+    let mut ports = memory.ports(Arc::new(SystemClock), Arc::new(LatexReader));
+    let shared = Arc::new(db.store.clone());
+    ports.submissions = shared.clone();
+    ports.records = shared.clone();
+    ports.blobs = shared;
+    let app = App::new(ports, Policy::default(), BTreeSet::new());
+    let author = app
+        .ensure_service_account(&"synthetic-author".into(), "A. Synthetic", Role::Endorser)
+        .await
+        .unwrap();
+    let mut sources = vec![];
+    for n in 1..=2 {
+        let source = format!(
+            r"\documentclass{{article}}
+\title{{Synthetic manuscript {n}}}\author{{A. Synthetic}}
+\begin{{document}}\cite{{old}}
+\begin{{theorem}}A synthetic theorem.\end{{theorem}}\begin{{proof}}Synthetic proof.\end{{proof}}
+\begin{{thebibliography}}{{9}}\bibitem{{old}}E. Earlier, İpek Earlier, HATİCE ÇELİK and Ali İpek, An old result: On İdeals (1901). \doi{{10.1234/OLD}}\end{{thebibliography}}
+\end{{document}}"
+        );
+        let metadata:NewPaper=serde_json::from_value(serde_json::json!({
+            "title":format!("Synthetic manuscript {n}"),"processing_consent":"ai-review-request-2026-10-29",
+            "ai_disclosure":{"level":"none","statement":"Synthetic local fixture"},"authors":[{"name":"A. Synthetic"}]
+        })).unwrap();
+        let mut s = app
+            .submit_paper(
+                &author,
+                metadata,
+                Upload {
+                    filename: "main.tex".into(),
+                    bytes: source.into_bytes(),
+                },
+            )
+            .await
+            .unwrap();
+        let id = RecordId::from(format!("WP-2026-{n:04}"));
+        s.status = SubmissionStatus::Accepted { record: id.clone() };
+        let expected = s.revision;
+        s.revision += 1;
+        SubmissionStore::replace(&db.store, &s, expected)
+            .await
+            .unwrap();
+        // Synthetic publication fixture only: no real review/publication endpoint.
+        RecordStore::insert(
+            &db.store,
+            &Record {
+                id,
+                kind: s.kind,
+                publication: Some(Box::new(s.clone())),
+                submission: s.id.clone(),
+                title: s.title.clone(),
+                authors: s.authors.clone(),
+                basis: mathesis_core::policy::AdmissionBasis::EscapeWitness,
+                accepted_by: "test-fixture".into(),
+                accepted_at: Utc::now(),
+            },
+        )
+        .await
+        .unwrap();
+        sources.push(s);
+    }
+    // More unrelated inputs than the old 500-record focus window. They cannot
+    // consume search/focus pages. These are isolated local synthetic records.
+    let mut unrelated_submissions = Vec::new();
+    let mut unrelated_records = Vec::new();
+    for n in 3..=553 {
+        let mut current = sources[0].clone();
+        current.id = SubmissionId::from(format!("unrelated-{n}"));
+        current.title = format!("Unrelated manuscript {n}");
+        if n <= 35 {
+            let reference = &mut current.versions[0]
+                .bibliography
+                .as_mut()
+                .unwrap()
+                .references[0];
+            reference.doi = Some("10.1234/old-extra".into());
+            reference.title = Some("Unrelated citation".into());
+            reference.raw = "Unrelated citation".into();
+            reference.authors.clear();
+        } else {
+            current.versions[0].bibliography = None;
+        }
+        let id = RecordId::from(format!("WP-2026-{n:04}"));
+        current.status = SubmissionStatus::Accepted { record: id.clone() };
+        let record = Record {
+            id,
+            kind: current.kind,
+            publication: Some(Box::new(current.clone())),
+            submission: current.id.clone(),
+            title: current.title.clone(),
+            authors: current.authors.clone(),
+            basis: mathesis_core::policy::AdmissionBasis::EscapeWitness,
+            accepted_by: "test-fixture".into(),
+            accepted_at: Utc::now(),
+        };
+        unrelated_submissions.push(mongodb::bson::to_document(&current).unwrap());
+        unrelated_records.push(mongodb::bson::to_document(&record).unwrap());
+    }
+    db.store
+        .raw(SUBMISSIONS)
+        .insert_many(unrelated_submissions)
+        .await
+        .unwrap();
+    db.store
+        .raw(RECORDS)
+        .insert_many(unrelated_records)
+        .await
+        .unwrap();
+    // Exercise the actual Mongo and memory adapters/App on identical inputs.
+    // The Unicode bibliography above comes through the real LatexReader.
+    for document in db
+        .store
+        .raw(SUBMISSIONS)
+        .find(doc! {})
+        .await
+        .unwrap()
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap()
+    {
+        SubmissionStore::insert(
+            memory.as_ref(),
+            &from_document::<Submission>(document).unwrap(),
+        )
+        .await
+        .unwrap();
+    }
+    for document in db
+        .store
+        .raw(RECORDS)
+        .find(doc! {})
+        .await
+        .unwrap()
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap()
+    {
+        RecordStore::insert(memory.as_ref(), &from_document::<Record>(document).unwrap())
+            .await
+            .unwrap();
+    }
+    let memory_app = App::new(
+        memory.ports(Arc::new(SystemClock), Arc::new(LatexReader)),
+        Policy::default(),
+        BTreeSet::new(),
+    );
+    let restarted = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    let persisted = SubmissionStore::get(&restarted, &sources[0].id)
+        .await
+        .unwrap()
+        .unwrap();
+    let bibliography = persisted.versions[0].bibliography.as_ref().unwrap();
+    assert!(bibliography.references[0].raw.contains("E. Earlier"));
+    assert_eq!(
+        bibliography.references[0].doi.as_deref(),
+        Some("10.1234/OLD")
+    );
+    let query = || mathesis_core::app::ResearchGraphQuery {
+        focus: Some("doi:10.1234/old".into()),
+        ..Default::default()
+    };
+    let graph = app.research_graph(query()).await.unwrap();
+    assert_eq!(graph.nodes.len(), 3);
+    assert_eq!(graph.edges.len(), 2);
+    assert!(graph.nodes.iter().all(|n| !n.id.contains("sha256")));
+    assert!(graph.next_before.is_none());
+    assert_eq!(graph.coverage.len(), 2);
+    assert!(graph.edges.iter().all(|e| !e.display_text.contains(r"\bibitem") && e.display_text.contains("E. Earlier")));
+    // Candidate selection + domain confirmation both precede pagination.
+    // Text search, typed DOI, exact focus and reopening discovered identity agree.
+    for q in [
+        "An old result",
+        "E. Earlier",
+        "10.1234/old",
+        "DOI: 10.1234/OLD",
+        "İpek Earlier",
+        "hati",
+        "on i",
+        "Ali I",
+        "HATİCE ÇELİK",
+        "i\u{307}pek",
+    ] {
+        let selection = ResearchSearch::from_text(q);
+        assert!(
+            selection.matches_source(&RecordId::from("WP-2026-0001"), &sources[0]),
+            "domain: {q}"
+        );
+        let page = RecordStore::search_research(&db.store, &selection, 1, None)
+            .await
+            .unwrap();
+        let memory_page = RecordStore::search_research(memory.as_ref(), &selection, 1, None)
+            .await
+            .unwrap();
+        assert_eq!(page.items, memory_page.items, "Mongo/memory records: {q}");
+        assert_eq!(
+            page.next_before, memory_page.next_before,
+            "Mongo/memory cursor: {q}"
+        );
+        assert_eq!(page.items.len(), 1, "{q}");
+        assert_eq!(page.items[0].id.as_str(), "WP-2026-0002");
+        assert_eq!(page.next_before.as_deref(), Some("WP-2026-0002"));
+        let first = app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                q: Some(q.into()),
+                limit: Some(1),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(first.edges.len(), 1, "{q}");
+        let memory_first = memory_app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                q: Some(q.into()),
+                limit: Some(1),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&first).unwrap(),
+            serde_json::to_value(&memory_first).unwrap(),
+            "Mongo/memory App: {q}"
+        );
+        let second = app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                q: Some(q.into()),
+                before: first.next_before,
+                limit: Some(1),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(second.edges.len(), 1);
+        assert!(second.next_before.is_none());
+        assert_eq!(second.edges[0].record.as_str(), "WP-2026-0001");
+        let memory_second = memory_app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                q: Some(q.into()),
+                before: memory_first.next_before,
+                limit: Some(1),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&second).unwrap(),
+            serde_json::to_value(&memory_second).unwrap(),
+            "Mongo/memory second page: {q}"
+        );
+        let reopened = app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                focus: Some(second.edges[0].to.clone()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(reopened.edges.len(), 2);
+    }
+    // New private source metadata never leaks through the immutable record.
+    let mut revised = sources[0].clone();
+    let mut version = revised.versions[0].clone();
+    version.number = 2;
+    version.bibliography.as_mut().unwrap().references[0].doi = Some("10.1234/private".into());
+    revised.versions.push(version);
+    revised.title = "PRIVATE REVISION TITLE".into();
+    revised.status = SubmissionStatus::Draft;
+    let expected = revised.revision;
+    revised.revision += 1;
+    SubmissionStore::replace(&db.store, &revised, expected)
+        .await
+        .unwrap();
+    SubmissionStore::replace(memory.as_ref(), &revised, expected)
+        .await
+        .unwrap();
+    assert!(
+        !serde_json::to_string(&app.research_graph(query()).await.unwrap())
+            .unwrap()
+            .contains("PRIVATE")
+    );
+    for value in ["PRIVATE REVISION TITLE", "10.1234/private"] {
+        let graph = app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                q: Some(value.into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert!(graph.nodes.is_empty());
+        assert!(graph.coverage.is_empty());
+        let memory_graph = memory_app
+            .research_graph(mathesis_core::app::ResearchGraphQuery {
+                q: Some(value.into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&graph).unwrap(),
+            serde_json::to_value(memory_graph).unwrap()
+        );
+    }
+    // Live visibility must be checked before adapter pagination as well as projection.
+    let mut hidden = sources[1].clone();
+    hidden.analysis_visibility = Visibility::Private;
+    let expected = hidden.revision;
+    hidden.revision += 1;
+    SubmissionStore::replace(&db.store, &hidden, expected)
+        .await
+        .unwrap();
+    SubmissionStore::replace(memory.as_ref(), &hidden, expected)
+        .await
+        .unwrap();
+    let page = RecordStore::search_research(
+        &db.store,
+        &ResearchSearch::Identity("doi:10.1234/old".into()),
+        1,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(page.items[0].id.as_str(), "WP-2026-0001");
+    assert!(page.next_before.is_none());
+    let graph = app.research_graph(query()).await.unwrap();
+    assert_eq!(graph.nodes.len(), 2);
+    assert_eq!(graph.edges.len(), 1);
+    assert_eq!(graph.edges[0].version, 1);
+    assert_eq!(
+        serde_json::to_value(&graph).unwrap(),
+        serde_json::to_value(memory_app.research_graph(query()).await.unwrap()).unwrap()
+    );
+    let unicode_graph = app
+        .research_graph(mathesis_core::app::ResearchGraphQuery {
+            q: Some("hati".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(unicode_graph.edges.len(), 1);
+    assert_eq!(unicode_graph.edges[0].version, 1);
+    revised.analysis_visibility = Visibility::Private;
+    let expected = revised.revision;
+    revised.revision += 1;
+    SubmissionStore::replace(&db.store, &revised, expected)
+        .await
+        .unwrap();
+    SubmissionStore::replace(memory.as_ref(), &revised, expected)
+        .await
+        .unwrap();
+    assert!(app.research_graph(query()).await.unwrap().nodes.is_empty());
+    // Legacy accepted input without a record snapshot remains discoverable,
+    // without rewriting its serialized document or source digest.
+    let mut legacy = sources[0].clone();
+    legacy.id = SubmissionId::from("legacy-public-source");
+    let legacy_id = RecordId::from("WP-2025-0001");
+    legacy.status = SubmissionStatus::Accepted {
+        record: legacy_id.clone(),
+    };
+    SubmissionStore::insert(&db.store, &legacy).await.unwrap();
+    SubmissionStore::insert(memory.as_ref(), &legacy)
+        .await
+        .unwrap();
+    let legacy_record = Record {
+        id: legacy_id,
+        publication: None,
+        submission: legacy.id.clone(),
+        kind: legacy.kind,
+        title: legacy.title.clone(),
+        authors: legacy.authors.clone(),
+        basis: mathesis_core::policy::AdmissionBasis::EscapeWitness,
+        accepted_by: "test-fixture".into(),
+        accepted_at: Utc::now(),
+    };
+    RecordStore::insert(&db.store, &legacy_record)
+        .await
+        .unwrap();
+    RecordStore::insert(memory.as_ref(), &legacy_record)
+        .await
+        .unwrap();
+    assert_eq!(app.research_graph(query()).await.unwrap().edges.len(), 1);
+    let saved = SubmissionStore::get(&db.store, &legacy.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&saved).unwrap(),
+        serde_json::to_value(&legacy).unwrap()
+    );
+    for value in [
+        "hati",
+        "on i",
+        "Ali I",
+        "HATİCE ÇELİK",
+        "10.1234/OLD",
+        "math/0301234v2",
+        "absent citation",
+    ] {
+        let selection = ResearchSearch::from_text(value);
+        let mongo_page = RecordStore::search_research(&db.store, &selection, 1, None)
+            .await
+            .unwrap();
+        let memory_page = RecordStore::search_research(memory.as_ref(), &selection, 1, None)
+            .await
+            .unwrap();
+        assert_eq!(
+            mongo_page.items, memory_page.items,
+            "legacy/private records: {value}"
+        );
+        assert_eq!(
+            mongo_page.next_before, memory_page.next_before,
+            "legacy/private cursor: {value}"
+        );
+        let query = || mathesis_core::app::ResearchGraphQuery {
+            q: Some(value.into()),
+            ..Default::default()
+        };
+        let graph = app.research_graph(query()).await.unwrap();
+        let memory_graph = memory_app.research_graph(query()).await.unwrap();
+        assert_eq!(
+            serde_json::to_value(&graph).unwrap(),
+            serde_json::to_value(memory_graph).unwrap(),
+            "legacy/private App: {value}"
+        );
+        assert_eq!(
+            graph.edges.len(),
+            usize::from(!["math/0301234v2", "absent citation"].contains(&value)),
+            "legacy/private match: {value}"
+        );
+    }
+    db.drop().await;
+}

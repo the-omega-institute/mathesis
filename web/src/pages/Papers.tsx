@@ -1,3 +1,4 @@
+import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
 import { ManuscriptSources } from '../components/ManuscriptSources';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
@@ -332,6 +333,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           </section>
         ) : null}
         <Citation paper={s} locator={{ version: paper.publication?.version ?? latest?.number }} />
+        <Bibliography paper={paper} />
         {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
         {claims.length ? (
           <PaperResults paper={paper} />

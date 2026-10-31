@@ -1,3 +1,4 @@
+import { ResearchGraphPage } from './pages/ResearchGraph';
 import { FeedbackPage } from './pages/Feedback';
 import { BindingsPage, BindingPage, BindingProfilePage } from './pages/Bindings';
 import { FormalizationsPage } from './pages/Formalizations';
@@ -27,6 +28,8 @@ import { routePath, type Route } from './routing/routes';
 
 function titleFor(route: Route): string {
   switch (route.kind) {
+    case 'research_graph':
+      return 'Research graph';
     case 'feedback':
       return 'Knowledge proposal';
     case 'binding_profile':
@@ -87,6 +90,15 @@ function titleFor(route: Route): string {
 
 function Page({ route }: { route: Route }) {
   switch (route.kind) {
+    case 'research_graph':
+      return (
+        <ResearchGraphPage
+          key={routePath(route)}
+          focus={route.focus}
+          q={route.q}
+          before={route.before}
+        />
+      );
     case 'feedback':
       return <FeedbackPage key={routePath(route)} id={route.id} proposalKey={route.key} />;
     case 'binding_profile':
