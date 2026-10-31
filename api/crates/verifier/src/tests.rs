@@ -380,6 +380,12 @@ fn nested_outputs_cannot_follow_prepared_workspace_links() {
 
 #[test]
 fn supporting_module_issue_comments_are_inert_but_hash_commands_remain_forbidden() {
+    for source in [
+        "def quote : Char := '\"'\ndef text := \"/-\"\n#check True",
+        "def text := s!\"{\"/-\"}\"\n#check True",
+    ] {
+        assert!(forbidden_in(source, true).is_some());
+    }
     let module = "/- Historical (#15580; Refuted). /- Nested #42. -/ -/\n-- Source #123\ntheorem lemma : True := True.intro\n";
     assert!(forbidden_in(module, true).is_none());
     assert!(

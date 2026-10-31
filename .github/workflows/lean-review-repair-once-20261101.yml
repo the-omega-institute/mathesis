@@ -17,8 +17,8 @@ jobs:
       contents: read
       packages: write
     env:
-      SOURCE_COMMIT: 2e15c547702c10f900ce54425fcd70c14211bfd5
-      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:lean-review-repair-20261101
+      SOURCE_COMMIT: 13d18dc17275b44d547fbe97f27a153b48f737ce
+      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:lean-review-repair-20261101-v2
     steps:
       - uses: actions/checkout@v4
         with:
