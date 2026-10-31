@@ -12,6 +12,57 @@ pub struct LeanPreflight {
     pub requires_adapter: bool,
 }
 
+/// Ignore inert comments only when locating hash commands in supporting modules.
+/// Strings remain visible; nested Lean block comments and line comments are handled.
+fn has_hash_command(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    let mut depth = 0usize;
+    let mut string = false;
+    while i < bytes.len() {
+        if depth > 0 {
+            if bytes[i..].starts_with(b"/-") {
+                depth += 1;
+                i += 2;
+            } else if bytes[i..].starts_with(b"-/") {
+                depth -= 1;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+        if string {
+            if bytes[i] == b'#' {
+                return true;
+            }
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'"' {
+                string = false;
+            }
+        } else if bytes[i..].starts_with(b"--") {
+            i += bytes[i..]
+                .iter()
+                .position(|b| *b == b'\n')
+                .unwrap_or(bytes.len() - i);
+            continue;
+        } else if bytes[i..].starts_with(b"/-") {
+            depth = 1;
+            i += 2;
+            continue;
+        } else if bytes[i] == b'"' {
+            string = true;
+        } else if bytes[i] == b'#' {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
 pub fn lean_project_preflight(
     solution: &str,
     modules: &BTreeMap<String, String>,
@@ -163,8 +214,11 @@ pub fn lean_project_preflight(
         {
             report.errors.push(format!("{name}: construct {token} is outside the independent checker's restricted profile (comments are scanned too). Source can still be deposited."));
         }
-        if text.contains('#')
-            || text.contains('«')
+        if (if name == "Solution" {
+            text.contains('#')
+        } else {
+            has_hash_command(text)
+        }) || text.contains('«')
             || text.contains('»')
             || text.contains('\u{202e}')
         {
@@ -197,6 +251,35 @@ pub fn lean_project_preflight(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn preflight_accepts_issue_links_in_library_comments_but_not_commands() {
+        let solution = "import Target\nimport Research.Helper\ntheorem wishpool_solution : wishpool_target_prop := by trivial\n";
+        let module = "/- Historical (#15580; Refuted). /- Nested #42. -/ -/\n-- Source #123\ntheorem lemma : True := True.intro\n";
+        let modules = BTreeMap::from([("Research.Helper".into(), module.into())]);
+        let report = lean_project_preflight(solution, &modules, &BTreeMap::new(), "test");
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+        for suffix in [
+            "#check True",
+            "def text := \"/-\"\n#check True",
+            "-- comment\n#check True",
+        ] {
+            let modules =
+                BTreeMap::from([("Research.Helper".into(), format!("{module}\n{suffix}"))]);
+            let report = lean_project_preflight(solution, &modules, &BTreeMap::new(), "test");
+            assert!(
+                report.errors.iter().any(|error| error.contains("commands")),
+                "{suffix}"
+            );
+        }
+        let report = lean_project_preflight(
+            &format!("-- #123\n{solution}"),
+            &modules,
+            &BTreeMap::new(),
+            "test",
+        );
+        assert!(report.errors.iter().any(|error| error.contains("commands")));
+    }
+
     #[test]
     fn project_preflight_finds_missing_imports_versions_cycles_and_adapter() {
         let modules = BTreeMap::from([

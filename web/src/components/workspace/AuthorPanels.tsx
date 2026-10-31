@@ -3,10 +3,10 @@ import { bundleManuscript, withEvidence, type EvidenceInput } from '../../lib/so
 import { PROCESSING_REQUEST_VERSION } from '../../api/types';
 import { useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
-import type { Submission } from '../../api/types';
+import type { RefereeRound, Submission } from '../../api/types';
 import { useSession } from '../../auth/session';
 import { resultLabel } from '../../lib/statements';
-import { legacyFormalizationStatus } from '../../lib/formalizationAdvice';
+import { hasReviewedProof, legacyFormalizationStatus } from '../../lib/formalizationAdvice';
 import { VISIBILITY_LABELS } from '../../lib/labels';
 import { SOURCE_ACCEPT } from '../../lib/upload';
 import { Link } from '../../routing/router';
@@ -248,19 +248,17 @@ export function VisibilityChoice({
 /** Formalization items: the author approves or declines each proposal. */
 export function FormalizationForAuthor({
   submission,
+  round,
   onChange,
 }: {
   submission: Submission;
+  round?: RefereeRound;
   onChange: OnChange;
 }) {
   const items = submission.formalization.items;
   const publicWork = submission.analysis_visibility === 'public';
   const available = submission.claims.filter(
-    (claim) =>
-      claim.has_proof &&
-      claim.kind !== 'conjecture' &&
-      claim.kind !== 'question' &&
-      !items.some((item) => item.claim === claim.id),
+    (claim) => hasReviewedProof(claim, round) && !items.some((item) => item.claim === claim.id),
   );
   const [chosen, setChosen] = useState('');
   const selected = available.find((claim) => claim.id === chosen) ?? available[0];

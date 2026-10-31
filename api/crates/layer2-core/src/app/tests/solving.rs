@@ -896,9 +896,21 @@ fn faithful() -> FaithfulnessCheck {
     }
 }
 async fn paper_target(w: &World, author: &Caller, reviewer: &Caller) -> (Submission, RecordId) {
+    paper_target_with_markup(w, author, reviewer, true).await
+}
+
+async fn paper_target_with_markup(
+    w: &World,
+    author: &Caller,
+    reviewer: &Caller,
+    has_proof: bool,
+) -> (Submission, RecordId) {
     let paper = w
         .review_paper(author, &w.submit(author, "t", false).await)
         .await;
+    let mut paper = paper;
+    paper.claims[0].has_proof = has_proof;
+    w.app.save(&mut paper).await.unwrap();
     w.app
         .begin_referee_round(reviewer, &paper.id)
         .await
@@ -2043,4 +2055,28 @@ async fn legacy_formalization_receipt_recovers_without_rechecking_the_proof() {
             .receipt,
         receipt
     );
+}
+
+#[tokio::test]
+async fn audited_prose_proof_can_reach_the_shared_formalization_target_without_rewriting_extraction()
+ {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (paper, record) = paper_target_with_markup(&w, &author, &reviewer, false).await;
+    assert!(!paper.claims[0].has_proof);
+    assert!(paper.approved_statement(&"C1".into()));
+    assert_eq!(
+        w.app
+            .formalization_files(&reviewer, &paper.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(w.app.target(&record, &"C1".into()).await.is_ok());
+    assert!(matches!(
+        paper.formalization.items[0].state,
+        ItemState::Approved | ItemState::InProgress
+    ));
 }

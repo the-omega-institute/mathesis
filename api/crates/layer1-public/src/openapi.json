@@ -6590,6 +6590,11 @@
           },
           "has_execution_limits": {
             "type": "boolean"
+          },
+          "waiting_since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "First recorded temporary service failure for this current review; omitted when service communication resumes. Contains no provider details."
           }
         }
       },

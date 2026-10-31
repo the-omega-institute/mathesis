@@ -110,6 +110,9 @@ pub struct RunState {
     pub response_id: Option<String>,
     pub next_chunk: usize,
     pub deadline: u64,
+    /// First observed transient service failure; cleared after a successful read/write.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waiting_since: Option<u64>,
     pub input: String,
     /// Pin transport framing and recovery behavior for newly admitted runs.
     #[serde(skip_serializing_if = "legacy_delivery_contract")]
@@ -399,11 +402,18 @@ impl Client {
                 return Err(invalid("CMA work cancelled or superseded"));
             }
             let result = self.advance(store, chunks, state).await;
+            if result.is_ok() && state.waiting_since.take().is_some() {
+                Self::save(store, state).await?;
+            }
             match result {
                 Ok(true) => return Ok(()),
                 Ok(false) => {}
                 Err(e @ ReviewError::PersistenceFence) => return Err(e),
                 Err(e) if transient(&e) => {
+                    if state.waiting_since.is_none() {
+                        state.waiting_since = Some(now());
+                        Self::save(store, state).await?;
+                    }
                     tracing::warn!(%e, "CMA request will resume with the same identity")
                 }
                 Err(e) => return Err(e),

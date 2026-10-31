@@ -57,7 +57,8 @@ pub struct Claim {
     /// The statement as LaTeX.
     pub statement: String,
     pub role: ClaimRole,
-    /// A proof follows the statement in the paper.
+    /// Source extraction recognized proof markup. False does not establish
+    /// absence of a proof; the source audit can recognize proofs in prose.
     #[serde(default)]
     pub has_proof: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]

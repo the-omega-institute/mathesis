@@ -1,4 +1,4 @@
-import type { RefereeRound, Submission } from '../api/types';
+import type { Claim, RefereeRound, Submission } from '../api/types';
 import { manuscriptReferences, resultLabel } from './statements';
 
 export function formalizationAdvice(submission: Submission, round?: RefereeRound) {
@@ -8,10 +8,7 @@ export function formalizationAdvice(submission: Submission, round?: RefereeRound
   return candidates.flatMap((candidate) => {
     const claim = submission.claims.find(
       (item) =>
-        item.id === candidate.claim &&
-        item.has_proof &&
-        item.kind !== 'conjecture' &&
-        item.kind !== 'question',
+        item.id === candidate.claim && item.kind !== 'conjecture' && item.kind !== 'question',
     );
     if (!claim) return [];
     return [
@@ -26,6 +23,16 @@ export function formalizationAdvice(submission: Submission, round?: RefereeRound
       },
     ];
   });
+}
+
+/** Source extraction is a hint; an audit can recognize a proof written in prose. */
+export function hasReviewedProof(claim: Claim, round?: RefereeRound): boolean {
+  if (claim.kind === 'conjecture' || claim.kind === 'question') return false;
+  const reading =
+    round?.audit?.state.state === 'done'
+      ? round.audit.state.result.claims.find((item) => item.claim === claim.id)
+      : undefined;
+  return reading ? reading.correctness === 'correct' : claim.has_proof;
 }
 
 export function formalizationAdviceText(submission: Submission, round?: RefereeRound): string {

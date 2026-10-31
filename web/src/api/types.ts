@@ -146,6 +146,7 @@ export type FormalizationSuggestion = {
   plan: string;
 };
 export type RefereeRound = {
+  waiting_since?: string;
   letter_contract?: number;
   formalization_suggestions?: FormalizationSuggestion[];
   research_suggestions?: {
@@ -1411,6 +1412,7 @@ export type FeedbackExport = {
 };
 
 export type ReviewSummary = {
+  waiting_since?: string;
   round: number | null;
   version: number | null;
   claims_revision: number;

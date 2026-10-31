@@ -47,17 +47,19 @@ export function PaperStanding({
           ? decisionWaitingMessage(submission)
           : standing.headline.startsWith('Your response')
             ? 'Your response is saved. A follow-up review will address it.'
-            : standing.headline === 'Review could not finish'
-              ? 'Your manuscript is saved. The review needs attention before it can continue.'
-              : standing.delivered
-                ? status.state === 'in_review'
-                  ? 'Your manuscript is under review. The final report will appear here when it is ready.'
-                  : 'Your review report is ready below.'
-                : status.state === 'in_review'
-                  ? 'Your manuscript is under review. The final report will appear here when the review is complete.'
-                  : !standing.round
-                    ? 'Review details are currently unavailable. Your manuscript is saved.'
-                    : 'Your final review report is being prepared.';
+            : standing.waitingForService
+              ? standing.doing
+              : standing.headline === 'Review could not finish'
+                ? 'Your manuscript is saved. The review needs attention before it can continue.'
+                : standing.delivered
+                  ? status.state === 'in_review'
+                    ? 'Your manuscript is under review. The final report will appear here when it is ready.'
+                    : 'Your review report is ready below.'
+                  : status.state === 'in_review'
+                    ? 'Your manuscript is under review. The final report will appear here when the review is complete.'
+                    : !standing.round
+                      ? 'Review details are currently unavailable. Your manuscript is saved.'
+                      : 'Your final review report is being prepared.';
   return (
     <section className={`standing standing-${tone}`} aria-label="Paper standing">
       <div className="standing-head">

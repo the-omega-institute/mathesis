@@ -77,8 +77,58 @@ pub fn digest(text: &str) -> String {
     format!("{:x}", Sha256::digest(text.as_bytes()))
 }
 
-/// Conservative shared scan. Scanning comments as well is intentional: nothing
-/// hidden in comments, strings, or quoted identifiers can stand in for a declaration.
+/// Ignore inert comments only when locating hash commands in supporting modules.
+/// Strings remain visible; nested Lean block comments and line comments are handled.
+fn has_hash_command(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    let mut depth = 0usize;
+    let mut string = false;
+    while i < bytes.len() {
+        if depth > 0 {
+            if bytes[i..].starts_with(b"/-") {
+                depth += 1;
+                i += 2;
+            } else if bytes[i..].starts_with(b"-/") {
+                depth -= 1;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+        if string {
+            if bytes[i] == b'#' {
+                return true;
+            }
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'"' {
+                string = false;
+            }
+        } else if bytes[i..].starts_with(b"--") {
+            i += bytes[i..]
+                .iter()
+                .position(|b| *b == b'\n')
+                .unwrap_or(bytes.len() - i);
+            continue;
+        } else if bytes[i..].starts_with(b"/-") {
+            depth = 1;
+            i += 2;
+            continue;
+        } else if bytes[i] == b'"' {
+            string = true;
+        } else if bytes[i] == b'#' {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Conservative root scan. Comments never stand in for target/solution declarations.
 pub fn forbidden(text: &str) -> Option<String> {
     forbidden_in(text, false)
 }
@@ -119,7 +169,13 @@ fn forbidden_in(text: &str, library: bool) -> Option<String> {
             return Some(format!("forbidden construct: {token}"));
         }
     }
-    if text.contains('#') || text.contains('«') || text.contains('»') || text.contains('\u{202e}')
+    if (if library {
+        has_hash_command(text)
+    } else {
+        text.contains('#')
+    }) || text.contains('«')
+        || text.contains('»')
+        || text.contains('\u{202e}')
     {
         return Some("commands and quoted identifiers are forbidden".into());
     }

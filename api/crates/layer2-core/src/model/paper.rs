@@ -521,9 +521,7 @@ impl Submission {
 
     pub fn approved_statement(&self, claim: &ClaimId) -> bool {
         self.kind != SubmissionKind::Conjecture
-            && self
-                .claim(claim)
-                .is_some_and(|c| !c.kind.is_open() && c.has_proof)
+            && self.claim(claim).is_some_and(|c| !c.kind.is_open())
             && self.formalization.item(claim).is_some_and(|i| {
                 matches!(
                     i.state,

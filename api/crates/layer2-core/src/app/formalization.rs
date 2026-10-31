@@ -73,7 +73,21 @@ impl App {
         let statement = submission
             .claim(claim)
             .ok_or_else(|| CoreError::not_found("statement", claim.as_str()))?;
-        if statement.kind.is_open() || !statement.has_proof {
+        // Extraction only detects conventional proof markup. The current audit
+        // can recognize a proof in prose without rewriting confirmed source data.
+        let (file, _) = self.referee_file(id).await?;
+        let reading = file
+            .current()
+            .filter(|round| {
+                Some(round.version) == submission.current_version().map(|v| v.number)
+                    && round.claims_revision == submission.claims_revision
+            })
+            .and_then(|round| round.audit.done())
+            .and_then(|audit| audit.claims.iter().find(|reading| &reading.claim == claim));
+        let proved = reading.map_or(statement.has_proof, |reading| {
+            reading.correctness == Correctness::Correct
+        });
+        if statement.kind.is_open() || !proved {
             return Err(CoreError::invalid(
                 "only proved paper statements may be formalized",
             ));

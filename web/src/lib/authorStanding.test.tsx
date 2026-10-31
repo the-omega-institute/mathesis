@@ -296,3 +296,18 @@ describe('one author standing for every state', () => {
     },
   );
 });
+
+it('shows recorded service delays without exposing execution details or offering revision', () => {
+  const delayed = { ...stageRound('audit'), waiting_since: at };
+  const report = file(delayed);
+  const standing = authorStanding(submission, report, now);
+  expect(standing.headline).toBe('Review temporarily delayed');
+  render(<PaperStanding submission={submission} file={report} onRevise={() => {}} />);
+  expect(screen.getByRole('status')).toHaveTextContent('completed work are saved');
+  expect(screen.getByRole('status')).toHaveTextContent('continue automatically');
+  expect(screen.queryByRole('button', { name: /revis/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).not.toHaveTextContent(/CMA|503|Codex|audit/i);
+  expect(authorStanding(submission, file(stageRound('audit')), now).waitingForService).toBe(false);
+  expect(authorStanding(accepted, report, now).headline).toBe('Accepted');
+  expect(authorStanding(privatePaper, file(delayed, true), now).waitingForService).toBe(false);
+});

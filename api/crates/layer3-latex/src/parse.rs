@@ -546,6 +546,50 @@ fn deferred_proofs(source: &str) -> BTreeSet<String> {
     labels
 }
 
+/// Explanatory prose may separate a statement and its proof. Stop at the
+/// next statement or section, and never borrow a proof naming another result.
+fn following_proof(
+    source: &str,
+    label: Option<&str>,
+    environments: &BTreeMap<String, String>,
+) -> bool {
+    let boundary = ["\\section", "\\subsection", "\\subsubsection"]
+        .iter()
+        .filter_map(|command| source.find(command))
+        .min()
+        .unwrap_or(source.len());
+    let source = &source[..boundary];
+    let mut from = 0;
+    while let Some(found) = source[from..].find("\\begin{") {
+        let start = from + found + "\\begin".len();
+        let Some((environment, end)) = braced(source, start) else {
+            return false;
+        };
+        from = end;
+        if environment.trim() == "proof" {
+            let references: Vec<_> = bracketed(source, end)
+                .map(|(heading, _)| {
+                    ["\\ref", "\\cref", "\\Cref", "\\autoref"]
+                        .iter()
+                        .flat_map(|command| all_arguments(heading, command))
+                        .collect()
+                })
+                .unwrap_or_default();
+            return references.is_empty()
+                || label.is_some_and(|label| {
+                    references
+                        .iter()
+                        .flat_map(|reference| reference.split(','))
+                        .any(|reference| reference.trim() == label)
+                });
+        }
+        if environments.contains_key(environment.trim()) {
+            return false;
+        }
+    }
+    false
+}
+
 fn command_argument<'a>(source: &'a str, command: &str) -> Option<&'a str> {
     let mut from = 0;
     while let Some(found) = source[from..].find(command) {
@@ -798,7 +842,7 @@ pub fn parse(files: &Files) -> LatexResult<ParsedPaper> {
                 .map(|(_, e)| skip_space(&source, e))
                 .unwrap_or(k + 1);
         }
-        let has_proof = source[k..].starts_with("\\begin{proof}")
+        let has_proof = following_proof(&source[k..], label.as_deref(), &envs)
             || label.as_ref().is_some_and(|l| deferred.contains(l));
         let section = sections
             .iter()
@@ -872,6 +916,34 @@ Every run has length at most $2$, and 100\% of them are short.
 The spectrum is $\{1,2\}$ for every $r$.
 \end{conj*}
 "#;
+
+    #[test]
+    fn recognizes_proofs_after_explanatory_prose_without_borrowing_other_proofs() {
+        let source = r"\documentclass{article}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\begin{document}
+\begin{theorem}\label{thm:main} A claim proved in prose below. \end{theorem}
+\section{The construction}
+Here is the prose argument, without a proof environment.
+\begin{proposition}\label{prop:lift} The range is a union of segments. \end{proposition}
+The right-hand side describes the segments joining the specified points.
+\begin{proof} Directly compute the norming pairs. \end{proof}
+\begin{proposition}\label{prop:unproved} Another assertion. \end{proposition}
+\begin{proof}[Proof of Proposition~\ref{prop:elsewhere}] A different proof. \end{proof}
+\begin{proposition}\label{prop:next} A final assertion. \end{proposition}
+\begin{proof} The last proof. \end{proof}
+\end{document}";
+        let paper = parse(&files(&[("main.tex", source)])).unwrap();
+        assert_eq!(
+            paper
+                .statements
+                .iter()
+                .map(|s| s.has_proof)
+                .collect::<Vec<_>>(),
+            [false, true, false, true]
+        );
+    }
 
     #[test]
     fn reads_structure() {

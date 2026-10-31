@@ -530,9 +530,44 @@ pub struct ReviewSummary {
     pub in_progress: bool,
     pub interrupted: bool,
     pub has_execution_limits: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiting_since: Option<DateTime<Utc>>,
 }
 
 impl RefereeFile {
+    /// A recorded service failure, never elapsed time or a model's description.
+    fn review_waiting_since(&self, round: &RefereeRound) -> Option<DateTime<Utc>> {
+        self.agent_steps
+            .values()
+            .filter_map(|step| {
+                let attempt = step.cma_attempts.last()?;
+                if step.version != round.version
+                    || step.claims_revision != round.claims_revision
+                    || attempt.identity.round != Some(round.number)
+                    || attempt.outcome != super::CmaOutcome::Running
+                {
+                    return None;
+                }
+                let running = match attempt.identity.kind {
+                    super::CmaStepKind::Audit => {
+                        matches!(round.audit.state, StepState::Running { .. })
+                    }
+                    super::CmaStepKind::Advice => {
+                        matches!(round.advice.state, StepState::Running { .. })
+                    }
+                    super::CmaStepKind::Letter => {
+                        matches!(round.letter.state, StepState::Running { .. })
+                    }
+                    _ => false,
+                };
+                if !running {
+                    return None;
+                }
+                DateTime::from_timestamp(step.progress["waiting_since"].as_i64()?, 0)
+            })
+            .min()
+    }
+
     /// A small deterministic index over every source/claim revision in this history.
     pub fn summary_index(&self) -> Vec<ReviewSummary> {
         self.rounds
@@ -580,6 +615,10 @@ impl RefereeFile {
             version,
             claims_revision,
             delivered_at,
+            waiting_since: delivered_at
+                .is_none()
+                .then(|| current.and_then(|round| self.review_waiting_since(round)))
+                .flatten(),
             in_progress: !failed
                 && delivered_at.is_none()
                 && progress
@@ -623,6 +662,8 @@ pub struct RefereeView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RefereeRoundView {
     pub letter_contract: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waiting_since: Option<DateTime<Utc>>,
     /// Selected mathematical plans, available only after a letter for this round.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub formalization_suggestions: Option<Vec<FormalizationSuggestion>>,
@@ -822,6 +863,14 @@ impl<T: Clone> Step<T> {
 
 impl RefereeFile {
     pub fn view(self, staff: bool) -> RefereeView {
+        let waiting: std::collections::BTreeMap<_, _> = self
+            .rounds
+            .iter()
+            .filter_map(|round| {
+                self.review_waiting_since(round)
+                    .map(|at| (round.number, at))
+            })
+            .collect();
         let mut attempts: Vec<super::CmaAttemptView> = self
             .agent_steps
             .values()
@@ -864,6 +913,9 @@ impl RefereeFile {
                 .into_iter()
                 .map(|r| RefereeRoundView {
                     letter_contract: r.letter_contract,
+                    waiting_since: (!delivered.contains(&r.number))
+                        .then(|| waiting.get(&r.number).copied())
+                        .flatten(),
                     formalization_suggestions: delivered
                         .contains(&r.number)
                         .then(|| r.formalization_suggestions())
@@ -968,6 +1020,56 @@ pub struct AgentStepUpdate {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn service_wait_is_current_revision_bound_and_never_exposes_provider_details() {
+        let at = "2026-11-01T00:00:00Z".parse::<DateTime<Utc>>().unwrap();
+        let mut file: RefereeFile = serde_json::from_value(serde_json::json!({
+            "id":"sample", "revision":1, "letters":[],
+            "rounds":[{
+                "number":1,"version":1,"claims_revision":1,"started_at":at,
+                "referee":{"attempts":1,"state":{"state":"pending"}},
+                "audit":{"attempts":1,"state":{"state":"running","since":at}},
+                "advice":{"attempts":0,"state":{"state":"pending"}},
+                "formal":{"attempts":0,"state":{"state":"pending"}},
+                "letter":{"attempts":0,"state":{"state":"pending"}}
+            }],
+            "agent_steps":{"private-key":{
+                "version":1,"claims_revision":1,
+                "progress":{"waiting_since":at.timestamp(),"agent_id":"private-agent","failure_detail":"private-error"},
+                "cma_attempts":[{
+                    "identity":{"kind":"audit","round":1}, "step":"r1:audit", "ordinal":0,
+                    "payer":"operator","workspace":"private-workspace","reason":"byok_disabled",
+                    "admitted_at":at,"outcome":"running"
+                }]
+            }}
+        })).unwrap();
+        assert_eq!(file.summary_for(Some(1), 1).waiting_since, Some(at));
+        assert_eq!(file.clone().view(false).rounds[0].waiting_since, Some(at));
+        let view = serde_json::to_string(&file.clone().view(false)).unwrap();
+        for private in [
+            "private-key",
+            "private-agent",
+            "private-error",
+            "private-workspace",
+        ] {
+            assert!(!view.contains(private));
+        }
+        assert!(file.summary_for(Some(2), 1).waiting_since.is_none());
+        file.agent_steps
+            .get_mut("private-key")
+            .unwrap()
+            .claims_revision = 2;
+        assert!(file.summary_for(Some(1), 1).waiting_since.is_none());
+        file.agent_steps
+            .get_mut("private-key")
+            .unwrap()
+            .claims_revision = 1;
+        file.rounds[0].audit.state = StepState::Skipped {
+            reason: "finished".into(),
+        };
+        assert!(file.summary_for(Some(1), 1).waiting_since.is_none());
+    }
 
     #[test]
     fn progress_never_exposes_payloads_or_provider_details() {

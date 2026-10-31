@@ -34,6 +34,10 @@ pipeline; only their labels differ.
 - **Statements**: the author confirms kind, main or supporting role and
   dependencies. Papers/notes require a proved main result; conjectures require a
   main conjecture or question. Stored documents without `kind` load as `paper`.
+  Extracted `has_proof` records recognized proof markup, not proof correctness or
+  absence. A current source audit may establish a prose proof for formalization
+  eligibility without rewriting confirmed statements. Recommendations retain such
+  results; approval, target confirmation and independent verification remain separate.
 - **Analysis**: for papers/notes, whether prior work states or implies a result,
   and whether its proof carries a live intermediate proposition or conclusion (an escape
   witness) or follows by binding alone. Conjectures are checked for well-posedness,
@@ -420,6 +424,9 @@ from `develop`. No force pushes to either.
   retryability, including hidden advice and letter stages. Results, free-form errors
   and provider metadata never enter this progress projection. Only an actual delivered
   letter establishes delivery; queued author replies remain visibly awaiting re-review.
+  A persisted temporary service failure adds `waiting_since` to the current round
+  and review summary. Successful provider communication clears it. It preserves
+  the original request identity and deadline; it is never inferred from elapsed time.
 - Staff receive full review history. Submitter and linked co-authors receive
   reports, audits, sent letters and projected Lean outcomes through the existing
   referee GET; advice, drafts, provider metadata and Lean files remain private.
@@ -677,6 +684,9 @@ funded; local elaboration and proof verification carry no CMA payer.
   Supporting modules may contain namespace/section blocks and Mathlib submodule imports;
   each Mathlib import must resolve to a prepared artifact before Lean runs. Root target
   and adapter scans remain strict, including comments. Preflight is not a receipt.
+  Supporting modules may contain issue-number hashes in line or nested block
+  comments. Hash commands outside those comments remain forbidden; all other
+  restricted-construct, import, target, axiom and provenance checks are unchanged.
 - Manuscript archives may declare `mathesis-evidence.json` schema 1: up to 100
   relative-path attachments with kind, description, optional claims and full Git revision.
   Derive byte counts and SHA-256 from actual archive files; bind inventory to PaperVersion.
@@ -848,8 +858,8 @@ funded; local elaboration and proof verification carry no CMA payer.
   improvements and two proposed directions, and a short formalization status. Keep
   full findings and plans in a closed Detailed report disclosure and include them in
   the single download. Never truncate mathematical sentences or treat an excerpt as
-  the full report. Preserve named/numbered results; use a section topic directly when
-  a legacy result lacks a title, without inventing “Theorem in …” labels.
+  the full report. Preserve named/numbered results; when a legacy result lacks a title or number,
+  use its result type without replacing it with a section heading or inventing a number.
 
 ## 12. Imported contribution history
 
