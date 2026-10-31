@@ -833,6 +833,7 @@ export type Entrant = {
   revision: number;
 };
 export type VerificationReceipt = {
+  used_constants?: string[];
   verdict: 'proved' | 'disproved' | 'rejected';
   reason: string;
   target_digest: string;
@@ -843,6 +844,7 @@ export type VerificationReceipt = {
   duration: number;
 };
 export type VerifiedAttempt = {
+  reuses?: ProofReuse[];
   modules?: Record<string, string>;
   attribution?: FormalizationAttribution;
   id: string;
@@ -852,6 +854,8 @@ export type VerifiedAttempt = {
   also_verified: boolean;
 };
 export type AttemptView = {
+  intermediate?: IntermediateProposition;
+  reuses?: ProofReuse[];
   modules?: Record<string, string>;
   attribution?: FormalizationAttribution;
   id: string;
@@ -881,6 +885,14 @@ export type LeaderboardRow = {
   last_solve: string;
 };
 export type EntrantProfile = {
+  contributions?: {
+    origin: ProofReuse;
+    intermediate: IntermediateProposition;
+    source_title: string;
+    source_authors: Author[];
+    attribution: FormalizationAttribution | null;
+    receipt: VerificationReceipt;
+  }[];
   others: number;
   total: number;
   errors_found: number;
@@ -1480,4 +1492,91 @@ export type ResearchGraph = {
   coverage: { record: string; version: number; method: string | null; limitations: string[] }[];
   next_before: string | null;
   scope: string;
+};
+
+export type FormalizationWork = {
+  target_digest: string;
+  total_generations: number;
+  used_generations: number;
+  expires_at: string | null;
+  paused: boolean;
+  state: 'not_authorized' | 'paused' | 'expired' | 'completed' | 'allowance_used' | 'active';
+  can_control: boolean;
+  managed: boolean;
+};
+export type FormalizationControl = {
+  target_digest: string;
+  total_generations: number;
+  expires_at: string;
+  paused: boolean;
+  change_allowance?: boolean;
+};
+export type IntermediateProposition = {
+  name: string;
+  title: string;
+  proposition: string;
+  license: string;
+};
+export type ProofReuse = {
+  record: string;
+  claim: string;
+  version: number;
+  claims_revision: number;
+  attempt: string;
+  target_digest: string;
+  solution_digest: string;
+  declaration: string;
+};
+export type CheckedContribution = {
+  origin: ProofReuse;
+  intermediate: IntermediateProposition;
+  authors: Author[];
+  contributor: Entrant;
+  attribution: FormalizationAttribution | null;
+  source_sha256: string;
+  receipt: VerificationReceipt;
+  verification_request: {
+    target: string;
+    target_digest: string;
+    toolchain: string;
+    solution: string;
+    modules: Record<string, string>;
+    required_declaration?: string;
+    inspect_constants?: string[];
+  };
+};
+export type NewIntermediate = {
+  expected_target: string;
+  intermediate: IntermediateProposition;
+  modules?: Record<string, string>;
+  deposit?: string;
+  as_agent?: string;
+};
+export type ReusingAttempt = {
+  expected_target: string;
+  solution: string;
+  contributions: string[];
+  modules?: Record<string, string>;
+  as_agent?: string;
+  note?: string;
+};
+export type ResultLink = {
+  record: string;
+  claim: string;
+  version: number;
+  claims_revision: number;
+  title: string;
+  label: string;
+  authors: Author[];
+};
+export type ResultUse = {
+  result: ResultLink;
+  used_result: ResultLink;
+  contribution: IntermediateProposition;
+  contributor: Entrant;
+  attribution: FormalizationAttribution | null;
+  attempt: string;
+  source_attempt: string;
+  basis: 'checked_proof_term';
+  joint_context: ProofReuse[];
 };

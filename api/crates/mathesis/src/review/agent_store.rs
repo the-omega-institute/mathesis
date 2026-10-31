@@ -195,6 +195,34 @@ impl RunStore for AgentStore {
             .submission(&self.caller, &self.job.submission)
             .await
             .map_err(|_| fence())?;
+        if let Some(identity) = self.logical_step.strip_prefix("agent-formalization:") {
+            let parts: Vec<_> = identity.split(':').collect();
+            let Some(round) = parts
+                .get(2)
+                .and_then(|r| r.strip_prefix("round"))
+                .and_then(|r| r.parse::<u32>().ok())
+            else {
+                return Ok(false);
+            };
+            let SubmissionStatus::Accepted { record } = &paper.status else {
+                return Ok(false);
+            };
+            if parts.len() != 3
+                || !self
+                    .app
+                    .formalization_generation_active(
+                        &self.caller,
+                        record,
+                        &parts[0].into(),
+                        parts[1],
+                        round,
+                    )
+                    .await
+                    .map_err(|_| fence())?
+            {
+                return Err(fence());
+            }
+        }
         if let Some(key) = self
             .logical_step
             .strip_prefix("research:")

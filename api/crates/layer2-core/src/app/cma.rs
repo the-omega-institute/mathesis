@@ -147,6 +147,8 @@ impl App {
             return Err(CoreError::conflict("job lease lost"));
         }
         let paper = self.submission(caller, id).await?;
+        self.check_public_generation_step(caller, &paper, logical_step)
+            .await?;
         let (mut file, stored) = self.referee_file(id).await?;
         if let Some(key) = logical_step
             .strip_prefix("research:")

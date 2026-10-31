@@ -10,6 +10,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 pub struct VerificationBundle {
     pub schema_version: u32,
+    pub reused_contributions: Vec<super::CheckedContribution>,
     pub record: RecordId,
     pub claim: ClaimId,
     pub version: u32,
@@ -35,6 +36,10 @@ impl App {
             .into_iter()
             .find(|a| a.id == attempt)
             .ok_or_else(|| CoreError::not_found("verified attempt", attempt))?;
+        let mut reused_contributions = vec![];
+        for pin in &proof.reuses {
+            reused_contributions.push(self.checked_contribution(&pin.attempt).await?);
+        }
         let current = self.conjecture_source(record).await?;
         let current_target = self.target(record, claim).await?;
         if current.revision != source.revision
@@ -50,7 +55,12 @@ impl App {
             .current_version()
             .ok_or_else(|| CoreError::conflict("source version unavailable"))?;
         Ok(VerificationBundle {
-            schema_version: 1,
+            schema_version: if reused_contributions.is_empty() {
+                1
+            } else {
+                2
+            },
+            reused_contributions,
             record: record.clone(),
             claim: claim.clone(),
             version: version.number,
@@ -62,6 +72,8 @@ impl App {
                 .statement
                 .clone(),
             verification_request: VerificationRequest {
+                required_declaration: None,
+                inspect_constants: proof.reuses.iter().map(|r| r.declaration.clone()).collect(),
                 modules: proof.modules.clone(),
                 target: target.lean,
                 target_digest: target.digest,

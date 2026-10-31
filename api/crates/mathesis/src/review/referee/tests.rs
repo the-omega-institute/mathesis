@@ -5564,3 +5564,248 @@ async fn feedback_worker_persists_an_unavailable_observation_without_fabricating
             .contains("knowledge source unavailable")
     );
 }
+
+struct RejectedProofFixture;
+#[async_trait]
+impl mathesis_core::ports::Verifier for RejectedProofFixture {
+    async fn verify(
+        &self,
+        r: &mathesis_core::model::VerificationRequest,
+    ) -> mathesis_core::CoreResult<mathesis_core::model::VerificationReceipt> {
+        Ok(mathesis_core::model::VerificationReceipt {
+            used_constants: vec![],
+            verdict: mathesis_core::model::Verdict::Rejected,
+            reason: "Fixture rejection only".into(),
+            target_digest: r.target_digest.clone(),
+            solution_digest: mathesis_core::model::lean_solution_digest(&r.solution, &r.modules),
+            toolchain: r.toolchain.clone(),
+            axioms: vec![],
+            checked_at: chrono::Utc::now(),
+            duration: 0,
+        })
+    }
+}
+/// Provider fixtures exercise delivery identity and finite loops, never mathematical verification.
+struct FiniteProofTransport {
+    inner: ManagedTransport,
+    identities: Mutex<std::collections::BTreeMap<String, String>>,
+    uncertain_once: AtomicBool,
+}
+#[async_trait]
+impl mathesis_review::cma::Transport for FiniteProofTransport {
+    async fn request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<serde_json::Value>,
+        key: Option<&str>,
+    ) -> ReviewResult<mathesis_review::cma::TransportReply> {
+        use serde_json::json;
+        if method == "POST" && path.ends_with("/agents") {
+            let mut identities = self.identities.lock().await;
+            let next = identities.len() + 1;
+            let id = identities
+                .entry(key.expect("idempotency key").into())
+                .or_insert_with(|| format!("agt_{next}"))
+                .clone();
+            drop(identities);
+            if self.uncertain_once.swap(false, Ordering::SeqCst) {
+                return std::future::pending().await;
+            }
+            return Ok(mathesis_review::cma::TransportReply {
+                status: 200,
+                body: json!({"id":id}).to_string(),
+                response_id: None,
+            });
+        }
+        if method == "POST" && path.ends_with("/responses") {
+            let agent = path.split('/').nth(3).unwrap();
+            let n: usize = agent.strip_prefix("agt_").unwrap().parse().unwrap();
+            let answer = match n {
+                1 => "{}",
+                2 => "{\"solution\":\"\"}",
+                3 => "malformed JSON",
+                _ => "{\"solution\":\"sorry\"}",
+            };
+            let response = format!("resp_{agent}");
+            self.inner
+                .answers
+                .lock()
+                .await
+                .insert(response.clone(), answer.into());
+            return Ok(mathesis_review::cma::TransportReply {
+                status: 200,
+                body: String::new(),
+                response_id: Some(response),
+            });
+        }
+        mathesis_review::cma::Transport::request(&self.inner, method, path, body, key).await
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn public_proof_worker_resumes_uncertain_admission_and_stops_empty_malformed_rejected_output()
+{
+    use mathesis_core::model::*;
+    let mut w = World::new(vec![completed("accept")], true).await;
+    w.run_round().await;
+    let mut ports = w.stores.ports(Arc::new(SystemClock), Arc::new(LatexReader));
+    ports.verifier = Arc::new(RejectedProofFixture);
+    w.worker.app = App::new(ports, Policy::default(), BTreeSet::new());
+    let paper = w
+        .worker
+        .app
+        .submission(&w.author, &w.paper.id)
+        .await
+        .unwrap();
+    let SubmissionStatus::Accepted { record } = paper.status else {
+        panic!("accepted fixture")
+    };
+    let claim = "C1".into();
+    w.worker
+        .app
+        .respond_to_formalization(&w.author, &paper.id, &claim, true, String::new())
+        .await
+        .unwrap();
+    let paper = w
+        .worker
+        .app
+        .record_lean_statement(
+            &w.worker.reviewer,
+            &paper.id,
+            1,
+            paper.claims_revision,
+            &claim,
+            "import Mathlib\ndef wishpool_target_prop : Prop := True\n".into(),
+            "fixture".into(),
+            "Fixture target only".into(),
+            None,
+            FaithfulnessCheck {
+                verdict: FaithfulnessVerdict::Faithful,
+                reason: "Fixture only".into(),
+                mismatch: String::new(),
+                regenerated: false,
+            },
+        )
+        .await
+        .unwrap();
+    let digest = paper.lean_statements.last().unwrap().digest.clone();
+    w.worker
+        .app
+        .respond_lean_statement(
+            &w.author,
+            AuthenticationMethod::CookieSession,
+            &paper.id,
+            &digest,
+            true,
+            String::new(),
+        )
+        .await
+        .unwrap();
+    w.worker
+        .app
+        .control_formalization(
+            &w.author,
+            &record,
+            &claim,
+            FormalizationControl {
+                target_digest: digest.clone(),
+                total_generations: 4,
+                expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
+                paused: false,
+                change_allowance: false,
+            },
+        )
+        .await
+        .unwrap();
+    let transport = Arc::new(FiniteProofTransport {
+        inner: ManagedTransport {
+            created: AtomicUsize::new(0),
+            calls: Mutex::new(vec![]),
+            answers: Mutex::new(Default::default()),
+        },
+        identities: Mutex::new(Default::default()),
+        uncertain_once: AtomicBool::new(true),
+    });
+    let client = Arc::new(mathesis_review::cma::Client {
+        transport: transport.clone(),
+        workspace: "wks_test".into(),
+        profile: None,
+        poll: Duration::from_millis(1),
+    });
+    w.worker.advisor = Some(Arc::new(mathesis_review::cma::CmaAdvisor {
+        client,
+        timeout: Duration::from_secs(60),
+        audit_timeout: Duration::from_secs(60),
+    }));
+    async fn next_job(w: &World) -> LeasedJob {
+        loop {
+            let job = w.jobs.claim().await.unwrap().expect("queued work");
+            if job.kind == JobKind::AgentAttempt {
+                return job;
+            }
+            w.jobs.complete(&job).await.unwrap();
+        }
+    }
+    let mut job = next_job(&w).await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(20), w.worker.agent_attempt_job(&job))
+            .await
+            .is_err()
+    );
+    assert_eq!(transport.identities.lock().await.len(), 1);
+    let saved = w.file().await;
+    let intent = saved
+        .agent_steps
+        .values()
+        .find(|s| s.progress["create_intent"].is_array())
+        .expect("durable create intent")
+        .progress
+        .clone();
+    assert!(intent["agent_id"].is_null());
+    // A new RunStore is constructed on the retry, as after a worker restart.
+    assert!(w.worker.agent_attempt_job(&job).await.unwrap());
+    assert_eq!(transport.identities.lock().await.len(), 1);
+    for n in 1..4 {
+        tokio::time::advance(Duration::from_secs(15 * 60)).await;
+        job = next_job(&w).await;
+        assert_eq!(w.worker.agent_attempt_job(&job).await.unwrap(), n < 3);
+    }
+    w.jobs.complete(&job).await.unwrap();
+    let file = w
+        .worker
+        .app
+        .formalization_files(&w.worker.reviewer, &paper.id)
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+    let attempt = file.attempts.last().unwrap();
+    w.worker
+        .app
+        .verify_attempt(&w.worker.reviewer, &attempt.id)
+        .await
+        .unwrap();
+    mathesis_core::ports::ReviewQueue::enqueue(&*w.stores, &paper.id, JobKind::AgentAttempt)
+        .await
+        .unwrap();
+    job = next_job(&w).await;
+    assert!(!w.worker.agent_attempt_job(&job).await.unwrap());
+    assert_eq!(transport.identities.lock().await.len(), 4);
+    let work = w
+        .worker
+        .app
+        .formalization_work(Some(&w.author), &record, &claim)
+        .await
+        .unwrap();
+    assert_eq!(work.used_generations, 4);
+    assert_eq!(work.state, "allowance_used");
+    assert!(
+        w.worker
+            .app
+            .public_attempts(&record, &claim)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}

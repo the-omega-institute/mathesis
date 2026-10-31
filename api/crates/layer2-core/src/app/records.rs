@@ -267,9 +267,10 @@ impl App {
                     Err(CoreError::NotFound { .. } | CoreError::Conflict(_)) => continue,
                     Err(error) => return Err(error),
                 };
-                let file = self.solve_file(&record.id, &claim.id).await?;
+                let file = self.public_solve_file(&record.id, &claim.id).await?;
                 if file.attempts.iter().any(|attempt| {
-                    attempt.verified()
+                    attempt.intermediate.is_none()
+                        && attempt.verified()
                         && attempt.target_digest == target.digest
                         && attempt
                             .receipt
@@ -383,7 +384,7 @@ impl App {
                     if s.kind == SubmissionKind::Conjecture && claim.role != ClaimRole::Main {
                         continue;
                     }
-                    let Ok(file) = self.solve_file(&record.id, &claim.id).await else {
+                    let Ok(file) = self.public_solve_file(&record.id, &claim.id).await else {
                         continue;
                     };
                     if !file.admitted {
@@ -424,7 +425,9 @@ impl App {
                             .attempts
                             .iter()
                             .filter(|a| {
-                                a.verified() && target.is_some_and(|t| t.digest == a.target_digest)
+                                a.intermediate.is_none()
+                                    && a.verified()
+                                    && target.is_some_and(|t| t.digest == a.target_digest)
                             })
                             .count(),
                         record: record.id.clone(),
@@ -453,7 +456,15 @@ impl App {
                                 }
                             })
                             .into(),
-                        attempts: file.attempts.len(),
+                        attempts: file
+                            .attempts
+                            .iter()
+                            .filter(|a| {
+                                a.intermediate.is_none()
+                                    && a.verified()
+                                    && target.is_some_and(|t| t.digest == a.target_digest)
+                            })
+                            .count(),
                         solver,
                         lean_statement_status: target_status,
                     });

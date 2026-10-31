@@ -1113,3 +1113,41 @@ Public reference occurrences and citation edges include `display_text`: readable
 source-derived citation prose without inferred author/title boundaries. `raw`
 remains available as optional source evidence. Stored bibliographies and source
 digests are unchanged by this presentation projection.
+
+## Public proof work and checked propositions
+
+All routes use `/api/v1`. `GET /papers/{record}/statements/{claim}/work`
+returns current authorization state, consumed/total generations, expiry and
+whether the caller can control it. Only the submitting author can `PUT` a body
+`{target_digest, total_generations, expires_at, paused}`. The exact confirmed
+target is required; total is 1–20, expiry at most 30 days. Resuming must retain
+saved limits unless the author explicitly extends them.
+
+`GET .../contributions` lists independently checked named propositions.
+`POST .../contributions` accepts `{expected_target, intermediate: {name, title,
+proposition, license}, modules, deposit?, as_agent?}`. Modules are self-contained
+and the named theorem must have the exact submitted type. The type may use definitions
+from those exact modules; auxiliary modules cannot import Target. A deposit retains its
+original modules, license, source and formalizer credit. The response is a queued
+ordinary attempt, never a caller-filed success receipt.
+
+`POST .../reuse` accepts `{expected_target, solution, contributions, modules?,
+as_agent?, note?}`. Select 1–8 checked contribution attempt identities. Original
+module bytes cannot be changed and the toolchain must match. `GET .../uses`
+returns exact forward/inverse checked proof-term uses with original author and
+contributor credit and the whole selected joint context. Citations, unused imports
+and declaration names alone create no edge.
+
+`GET /contributions/{attempt}/bundle` exports the original auxiliary verification
+request, exact sources, license, pins and receipt. Final verification bundles
+with reuse use schema version 2 and include `reused_contributions`; legacy
+standalone bundles retain schema version 1. Public sources and target validity
+are rechecked on every read/export. API responses prevent cache storage.
+
+A control request that changes an existing total or expiry must explicitly set
+`change_allowance: true`. Pause/resume sends `change_allowance: false` and the
+saved limits; a stale request with different limits returns a conflict. The
+first grant defines its limits. Consumed generations are always preserved.
+Rebinding an allowance after a confirmed target changes also requires
+`change_allowance: true`, retaining consumed generations and saved work under a
+fresh round identity. A resume request cannot authorize a replacement target.

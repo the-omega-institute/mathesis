@@ -47,6 +47,10 @@ pub fn workspace_ready(workspace: &Path) -> Result<(), String> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_declaration: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inspect_constants: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub modules: BTreeMap<String, String>,
     pub target: String,
@@ -63,6 +67,8 @@ pub enum Verdict {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Receipt {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub used_constants: Vec<String>,
     pub verdict: Verdict,
     pub reason: String,
     pub target_digest: String,
@@ -195,13 +201,16 @@ fn imports(text: &str, allowed: &[&str]) -> Result<(), String> {
     Ok(())
 }
 pub fn validate_target(text: &str) -> Result<(), String> {
+    validate_target_imports(text, &["Mathlib"])
+}
+fn validate_target_imports(text: &str, allowed: &[&str]) -> Result<(), String> {
     if text.len() > 800_000 {
         return Err("target is too large".into());
     }
     if let Some(reason) = forbidden(text) {
         return Err(reason);
     }
-    imports(text, &["Mathlib"])?;
+    imports(text, allowed)?;
     if !text.starts_with("import Mathlib\n") {
         return Err("Target.lean must import Mathlib first".into());
     }
@@ -412,6 +421,7 @@ impl Checker {
     pub async fn verify(&self, request: &Request) -> Receipt {
         let start = Instant::now();
         let mut receipt = Receipt {
+            used_constants: vec![],
             verdict: Verdict::Rejected,
             reason: String::new(),
             target_digest: digest(&request.target),
@@ -427,7 +437,8 @@ impl Checker {
         )
         .await
         {
-            Ok(Ok((verdict, toolchain, axioms))) => {
+            Ok(Ok((verdict, toolchain, axioms, used_constants))) => {
+                receipt.used_constants = used_constants;
                 receipt.verdict = verdict;
                 receipt.toolchain = toolchain;
                 receipt.axioms = axioms;
@@ -440,19 +451,53 @@ impl Checker {
         receipt.duration = start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
         receipt
     }
-    async fn check(&self, request: &Request) -> Result<(Verdict, String, Vec<String>), String> {
+    async fn check(
+        &self,
+        request: &Request,
+    ) -> Result<(Verdict, String, Vec<String>, Vec<String>), String> {
         self.check_using(request, None).await
     }
     async fn check_using(
         &self,
         request: &Request,
         binary: Option<&Path>,
-    ) -> Result<(Verdict, String, Vec<String>), String> {
+    ) -> Result<(Verdict, String, Vec<String>, Vec<String>), String> {
+        if request
+            .required_declaration
+            .as_ref()
+            .is_some_and(|name| !valid_declaration_name(name))
+        {
+            return Err("invalid required declaration".into());
+        }
+        if request.inspect_constants.len() > 8
+            || request
+                .inspect_constants
+                .iter()
+                .any(|name| !valid_declaration_name(name))
+        {
+            return Err("inspect at most eight fully qualified declarations".into());
+        }
         if digest(&request.target) != request.target_digest {
             return Err("target digest mismatch".into());
         }
-        validate_target(&request.target)?;
         let (verdict, modules) = validate_project(&request.solution, &request.modules)?;
+        let auxiliary = request.required_declaration.is_some();
+        if auxiliary {
+            if verdict != Verdict::Proved {
+                return Err("a named proposition requires a proof, not a disproof".into());
+            }
+            // Auxiliary types may mention definitions in these exact modules. They
+            // cannot refer back to Target, which is compiled after the modules.
+            let allowed: Vec<_> = std::iter::once("Mathlib")
+                .chain(request.modules.keys().map(String::as_str))
+                .collect();
+            for source in request.modules.values() {
+                imports(source, &allowed)?;
+            }
+            validate_target_imports(&request.target, &allowed)?;
+        } else {
+            validate_target(&request.target)?;
+        }
         let read = |name: &str| {
             std::fs::read_to_string(self.workspace.join(name))
                 .map_err(|e| format!("workspace: {e}"))
@@ -481,8 +526,19 @@ impl Checker {
         cp.arg("-c");
         cp.arg("-R").arg(&self.workspace).arg(&work);
         capture(cp).await?;
-        let build_order: Vec<&str> = std::iter::once("Target")
-            .chain(modules.iter().map(String::as_str))
+        let module_order: Vec<_> = if auxiliary {
+            modules
+                .iter()
+                .map(String::as_str)
+                .chain(["Target"])
+                .collect()
+        } else {
+            std::iter::once("Target")
+                .chain(modules.iter().map(String::as_str))
+                .collect()
+        };
+        let build_order: Vec<&str> = module_order
+            .into_iter()
             .chain(["Solution", "Check"])
             .collect();
         prepare_module_outputs(&work, &build_order)?;
@@ -543,7 +599,10 @@ impl Checker {
         }) {
             return Err("project modules cannot shadow trusted library modules".into());
         }
-        for text in std::iter::once(&request.solution).chain(request.modules.values()) {
+        for text in [&request.target, &request.solution]
+            .into_iter()
+            .chain(request.modules.values())
+        {
             for line in text
                 .lines()
                 .filter(|l| l.trim_start().starts_with("import "))
@@ -578,7 +637,17 @@ impl Checker {
                 } else {
                     ("wishpool_disproof", "¬ _root_.wishpool_target_prop")
                 };
-                std::fs::write(work.join("Check.lean"), format!("import Solution\n#check (_root_.{constant} : {ty})\n#print axioms {constant}\n")).map_err(|e| e.to_string())?;
+                std::fs::write(
+                    work.join("Check.lean"),
+                    check_source(
+                        constant,
+                        ty,
+                        &request.inspect_constants,
+                        request.required_declaration.as_deref(),
+                        &request.modules,
+                    ),
+                )
+                .map_err(|e| e.to_string())?;
             }
             let mut cmd = command(&lean, &work);
             cmd.args(["-j", "2", "--setup"])
@@ -593,15 +662,33 @@ impl Checker {
                 } else {
                     "wishpool_disproof"
                 };
-                let axioms =
+                let mut axioms =
                     axioms_of(&text, constant).ok_or("missing independent axiom receipt")?;
+                if let Some(required) = &request.required_declaration {
+                    axioms.extend(
+                        axioms_of(&text, required)
+                            .ok_or("missing named proposition axiom receipt")?,
+                    );
+                    axioms.sort();
+                    axioms.dedup();
+                }
                 if axioms
                     .iter()
                     .any(|a| !STANDARD_AXIOMS.contains(&a.as_str()))
                 {
                     return Err("solution depends on non-standard axioms".into());
                 }
-                return Ok((verdict, toolchain, axioms));
+                let used_constants = request
+                    .inspect_constants
+                    .iter()
+                    .filter(|name| {
+                        text.lines().any(|line| {
+                            line.trim().ends_with(&format!("MATHESIS_PROOF_USE:{name}"))
+                        })
+                    })
+                    .cloned()
+                    .collect();
+                return Ok((verdict, toolchain, axioms, used_constants));
             }
             artifacts.insert(
                 name.into(),
@@ -711,4 +798,82 @@ fn validate_project(
         order.push(next);
     }
     Ok((verdict, order))
+}
+
+fn valid_declaration_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 240
+        && name.split('.').all(|part| {
+            !part.is_empty()
+                && part.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                && part.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        })
+}
+/// Only this trusted module prints inspection markers. Source-module output is discarded.
+fn check_source(
+    constant: &str,
+    ty: &str,
+    candidates: &[String],
+    required: Option<&str>,
+    modules: &BTreeMap<String, String>,
+) -> String {
+    let mut source = format!(
+        "import Solution\nimport Lean\n#check (_root_.{constant} : {ty})\n#print axioms {constant}\n"
+    );
+    if candidates.is_empty() && required.is_none() {
+        return source;
+    }
+    let names = candidates
+        .iter()
+        .map(|name| format!("`{name}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let module_names = modules
+        .keys()
+        .map(|name| format!("`{name}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    if let Some(name) = required {
+        source.push_str(&format!(
+            "#check (_root_.{name} : _root_.wishpool_target_prop)\n#print axioms {name}\n"
+        ));
+    }
+    source.push_str("\nrun_meta do\n  let env ← Lean.getEnv\n");
+    if let Some(name) = required {
+        source.push_str(&format!(
+            r#"  let some declaration := env.find? `{name} | throwError "missing named proposition"
+  unless declaration.isTheorem do throwError "named proposition must be a theorem"
+  let some idx := env.getModuleIdxFor? `{name} | throwError "missing proposition source"
+  unless ([{module_names}] : List Lean.Name).contains env.header.moduleNames[idx]! do
+    throwError "named proposition must be declared in a submitted module"
+"#
+        ));
+    }
+    if candidates.is_empty() {
+        return source;
+    }
+    source.push_str(&format!(
+        r#"  let localModules : List Lean.Name := [`Solution, `Target{separator}{module_names}]
+  let mut seen : Std.HashSet Lean.Name := {{}}
+  let mut pending : List Lean.Name := [`{constant}]
+  let mut fuel : Nat := 50000
+  while !pending.isEmpty do
+    if fuel == 0 then throwError "proof inspection limit exceeded"
+    fuel := fuel - 1
+    let name := pending.head!
+    pending := pending.tail!
+    if seen.contains name then continue
+    seen := seen.insert name
+    if let some idx := env.getModuleIdxFor? name then
+      unless localModules.contains env.header.moduleNames[idx]! do continue
+    if let some info := env.find? name then
+      if let some value := info.value? (allowOpaque := true) then
+        pending := value.getUsedConstants.toList ++ pending
+  for name in ([{names}] : List Lean.Name) do
+    if seen.contains name then
+      Lean.logInfo m!"MATHESIS_PROOF_USE:{{name}}"
+"#,
+        separator = if module_names.is_empty() { "" } else { ", " }
+    ));
+    source
 }

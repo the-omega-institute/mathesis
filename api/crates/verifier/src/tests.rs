@@ -75,6 +75,8 @@ async fn validates_digest_before_any_workspace_or_process_access() {
         timeout: Duration::from_secs(1),
     };
     let request = Request {
+        required_declaration: None,
+        inspect_constants: vec![],
         modules: Default::default(),
         target: "import Mathlib\ndef wishpool_target_prop : Prop := True\n".into(),
         target_digest: "wrong".into(),
@@ -161,6 +163,8 @@ async fn real_lean_target_proof_disproof_wrong_type_and_axiom() {
     ] {
         let target = format!("import Mathlib\ndef wishpool_target_prop : Prop := {prop}\n");
         let request = Request {
+            required_declaration: None,
+            inspect_constants: vec![],
             modules: Default::default(),
             target_digest: digest(&target),
             target,
@@ -243,6 +247,8 @@ for suffix in ['ir.sig', 'ir']:
     ] {
         let target = "import Mathlib\ndef wishpool_target_prop : Prop := True\n".to_string();
         let request = Request {
+            required_declaration: None,
+            inspect_constants: vec![],
             modules: Default::default(),
             target_digest: digest(&target),
             target,
@@ -327,6 +333,8 @@ async fn real_lean_multimodule_proof_checks_helpers_and_wrong_type() {
     for (prop, expected) in [("True", Verdict::Proved), ("False", Verdict::Rejected)] {
         let target = format!("import Mathlib\ndef wishpool_target_prop : Prop := {prop}\n");
         let request = Request {
+            required_declaration: None,
+            inspect_constants: vec![],
             target_digest: digest(&target), target, toolchain: toolchain.clone(),
             solution: "import Target\nimport Research.Helpers\ntheorem wishpool_solution : wishpool_target_prop := Research.helper\n".into(),
             modules: BTreeMap::from([("Research.Helpers".into(), "import Mathlib.Data.Nat.Basic\n/- Source issue #15580. /- Nested #42. -/ -/\nnamespace Research\ntheorem helper : True := True.intro\nend Research\n".into())]),
@@ -405,4 +413,150 @@ fn supporting_module_issue_comments_are_inert_but_hash_commands_remain_forbidden
         );
     }
     assert!(forbidden_in("/- sorry -/", true).is_some());
+}
+
+#[tokio::test]
+#[ignore = "requires WISHPOOL_TEST_LEAN_WORKSPACE with pinned Lean and built Mathlib"]
+async fn real_lean_named_intermediate_survives_failed_final_and_proof_use_is_not_an_import() {
+    let workspace = std::env::var("WISHPOOL_TEST_LEAN_WORKSPACE")
+        .expect("real Lean tests require WISHPOOL_TEST_LEAN_WORKSPACE");
+    let dir = tempfile::tempdir().unwrap();
+    let checker = Checker {
+        workspace: workspace.into(),
+        scratch: dir.path().into(),
+        timeout: Duration::from_secs(600),
+    };
+    let toolchain = std::fs::read_to_string(checker.workspace.join("lean-toolchain"))
+        .unwrap()
+        .trim()
+        .to_owned();
+    let modules = BTreeMap::from([("Saved.Work".into(), "import Mathlib\nnamespace Saved\ndef predicate : Prop := True ∧ True\ntheorem auxiliary : predicate := ⟨True.intro, True.intro⟩\ntheorem bridge : True := auxiliary.1\nend Saved\n".into())]);
+    let target =
+        "import Mathlib\nimport Saved.Work\ndef wishpool_target_prop : Prop := Saved.predicate\n"
+            .to_owned();
+    let mut request = Request {
+        target_digest: digest(&target), target, toolchain, modules,
+        required_declaration: Some("Saved.auxiliary".into()), inspect_constants: vec![],
+        solution: "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := Saved.auxiliary\n".into(),
+    };
+    let retained = checker.verify(&request).await;
+    assert_eq!(retained.verdict, Verdict::Proved, "{}", retained.reason);
+    let original_project_digest = retained.solution_digest.clone();
+    request.target = "import Mathlib\ndef wishpool_target_prop : Prop := False\n".into();
+    request.target_digest = digest(&request.target);
+    request.required_declaration = None;
+    assert_eq!(checker.verify(&request).await.verdict, Verdict::Rejected);
+    // A later entrant supplies a different final adapter using the exact saved module.
+    request.target = "import Mathlib\ndef wishpool_target_prop : Prop := True\n".into();
+    request.target_digest = digest(&request.target);
+    request.inspect_constants = vec!["Saved.auxiliary".into()];
+    request.solution = "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := Saved.bridge\n".into();
+    let reused = checker.verify(&request).await;
+    assert_eq!(reused.verdict, Verdict::Proved, "{}", reused.reason);
+    assert_eq!(reused.used_constants, vec!["Saved.auxiliary"]);
+    assert_ne!(reused.solution_digest, original_project_digest);
+    // Output emitted while compiling the contributor's module is not trusted inspection output.
+    request.solution = "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := by\n  trace \"MATHESIS_PROOF_USE:Saved.auxiliary\"\n  exact True.intro\n".into();
+    let unused = checker.verify(&request).await;
+    assert_eq!(unused.verdict, Verdict::Proved, "{}", unused.reason);
+    assert!(unused.used_constants.is_empty());
+    request.modules.insert(
+        "Saved.Work".into(),
+        "import Mathlib\nnamespace Saved\ntheorem auxiliary : True ∧ True := by sorry\nend Saved\n"
+            .into(),
+    );
+    assert_eq!(checker.verify(&request).await.verdict, Verdict::Rejected);
+}
+
+#[tokio::test]
+#[ignore = "requires WISHPOOL_TEST_LEAN_WORKSPACE with pinned Lean and built Mathlib"]
+async fn real_lean_named_intermediate_rejects_wrong_type_and_imported_attribution() {
+    let workspace = std::env::var("WISHPOOL_TEST_LEAN_WORKSPACE")
+        .expect("real Lean tests require WISHPOOL_TEST_LEAN_WORKSPACE");
+    let dir = tempfile::tempdir().unwrap();
+    let checker = Checker {
+        workspace: workspace.into(),
+        scratch: dir.path().into(),
+        timeout: Duration::from_secs(600),
+    };
+    let toolchain = std::fs::read_to_string(checker.workspace.join("lean-toolchain"))
+        .unwrap()
+        .trim()
+        .to_owned();
+    let target = "import Mathlib\ndef wishpool_target_prop : Prop := False\n".to_owned();
+    let mut request = Request {
+        target_digest: digest(&target), target, toolchain,
+        modules: BTreeMap::from([("Saved.Work".into(), "import Mathlib\ntheorem saved_helper : True := True.intro\n".into())]),
+        required_declaration: Some("saved_helper".into()), inspect_constants: vec![],
+        solution: "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := saved_helper\n".into(),
+    };
+    assert_eq!(checker.verify(&request).await.verdict, Verdict::Rejected);
+    // The selected declaration itself must have the claimed type, even if a
+    // different final proof could establish that target.
+    request.target = "import Mathlib\ndef wishpool_target_prop : Prop := ∀ n : Nat, n = n\n".into();
+    request.target_digest = digest(&request.target);
+    request.solution = "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := by intro n; rfl\n".into();
+    assert_eq!(checker.verify(&request).await.verdict, Verdict::Rejected);
+    request.target =
+        "import Mathlib\ndef wishpool_target_prop : Prop := ∀ (a b : Nat), a + b = b + a\n".into();
+    request.target_digest = digest(&request.target);
+    request.required_declaration = Some("Nat.add_comm".into());
+    request.solution = "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := Nat.add_comm\n".into();
+    let imported = checker.verify(&request).await;
+    assert_eq!(imported.verdict, Verdict::Rejected);
+    assert!(
+        imported.reason.contains("submitted module"),
+        "{}",
+        imported.reason
+    );
+}
+
+#[test]
+fn proof_inspection_inputs_cannot_inject_commands_into_the_trusted_checker() {
+    for name in ["a\nrun_meta", "X); #eval 1", "X.\"bad", "", "X..y"] {
+        assert!(!valid_declaration_name(name));
+    }
+    assert!(valid_declaration_name("Research.helper"));
+    let source = check_source(
+        "wishpool_solution",
+        "_root_.wishpool_target_prop",
+        &["Research.helper".into()],
+        Some("Research.helper"),
+        &BTreeMap::from([(
+            "Research.Helpers".into(),
+            "untrusted bytes are never interpolated here".into(),
+        )]),
+    );
+    assert!(!source.contains("untrusted bytes"));
+    assert!(source.contains("allowOpaque := true"));
+    assert!(source.contains("named proposition must be declared in a submitted module"));
+}
+
+#[tokio::test]
+async fn auxiliary_context_is_explicit_and_cannot_import_back_into_target() {
+    let target =
+        "import Mathlib\nimport Saved.Work\ndef wishpool_target_prop : Prop := Saved.predicate\n";
+    assert!(
+        validate_target(target).is_err(),
+        "ordinary author targets retain their strict profile"
+    );
+    assert!(validate_target_imports(target, &["Mathlib", "Saved.Work"]).is_ok());
+    let checker = Checker {
+        workspace: "/nonexistent".into(),
+        scratch: std::env::temp_dir(),
+        timeout: Duration::from_secs(1),
+    };
+    let request = Request {
+        target: target.into(), target_digest: digest(target), toolchain: "fixture".into(),
+        solution: "import Target\nimport Saved.Work\ntheorem wishpool_solution : wishpool_target_prop := Saved.helper\n".into(),
+        required_declaration: Some("Saved.helper".into()), inspect_constants: vec![],
+        modules: BTreeMap::from([("Saved.Work".into(), "import Target\nnamespace Saved\ndef predicate : Prop := True\ntheorem helper : predicate := True.intro\nend Saved\n".into())]),
+    };
+    let receipt = checker.verify(&request).await;
+    assert_eq!(receipt.verdict, Verdict::Rejected);
+    assert!(
+        receipt.reason.contains("import must resolve"),
+        "{}",
+        receipt.reason
+    );
 }

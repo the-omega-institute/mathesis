@@ -2,6 +2,7 @@ use super::*;
 use crate::ports::{RecordStore, Verifier};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
+use std::collections::BTreeMap;
 struct FakeVerifier;
 #[async_trait]
 impl Verifier for FakeVerifier {
@@ -10,6 +11,7 @@ impl Verifier for FakeVerifier {
             tokio::task::yield_now().await;
         }
         Ok(VerificationReceipt {
+            used_constants: vec![],
             verdict: if r.solution.contains("reject") {
                 Verdict::Rejected
             } else if r.solution.contains("disproof") {
@@ -1870,6 +1872,29 @@ async fn formalization_continuations_reuse_terminal_events_and_recover_legacy_ta
     while w.stores.take_job().await.is_some() {}
     w.app.reconcile_attempts().await.unwrap();
     assert!(
+        !w.stores
+            .queued()
+            .await
+            .iter()
+            .any(|(_, kind)| *kind == JobKind::AgentAttempt)
+    );
+    w.app
+        .control_formalization(
+            &author,
+            &record,
+            &claim,
+            FormalizationControl {
+                target_digest: digest.clone(),
+                total_generations: 5,
+                expires_at: Utc::now() + Duration::days(1),
+                paused: false,
+                change_allowance: false,
+            },
+        )
+        .await
+        .unwrap();
+    w.app.reconcile_attempts().await.unwrap();
+    assert!(
         w.stores
             .queued()
             .await
@@ -2079,4 +2104,651 @@ async fn audited_prose_proof_can_reach_the_shared_formalization_target_without_r
         paper.formalization.items[0].state,
         ItemState::Approved | ItemState::InProgress
     ));
+}
+
+#[tokio::test]
+async fn public_authorization_is_finite_concurrent_durable_and_resume_keeps_consumption() {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (_, record) = paper_target(&w, &author, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let digest = w.app.target(&record, &claim).await.unwrap().digest;
+    assert!(
+        !w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 0)
+            .await
+            .unwrap()
+    );
+    let mut control = FormalizationControl {
+        target_digest: digest.clone(),
+        total_generations: 1,
+        expires_at: Utc::now() + Duration::hours(1),
+        paused: false,
+        change_allowance: false,
+    };
+    assert!(
+        w.app
+            .control_formalization(&reviewer, &record, &claim, control.clone())
+            .await
+            .is_err()
+    );
+    w.app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    let (a, b) = tokio::join!(
+        w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 0),
+        w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 0),
+    );
+    assert!(a.unwrap() && b.unwrap()); // both recover the same admitted identity
+    let saved = w.app.solve_file(&record, &claim).await.unwrap();
+    assert_eq!(
+        saved.authorization.as_ref().unwrap().admitted_rounds.len(),
+        1
+    );
+    let restored: SolveFile = serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
+    assert_eq!(restored, saved);
+    control.paused = true;
+    w.app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    assert!(
+        !w.app
+            .formalization_generation_active(&reviewer, &record, &claim, &digest, 0)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 0)
+            .await
+            .unwrap()
+    );
+    control.paused = false;
+    w.app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    assert!(
+        w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 0)
+            .await
+            .unwrap()
+    );
+    w.app
+        .advance_formalization_round(&reviewer, &record, &claim, &digest, 0, None)
+        .await
+        .unwrap();
+    assert!(
+        !w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 1)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        w.app
+            .formalization_work(None, &record, &claim)
+            .await
+            .unwrap()
+            .state,
+        "allowance_used"
+    );
+    control.total_generations = 2; // an explicit extension, not a resume reset
+    assert!(
+        w.app
+            .control_formalization(&author, &record, &claim, control.clone())
+            .await
+            .is_err()
+    );
+    control.change_allowance = true;
+    w.app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    assert!(
+        w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 1)
+            .await
+            .unwrap()
+    );
+    let mut stale_resume = control.clone();
+    stale_resume.change_allowance = false;
+    stale_resume.total_generations = 3;
+    stale_resume.expires_at += Duration::hours(1);
+    assert!(
+        w.app
+            .control_formalization(&author, &record, &claim, stale_resume)
+            .await
+            .is_err()
+    );
+    let mut saved = w.app.solve_file(&record, &claim).await.unwrap();
+    saved.authorization.as_mut().unwrap().expires_at = Utc::now() - Duration::seconds(1);
+    w.app.save_solve_file(&mut saved).await.unwrap();
+    assert!(
+        !w.app
+            .formalization_generation_active(&reviewer, &record, &claim, &digest, 1)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 1)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        w.app
+            .formalization_work(None, &record, &claim)
+            .await
+            .unwrap()
+            .used_generations,
+        2
+    );
+    control.target_digest = "stale".into();
+    assert!(
+        w.app
+            .control_formalization(&author, &record, &claim, control)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn corrected_target_requires_explicit_rebinding_without_replenishing_consumption() {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (paper, record) = paper_target(&w, &author, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let original = w.app.target(&record, &claim).await.unwrap();
+    let mut control = FormalizationControl {
+        target_digest: original.digest.clone(),
+        total_generations: 1,
+        expires_at: Utc::now() + Duration::hours(1),
+        paused: false,
+        change_allowance: false,
+    };
+    w.app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    assert!(
+        w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &original.digest, 0)
+            .await
+            .unwrap()
+    );
+    // Storage fixture for the ordinary independently prepared/author-confirmed
+    // replacement target. No mathematical verification is asserted by this test.
+    let mut changed = w.app.load(&paper.id).await.unwrap();
+    let target = changed.lean_statements.last_mut().unwrap();
+    target.lean.push_str("\n-- corrected target pin\n");
+    target.digest = lean_solution_digest(&target.lean, &BTreeMap::new());
+    let digest = target.digest.clone();
+    w.app.save(&mut changed).await.unwrap();
+    let work = w
+        .app
+        .formalization_work(None, &record, &claim)
+        .await
+        .unwrap();
+    assert_eq!(work.state, "not_authorized");
+    assert_eq!((work.used_generations, work.total_generations), (1, 1));
+    assert!(
+        !w.app
+            .formalization_generation_active(&reviewer, &record, &claim, &original.digest, 0)
+            .await
+            .unwrap()
+    );
+    control.target_digest = digest.clone();
+    assert!(
+        w.app
+            .control_formalization(&author, &record, &claim, control.clone())
+            .await
+            .is_err()
+    );
+    control.change_allowance = true;
+    let rebound = w
+        .app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    assert_eq!(rebound.admitted_rounds, BTreeSet::from([0]));
+    assert!(
+        !w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 0)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 1)
+            .await
+            .unwrap()
+    );
+    control.total_generations = 2;
+    w.app
+        .control_formalization(&author, &record, &claim, control.clone())
+        .await
+        .unwrap();
+    assert!(
+        w.app
+            .admit_formalization_generation(&reviewer, &record, &claim, &digest, 1)
+            .await
+            .unwrap()
+    );
+    let saved = w.app.solve_file(&record, &claim).await.unwrap();
+    let restored: SolveFile = serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
+    assert_eq!(restored, saved);
+    let saved = saved.authorization.unwrap();
+    assert_eq!(saved.admitted_rounds, BTreeSet::from([0, 1]));
+    assert_eq!(saved.contexts.len(), 2);
+    assert_eq!(saved.expires_at, control.expires_at);
+}
+
+fn intermediate_input(digest: &str) -> NewIntermediate {
+    NewIntermediate {
+        expected_target: digest.into(), deposit: None, as_agent: None,
+        intermediate: IntermediateProposition { name: "Research.helper".into(), title: "A useful auxiliary proposition".into(),
+            proposition: "True ∧ True".into(), license: "CC-BY-4.0".into() },
+        modules: BTreeMap::from([("Research.Helpers".into(), "import Mathlib\nnamespace Research\ntheorem helper : True ∧ True := ⟨True.intro, True.intro⟩\nend Research\n".into())]),
+    }
+}
+
+/// This fake reports fixture-controlled proof inspection. Real mathematical checks live in verifier's ignored Lean suite.
+struct InspectionFixtureVerifier;
+#[async_trait]
+impl Verifier for InspectionFixtureVerifier {
+    async fn verify(&self, r: &VerificationRequest) -> CoreResult<VerificationReceipt> {
+        let mut receipt = FakeVerifier.verify(r).await?;
+        if r.solution.contains("fixture_checked_use") {
+            receipt.used_constants = r.inspect_constants.clone();
+        }
+        Ok(receipt)
+    }
+}
+
+#[tokio::test]
+async fn checked_helpers_survive_unfinished_targets_reuse_exact_sources_and_hide_both_private_directions()
+ {
+    let stores = Arc::new(MemoryStores::default());
+    let mut ports = stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+    ports.verifier = Arc::new(InspectionFixtureVerifier);
+    let w = World {
+        stores,
+        app: App::with_attempt_limit(
+            ports,
+            Policy::default(),
+            BTreeSet::from([PersonId::from("admin")]),
+            20,
+        ),
+    };
+    let author = w.person("author", &[]).await;
+    let author2 = w.person("author2", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let contributor = w.person("contributor", &[]).await;
+    let consumer = w.person("consumer", &[]).await;
+    let (paper, record) = paper_target(&w, &author, &reviewer).await;
+    let (paper2, record2) = paper_target(&w, &author2, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let target = w.app.target(&record, &claim).await.unwrap();
+    let helper = w
+        .app
+        .submit_intermediate(
+            &contributor,
+            &record,
+            &claim,
+            intermediate_input(&target.digest),
+        )
+        .await
+        .unwrap();
+    assert!(w.app.checked_contribution(&helper.id).await.is_err());
+    let rejected = w
+        .app
+        .submit_attempt(
+            &contributor,
+            &record,
+            &claim,
+            "reject unfinished final proof".into(),
+            None,
+            String::new(),
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &helper.id).await.unwrap();
+    w.app.verify_attempt(&reviewer, &rejected.id).await.unwrap();
+    assert!(
+        w.app
+            .public_attempts(&record, &claim)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        w.app
+            .solve_file(&record, &claim)
+            .await
+            .unwrap()
+            .winner(&target.digest)
+            .is_none()
+    );
+    assert!(
+        w.app
+            .entrant_profile(&contributor.person.to_string())
+            .await
+            .unwrap()
+            .formalized
+            .is_empty()
+    );
+    let contribution = w.app.checked_contribution(&helper.id).await.unwrap();
+    assert_eq!(contribution.contributor.id, contributor.person.to_string());
+    assert_eq!(contribution.intermediate.license, "CC-BY-4.0");
+    let admitted_input = serde_json::to_vec(
+        &w.app
+            .checked_contribution_input(&reviewer, &helper.id)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    w.app
+        .sign_in(&VerifiedIdentity {
+            subject: contributor.person.clone(),
+            name: Some("Updated public contributor name".into()),
+            email: None,
+            picture: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        w.app
+            .checked_contribution(&helper.id)
+            .await
+            .unwrap()
+            .contributor
+            .name,
+        "Updated public contributor name"
+    );
+    assert_eq!(
+        serde_json::to_vec(
+            &w.app
+                .checked_contribution_input(&reviewer, &helper.id)
+                .await
+                .unwrap()
+        )
+        .unwrap(),
+        admitted_input,
+        "profile edits must not change admitted provider inputs"
+    );
+    assert!(
+        w.app
+            .checked_contribution_input(&contributor, &helper.id)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        contribution.receipt.target_digest,
+        lean_solution_digest(
+            &contribution
+                .intermediate
+                .target(&contribution.verification_request.modules),
+            &BTreeMap::new()
+        )
+    );
+    let file = w.app.solve_file(&record, &claim).await.unwrap();
+    let mut reloaded: SolveFile =
+        serde_json::from_slice(&serde_json::to_vec(&file).unwrap()).unwrap();
+    w.app.save_solve_file(&mut reloaded).await.unwrap();
+    assert_eq!(
+        w.app
+            .checked_contributions(&record, &claim)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    let target2 = w.app.target(&record2, &claim).await.unwrap();
+    let input = ReusingAttempt {
+        expected_target: target2.digest.clone(),
+        solution: "fixture_checked_use".into(),
+        contributions: vec![helper.id.clone()],
+        modules: BTreeMap::new(),
+        as_agent: None,
+        note: String::new(),
+    };
+    let used = w
+        .app
+        .submit_reusing_attempt(&consumer, &record2, &claim, input.clone())
+        .await
+        .unwrap();
+    assert!(
+        w.app
+            .result_uses(&record2, &claim)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    w.app.verify_attempt(&reviewer, &used.id).await.unwrap();
+    assert_eq!(
+        w.app
+            .formalization_work(None, &record2, &claim)
+            .await
+            .unwrap()
+            .state,
+        "completed",
+        "a community proof completes the goal without an automatic-work allowance"
+    );
+    w.app
+        .control_formalization(
+            &author2,
+            &record2,
+            &claim,
+            FormalizationControl {
+                target_digest: target2.digest.clone(),
+                total_generations: 1,
+                expires_at: Utc::now() + Duration::hours(1),
+                paused: true,
+                change_allowance: false,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        w.app
+            .formalization_work(None, &record2, &claim)
+            .await
+            .unwrap()
+            .state,
+        "completed",
+        "paused automatic work must not hide a checked final result"
+    );
+    let forward = w.app.result_uses(&record2, &claim).await.unwrap();
+    let inverse = w.app.result_uses(&record, &claim).await.unwrap();
+    assert_eq!(forward.len(), 1);
+    assert_eq!(inverse.len(), 1);
+    assert_eq!(forward[0].source_attempt, helper.id);
+    assert_eq!(forward[0].contributor.id, contributor.person.to_string());
+    assert_eq!(forward[0].used_result.authors, paper.authors);
+    assert_eq!(forward[0].basis, "checked_proof_term");
+    let mut unused = input.clone();
+    unused.solution = "unused import fixture".into();
+    let unused = w
+        .app
+        .submit_reusing_attempt(&consumer, &record2, &claim, unused)
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &unused.id).await.unwrap();
+    assert_eq!(w.app.result_uses(&record2, &claim).await.unwrap().len(), 1);
+    let mut altered = input;
+    altered
+        .modules
+        .insert("Research.Helpers".into(), "changed".into());
+    assert!(
+        w.app
+            .submit_reusing_attempt(&consumer, &record2, &claim, altered)
+            .await
+            .is_err()
+    );
+    w.app
+        .set_analysis_visibility(&author2, &paper2.id, Visibility::Private)
+        .await
+        .unwrap();
+    assert!(w.app.result_uses(&record, &claim).await.unwrap().is_empty());
+    assert!(
+        w.app
+            .verification_bundle(&record2, &claim, &used.id)
+            .await
+            .is_err()
+    );
+    assert!(w.app.checked_contribution(&helper.id).await.is_ok());
+    w.app
+        .set_analysis_visibility(&author2, &paper2.id, Visibility::Public)
+        .await
+        .unwrap();
+    assert_eq!(w.app.result_uses(&record, &claim).await.unwrap().len(), 1);
+    w.app
+        .set_analysis_visibility(&author, &paper.id, Visibility::Private)
+        .await
+        .unwrap();
+    assert!(w.app.checked_contribution(&helper.id).await.is_err());
+    assert!(w.app.attempt(None, &used.id).await.is_err());
+    assert!(
+        w.app
+            .public_attempts(&record2, &claim)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        w.app
+            .result_uses(&record2, &claim)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        w.app
+            .verification_bundle(&record2, &claim, &used.id)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        w.app
+            .formalization_opportunities(Default::default())
+            .await
+            .unwrap()
+            .items
+            .iter()
+            .find(|p| p.record == record2)
+            .unwrap()
+            .verified_count,
+        0
+    );
+}
+
+struct CorruptScopeFixture(u8);
+#[async_trait]
+impl Verifier for CorruptScopeFixture {
+    async fn verify(&self, r: &VerificationRequest) -> CoreResult<VerificationReceipt> {
+        let mut receipt = FakeVerifier.verify(r).await?;
+        match self.0 {
+            0 => receipt.target_digest = "forged target".into(),
+            1 => receipt.solution_digest = "forged sources".into(),
+            2 => receipt.toolchain = "different pin".into(),
+            3 => receipt.used_constants = vec!["Unrequested.helper".into()],
+            _ => receipt.axioms = vec!["sorryAx".into()],
+        }
+        Ok(receipt)
+    }
+}
+#[tokio::test]
+async fn auxiliary_receipt_scope_is_checked_before_any_checked_status_is_saved() {
+    for mode in 0..5 {
+        let stores = Arc::new(MemoryStores::default());
+        let mut ports = stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+        ports.verifier = Arc::new(CorruptScopeFixture(mode));
+        let w = World {
+            stores,
+            app: App::new(
+                ports,
+                Policy::default(),
+                BTreeSet::from([PersonId::from("admin")]),
+            ),
+        };
+        let author = w.person("author", &[]).await;
+        let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+        let (_, record) = paper_target(&w, &author, &reviewer).await;
+        let claim = ClaimId::from("C1");
+        let target = w.app.target(&record, &claim).await.unwrap();
+        let mut input = intermediate_input(&target.digest);
+        input.expected_target = "old pin".into();
+        assert!(
+            w.app
+                .submit_intermediate(&author, &record, &claim, input)
+                .await
+                .is_err()
+        );
+        let attempt = w
+            .app
+            .submit_intermediate(&author, &record, &claim, intermediate_input(&target.digest))
+            .await
+            .unwrap();
+        assert!(matches!(
+            w.app.verify_attempt(&reviewer, &attempt.id).await,
+            Err(CoreError::Unavailable(_))
+        ));
+        assert!(
+            w.app
+                .checked_contributions(&record, &claim)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            w.app
+                .attempt(Some(&author), &attempt.id)
+                .await
+                .unwrap()
+                .receipt
+                .is_none()
+        );
+    }
+}
+
+#[tokio::test]
+async fn checked_auxiliary_exports_reject_changed_type_source_pin_and_receipt() {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (_, record) = paper_target(&w, &author, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let target = w.app.target(&record, &claim).await.unwrap();
+    let attempt = w
+        .app
+        .submit_intermediate(&author, &record, &claim, intermediate_input(&target.digest))
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    let original = w.app.solve_file(&record, &claim).await.unwrap();
+    for mode in 0..6 {
+        let mut file = w.app.solve_file(&record, &claim).await.unwrap();
+        file.attempts = original.attempts.clone();
+        let saved = &mut file.attempts[0];
+        match mode {
+            0 => saved.intermediate.as_mut().unwrap().proposition = "False".into(),
+            1 => saved.receipt.as_mut().unwrap().solution_digest = "forged receipt".into(),
+            2 => saved.solution_digest = "altered source pin".into(),
+            3 => saved.solution.sha256 = "0".repeat(64),
+            4 => saved.modules.get_mut("Research.Helpers").unwrap().sha256 = "0".repeat(64),
+            _ => saved.receipt.as_mut().unwrap().toolchain = "altered toolchain".into(),
+        }
+        w.app.save_solve_file(&mut file).await.unwrap();
+        assert!(matches!(
+            w.app.checked_contribution(&attempt.id).await,
+            Err(CoreError::Unavailable(_))
+        ));
+        assert!(w.app.checked_contributions(&record, &claim).await.is_err());
+    }
 }

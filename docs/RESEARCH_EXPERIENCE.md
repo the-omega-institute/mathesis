@@ -187,7 +187,7 @@ Inventory checked against the implementation at develop `b30dffd`:
 | Cross-paper assumptions | `ConfirmedDependency` records a claim's dependence on a public conjecture with the target version and claims revision. | Preserve its conditional meaning; it is not a general cross-paper theorem citation model. |
 | Knowledge comparison | `KnowledgeBinding` represents joint premises and distinct equivalent/instance/implies/refutes/proof-use relations against immutable knowledge declarations. | Adapt checked evidence into a readable relationship view without treating search hits, coverage or implication as actual proof use. |
 | Public relation contributions | Binding boards already require an accepted public submission, contributor access, explicit scoped sharing and independent inspection. | Reuse those rights/evidence boundaries where applicable. Existing consent to publish a paper alone does not authorize private comparison evidence. |
-| Cross-paper public index | No general public index of checked manuscript-to-manuscript proof uses was established by this inspection. | Add the downstream model/projection, versioned result resolution and inverse query with visibility checks before advertising such a graph. |
+| Cross-paper public index | Result-specific checked contribution use now derives forward/inverse links from elaborated proof values, with immutable source/result pins and original credit. | General manuscript theorem entailment and minimal individual sufficiency are not asserted. Citations, declaration history and argument assessments retain distinct evidence bases. |
 
 Relevant contracts: [review methodology](REVIEW_METHODOLOGY.md),
 [fixed knowledge snapshots](KNOWLEDGE_OPERATIONS.md),
@@ -234,3 +234,15 @@ The author report, academic archive, citation and within-paper navigation work
 is described in [Academic archive and author report](ACADEMIC_ARCHIVE.md).
 That implementation preserves the distinction between manuscript-declared local
 connections and the independently checked cross-paper relations specified here.
+
+## Finite proof-work implementation
+
+Approved public paper goals now expose finite author-controlled authorization,
+pause/resume and independently checked named intermediate work through existing
+result, author and contribution pages. Consumed generations and provider identities
+survive retries and reload; extensions require an explicit author request.
+Auxiliary work is retained in the ordinary attempt aggregate and reused with
+exact modules, original attribution/license and receipt scope. It earns no new
+leaderboard score. The checked-use view concerns these precise propositions;
+it does not certify a general natural-language theorem dependency. See
+[LEAN_REVIEW_EXPERIENCE.md](LEAN_REVIEW_EXPERIENCE.md) for bounds and evidence.

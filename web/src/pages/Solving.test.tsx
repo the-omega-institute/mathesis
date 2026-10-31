@@ -117,7 +117,7 @@ describe('solving pages', () => {
     await user.selectOptions(screen.getByLabelText('Submit as'), agent.id);
     await user.type(screen.getByLabelText('Note (optional, private)'), queued.note!);
     await user.click(screen.getByRole('button', { name: 'Submit for verification' }));
-    expect(await screen.findByText('Attempt attempt-one: queued')).toBeInTheDocument();
+    expect(await screen.findByText('Your proof attempt: queued')).toBeInTheDocument();
     expect(submitAttempt).toHaveBeenCalledWith(
       detail.summary.record,
       'C2',
@@ -129,6 +129,34 @@ describe('solving pages', () => {
     await user.click(screen.getByRole('button', { name: 'Refresh status' }));
     expect(await screen.findByText('Wrong target type')).toBeInTheDocument();
     expect(getAttempt).toHaveBeenCalledWith(queued.id);
+  });
+
+  it('labels checked auxiliary work without completing the final goal in participant history', async () => {
+    renderWithApp(
+      <ConjecturePage record={detail.summary.record} claim="C2" />,
+      fakeApi(
+        {
+          getConjecture: vi.fn(async () => detail),
+          myAttempts: vi.fn(async () => [
+            {
+              ...queued,
+              state: 'proved' as const,
+              receipt,
+              intermediate: {
+                name: 'Saved.helper',
+                title: 'A checked bridge',
+                proposition: 'True',
+                license: 'Apache-2.0',
+              },
+            },
+          ]),
+        },
+        author,
+      ),
+    );
+    expect(await screen.findByText(/Auxiliary proposition “A checked bridge”/)).toBeInTheDocument();
+    expect(screen.getByText(/the final goal may remain unfinished/)).toBeInTheDocument();
+    expect(screen.queryByText('attempt-one', { exact: true })).not.toBeInTheDocument();
   });
 
   it('shows the winning solution, receipt and also-verified attempts without a private note', async () => {

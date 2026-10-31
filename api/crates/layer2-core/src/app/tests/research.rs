@@ -7,6 +7,7 @@ struct ResearchVerifier;
 impl Verifier for ResearchVerifier {
     async fn verify(&self, r: &VerificationRequest) -> CoreResult<VerificationReceipt> {
         Ok(VerificationReceipt {
+            used_constants: vec![],
             verdict: if r.solution.contains("reject") {
                 Verdict::Rejected
             } else {

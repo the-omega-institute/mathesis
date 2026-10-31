@@ -575,6 +575,29 @@ funded; local elaboration and proof verification carry no CMA payer.
   faithfulness audit, cookie-session author confirmation, attempt and verifier
   path as conjectures. Their verified proofs display Lean ✓ with solver credit
   and count under Formalized, never on the conjecture leaderboard.
+- Continuous public paper formalization requires a submitter-authorized lifetime
+  allowance of 1–20 generations and expiry within 30 days. Authorization, consumed
+  rounds and frozen helper context live in the revision-fenced SolveFile. Pause,
+  expiry and source/target changes fence provider work; resume retains consumption,
+  expiry, admitted input bytes and original managed handles. Empty, malformed and
+  rejected responses spend a round. Public conjectures keep their single venue attempt.
+  A corrected target requires explicit author rebinding; it retains lifetime
+  consumption and saved history and uses a fresh round identity. Pause/resume
+  cannot authorize a replacement target or change saved limits.
+- Named intermediate propositions use the same Attempt, source blobs and independent
+  receipt. Their exact standalone type and named theorem ownership are checked in
+  submitted self-contained modules. Auxiliary types may use definitions from those
+  exact modules; auxiliary modules compile before their generated target and cannot
+  import Target. Ordinary author-target restrictions stay unchanged. They survive an unfinished main target without
+  becoming a final proof/disproof or earning new leaderboard points. Reuse copies
+  exact source bytes under the same toolchain and preserves original pins, license,
+  research authors, formalizers and entrant attribution.
+- Cross-paper checked-use links derive only from verifier inspection of elaborated
+  proof values for explicitly selected propositions. The forward/inverse projection
+  identifies exact versions and complete selected joint context, never individual
+  sufficiency. Citations, manuscript declarations, source histories and argument
+  assessments keep their separate bases. Fresh public counts, profiles and exports
+  hide attempts whose reused source is private or stale; no legacy evidence is inferred.
 - Before confirmation, a separate CMA Codex audit compares the original statement
   and exact target. Its verdict is faithful/weaker/stronger/different/trivial,
   with one paragraph and the specific mismatch. Missing/invalid audits never

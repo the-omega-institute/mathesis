@@ -8,6 +8,8 @@ use crate::{
 use chrono::{Datelike, Duration};
 use std::collections::BTreeMap;
 pub(crate) struct AttemptInput {
+    pub intermediate: Option<IntermediateProposition>,
+    pub reuses: Vec<ProofReuse>,
     pub modules: BTreeMap<String, String>,
     pub expected_target: Option<String>,
     pub solution: String,
@@ -62,6 +64,7 @@ impl App {
             if let Some(id) = rejected_attempt {
                 if !file.attempts.iter().any(|attempt| {
                     attempt.id == id
+                        && attempt.intermediate.is_none()
                         && attempt.target_digest == digest
                         && attempt.entrant.id == "wishpool-agent"
                         && attempt
@@ -234,6 +237,7 @@ impl App {
             return Ok(file);
         }
         let file = SolveFile {
+            authorization: None,
             agent_attempted: Default::default(),
             agent_rounds: Default::default(),
             agent_after_attempt: Default::default(),
@@ -474,6 +478,8 @@ impl App {
             record,
             claim,
             AttemptInput {
+                intermediate: None,
+                reuses: vec![],
                 expected_target: None,
                 modules: BTreeMap::new(),
                 solution,
@@ -492,6 +498,8 @@ impl App {
         input: AttemptInput,
     ) -> CoreResult<AttemptView> {
         let AttemptInput {
+            intermediate,
+            reuses,
             modules,
             expected_target,
             solution,
@@ -540,6 +548,8 @@ impl App {
                 a.entrant.id == entrant.id
                     && a.target_digest == target.digest
                     && a.solution_digest == hash
+                    && a.intermediate == intermediate
+                    && a.reuses == reuses
             }) {
                 if attribution.is_some() && existing.attribution != attribution {
                     return Err(CoreError::conflict(
@@ -567,6 +577,8 @@ impl App {
                 ));
             }
             let attempt = Attempt {
+                intermediate: intermediate.clone(),
+                reuses: reuses.clone(),
                 modules: module_blobs.clone(),
                 attribution: attribution.clone(),
                 id: new_uuid(),
@@ -655,19 +667,26 @@ impl App {
         }
         Err(CoreError::not_found("attempt", id))
     }
-    async fn solution_text(&self, attempt: &Attempt) -> CoreResult<String> {
+    pub(crate) async fn solution_text(&self, attempt: &Attempt) -> CoreResult<String> {
         let bytes = self
             .ports
             .blobs
             .get(&attempt.solution.id)
             .await?
             .ok_or_else(|| CoreError::not_found("solution", &attempt.id))?;
+        use sha2::Digest;
+        if bytes.len() as u64 != attempt.solution.bytes
+            || format!("{:x}", sha2::Sha256::digest(&bytes)) != attempt.solution.sha256
+        {
+            return Err(CoreError::Unavailable("solution integrity failure".into()));
+        }
         String::from_utf8(bytes).map_err(|_| CoreError::invalid("solution is not UTF-8"))
     }
     pub async fn attempt(&self, caller: Option<&Caller>, id: &str) -> CoreResult<AttemptView> {
         let (file, attempt) = self.find_attempt(id).await?;
         let owner = caller.is_some_and(|c| c.person == attempt.owner || Self::is_staff(c));
         let public = attempt.verified()
+            && self.reuse_inputs_public(&attempt).await?
             && self
                 .solve_file(&file.record, &file.claim)
                 .await
@@ -680,6 +699,8 @@ impl App {
             return Err(CoreError::not_found("attempt", id));
         }
         Ok(AttemptView {
+            intermediate: attempt.intermediate.clone(),
+            reuses: attempt.reuses.clone(),
             modules: self.lean_module_sources(&attempt.modules).await?,
             attribution: attempt.attribution.clone(),
             id: attempt.id.clone(),
@@ -759,21 +780,39 @@ impl App {
             }
             Err(error) => return Err(error),
         };
+        if !self.reuse_inputs_public(&attempt).await? {
+            return self.invalidate_attempt(id).await;
+        }
         let solution = self.solution_text(&attempt).await?;
+        let verification_target = attempt
+            .intermediate
+            .as_ref()
+            .map_or(target.lean.clone(), |spec| spec.target(&attempt.modules));
+        let verification_digest = lean_solution_digest(&verification_target, &BTreeMap::new());
         let receipt = self
             .ports
             .verifier
             .verify(&VerificationRequest {
+                required_declaration: attempt.intermediate.as_ref().map(|s| s.name.clone()),
+                inspect_constants: attempt
+                    .reuses
+                    .iter()
+                    .map(|r| r.declaration.clone())
+                    .collect(),
                 modules: self.lean_module_sources(&attempt.modules).await?,
-                target: target.lean,
-                target_digest: target.digest.clone(),
+                target: verification_target,
+                target_digest: verification_digest.clone(),
                 toolchain: target.toolchain.clone(),
                 solution,
             })
             .await?;
-        if receipt.target_digest != attempt.target_digest
+        if receipt.target_digest != verification_digest
             || receipt.solution_digest != attempt.solution_digest
             || receipt.toolchain != target.toolchain
+            || receipt
+                .used_constants
+                .iter()
+                .any(|name| !attempt.reuses.iter().any(|r| &r.declaration == name))
             || receipt
                 .axioms
                 .iter()
@@ -788,7 +827,9 @@ impl App {
                 return Err(CoreError::conflict("attempt job lease was lost"));
             }
             // Recheck current source identity and target after the process returns.
-            if !self.attempt_inputs_current(&file, &attempt).await? {
+            if !self.attempt_inputs_current(&file, &attempt).await?
+                || !self.reuse_inputs_public(&attempt).await?
+            {
                 return self.invalidate_attempt(id).await;
             }
             let mut current = self.solve_file(&file.record, &file.claim).await?;
@@ -823,6 +864,9 @@ impl App {
         file: &SolveFile,
         attempt: &Attempt,
     ) -> CoreResult<()> {
+        if attempt.intermediate.is_some() {
+            return Ok(());
+        }
         let Some(receipt) = &attempt.receipt else {
             return Ok(());
         };
@@ -869,7 +913,7 @@ impl App {
                 FormalizationProgressState::Blocked => {
                     "A checked disproof requires review before proof work continues."
                 }
-                _ => "Proof work will continue from this verification result.",
+                _ => "Saved proof work is unfinished. Further attempts require an active remaining allowance.",
             }
             .into(),
         );
@@ -890,10 +934,11 @@ impl App {
         file: &SolveFile,
         attempt: &Attempt,
     ) -> CoreResult<()> {
-        if attempt
-            .receipt
-            .as_ref()
-            .is_some_and(|r| r.verdict == Verdict::Disproved)
+        if attempt.intermediate.is_none()
+            && attempt
+                .receipt
+                .as_ref()
+                .is_some_and(|r| r.verdict == Verdict::Disproved)
         {
             let s = self.load(&file.submission).await?;
             if s.kind != SubmissionKind::Conjecture {
@@ -909,15 +954,17 @@ impl App {
         claim: &ClaimId,
     ) -> CoreResult<Vec<PublicAttempt>> {
         let target = self.target(record, claim).await?;
-        let file = self.solve_file(record, claim).await?;
+        let file = self.public_solve_file(record, claim).await?;
         let winner = file.winner(&target.digest).map(|a| a.id.as_str());
         let mut out = vec![];
-        for a in file
-            .attempts
-            .iter()
-            .filter(|a| a.verified() && a.target_digest == target.digest)
-        {
+        for a in file.attempts.iter().filter(|a| {
+            a.intermediate.is_none() && a.verified() && a.target_digest == target.digest
+        }) {
+            if !self.reuse_inputs_public(a).await? {
+                continue;
+            }
             out.push(PublicAttempt {
+                reuses: a.reuses.clone(),
                 modules: self.lean_module_sources(&a.modules).await?,
                 attribution: a.attribution.clone(),
                 id: a.id.clone(),
@@ -943,9 +990,13 @@ impl App {
             let Ok(target) = self.target(&file.record, &file.claim).await else {
                 continue;
             };
+            let file = self.public_solve_file(&file.record, &file.claim).await?;
             let Some(winner) = file.winner(&target.digest) else {
                 continue;
             };
+            if !self.reuse_inputs_public(winner).await? {
+                continue;
+            }
             let source = self.conjecture_source(&file.record).await?;
             let identity = winner
                 .entrant
@@ -1044,6 +1095,7 @@ impl App {
             });
         }
         let mut profile = EntrantProfile {
+            contributions: self.intermediate_credits(id).await?,
             entrant: entrant.ok_or_else(|| CoreError::not_found("entrant", id))?,
             solutions: vec![],
             others: 0,
@@ -1212,8 +1264,15 @@ impl App {
                                         )
                                         .await?;
                                 }
-                            } else if !file.attempts.iter().any(|attempt| {
-                                attempt.target_digest == target.digest
+                            } else if file.authorization.as_ref().is_some_and(|a| {
+                                a.can_admit(
+                                    &target.digest,
+                                    file.agent_rounds.get(&target.digest).copied().unwrap_or(0),
+                                    self.ports.clock.now(),
+                                )
+                            }) && !file.attempts.iter().any(|attempt| {
+                                attempt.intermediate.is_none()
+                                    && attempt.target_digest == target.digest
                                     && attempt.receipt.is_none()
                                     && attempt.invalidated.is_none()
                             }) {

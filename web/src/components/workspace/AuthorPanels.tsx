@@ -1,3 +1,4 @@
+import { ProofWork } from '../ProofWork';
 import { EvidencePicker } from '../EvidenceFiles';
 import { bundleManuscript, withEvidence, type EvidenceInput } from '../../lib/sourceBundle';
 import { PROCESSING_REQUEST_VERSION } from '../../api/types';
@@ -284,6 +285,13 @@ export function FormalizationForAuthor({
                 ) : (
                   <p className="small">{legacyFormalizationStatus(submission, item.claim)}</p>
                 )}
+                {publicWork &&
+                submission.status.state === 'accepted' &&
+                submission.lean_statements?.some(
+                  (target) => target.claim === item.claim && target.response.state === 'confirmed',
+                ) ? (
+                  <ProofWork record={submission.status.record} claim={item.claim} />
+                ) : null}
                 {item.state.state === 'declined' ? (
                   <p className="small muted">You declined: {item.state.reason}</p>
                 ) : null}
@@ -349,7 +357,7 @@ function FormalizationProgressView({
   const labels: Record<typeof progress.state, string> = {
     target_preparing: 'Preparing the exact Lean statement',
     awaiting_author: 'Statement ready for your confirmation',
-    proof_queued: 'Proof work queued',
+    proof_queued: 'Ready for proof work',
     in_progress: 'Proof work in progress',
     partial: 'Proof not complete yet',
     verified: 'Proof verified independently',

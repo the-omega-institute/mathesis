@@ -69,6 +69,15 @@ pub(crate) fn routes() -> Router<Arc<App>> {
         .route("/me", get(me))
         .route("/people", get(list_people))
         .route("/people/{id}/roles", put(set_roles))
+        .layer(axum::middleware::map_response(
+            |mut response: axum::response::Response| async move {
+                response
+                    .headers_mut()
+                    .entry(axum::http::header::CACHE_CONTROL)
+                    .or_insert(axum::http::HeaderValue::from_static("no-store"));
+                response
+            },
+        ))
 }
 
 #[derive(Debug, Default, Deserialize)]

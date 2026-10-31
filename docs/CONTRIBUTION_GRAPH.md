@@ -95,7 +95,7 @@ translated into the existing `mathesis.manuscript-delivery.v1` envelope by the
 Mathesis consumer; missing source attribution must remain missing. No upstream
 code or publication contract needs changing to support older deliveries.
 
-General cross-paper proof-use edges still require the exact statement identities,
+General cross-paper entailment or minimal-dependency claims still require the exact statement identities,
 proof location, substitutions, hypothesis discharge and public evidence described
 in [RESEARCH_EXPERIENCE.md](RESEARCH_EXPERIENCE.md). Module imports, search matches,
 bibliographic citations, and source-history edges are not sufficient. A verified
@@ -115,3 +115,22 @@ we must not collapse them into an unlabeled network.
 
 Ordinary authors do not edit a graph during submission. Missing historical
 attribution is not generated from names, model guesses or service execution logs.
+
+## Independently checked incremental work
+
+Named auxiliary propositions now live in the existing SolveFile/Attempt aggregate.
+They are separately checked against an exact type and theorem declared in submitted
+modules. Their source result can remain unfinished. Checked proposition exports
+retain source version, claims revision, target/project pins, source authors,
+contributor, optional deposit formalizers, original license and receipt scope.
+No second credit ledger or new score is introduced.
+
+A proof may select up to eight originals and reuse their exact modules. A trusted
+verifier inspection follows elaborated proof values in the submitted context;
+only reached selected constants create `checked_proof_term` links. Both result
+pages expose the links, source evidence and complete selected joint context.
+The relationship concerns the contributed proposition, not a blanket claim that
+the source manuscript's final theorem supplies the whole proof. Unused imports,
+citations and source-attributed histories produce no checked-use links.
+Visibility and immutable accepted inputs are checked at both endpoints, including
+on profiles, counts and downloads. See [LEAN_REVIEW_EXPERIENCE.md](LEAN_REVIEW_EXPERIENCE.md).
