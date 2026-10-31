@@ -33,6 +33,9 @@ use crate::{
     review::MemoryJobs,
 };
 
+#[path = "proof_lifecycle_tests.rs"]
+mod proof_lifecycle;
+
 const SOURCE: &str = r"\documentclass{article}
 \newtheorem{theorem}{Theorem}
 \newtheorem{conjecture}{Conjecture}

@@ -67,7 +67,8 @@ describe('author publication reports', () => {
       },
       feedbackLetter,
     )!;
-    expect(preview).toContain('1 being formalized');
+    expect(preview).toContain('1 with saved unfinished proof work');
+    expect(preview).not.toContain('being formalized');
     expect(preview).not.toContain('require author approval');
   });
   it('explains contribution and significance decisions without internal policy vocabulary', () => {

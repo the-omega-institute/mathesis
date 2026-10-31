@@ -11,6 +11,7 @@ export function formalizationAdvice(submission: Submission, round?: RefereeRound
         item.id === candidate.claim && item.kind !== 'conjecture' && item.kind !== 'question',
     );
     if (!claim) return [];
+    const item = submission.formalization.items.find((item) => item.claim === claim.id);
     return [
       {
         claim,
@@ -19,7 +20,8 @@ export function formalizationAdvice(submission: Submission, round?: RefereeRound
           ('excerpt' in candidate && candidate.excerpt
             ? '\n\nThis is an excerpt of the recommendation.'
             : ''),
-        state: submission.formalization.items.find((item) => item.claim === claim.id)?.state.state,
+        state: item?.state.state,
+        progress: item?.progress?.state,
       },
     ];
   });
@@ -40,8 +42,8 @@ export function formalizationAdviceText(submission: Submission, round?: RefereeR
   const text = candidates.length
     ? candidates
         .map(
-          ({ claim, plan, state }) =>
-            `### ${resultLabel(claim)}\n\n${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${{ proposed: 'You can request this result be formalized in Lean.', approved: 'The exact Lean statement is being prepared.', in_progress: 'Proof work is in progress and will continue from saved results.', verified: 'An independently verified formal proof is available.', declined: 'You declined this formalization.' }[state]}` : ''}`,
+          ({ claim, plan, state, progress }) =>
+            `### ${resultLabel(claim)}\n\n${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${state === 'in_progress' && progress === 'blocked' ? 'Formalization is blocked. Review the saved result and remaining obligations before further proof work.' : { proposed: 'You can request this result be formalized in Lean.', approved: 'You approved this result for formalization. The exact Lean statement needs preparation or confirmation.', in_progress: 'Saved proof work is unfinished. Further automatic work requires an active remaining author allowance.', verified: 'An independently verified formal proof is available.', declined: 'You declined this formalization.' }[state]}` : ''}`,
         )
         .join('\n\n')
     : round?.formalization_suggestions

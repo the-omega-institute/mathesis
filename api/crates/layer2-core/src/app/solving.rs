@@ -1227,6 +1227,30 @@ impl App {
                 )
                 .await?;
             for s in page.items {
+                // Recover the existing owner even after pause/expiry, a final receipt,
+                // or an earlier worker completing before asynchronous deletion settled.
+                // This schedules cleanup only; it grants no generation authorization.
+                let (review, _) = self.referee_file(&s.id).await?;
+                if review.agent_steps.values().any(|step| {
+                    step.cma_attempts.iter().any(|attempt| {
+                        let progress = if step.cma_attempts.last().map(|a| a.ordinal)
+                            == Some(attempt.ordinal)
+                        {
+                            &step.progress
+                        } else {
+                            &attempt.progress
+                        };
+                        attempt.step.starts_with("agent-formalization:")
+                            && progress["deleted"] != true
+                            && (progress["agent_id"].is_string()
+                                || progress["create_intent"].is_array())
+                    })
+                }) {
+                    self.ports
+                        .queue
+                        .enqueue(&s.id, JobKind::AgentAttempt)
+                        .await?;
+                }
                 if s.analysis_visibility == Visibility::Public
                     && let SubmissionStatus::Accepted { record } = &s.status
                 {
