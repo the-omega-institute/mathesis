@@ -2371,6 +2371,243 @@ impl Verifier for InspectionFixtureVerifier {
     }
 }
 
+/// Pause the last contributor lookup in a result-use read, after contribution
+/// validation and before link projection. The baseline measures that lookup's
+/// ordinal so the test does not depend on a hard-coded number of store reads.
+struct ResultUseReadGate {
+    stores: Arc<MemoryStores>,
+    reads: std::sync::atomic::AtomicUsize,
+    pause_at: std::sync::atomic::AtomicUsize,
+    entered: tokio::sync::Notify,
+    resume: tokio::sync::Notify,
+}
+
+#[async_trait]
+impl crate::ports::PersonStore for ResultUseReadGate {
+    async fn upsert_sign_in(
+        &self,
+        identity: &VerifiedIdentity,
+        at: chrono::DateTime<Utc>,
+    ) -> CoreResult<Person> {
+        crate::ports::PersonStore::upsert_sign_in(&*self.stores, identity, at).await
+    }
+
+    async fn get(&self, id: &PersonId) -> CoreResult<Option<Person>> {
+        use std::sync::atomic::Ordering::SeqCst;
+        if id.as_str() == "contributor" {
+            let read = self.reads.fetch_add(1, SeqCst) + 1;
+            if read == self.pause_at.load(SeqCst) {
+                self.entered.notify_one();
+                self.resume.notified().await;
+            }
+        }
+        crate::ports::PersonStore::get(&*self.stores, id).await
+    }
+
+    async fn list(
+        &self,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<crate::ports::Listing<Person>> {
+        crate::ports::PersonStore::list(&*self.stores, limit, before).await
+    }
+
+    async fn set_roles(&self, id: &PersonId, roles: &[Role]) -> CoreResult<Person> {
+        crate::ports::PersonStore::set_roles(&*self.stores, id, roles).await
+    }
+}
+
+#[tokio::test]
+async fn result_uses_refuse_concurrent_source_or_consumer_pin_advancement() {
+    use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+    use tokio::time::{Duration as Wait, timeout};
+
+    let stores = Arc::new(MemoryStores::default());
+    let gate = Arc::new(ResultUseReadGate {
+        stores: stores.clone(),
+        reads: AtomicUsize::new(0),
+        pause_at: AtomicUsize::new(0),
+        entered: Default::default(),
+        resume: Default::default(),
+    });
+    let mut ports = stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+    ports.people = gate.clone();
+    ports.verifier = Arc::new(InspectionFixtureVerifier);
+    let w = World {
+        stores,
+        app: App::with_attempt_limit(
+            ports,
+            Policy::default(),
+            BTreeSet::from([PersonId::from("admin")]),
+            20,
+        ),
+    };
+    let author = w.person("author", &[]).await;
+    let author2 = w.person("author2", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let contributor = w.person("contributor", &[]).await;
+    let consumer = w.person("consumer", &[]).await;
+    let (paper, record) = paper_target(&w, &author, &reviewer).await;
+    let (paper2, record2) = paper_target(&w, &author2, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let target = w.app.target(&record, &claim).await.unwrap();
+    let helper = w
+        .app
+        .submit_intermediate(
+            &contributor,
+            &record,
+            &claim,
+            intermediate_input(&target.digest),
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &helper.id).await.unwrap();
+    let used = w
+        .app
+        .submit_reusing_attempt(
+            &consumer,
+            &record2,
+            &claim,
+            ReusingAttempt {
+                expected_target: w.app.target(&record2, &claim).await.unwrap().digest,
+                solution: "fixture_checked_use".into(),
+                contributions: vec![helper.id.clone()],
+                modules: BTreeMap::new(),
+                as_agent: None,
+                note: String::new(),
+            },
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &used.id).await.unwrap();
+
+    for changed_paper in [&paper, &paper2] {
+        for advance_version in [true, false] {
+            for query in [&record, &record2] {
+                gate.reads.store(0, SeqCst);
+                let baseline = w.app.result_uses(query, &claim).await.unwrap();
+                assert_eq!(baseline.len(), 1);
+                let edge = &baseline[0];
+                assert_eq!(
+                    edge.result.version,
+                    paper2.current_version().unwrap().number
+                );
+                assert_eq!(edge.result.claims_revision, paper2.claims_revision);
+                assert_eq!(edge.used_result.version, edge.joint_context[0].version);
+                assert_eq!(
+                    edge.used_result.claims_revision,
+                    edge.joint_context[0].claims_revision
+                );
+                assert_eq!(edge.result.authors, paper2.authors);
+                assert_eq!(edge.used_result.authors, paper.authors);
+                assert_eq!(edge.contributor.id, contributor.person.to_string());
+
+                let last_lookup = gate.reads.swap(0, SeqCst);
+                assert!(last_lookup > 0);
+                gate.pause_at.store(last_lookup, SeqCst);
+                let app = w.app.clone();
+                let query_id = query.clone();
+                let claim_id = claim.clone();
+                let read = tokio::spawn(async move { app.result_uses(&query_id, &claim_id).await });
+                timeout(Wait::from_secs(5), gate.entered.notified())
+                    .await
+                    .unwrap();
+
+                let original = w.app.load(&changed_paper.id).await.unwrap();
+                let mut advanced = original.clone();
+                // Install the later Accepted snapshot while this reader is
+                // suspended. Upload's intervening Draft state already refuses
+                // access; later acceptance legitimately reuses the record id.
+                if advance_version {
+                    let mut version = advanced.current_version().unwrap().clone();
+                    version.number += 1;
+                    advanced.versions.push(version);
+                } else {
+                    advanced.claims_revision += 1;
+                }
+                advanced.title = "Revised manuscript".into();
+                advanced.claims[0].label = "Revised result".into();
+                advanced.authors[0].name = "Revised author list".into();
+                w.app.save(&mut advanced).await.unwrap();
+                gate.resume.notify_one();
+                let projected = timeout(Wait::from_secs(5), read)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .unwrap();
+                gate.pause_at.store(0, SeqCst);
+                assert!(
+                    projected.is_empty(),
+                    "a proof use must never acquire later labels or pins"
+                );
+                assert!(
+                    w.app.result_uses(query, &claim).await.unwrap().is_empty(),
+                    "existing sequential invalidation must still hide old attempts"
+                );
+
+                let mut restored = original;
+                restored.revision = advanced.revision;
+                w.app.save(&mut restored).await.unwrap();
+            }
+        }
+    }
+
+    // Even a new proof whose pins match the later live Accepted input cannot
+    // relabel a result page that still represents the immutable publication.
+    let mut later = w.app.load(&paper2.id).await.unwrap();
+    let mut version = later.current_version().unwrap().clone();
+    version.number += 1;
+    for target in &mut later.lean_statements {
+        target.version = version.number;
+    }
+    later.versions.push(version);
+    later.title = "Later accepted input".into();
+    w.app.save(&mut later).await.unwrap();
+    let later_proof = w
+        .app
+        .submit_reusing_attempt(
+            &consumer,
+            &record2,
+            &claim,
+            ReusingAttempt {
+                expected_target: w.app.target(&record2, &claim).await.unwrap().digest,
+                solution: "fixture_checked_use".into(),
+                contributions: vec![helper.id],
+                modules: BTreeMap::new(),
+                as_agent: None,
+                note: String::new(),
+            },
+        )
+        .await
+        .unwrap();
+    w.app
+        .verify_attempt(&reviewer, &later_proof.id)
+        .await
+        .unwrap();
+    assert_eq!(
+        w.app.public_attempts(&record2, &claim).await.unwrap().len(),
+        1
+    );
+    assert_eq!(
+        w.app
+            .paper(&record2)
+            .await
+            .unwrap()
+            .publication
+            .unwrap()
+            .version,
+        1
+    );
+    assert!(
+        w.app
+            .result_uses(&record2, &claim)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(w.app.result_uses(&record, &claim).await.unwrap().is_empty());
+}
+
 #[tokio::test]
 async fn checked_helpers_survive_unfinished_targets_reuse_exact_sources_and_hide_both_private_directions()
  {

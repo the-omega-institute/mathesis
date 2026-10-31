@@ -339,19 +339,44 @@ impl App {
         Ok(file)
     }
 
-    async fn result_link(&self, record: &RecordId, claim: &ClaimId) -> CoreResult<ResultLink> {
-        let source = self.conjecture_source(record).await?;
+    async fn result_link(
+        &self,
+        record: &RecordId,
+        claim: &ClaimId,
+        version: u32,
+        claims_revision: u64,
+    ) -> CoreResult<ResultLink> {
+        let current = self.conjecture_source(record).await?;
+        let publication = self
+            .ports
+            .records
+            .get(record)
+            .await?
+            .ok_or_else(|| CoreError::not_found("paper", record.as_str()))?;
+        let source = publication
+            .publication_input(&current)
+            .ok_or_else(|| CoreError::not_found("result", claim.as_str()))?;
+        // Proof pins must match both live eligibility and the immutable result
+        // page. A later acceptance can reuse the record id, but not its identity.
+        if [&current, source].iter().any(|s| {
+            s.current_version().map(|v| v.number) != Some(version)
+                || s.claims_revision != claims_revision
+        }) {
+            return Err(CoreError::conflict(
+                "result source changed; reload the evidence",
+            ));
+        }
         let statement = source
             .claim(claim)
             .ok_or_else(|| CoreError::not_found("result", claim.as_str()))?;
         Ok(ResultLink {
             record: record.clone(),
             claim: claim.clone(),
-            version: source.current_version().unwrap().number,
-            claims_revision: source.claims_revision,
+            version,
+            claims_revision,
             title: source.title.clone(),
             label: statement.label.clone(),
-            authors: source.authors,
+            authors: source.authors.clone(),
         })
     }
 
@@ -398,18 +423,40 @@ impl App {
                     {
                         continue;
                     }
-                    let source = self.checked_contribution(&pin.attempt).await?;
-                    out.push(ResultUse {
-                        result: self.result_link(&file.record, &file.claim).await?,
-                        used_result: self.result_link(&pin.record, &pin.claim).await?,
-                        contribution: source.intermediate,
-                        contributor: source.contributor,
-                        attribution: source.attribution,
-                        attempt: proof.id.clone(),
-                        source_attempt: pin.attempt.clone(),
-                        basis: "checked_proof_term",
-                        joint_context: proof.reuses.clone(),
-                    });
+                    let edge = async {
+                        let source = self.checked_contribution(&pin.attempt).await?;
+                        Ok(ResultUse {
+                            result: self
+                                .result_link(
+                                    &file.record,
+                                    &file.claim,
+                                    file.version,
+                                    file.claims_revision,
+                                )
+                                .await?,
+                            used_result: self
+                                .result_link(
+                                    &pin.record,
+                                    &pin.claim,
+                                    pin.version,
+                                    pin.claims_revision,
+                                )
+                                .await?,
+                            contribution: source.intermediate,
+                            contributor: source.contributor,
+                            attribution: source.attribution,
+                            attempt: proof.id.clone(),
+                            source_attempt: pin.attempt.clone(),
+                            basis: "checked_proof_term",
+                            joint_context: proof.reuses.clone(),
+                        })
+                    }
+                    .await;
+                    match edge {
+                        Ok(edge) => out.push(edge),
+                        Err(CoreError::NotFound { .. } | CoreError::Conflict(_)) => {}
+                        Err(error) => return Err(error),
+                    }
                 }
             }
         }
