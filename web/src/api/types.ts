@@ -574,10 +574,30 @@ export type ItemState =
   | { state: 'declined'; reason: string }
   | { state: 'in_progress' }
   | { state: 'verified'; artifact: FormalArtifact; axioms: string[]; contribution?: string };
+export type FormalizationProgressState =
+  | 'target_preparing'
+  | 'awaiting_author'
+  | 'proof_queued'
+  | 'in_progress'
+  | 'partial'
+  | 'verified'
+  | 'blocked';
+export type FormalizationProgress = {
+  state: FormalizationProgressState;
+  target_digest?: string;
+  toolchain?: string;
+  attempts: number;
+  completed_lemmas: string[];
+  remaining_obligations: string[];
+  next_step?: string;
+  note?: string;
+  updated_at: string;
+};
 export type FormalizationItem = {
   claim: string;
   reason: string;
   state: ItemState;
+  progress?: FormalizationProgress;
   updated_at: string;
 };
 export type FormalVerification = {

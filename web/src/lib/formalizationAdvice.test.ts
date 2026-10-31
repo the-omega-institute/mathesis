@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { submission } from '../test/fixtures';
+import { submission, accepted } from '../test/fixtures';
 import { refereeRound } from '../test/referee';
-import { formalizationAdvice, formalizationAdviceText } from './formalizationAdvice';
+import {
+  formalizationAdvice,
+  formalizationAdviceText,
+  legacyFormalizationStatus,
+} from './formalizationAdvice';
 
 describe('author formalization advice', () => {
   it('shows selected proved results without inventing recommendations for the other statements', () => {
@@ -24,4 +28,28 @@ describe('author formalization advice', () => {
     expect(text).toContain('does not schedule public formalization work');
     expect(text).not.toContain('verified formal proof');
   });
+});
+
+it('reads old formalization records without inventing a proof or an active attempt', () => {
+  const paper = {
+    ...accepted,
+    analysis_visibility: 'public' as const,
+    formalization: {
+      items: [
+        {
+          claim: 'C1',
+          reason: 'Reusable lemma',
+          state: { state: 'approved' as const },
+          updated_at: accepted.updated_at,
+        },
+      ],
+    },
+  };
+  expect(legacyFormalizationStatus(paper, 'C1')).toBe(
+    'The exact Lean statement is being prepared.',
+  );
+  expect(legacyFormalizationStatus({ ...paper, analysis_visibility: 'private' }, 'C1')).toContain(
+    'paused',
+  );
+  expect(legacyFormalizationStatus(paper, 'missing')).toBe('');
 });

@@ -6,6 +6,7 @@ import { useApi } from '../../api/context';
 import type { Submission } from '../../api/types';
 import { useSession } from '../../auth/session';
 import { resultLabel } from '../../lib/statements';
+import { legacyFormalizationStatus } from '../../lib/formalizationAdvice';
 import { VISIBILITY_LABELS } from '../../lib/labels';
 import { SOURCE_ACCEPT } from '../../lib/upload';
 import { Link } from '../../routing/router';
@@ -253,6 +254,7 @@ export function FormalizationForAuthor({
   onChange: OnChange;
 }) {
   const items = submission.formalization.items;
+  const publicWork = submission.analysis_visibility === 'public';
   const available = submission.claims.filter(
     (claim) =>
       claim.has_proof &&
@@ -272,15 +274,22 @@ export function FormalizationForAuthor({
               <li key={item.claim}>
                 <div className="claim-head">
                   <ClaimRef id={item.claim} claims={submission.claims} scope="ws" />
-                  <ItemStateBadge state={item.state} />
+                  {!item.progress ? <ItemStateBadge state={item.state} /> : null}
                 </div>
                 <p className="small">
                   <strong>Why this result:</strong> {item.reason}
                 </p>
+                {!publicWork && item.state.state !== 'declined' ? (
+                  <p className="small">Proof work is paused while this paper is private.</p>
+                ) : item.progress ? (
+                  <FormalizationProgressView progress={item.progress} />
+                ) : (
+                  <p className="small">{legacyFormalizationStatus(submission, item.claim)}</p>
+                )}
                 {item.state.state === 'declined' ? (
                   <p className="small muted">You declined: {item.state.reason}</p>
                 ) : null}
-                {item.state.state === 'proposed' ? (
+                {publicWork && item.state.state === 'proposed' ? (
                   <>
                     {claim ? (
                       <details>
@@ -302,7 +311,7 @@ export function FormalizationForAuthor({
       ) : (
         <p className="muted">No formalization has been requested.</p>
       )}
-      {selected ? (
+      {publicWork && selected ? (
         <details>
           <summary>
             {items.length ? 'Choose another result to formalize' : 'Choose a result to formalize'}
@@ -331,6 +340,46 @@ export function FormalizationForAuthor({
         </details>
       ) : null}
     </>
+  );
+}
+
+function FormalizationProgressView({
+  progress,
+}: {
+  progress: NonNullable<Submission['formalization']['items'][number]['progress']>;
+}) {
+  const labels: Record<typeof progress.state, string> = {
+    target_preparing: 'Preparing the exact Lean statement',
+    awaiting_author: 'Statement ready for your confirmation',
+    proof_queued: 'Proof work queued',
+    in_progress: 'Proof work in progress',
+    partial: 'Proof not complete yet',
+    verified: 'Proof verified independently',
+    blocked: 'Needs attention before work can continue',
+  };
+  return (
+    <div className="formal-progress" aria-label="Formalization progress">
+      <p className="small">
+        <strong>{labels[progress.state]}</strong>
+        {progress.attempts
+          ? ` · ${progress.attempts} attempt${progress.attempts === 1 ? '' : 's'}`
+          : ''}
+      </p>
+      {progress.next_step ? <p className="small muted">{progress.next_step}</p> : null}
+      {progress.note ? (
+        <details>
+          <summary>Verification details</summary>
+          <p className="small">{progress.note}</p>
+        </details>
+      ) : null}
+      {progress.remaining_obligations.length ? (
+        <ul className="small muted">
+          {progress.remaining_obligations.slice(0, 3).map((obligation) => (
+            <li key={obligation}>{obligation}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

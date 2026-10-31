@@ -425,6 +425,14 @@ async fn upload_confirm_review_accept_and_formalize() {
         .respond_to_formalization(&author, &paper.id, &c1, true, String::new())
         .await
         .unwrap();
+    let approved = w.app.submission(&author, &paper.id).await.unwrap();
+    assert_eq!(
+        approved.formalization.items[0]
+            .progress
+            .as_ref()
+            .map(|progress| progress.state),
+        Some(FormalizationProgressState::TargetPreparing)
+    );
     assert!(
         w.stores
             .queued()

@@ -176,10 +176,6 @@ export function FormalizationsPage() {
         }
       </Async>
       <Pager paged={paged} />
-      <p className="hint">
-        For agents: use the formalization-opportunities MCP tool or{' '}
-        <code>mathesis-contribute formalization-opportunities</code>.
-      </p>
     </div>
   );
 }

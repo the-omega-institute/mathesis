@@ -892,6 +892,18 @@ legend {
 .prior-list > li:last-child {
   border-bottom: none;
 }
+.formal-progress {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--rule-strong, var(--rule));
+}
+.formal-progress p {
+  margin: 0.15rem 0;
+}
+.formal-progress ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
 .assessment-head {
   display: flex;
   flex-wrap: wrap;

@@ -26,11 +26,17 @@ fn job_id(submission: &SubmissionId, kind: JobKind) -> String {
 impl ReviewQueue for MongoStore {
     async fn enqueue(&self, submission: &SubmissionId, kind: JobKind) -> CoreResult<()> {
         let now = BsonDateTime::now();
+        // Recovery must not shorten a continuing proof's saved backoff or
+        // reset its retry budget. Other queues retain their existing behavior.
+        let state = if kind == JobKind::AgentAttempt {
+            doc! { "$nin": ["leased", "queued"] }
+        } else {
+            doc! { "$ne": "leased" }
+        };
         let result = self
             .raw(REVIEW_JOBS)
             .update_one(
-                // A leased job is in flight; anything else is (re)queued.
-                doc! { "_id": job_id(submission, kind), "state": { "$ne": "leased" } },
+                doc! { "_id": job_id(submission, kind), "state": state },
                 doc! {
                     "$set": { "state": "queued", "available_at": now, "attempts": 0_i32, "last_error": null },
                     "$setOnInsert": { "submission": submission.as_str(), "kind": kind_key(kind), "created_at": now },

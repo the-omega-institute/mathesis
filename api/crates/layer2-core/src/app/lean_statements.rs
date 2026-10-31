@@ -204,12 +204,39 @@ impl App {
             version,
             claims_revision,
             lean,
-            digest,
-            toolchain,
-            reading,
+            digest: digest.clone(),
+            toolchain: toolchain.clone(),
+            reading: reading.clone(),
             response: LeanStatementResponse::AwaitingAuthor,
             created_at: self.ports.clock.now(),
         });
+        if let Some(item) = s
+            .formalization
+            .items
+            .iter_mut()
+            .find(|item| &item.claim == claim)
+        {
+            item.progress = Some(FormalizationProgress {
+                state: FormalizationProgressState::AwaitingAuthor,
+                target_digest: Some(digest.clone()),
+                toolchain: Some(toolchain.clone()),
+                attempts: item.progress.as_ref().map_or(0, |p| p.attempts),
+                completed_lemmas: item
+                    .progress
+                    .as_ref()
+                    .map_or_else(Vec::new, |p| p.completed_lemmas.clone()),
+                remaining_obligations: item
+                    .progress
+                    .as_ref()
+                    .map_or_else(Vec::new, |p| p.remaining_obligations.clone()),
+                next_step: Some(
+                    "Review the exact Lean statement, then confirm it to start proof work.".into(),
+                ),
+                note: Some(reading.clone()),
+                updated_at: self.ports.clock.now(),
+            });
+            item.updated_at = self.ports.clock.now();
+        }
         self.save(&mut s).await?;
         Ok(s)
     }
@@ -276,6 +303,22 @@ impl App {
                 .await?;
         }
         s.lean_statements[index].response = response;
+        if confirm
+            && let Some(item) = s
+                .formalization
+                .items
+                .iter_mut()
+                .find(|item| item.claim == s.lean_statements[index].claim)
+            && matches!(item.state, ItemState::Approved | ItemState::InProgress)
+        {
+            if let Some(progress) = &mut item.progress {
+                progress.state = FormalizationProgressState::ProofQueued;
+                progress.next_step =
+                    Some("The confirmed target is queued for continuous proof work.".into());
+                progress.updated_at = self.ports.clock.now();
+            }
+            item.updated_at = self.ports.clock.now();
+        }
         self.save(&mut s).await?;
         if !confirm {
             self.ports.queue.enqueue(id, JobKind::LeanStatement).await?;

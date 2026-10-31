@@ -1844,3 +1844,203 @@ async fn full_project_deposit_is_private_immutable_and_accepts_a_separate_adapte
         ""
     );
 }
+
+#[tokio::test]
+async fn formalization_continuations_reuse_terminal_events_and_recover_legacy_targets() {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (mut paper, record) = paper_target(&w, &author, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let digest = paper.lean_statements[0].digest.clone();
+    paper.formalization.items[0].progress = None;
+    w.app.save(&mut paper).await.unwrap();
+    while w.stores.take_job().await.is_some() {}
+    w.app.reconcile_attempts().await.unwrap();
+    assert!(
+        w.stores
+            .queued()
+            .await
+            .iter()
+            .any(|(id, kind)| *id == paper.id && *kind == JobKind::AgentAttempt)
+    );
+    let (owner, agent) = w.app.venue_agent(&reviewer).await.unwrap();
+    let attempt = w
+        .app
+        .submit_attempt(
+            &owner,
+            &record,
+            &claim,
+            "reject this proof".into(),
+            Some(agent.id),
+            String::new(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, &digest, 0, Some(&attempt.id))
+            .await
+            .is_err()
+    );
+    w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    assert_eq!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, &digest, 0, Some(&attempt.id))
+            .await
+            .unwrap(),
+        1
+    );
+    // Replaying the rejected attempt after a restart retains the new run key.
+    assert_eq!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, &digest, 1, Some(&attempt.id))
+            .await
+            .unwrap(),
+        1
+    );
+    // A subsequent empty answer advances once; the older rejection cannot advance again.
+    assert_eq!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, &digest, 1, None)
+            .await
+            .unwrap(),
+        2
+    );
+    assert_eq!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, &digest, 1, None)
+            .await
+            .unwrap(),
+        2
+    );
+    assert_eq!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, &digest, 2, Some(&attempt.id))
+            .await
+            .unwrap(),
+        2
+    );
+    assert!(
+        w.app
+            .advance_formalization_round(&author, &record, &claim, &digest, 2, None)
+            .await
+            .is_err()
+    );
+    assert!(
+        w.app
+            .advance_formalization_round(&reviewer, &record, &claim, "different target", 2, None)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn formalization_progress_requires_evidence_and_cannot_regress_a_checked_proof() {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (paper, record) = paper_target(&w, &author, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let mut progress = paper.formalization.items[0].progress.clone().unwrap();
+    progress.target_digest = Some(paper.lean_statements[0].digest.clone());
+    progress.state = FormalizationProgressState::Verified;
+    assert!(
+        w.app
+            .record_formalization_progress(&reviewer, &paper.id, &claim, progress.clone())
+            .await
+            .is_err()
+    );
+    let attempt = w
+        .app
+        .submit_attempt(
+            &author,
+            &record,
+            &claim,
+            "valid proof".into(),
+            None,
+            String::new(),
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    progress.state = FormalizationProgressState::InProgress;
+    let saved = w
+        .app
+        .record_formalization_progress(&reviewer, &paper.id, &claim, progress.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        saved.formalization.items[0]
+            .progress
+            .as_ref()
+            .unwrap()
+            .state,
+        FormalizationProgressState::Verified
+    );
+    progress.target_digest = Some("stale".into());
+    assert!(
+        w.app
+            .record_formalization_progress(&reviewer, &paper.id, &claim, progress)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn legacy_formalization_receipt_recovers_without_rechecking_the_proof() {
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let (paper, record) = paper_target(&w, &author, &reviewer).await;
+    let claim = ClaimId::from("C1");
+    let attempt = w
+        .app
+        .submit_attempt(
+            &author,
+            &record,
+            &claim,
+            "valid proof".into(),
+            None,
+            String::new(),
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    let receipt = w
+        .app
+        .attempt(Some(&author), &attempt.id)
+        .await
+        .unwrap()
+        .receipt;
+    let mut current = w.app.submission(&author, &paper.id).await.unwrap();
+    current.formalization.items[0].progress = None;
+    w.app.save(&mut current).await.unwrap();
+    while w.stores.take_job().await.is_some() {}
+    w.app.reconcile_attempts().await.unwrap();
+    assert!(
+        w.stores
+            .queued()
+            .await
+            .iter()
+            .any(|(id, kind)| id.as_str() == attempt.id && *kind == JobKind::VerifyAttempt)
+    );
+    w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    let recovered = w.app.submission(&author, &paper.id).await.unwrap();
+    assert_eq!(
+        recovered.formalization.items[0]
+            .progress
+            .as_ref()
+            .unwrap()
+            .state,
+        FormalizationProgressState::Verified
+    );
+    assert_eq!(
+        w.app
+            .attempt(Some(&author), &attempt.id)
+            .await
+            .unwrap()
+            .receipt,
+        receipt
+    );
+}
