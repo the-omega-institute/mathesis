@@ -101,3 +101,17 @@ in [RESEARCH_EXPERIENCE.md](RESEARCH_EXPERIENCE.md). Module imports, search matc
 bibliographic citations, and source-history edges are not sufficient. A verified
 contribution graph and a Lean proof dependency graph are different projections;
 we must not collapse them into an unlabeled network.
+
+## Reading a result
+
+1. Open a theorem from its paper; its statement and original paper authors stay
+   first, followed by its citation.
+2. Follow a named prerequisite or later use to inspect that result's own direct
+   neighborhood. Open assumptions remain explicitly conditional.
+3. Read **Source and contributions** for the source's credited work, with an
+   evidence link at every recorded step. Multiple predecessors remain visible.
+4. Open an existing upstream Lean proof directly. A separate Mathesis-checked
+   proof appears only when the independent verifier has its own receipt.
+
+Ordinary authors do not edit a graph during submission. Missing historical
+attribution is not generated from names, model guesses or service execution logs.
