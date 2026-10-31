@@ -41,6 +41,8 @@ pub struct PublicClaim {
     pub kind: ClaimKind,
     pub role: ClaimRole,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latex_label: Option<String>,
     pub statement: String,
     pub section: Option<String>,
     pub depends_on: Vec<ClaimId>,
@@ -605,6 +607,7 @@ impl App {
                         kind: c.kind,
                         role: c.role,
                         label: c.label.clone(),
+                        latex_label: c.latex_label.clone(),
                         statement: c.statement.clone(),
                         section: c.section.clone(),
                         depends_on: c.depends_on.clone(),

@@ -8,15 +8,21 @@ pub(crate) fn validate_manuscript_evidence(
     claims: &[Claim],
     delivery: &ManuscriptVersion,
 ) -> CoreResult<()> {
-    for evidence in &delivery.origin.evidence {
+    let labels = delivery
+        .origin
+        .evidence
+        .iter()
+        .map(|e| &e.claim_label)
+        .chain(delivery.origin.contributions.iter().map(|c| &c.claim_label));
+    for label in labels {
         if !claims.iter().any(|c| {
-            c.id.as_str() == evidence.claim_label
-                || c.label == evidence.claim_label
-                || c.latex_label.as_deref() == Some(evidence.claim_label.as_str())
+            c.id.as_str() == label
+                || &c.label == label
+                || c.latex_label.as_deref() == Some(label.as_str())
         }) {
             return Err(CoreError::invalid(format!(
                 "evidence refers to an unrecognized manuscript claim: {}",
-                evidence.claim_label
+                label
             )));
         }
     }

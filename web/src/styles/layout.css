@@ -520,3 +520,45 @@
     margin-bottom: 0.75rem;
   }
 }
+
+/* A selected result and its immediate neighbors; ordinary document links. */
+.result-neighborhood {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+  margin-block: 1.5rem;
+}
+.result-neighborhood-current {
+  text-align: center;
+}
+.result-neighborhood-current p {
+  font-weight: 600;
+}
+.contribution-history {
+  list-style: none;
+  padding: 0;
+}
+.contribution-history > li {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-block: 1.5rem;
+}
+.contribution-history h3,
+.contribution-history p {
+  margin-block: 0 0.5rem;
+}
+.contribution-names {
+  font-weight: 600;
+}
+@media (max-width: 650px) {
+  .result-neighborhood,
+  .contribution-history > li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+  .result-neighborhood-current {
+    text-align: left;
+  }
+}
