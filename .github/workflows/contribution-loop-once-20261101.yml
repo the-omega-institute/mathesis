@@ -1,0 +1,74 @@
+name: Mathesis contribution loop images (2026-11-01 only)
+on:
+  push:
+    branches: [deploy/contribution-loop-20261101]
+    paths: [.github/workflows/contribution-loop-once-20261101.yml]
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, web, verifier]
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SOURCE_COMMIT: bc96b8fe34024c45876e30487590d4a84b8c0734
+      IMAGE: ghcr.io/the-omega-institute/mathesis-${{ matrix.service }}:contribution-loop-20261101-v1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify reviewed application inputs
+        run: git diff --exit-code "$SOURCE_COMMIT" HEAD -- api web infra
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare the pinned Lean workspace for the verifier
+        if: matrix.service == 'verifier'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          base=ghcr.io/the-omega-institute/mathesis-verifier@sha256:92372f9dc0a352242d6ef4195725411e23ddcb2937932a8bd8db4fafaf496424
+          if docker pull "$base"; then
+            docker tag "$base" mathesis-lean:task
+          else
+            docker build --platform linux/amd64 -f infra/verifier/Lean.Dockerfile -t mathesis-lean:task .
+          fi
+      - name: Build and publish reviewed application image
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_args=()
+          if [ '${{ matrix.service }}' = verifier ]; then
+            build_args+=(--build-arg LEAN_IMAGE=mathesis-lean:task)
+          fi
+          docker build "${build_args[@]}" -f infra/${{ matrix.service }}/Dockerfile \
+            --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
+            --label "org.opencontainers.image.source=https://github.com/the-omega-institute/mathesis" \
+            -t "$IMAGE" .
+          docker push "$IMAGE"
+          mkdir -p "$RUNNER_TEMP/mathesis-receipt"
+          docker image inspect --format '{{json .RepoDigests}}' "$IMAGE" > "$RUNNER_TEMP/mathesis-receipt/repo-digests.json"
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'mathesis-receipt'
+          image = os.environ['IMAGE'].split(':')[0]
+          digests = [d for d in json.loads((root/'repo-digests.json').read_text()) if re.fullmatch(re.escape(image)+r'@sha256:[0-9a-f]{64}',d)]
+          assert len(digests) == 1
+          (root/'receipt.json').write_text(json.dumps(dict(image=digests[0],source_commit=os.environ['SOURCE_COMMIT'],workflow_commit=os.environ['GITHUB_SHA'],workflow_run=os.environ['GITHUB_RUN_ID']),indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-contribution-loop-${{ matrix.service }}-receipt
+          path: ${{ runner.temp }}/mathesis-receipt/
+          if-no-files-found: error
+          retention-days: 90
