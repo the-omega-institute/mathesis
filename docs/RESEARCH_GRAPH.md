@@ -185,12 +185,27 @@ merge old client pages into a durable public cache: responses use
 `Cache-Control: no-store`, and the UI replaces each page on navigation so fresh
 visibility is checked.
 
-The English interface offers a global Research graph entry, focused works,
-source links, cited-author names, incoming citation occurrences, coverage and
-next-page navigation. Paper pages show retained raw reference evidence; result
-pages link to the manuscript neighborhood alongside their existing local
-statement dependencies, source-history roles and verifier-backed proof credit.
-There is no force layout, ranking, fractional credit or added upload step.
+The English Research graph entry opens directly into a visual map, with no separate
+search form. Earlier literature appears on the left, citing Mathesis papers on the
+right, and source-supplied authors appear beside each work. Visual arrows run from
+earlier work to the papers citing it, as the caption explains; API citation edges
+retain their manuscript-to-reference direction. Selecting a work highlights its
+connections and opens full titles, author credit, source links and clickable
+neighbors alongside the map. Source evidence and coverage explanations start closed.
+
+The map shows at most eight references at a time, with explicit Previous/Next
+reference controls, a range/count and a scrollable canvas. Selecting a reference
+from the details panel opens its map page. This local layout pagination is distinct
+from the API's next group of source papers; no earlier response is retained as a
+client-side graph cache. Repeated citations between two nodes share one visual
+line, while their separate source occurrences remain available in the evidence.
+Existing text-query URLs remain supported. Empty public responses show an honest
+empty state rather than example works.
+
+Paper pages show retained raw reference evidence; result pages link to the manuscript
+neighborhood alongside their existing local statement dependencies, source-history
+roles and verifier-backed proof credit. This map does not add theorem or formalization
+nodes to the shared API. There is no force layout, fractional credit or added upload step.
 
 ## Growing rigorous mathematical dependencies
 
@@ -223,7 +238,10 @@ visibility before pagination and immutable accepted-version reads. Parser fixtur
 cover BibTeX, inline/.bbl prose, archive inputs, preamble `addbibresource`, unused
 entries, ambiguous/missing keys and limits. React tests exercise earlier-work
 entry, two incoming citations, names/source links, query routing, coverage and
-unsafe-link handling. A shared inline/bbl fixture is checked against actual Rust
+unsafe-link handling. Map interaction tests cover selection, reference pagination,
+fresh responses removing previously selected work, duplicate visual edges retaining
+their evidence and isolated papers without invented connections.
+A shared inline/bbl fixture is checked against actual Rust
 parser/domain output and consumed by DOM tests for paper references, relationships
 and focused work with evidence both closed and open. Existing result/contribution/verifier behavior remains under
 its existing tests. These are local fixtures, not live test publications.
