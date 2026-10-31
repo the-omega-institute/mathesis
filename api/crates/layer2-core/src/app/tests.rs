@@ -4,6 +4,7 @@ mod knowledge;
 mod manuscripts;
 mod preparation;
 mod research;
+mod research_graph;
 
 use chrono::Datelike;
 
@@ -48,6 +49,7 @@ impl PaperReader for FakeReader {
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(ReadPaper {
+            bibliography: None,
             evidence: vec![],
             main_file: "main.tex".into(),
             title: Some("Gaps in zero runs".into()),

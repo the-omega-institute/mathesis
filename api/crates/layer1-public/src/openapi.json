@@ -3060,6 +3060,74 @@
           }
         }
       }
+    },
+    "/api/v1/research-graph": {
+      "get": {
+        "operationId": "research_graph",
+        "summary": "Explore shared source-declared citations from currently public accepted manuscript versions.",
+        "description": "This is a bounded view of one shared graph, not exhaustive literature coverage or a verified proof dependency DAG. Exact supported identifiers share literature identities; metadata stays source-declared. Focus and text search are separate modes. A paper or source-local reference focus opens its accepted source directly and has no pagination. Responses are no-store.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "focus",
+            "in": "query",
+            "description": "Node identity returned by the API. paper:WP-\u2026 returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Substring of visible accepted manuscript or citation metadata in this bounded page.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Descending public record cursor. Follow even after an empty match page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Matching public accepted source records per page, clamped to 1\u201320 (default 10). Matching and live visibility precede pagination.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded graph view and explicit coverage; an empty page can have a continuation cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchGraph"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Focused manuscript is absent or private."
+          },
+          "422": {
+            "description": "Invalid or oversized query."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3469,6 +3537,9 @@
           },
           "origin": {
             "$ref": "#/components/schemas/ManuscriptOrigin"
+          },
+          "bibliography": {
+            "$ref": "#/components/schemas/PublicBibliography"
           }
         },
         "required": [
@@ -6808,7 +6879,10 @@
           "processing_consent": {
             "type": "string",
             "description": "The upload action requests AI processing. Use ai-review-request-2026-10-29; the legacy explicit-consent marker remains accepted for compatible clients.",
-            "enum": ["ai-review-2026-10-11", "ai-review-request-2026-10-29"]
+            "enum": [
+              "ai-review-2026-10-11",
+              "ai-review-request-2026-10-29"
+            ]
           }
         }
       },
@@ -6847,6 +6921,294 @@
             "description": "Author-approved ClaimConfirmation entries for the exact prepared source."
           }
         }
+      },
+      "BibliographicReference": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "year": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "doi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arxiv": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_location": {
+            "type": "string"
+          },
+          "raw": {
+            "type": "string"
+          },
+          "raw_truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "authors",
+          "year",
+          "doi",
+          "arxiv",
+          "url",
+          "source_location",
+          "raw",
+          "raw_truncated"
+        ]
+      },
+      "PublicBibliography": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "work": {
+                  "type": "string"
+                },
+                "reference": {
+                  "$ref": "#/components/schemas/BibliographicReference"
+                },
+                "display_text": {
+                  "type": "string",
+                  "description": "Readable source citation prose without inferred author/title boundaries; raw syntax remains in reference evidence."
+                }
+              },
+              "required": [
+                "work",
+                "reference",
+                "display_text"
+              ]
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "method",
+          "references",
+          "limitations"
+        ]
+      },
+      "ResearchNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "manuscript",
+              "literature"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "authors",
+          "url",
+          "record"
+        ]
+      },
+      "CitationEdge": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "relation": {
+            "const": "cites"
+          },
+          "record": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reference_key": {
+            "type": "string"
+          },
+          "source_location": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "year": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "raw": {
+            "type": "string"
+          },
+          "raw_truncated": {
+            "type": "boolean"
+          },
+          "display_text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "relation",
+          "record",
+          "version",
+          "reference_key",
+          "source_location",
+          "title",
+          "authors",
+          "year",
+          "raw",
+          "raw_truncated",
+          "display_text"
+        ]
+      },
+      "GraphCoverage": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "record",
+          "version",
+          "method",
+          "limitations"
+        ]
+      },
+      "ResearchGraph": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchNode"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CitationEdge"
+            }
+          },
+          "coverage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphCoverage"
+            }
+          },
+          "next_before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nodes",
+          "edges",
+          "coverage",
+          "next_before",
+          "scope"
+        ]
       }
     }
   }

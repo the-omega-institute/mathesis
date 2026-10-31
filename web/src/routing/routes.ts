@@ -2,6 +2,7 @@ import type { TaskKind } from '../api/types';
 
 export type Route =
   | { kind: 'home' }
+  | { kind: 'research_graph'; focus?: string; q?: string; before?: string }
   | { kind: 'bindings' }
   | { kind: 'feedback'; id: string; key: string }
   | { kind: 'binding_profile'; person: string }
@@ -62,6 +63,15 @@ export function parseRoute(pathname: string, search = ''): Route {
 
   if (segments.length === 1) {
     switch (first) {
+      case 'research-graph': {
+        const params = new URLSearchParams(search);
+        return {
+          kind: 'research_graph',
+          ...(params.get('focus') ? { focus: params.get('focus')! } : {}),
+          ...(params.get('q') ? { q: params.get('q')! } : {}),
+          ...(params.get('before') ? { before: params.get('before')! } : {}),
+        };
+      }
       case 'bindings':
         return { kind: 'bindings' };
       case 'supporters':
@@ -165,6 +175,13 @@ const seg = encodeURIComponent;
 
 export function routePath(route: Route): string {
   switch (route.kind) {
+    case 'research_graph': {
+      const params = new URLSearchParams();
+      if (route.focus) params.set('focus', route.focus);
+      if (route.q) params.set('q', route.q);
+      if (route.before) params.set('before', route.before);
+      return `/research-graph${params.size ? `?${params}` : ''}`;
+    }
     case 'feedback':
       return `/feedback/${seg(route.id)}/${seg(route.key)}`;
     case 'binding_profile':

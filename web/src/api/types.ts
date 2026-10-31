@@ -691,6 +691,7 @@ export type PublicClaim = {
   lean?: FormalArtifact | null;
 };
 export type PublicPaper = {
+  bibliography?: PublicBibliography;
   publication?: { version: number; claims_revision: number };
   origin?: ManuscriptOrigin;
   summary: PaperSummary;
@@ -1430,4 +1431,51 @@ export type SubmitPrepared = {
   claims_revision: number;
   metadata: NewPaper;
   claims: ClaimConfirmation[];
+};
+
+export type BibliographicReference = {
+  key: string;
+  title: string | null;
+  authors: string[];
+  year: string | null;
+  doi: string | null;
+  arxiv: string | null;
+  url: string | null;
+  source_location: string;
+  raw: string;
+  raw_truncated: boolean;
+};
+export type PublicBibliography = {
+  method: string;
+  references: { work: string; display_text?: string; reference: BibliographicReference }[];
+  limitations: string[];
+};
+export type ResearchNode = {
+  id: string;
+  kind: 'manuscript' | 'literature';
+  title: string;
+  authors: string[];
+  url: string | null;
+  record: string | null;
+};
+export type ResearchGraph = {
+  nodes: ResearchNode[];
+  edges: {
+    from: string;
+    to: string;
+    relation: 'cites';
+    record: string;
+    version: number;
+    reference_key: string;
+    display_text?: string;
+    source_location: string;
+    title: string | null;
+    authors: string[];
+    year: string | null;
+    raw: string;
+    raw_truncated: boolean;
+  }[];
+  coverage: { record: string; version: number; method: string | null; limitations: string[] }[];
+  next_before: string | null;
+  scope: string;
 };

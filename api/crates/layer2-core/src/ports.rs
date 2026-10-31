@@ -80,6 +80,15 @@ pub trait EndorsementStore: Send + Sync {
 
 #[async_trait]
 pub trait RecordStore: Send + Sync {
+    /// Select matching immutable inputs under live public visibility BEFORE
+    /// pagination. No unrelated source prefix may limit discovery. Implementations
+    /// bound output and execution time; a deadline is an error, not empty coverage.
+    async fn search_research(
+        &self,
+        search: &crate::model::ResearchSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<Record>>;
     async fn search(
         &self,
         search: &crate::model::PaperSearch,
@@ -118,6 +127,7 @@ pub struct ReadStatement {
 /// What reading an uploaded LaTeX source yields.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReadPaper {
+    pub bibliography: Option<crate::model::Bibliography>,
     pub evidence: Vec<crate::model::EvidenceAttachment>,
     pub main_file: String,
     pub title: Option<String>,

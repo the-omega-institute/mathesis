@@ -1097,3 +1097,19 @@ confirms approved statements against the exact source before ordinary review.
 See [MANUSCRIPT_DELIVERY.md](MANUSCRIPT_DELIVERY.md) for the complete envelope,
 retry/revision rules, public projection and CLI/MCP commands. This does not consume
 the Pages public feed or change independently admitted knowledge snapshots.
+
+
+The public `GET /api/v1/research-graph` service and optional accepted-paper
+`bibliography` projection expose shared, source-declared literature connections.
+See [RESEARCH_GRAPH.md](RESEARCH_GRAPH.md) for exact identifier rules, bounded
+forward/inverse queries, live visibility, extraction coverage and proof-credit
+boundaries. This is separate from private referee knowledge retrieval.
+
+Graph search/focus selects matching public accepted source records before pagination
+(default 10, maximum 20). Typed supported DOI/arXiv searches use exact graph identity.
+`next_before` continues matching sources; unrelated publications do not consume
+result pages. Mongo queries have a 10-second deadline and return an error on expiry.
+Public reference occurrences and citation edges include `display_text`: readable
+source-derived citation prose without inferred author/title boundaries. `raw`
+remains available as optional source evidence. Stored bibliographies and source
+digests are unchanged by this presentation projection.

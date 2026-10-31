@@ -63,6 +63,7 @@ pub(crate) fn routes() -> Router<Arc<App>> {
                     .unwrap()
             }),
         )
+        .route("/research-graph", get(research_graph))
         .route("/knowledge/capabilities", get(knowledge_capabilities))
         .route("/policy", get(policy))
         .route("/me", get(me))
@@ -171,3 +172,13 @@ async fn set_roles(
 
 #[cfg(test)]
 mod tests;
+
+async fn research_graph(
+    State(app): AppState,
+    Query(query): Query<mathesis_core::app::ResearchGraphQuery>,
+) -> ApiResult<impl IntoResponse> {
+    Ok((
+        [(axum::http::header::CACHE_CONTROL, "no-store")],
+        Json(app.research_graph(query).await?),
+    ))
+}

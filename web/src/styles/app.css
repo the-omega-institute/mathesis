@@ -2585,3 +2585,32 @@ input[type='file']::file-selector-button {
 .confirmation-navigation {
   scroll-margin-top: 1rem;
 }
+
+/* Shared graph: readable works and source evidence. */
+.research-graph {
+  max-width: 64rem;
+}
+.graph-work-list,
+.graph-citations,
+.reference-list {
+  padding-left: 1.4rem;
+}
+.graph-work-list > li,
+.graph-citations > li,
+.reference-list > li {
+  margin-block: 1.2rem;
+}
+.graph-work-list p,
+.reference-list p,
+.graph-citations p {
+  margin-block: 0.3rem;
+}
+.graph-focus {
+  border-block: 1px solid var(--line, #ccc);
+  padding-block: 1rem;
+}
+.reference-evidence {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85em;
+}

@@ -56,6 +56,9 @@ pub struct BlobRef {
 /// One uploaded version of the source.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PaperVersion {
+    /// None means a legacy version was never indexed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bibliography: Option<super::Bibliography>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delivery: Option<super::ManuscriptVersion>,
     #[serde(default)]

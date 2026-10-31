@@ -77,3 +77,6 @@ pub use feedback::*;
 
 mod provenance;
 pub use provenance::*;
+
+mod bibliography;
+pub use bibliography::*;

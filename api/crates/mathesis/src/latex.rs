@@ -51,7 +51,26 @@ impl PaperReader for LatexReader {
         } else {
             parse::parse(&files).map_err(reason)?
         };
+        let bibliography = if paper.main_file.to_ascii_lowercase().ends_with(".pdf") {
+            mathesis_latex::bibliography::Bibliography::pdf()
+        } else {
+            let mut warnings = vec![];
+            let source = parse::expand(&files, &paper.main_file, &mut warnings);
+            let mut bibliography =
+                mathesis_latex::bibliography::extract(&files, &paper.main_file, &source);
+            if !warnings.is_empty() {
+                bibliography.limitations.push(
+                    "Some source inputs could not be resolved; citations may be missing.".into(),
+                );
+            }
+            bibliography
+        };
+        // Identical observation schema; domain identity/authority stays in Layer 2.
+        let bibliography =
+            serde_json::from_value(serde_json::to_value(bibliography).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
         Ok(ReadPaper {
+            bibliography: Some(bibliography),
             evidence: mathesis_core::model::evidence_inventory(&files)
                 .map_err(|e| e.to_string())?,
             main_file: paper.main_file,
@@ -219,6 +238,46 @@ mod tests {
     }
 
     #[test]
+    fn web_citation_fixtures_match_actual_parser_and_domain_projection() {
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../web/src/test/research-citations.json"
+        ))
+        .unwrap();
+        for fixture in fixtures.as_array().unwrap() {
+            let source = fixture["source"].as_str().unwrap();
+            let files =
+                fixture["bbl"]
+                    .as_str()
+                    .map_or_else(std::collections::BTreeMap::new, |bbl| {
+                        std::collections::BTreeMap::from([(
+                            "main.bbl".into(),
+                            bbl.as_bytes().to_vec(),
+                        )])
+                    });
+            let observed = mathesis_latex::bibliography::extract(&files, "main.tex", source);
+            let bibliography: mathesis_core::model::Bibliography =
+                serde_json::from_value(serde_json::to_value(observed).unwrap()).unwrap();
+            let reference = bibliography.references.into_iter().next().unwrap();
+            assert!(reference.authors.is_empty()); // never guess person/title boundaries
+            let actual = mathesis_core::app::PublicReference {
+                work: mathesis_core::model::reference_identity(
+                    &"WP-2026-0001".into(),
+                    1,
+                    &reference,
+                ),
+                display_text: reference.display_text(),
+                reference,
+            };
+            assert_eq!(
+                serde_json::to_value(actual).unwrap(),
+                fixture["expected"],
+                "{}",
+                fixture["kind"]
+            );
+        }
+    }
+
+    #[test]
     fn reads_a_single_file_paper() {
         let source = br"\documentclass{article}
 \newtheorem{theorem}{Theorem}
@@ -322,5 +381,27 @@ mod tests {
                     .starts_with(b"%PDF")
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod bibliography_tests {
+    use super::*;
+    #[test]
+    fn ordinary_source_intake_retains_bibliography_and_unresolved_citations() {
+        let source=br"\documentclass{article}\begin{document}\cite{old,missing}
+\begin{theorem}A statement.\end{theorem}
+\begin{thebibliography}{9}\bibitem{old}E. Earlier, An old result. \doi{10.1234/old}\end{thebibliography}
+\end{document}";
+        let paper = LatexReader.read(source, "main.tex").unwrap();
+        let b = paper.bibliography.unwrap();
+        b.validate().unwrap();
+        assert_eq!(b.references.len(), 2);
+        assert!(b.references.iter().any(|r| r.raw.contains("E. Earlier")));
+        assert!(
+            b.references
+                .iter()
+                .any(|r| r.key == "missing" && r.doi.is_none())
+        );
     }
 }

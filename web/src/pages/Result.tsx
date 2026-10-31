@@ -79,6 +79,13 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
             ))}
           </section>
         ) : null}
+        <p>
+          <Link to={{ kind: 'research_graph', focus: `paper:${record}` }}>
+            Explore the paper’s references and connections
+          </Link>{' '}
+          in the shared research graph. These citations describe the manuscript; they are not
+          checked dependencies of this result.
+        </p>
         <ResultConnections paper={paper} claim={claim} />
         <ResultProvenance paper={paper} claim={claim} />
         <section>

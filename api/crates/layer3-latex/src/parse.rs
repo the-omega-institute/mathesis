@@ -52,7 +52,7 @@ pub fn strip_comments(source: &str) -> String {
 
 /// The content of the brace group starting at `start` (which must be `{`),
 /// and the index after its closing brace.
-fn braced(s: &str, start: usize) -> Option<(&str, usize)> {
+pub(crate) fn braced(s: &str, start: usize) -> Option<(&str, usize)> {
     let bytes = s.as_bytes();
     if bytes.get(start) != Some(&b'{') {
         return None;
@@ -78,7 +78,7 @@ fn braced(s: &str, start: usize) -> Option<(&str, usize)> {
 
 /// The content of an optional `[...]` argument at `start` (after
 /// whitespace), respecting nested braces, and the index after it.
-fn bracketed(s: &str, start: usize) -> Option<(&str, usize)> {
+pub(crate) fn bracketed(s: &str, start: usize) -> Option<(&str, usize)> {
     let bytes = s.as_bytes();
     let mut i = start;
     while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\n') {
@@ -102,7 +102,7 @@ fn bracketed(s: &str, start: usize) -> Option<(&str, usize)> {
     None
 }
 
-fn skip_space(s: &str, mut i: usize) -> usize {
+pub(crate) fn skip_space(s: &str, mut i: usize) -> usize {
     let bytes = s.as_bytes();
     while i < bytes.len() && bytes[i].is_ascii_whitespace() {
         i += 1;
