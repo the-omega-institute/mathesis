@@ -1140,6 +1140,7 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
         review_contract: 0,
         agent_attempted: Default::default(),
         agent_rounds: Default::default(),
+        agent_after_attempt: Default::default(),
         id: "WP-2026-0001:C1:v1:c1".into(),
         record: "WP-2026-0001".into(),
         submission: "source".into(),
@@ -1895,5 +1896,38 @@ async fn manuscript_delivery_identity_is_unique_persistent_and_legacy_safe() {
             .unwrap(),
         3
     );
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn formalization_recovery_preserves_queued_backoff() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let s = &db.store;
+    ReviewQueue::enqueue(s, &"proof".into(), JobKind::AgentAttempt)
+        .await
+        .unwrap();
+    let job = JobLease::claim(s).await.unwrap().unwrap();
+    JobLease::defer(s, &job, std::time::Duration::from_secs(900))
+        .await
+        .unwrap();
+    let before = s
+        .raw(REVIEW_JOBS)
+        .find_one(doc! { "kind": "agent_attempt" })
+        .await
+        .unwrap()
+        .unwrap();
+    ReviewQueue::enqueue(s, &"proof".into(), JobKind::AgentAttempt)
+        .await
+        .unwrap();
+    let after = s
+        .raw(REVIEW_JOBS)
+        .find_one(doc! { "kind": "agent_attempt" })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(before, after);
+    assert!(JobLease::claim(s).await.unwrap().is_none());
     db.drop().await;
 }

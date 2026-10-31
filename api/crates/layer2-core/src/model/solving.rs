@@ -92,6 +92,9 @@ pub struct SolveFile {
     /// one frozen response from the first run.
     #[serde(default)]
     pub agent_rounds: std::collections::BTreeMap<String, u32>,
+    /// Last rejected attempt already consumed by a continuation.
+    #[serde(default)]
+    pub agent_after_attempt: std::collections::BTreeMap<String, String>,
     pub id: String,
     pub record: RecordId,
     pub submission: SubmissionId,

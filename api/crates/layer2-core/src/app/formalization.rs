@@ -141,7 +141,7 @@ impl App {
         caller: &Caller,
         id: &SubmissionId,
         claim: &ClaimId,
-        progress: FormalizationProgress,
+        mut progress: FormalizationProgress,
     ) -> CoreResult<Submission> {
         caller.require(Role::Reviewer)?;
         let mut submission = self.submission(caller, id).await?;
@@ -151,15 +151,50 @@ impl App {
                 "formalization requires a public accepted paper",
             ));
         }
+        if let Some(digest) = &progress.target_digest {
+            let SubmissionStatus::Accepted { record } = &submission.status else {
+                unreachable!()
+            };
+            let target = self.target(record, claim).await?;
+            if &target.digest != digest {
+                return Err(CoreError::conflict("formalization target changed"));
+            }
+            let file = self.solve_file(record, claim).await?;
+            progress.toolchain = Some(target.toolchain);
+            let receipt = file
+                .winner(digest)
+                .and_then(|attempt| attempt.receipt.as_ref());
+            if let Some(receipt) = receipt {
+                progress.state = if receipt.verdict == Verdict::Proved {
+                    FormalizationProgressState::Verified
+                } else {
+                    FormalizationProgressState::Blocked
+                };
+                progress.next_step = Some(if receipt.verdict == Verdict::Proved {
+                    "An independently checked proof is available.".into()
+                } else {
+                    "A checked disproof requires review before proof work continues.".into()
+                });
+                progress.remaining_obligations.clear();
+            } else if progress.state == FormalizationProgressState::Verified {
+                return Err(CoreError::conflict(
+                    "verified progress requires a verifier receipt",
+                ));
+            }
+        } else if progress.state == FormalizationProgressState::Verified {
+            return Err(CoreError::conflict(
+                "verified progress requires a confirmed target",
+            ));
+        }
         let item = submission
             .formalization
             .items
             .iter_mut()
             .find(|item| &item.claim == claim)
             .ok_or_else(|| CoreError::not_found("formalization item", claim.as_str()))?;
-        if matches!(item.state, ItemState::Declined { .. }) {
+        if matches!(item.state, ItemState::Proposed | ItemState::Declined { .. }) {
             return Err(CoreError::conflict(
-                "the author declined this formalization",
+                "formalization needs the author's approval",
             ));
         }
         let progress = progress.bounded();

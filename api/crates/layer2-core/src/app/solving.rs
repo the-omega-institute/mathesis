@@ -39,15 +39,18 @@ impl App {
         }
     }
 
-    /// Advance the durable continuation counter for a formalization target.
-    /// A new counter means a new CMA run-store key, so a failed response is
-    /// never replayed forever while the target and source remain unchanged.
+    /// A terminal result admits at most one continuation, including after a
+    /// lost response or worker restart. An empty response uses its exact round;
+    /// a rejected proof additionally consumes the verifier attempt identity.
+    #[allow(clippy::too_many_arguments)]
     pub async fn advance_formalization_round(
         &self,
         caller: &Caller,
         record: &RecordId,
         claim: &ClaimId,
         digest: &str,
+        expected_round: u32,
+        rejected_attempt: Option<&str>,
     ) -> CoreResult<u32> {
         caller.require(Role::Reviewer)?;
         if self.target(record, claim).await?.digest != digest {
@@ -55,14 +58,40 @@ impl App {
         }
         loop {
             let mut file = self.solve_file(record, claim).await?;
-            let round = file.agent_rounds.entry(digest.into()).or_default();
-            *round = round.saturating_add(1);
-            let current = *round;
+            let current = file.agent_rounds.get(digest).copied().unwrap_or(0);
+            if let Some(id) = rejected_attempt {
+                if !file.attempts.iter().any(|attempt| {
+                    attempt.id == id
+                        && attempt.target_digest == digest
+                        && attempt.entrant.id == "wishpool-agent"
+                        && attempt
+                            .receipt
+                            .as_ref()
+                            .is_some_and(|r| r.verdict == Verdict::Rejected)
+                }) {
+                    return Err(CoreError::conflict(
+                        "continuation needs a rejected venue attempt",
+                    ));
+                }
+                if file.agent_after_attempt.get(digest).map(String::as_str) == Some(id) {
+                    return Ok(current);
+                }
+            }
+            if current != expected_round {
+                return Ok(current);
+            }
+            let next = current
+                .checked_add(1)
+                .ok_or_else(|| CoreError::conflict("formalization round limit reached"))?;
+            file.agent_rounds.insert(digest.into(), next);
+            if let Some(id) = rejected_attempt {
+                file.agent_after_attempt.insert(digest.into(), id.into());
+            }
             match self.save_solve_file(&mut file).await {
                 Err(CoreError::StaleRevision { .. }) => continue,
                 result => {
                     result?;
-                    return Ok(current);
+                    return Ok(next);
                 }
             }
         }
@@ -207,6 +236,7 @@ impl App {
         let file = SolveFile {
             agent_attempted: Default::default(),
             agent_rounds: Default::default(),
+            agent_after_attempt: Default::default(),
             id: id.clone(),
             record: record.clone(),
             submission: s.id.clone(),
@@ -718,6 +748,8 @@ impl App {
         caller.require(Role::Reviewer)?;
         let (file, attempt) = self.find_attempt(id).await?;
         if attempt.receipt.is_some() || attempt.invalidated.is_some() {
+            self.sync_formalization_receipt(caller, &file, &attempt)
+                .await?;
             return self.disproof_recheck(&file, &attempt).await;
         }
         let target = match self.target(&file.record, &file.claim).await {
@@ -780,67 +812,83 @@ impl App {
                     result?;
                     let saved_attempt = current.attempts.iter().find(|a| a.id == id).unwrap();
                     let result = self.disproof_recheck(&current, saved_attempt).await;
-                    // Keep the long-running formalization projection in sync
-                    // with the independent verifier. A receipt is the only
-                    // event that can move proof work to verified.
-                    if let Some(item) = self
-                        .load(&file.submission)
-                        .await?
-                        .formalization
-                        .item(&file.claim)
-                        .cloned()
-                    {
-                        if let Some(mut progress) = item.progress {
-                            progress.attempts = current
-                                .attempts
-                                .iter()
-                                .filter(|a| a.target_digest == attempt.target_digest)
-                                .count() as u32;
-                            progress.state = match saved_attempt.receipt.as_ref().map(|r| r.verdict)
-                            {
-                                Some(Verdict::Proved) => FormalizationProgressState::Verified,
-                                Some(Verdict::Rejected) => FormalizationProgressState::Partial,
-                                Some(Verdict::Disproved) => FormalizationProgressState::Blocked,
-                                None => progress.state,
-                            };
-                            progress.next_step = Some(match progress.state {
-                                FormalizationProgressState::Verified => {
-                                    "The independent Lean verifier accepted a proof for this target.".into()
-                                }
-                                FormalizationProgressState::Blocked => {
-                                    "The verifier did not establish the target; review the recorded result before continuing.".into()
-                                }
-                                _ => "CMA will continue from this verifier result.".into(),
-                            });
-                            progress.note = saved_attempt
-                                .receipt
-                                .as_ref()
-                                .map(|receipt| receipt.reason.clone());
-                            progress.updated_at = self.ports.clock.now();
-                            self.record_formalization_progress(
-                                caller,
-                                &file.submission,
-                                &file.claim,
-                                progress,
-                            )
-                            .await?;
-                            if saved_attempt
-                                .receipt
-                                .as_ref()
-                                .is_some_and(|receipt| receipt.verdict == Verdict::Rejected)
-                            {
-                                self.ports
-                                    .queue
-                                    .enqueue(&file.submission, JobKind::AgentAttempt)
-                                    .await?;
-                            }
-                        }
-                    }
+                    self.sync_formalization_receipt(caller, &current, saved_attempt)
+                        .await?;
                     result?;
                     return Ok(());
                 }
             }
         }
+    }
+    /// Replay-safe projection: a saved receipt survives a worker crash between
+    /// verification and updating the author view. No second Lean run is needed.
+    async fn sync_formalization_receipt(
+        &self,
+        caller: &Caller,
+        file: &SolveFile,
+        attempt: &Attempt,
+    ) -> CoreResult<()> {
+        let Some(receipt) = &attempt.receipt else {
+            return Ok(());
+        };
+        let submission = self.load(&file.submission).await?;
+        if submission.analysis_visibility != Visibility::Public
+            || !submission.approved_statement(&file.claim)
+            || !self.attempt_inputs_current(file, attempt).await?
+        {
+            return Ok(());
+        }
+        let Some(item) = submission.formalization.item(&file.claim) else {
+            return Ok(());
+        };
+        let state = match receipt.verdict {
+            Verdict::Proved => FormalizationProgressState::Verified,
+            Verdict::Rejected => FormalizationProgressState::Partial,
+            Verdict::Disproved => FormalizationProgressState::Blocked,
+        };
+        let mut progress = item.progress.clone().unwrap_or(FormalizationProgress {
+            state,
+            target_digest: None,
+            toolchain: None,
+            attempts: 0,
+            completed_lemmas: vec![],
+            remaining_obligations: vec![],
+            next_step: None,
+            note: None,
+            updated_at: self.ports.clock.now(),
+        });
+        progress.target_digest = Some(attempt.target_digest.clone());
+        progress.toolchain = Some(receipt.toolchain.clone());
+        progress.attempts = progress.attempts.max(
+            file.attempts
+                .iter()
+                .filter(|a| a.target_digest == attempt.target_digest)
+                .count() as u32,
+        );
+        progress.state = state;
+        progress.next_step = Some(
+            match state {
+                FormalizationProgressState::Verified => {
+                    "An independently checked proof is available."
+                }
+                FormalizationProgressState::Blocked => {
+                    "A checked disproof requires review before proof work continues."
+                }
+                _ => "Proof work will continue from this verification result.",
+            }
+            .into(),
+        );
+        progress.note = Some(receipt.reason.clone());
+        progress.updated_at = self.ports.clock.now();
+        self.record_formalization_progress(caller, &file.submission, &file.claim, progress)
+            .await?;
+        if receipt.verdict == Verdict::Rejected && file.winner(&attempt.target_digest).is_none() {
+            self.ports
+                .queue
+                .enqueue(&file.submission, JobKind::AgentAttempt)
+                .await?;
+        }
+        Ok(())
     }
     pub(crate) async fn disproof_recheck(
         &self,
@@ -1138,7 +1186,48 @@ impl App {
                     // Existing approved paper targets also participate in discovery,
                     // including historical confirmations made before this directory.
                     for claim in s.claims.iter().filter(|c| s.approved_statement(&c.id)) {
-                        self.solve_file(record, &claim.id).await?;
+                        let file = self.solve_file(record, &claim.id).await?;
+                        if let Ok(target) = self.target(record, &claim.id).await {
+                            let winner = file.winner(&target.digest);
+                            // Legacy records, or a crash after storing the receipt,
+                            // can lack the corresponding author-facing proof state.
+                            if let Some(attempt) = winner {
+                                let expected = if attempt
+                                    .receipt
+                                    .as_ref()
+                                    .is_some_and(|r| r.verdict == Verdict::Proved)
+                                {
+                                    FormalizationProgressState::Verified
+                                } else {
+                                    FormalizationProgressState::Blocked
+                                };
+                                if s.formalization
+                                    .item(&claim.id)
+                                    .and_then(|i| i.progress.as_ref())
+                                    .is_none_or(|p| {
+                                        p.target_digest.as_deref() != Some(target.digest.as_str())
+                                            || p.state != expected
+                                    })
+                                {
+                                    self.ports
+                                        .queue
+                                        .enqueue(
+                                            &SubmissionId::from(attempt.id.as_str()),
+                                            JobKind::VerifyAttempt,
+                                        )
+                                        .await?;
+                                }
+                            } else if !file.attempts.iter().any(|attempt| {
+                                attempt.target_digest == target.digest
+                                    && attempt.receipt.is_none()
+                                    && attempt.invalidated.is_none()
+                            }) {
+                                self.ports
+                                    .queue
+                                    .enqueue(&s.id, JobKind::AgentAttempt)
+                                    .await?;
+                            }
+                        }
                     }
                     let mut needs_review = false;
                     let mut needs_target = false;

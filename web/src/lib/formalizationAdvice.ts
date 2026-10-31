@@ -40,5 +40,27 @@ export function formalizationAdviceText(submission: Submission, round?: RefereeR
     : round?.formalization_suggestions
       ? 'No specific formalization recommendation is available from this review.'
       : 'No formalization recommendation is available from this review.';
-  return `## Formalization opportunities\n\n${text}\n\n${submission.purpose === 'review_only' ? 'This private review does not schedule public formalization work.' : 'When you request a formalization, Mathesis keeps the work private until a proof has been independently checked.'}`;
+  return `## Formalization opportunities\n\n${text}\n\n${submission.purpose === 'review_only' ? 'This private review does not schedule public formalization work.' : 'After you approve and confirm a public statement, Mathesis can work on its formal proof. A proof is shown as verified only after independent checking.'}`;
+}
+
+/** Existing manuscripts need no migration or repeated review to show saved target state. */
+export function legacyFormalizationStatus(submission: Submission, claim: string): string {
+  const item = submission.formalization.items.find((entry) => entry.claim === claim);
+  if (!item || item.state.state === 'proposed' || item.state.state === 'declined') return '';
+  if (item.state.state === 'verified') return 'A formal proof is recorded for this result.';
+  if (submission.analysis_visibility !== 'public')
+    return 'Proof work is paused while this paper is private.';
+  const target = [...submission.lean_statements]
+    .reverse()
+    .find(
+      (entry) =>
+        entry.claim === claim &&
+        entry.version === submission.versions.at(-1)?.number &&
+        entry.claims_revision === submission.claims_revision,
+    );
+  if (target?.response.state === 'confirmed')
+    return 'The Lean statement is confirmed. Proof work can continue from this target.';
+  if (target?.response.state === 'awaiting_author')
+    return 'The Lean statement is ready for your confirmation.';
+  return 'The exact Lean statement is being prepared.';
 }
