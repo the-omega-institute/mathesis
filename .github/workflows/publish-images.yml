@@ -1,0 +1,265 @@
+name: Publish images after CI
+
+# CI remains the review gate. This workflow publishes only the exact commit whose
+# push CI completed successfully, so a failing or unreviewed commit cannot become
+# a deployable package by accident.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        required: true
+        default: develop
+        type: string
+      verifier:
+        description: Build the Lean base and verifier (slow)
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-images-${{ github.event.workflow_run.head_sha || inputs.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  app:
+    name: Publish web and API images
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
+      }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
+          fetch-depth: 1
+      - name: Resolve source identity
+        id: source
+        env:
+          REQUESTED_REF: ${{ github.event.workflow_run.head_branch || inputs.ref || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit=$(git rev-parse HEAD)
+          short=$(git rev-parse --short=12 HEAD)
+          if [[ "$REQUESTED_REF" == "develop" || "$REQUESTED_REF" == "main" ]]; then
+            branch="$REQUESTED_REF"
+          else
+            branch="run-$short"
+          fi
+          {
+            echo "commit=$commit"
+            echo "short=$short"
+            echo "branch=$branch"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish web image
+        id: web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/web/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/mathesis-web:${{ steps.source.outputs.short }}
+            ${{ env.REGISTRY }}/mathesis-web:${{ steps.source.outputs.branch }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=mathesis-web
+          cache-to: type=gha,scope=mathesis-web,mode=max
+      - name: Publish API image
+        id: api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/mathesis-api:${{ steps.source.outputs.short }}
+            ${{ env.REGISTRY }}/mathesis-api:${{ steps.source.outputs.branch }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=mathesis-api
+          cache-to: type=gha,scope=mathesis-api,mode=max
+      - name: Record immutable image receipts
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          SOURCE_REF: ${{ steps.source.outputs.branch }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mathesis-image-receipts"
+          python3 - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'mathesis-image-receipts'
+          for service, digest in {'web': os.environ['WEB_DIGEST'], 'api': os.environ['API_DIGEST']}.items():
+              image = f"ghcr.io/{os.environ['GITHUB_REPOSITORY_OWNER']}/mathesis-{service}"
+              (root / f'{service}.json').write_text(json.dumps({
+                  'image': f'{image}@{digest}',
+                  'source_commit': os.environ['SOURCE_COMMIT'],
+                  'source_ref': os.environ['SOURCE_REF'],
+                  'workflow_run': os.environ['GITHUB_RUN_ID'],
+              }, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-app-image-receipts-${{ steps.source.outputs.short }}
+          path: ${{ runner.temp }}/mathesis-image-receipts/
+          if-no-files-found: error
+          retention-days: 90
+
+  verifier:
+    name: Publish Lean base and verifier image
+    if: >-
+      ${{
+        (github.event_name != 'workflow_dispatch' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success') ||
+        (github.event_name == 'workflow_dispatch' && inputs.verifier)
+      }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
+          fetch-depth: 1
+      - name: Resolve source identity and Lean pin
+        id: source
+        env:
+          REQUESTED_REF: ${{ github.event.workflow_run.head_branch || inputs.ref || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit=$(git rev-parse HEAD)
+          short=$(git rev-parse --short=12 HEAD)
+          if [[ "$REQUESTED_REF" == "develop" || "$REQUESTED_REF" == "main" ]]; then
+            branch="$REQUESTED_REF"
+          else
+            branch="run-$short"
+          fi
+          pin=$(cat infra/verifier/lean-toolchain infra/verifier/lakefile.toml | sha256sum | cut -c1-12)
+          {
+            echo "commit=$commit"
+            echo "short=$short"
+            echo "branch=$branch"
+            echo "pin=$pin"
+          } >> "$GITHUB_OUTPUT"
+      - name: Make room for the pinned Mathlib workspace
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check for an existing Lean base
+        id: base
+        env:
+          IMAGE: ${{ env.REGISTRY }}/mathesis-lean:${{ steps.source.outputs.pin }}
+        shell: bash
+        run: |
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish the prepared Lean base
+        if: steps.base.outputs.exists == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/verifier/Lean.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/mathesis-lean:${{ steps.source.outputs.pin }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=mathesis-lean
+          cache-to: type=gha,scope=mathesis-lean,mode=max
+      - name: Resolve the Lean base digest
+        id: lean
+        env:
+          IMAGE: ${{ env.REGISTRY }}/mathesis-lean:${{ steps.source.outputs.pin }}
+        shell: bash
+        run: |
+          digest=$(docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          test "${digest#sha256:}" != "$digest"
+          echo "image=$REGISTRY/mathesis-lean@$digest" >> "$GITHUB_OUTPUT"
+      - name: Publish verifier image and run real Lean checks
+        id: verifier
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/verifier/Dockerfile
+          build-args: LEAN_IMAGE=${{ steps.lean.outputs.image }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/mathesis-verifier:${{ steps.source.outputs.short }}
+            ${{ env.REGISTRY }}/mathesis-verifier:${{ steps.source.outputs.branch }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=mathesis-verifier
+          cache-to: type=gha,scope=mathesis-verifier,mode=max
+      - name: Record immutable image receipts
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          SOURCE_REF: ${{ steps.source.outputs.branch }}
+          LEAN_PIN: ${{ steps.source.outputs.pin }}
+          LEAN_IMAGE: ${{ steps.lean.outputs.image }}
+          VERIFIER_DIGEST: ${{ steps.verifier.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mathesis-image-receipts"
+          python3 - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'mathesis-image-receipts'
+          (root / 'lean.json').write_text(json.dumps({
+              'image': os.environ['LEAN_IMAGE'],
+              'pin': os.environ['LEAN_PIN'],
+              'source_commit': os.environ['SOURCE_COMMIT'],
+              'source_ref': os.environ['SOURCE_REF'],
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }, indent=2) + '\n')
+          (root / 'verifier.json').write_text(json.dumps({
+              'image': f"ghcr.io/{os.environ['GITHUB_REPOSITORY_OWNER']}/mathesis-verifier@{os.environ['VERIFIER_DIGEST']}",
+              'lean_image': os.environ['LEAN_IMAGE'],
+              'source_commit': os.environ['SOURCE_COMMIT'],
+              'source_ref': os.environ['SOURCE_REF'],
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathesis-verifier-image-receipts-${{ steps.source.outputs.short }}
+          path: ${{ runner.temp }}/mathesis-image-receipts/
+          if-no-files-found: error
+          retention-days: 90
