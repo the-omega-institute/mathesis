@@ -301,7 +301,12 @@ it('shows manuscript evidence as source links without granting another Lean veri
     'href',
     `https://github.com/example/research/blob/${SHA}/Proof.lean`,
   );
-  expect(screen.getByText('Related problems: problem-a, problem-b')).toBeVisible();
+  expect(
+    screen.getByText(
+      'This record preserves the original problem association and the sources supplied with the manuscript.',
+    ),
+  ).toBeVisible();
+  expect(screen.queryByText('Related problems: problem-a, problem-b')).toBeNull();
   expect(screen.getAllByText('A verified formal proof is available.')).toHaveLength(1);
 });
 

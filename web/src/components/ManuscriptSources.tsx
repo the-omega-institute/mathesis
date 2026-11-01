@@ -13,13 +13,16 @@ export function ManuscriptSources({ origin }: { origin: ManuscriptOrigin }) {
   const source = safeHttpUrl(origin.source_url);
   return (
     <section aria-labelledby="manuscript-sources-h">
-      <h2 id="manuscript-sources-h">Source and proof material</h2>
+      <h2 id="manuscript-sources-h">Original source</h2>
       <p>
         {source ? <ExternalLink href={source}>Original manuscript and sources</ExternalLink> : null}
-        {' · '}
-        {origin.license}
+        {source && origin.license ? ' · ' : null}
+        {origin.license ? origin.license : null}
       </p>
-      <p className="small muted">Related problems: {origin.problem_ids.join(', ')}</p>
+      <p className="small muted">
+        This record preserves the original problem association and the sources supplied with the
+        manuscript.
+      </p>
       {origin.evidence.length ? (
         <ul className="entry-list">
           {origin.evidence.map((e, i) => {
