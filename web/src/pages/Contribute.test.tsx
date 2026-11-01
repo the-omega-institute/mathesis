@@ -42,7 +42,12 @@ describe('ContributePage', () => {
 
   it('meters the current grant and pauses it', async () => {
     const updateDonation = vi.fn(async () => ({ ...grant, status: 'paused' as const }));
-    const api = fakeApi({ getDonation: vi.fn(async () => grant), updateDonation }, donor);
+    // Keep this test about the current-month meter even when the calendar moves on.
+    const currentPeriod = new Date().toISOString().slice(0, 7);
+    const api = fakeApi(
+      { getDonation: vi.fn(async () => ({ ...grant, period: currentPeriod })), updateDonation },
+      donor,
+    );
     renderWithApp(<ContributePage />, api);
 
     const meter = await screen.findByLabelText('Used this month');
