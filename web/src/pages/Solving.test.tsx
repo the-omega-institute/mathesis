@@ -271,11 +271,14 @@ describe('solving pages', () => {
     );
     expect(await screen.findByRole('link', { name: paperSummary.title })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'An open bound' })).toBeInTheDocument();
-    const intro = screen.getByRole('heading', { name: 'Mathematical research' }).closest('header')!;
+    const intro = screen
+      .getByRole('heading', { name: 'Mathematics, reviewed and carried forward.' })
+      .closest('header')!;
     expect(within(intro).getByRole('search', { name: 'Search research' })).toBeVisible();
-    expect(
-      within(intro).getByRole('link', { name: 'Submit a paper or conjecture' }),
-    ).toHaveAttribute('href', '/submit');
+    expect(within(intro).getByRole('link', { name: 'Submit a manuscript' })).toHaveAttribute(
+      'href',
+      '/submit',
+    );
     expect(within(intro).getByRole('link', { name: 'Contribute a formal proof' })).toHaveAttribute(
       'href',
       '/formalizations',
