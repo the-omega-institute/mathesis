@@ -176,3 +176,7 @@ verifier image and validates its Kubernetes manifests alongside API/web/worker.
   published inputs or expose private findings.
 - GitHub Pages is a static showcase. A working hosted service still needs its
   API, MongoDB, worker, verifier, authentication and external model resources.
+
+### Automatic image publication
+
+After a push to `develop` or `main` passes the required `CI` workflow, `Publish images after CI` checks out that exact tested commit and publishes digest-addressable `mathesis-web`, `mathesis-api`, `mathesis-lean` and `mathesis-verifier` packages to GHCR. It also publishes a branch tag for operator use and stores immutable image receipts as workflow artifacts. The workflow never publishes a commit whose CI run failed; a manual dispatch is available for an explicitly selected ref.
