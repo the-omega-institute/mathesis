@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
-import { Async } from '../components/ui';
+import { Async, DateText } from '../components/ui';
+import { AuthorLine } from '../components/AuthorLine';
+import { InlineLatex } from '../components/Markdown';
+import { ResearchCycle } from '../components/ResearchCycle';
 import { Link, useRouter } from '../routing/router';
-import { PaperEntry } from './Papers';
-import { ConjectureEntry } from './Conjectures';
 import '../styles/home.css';
 
 const SUBJECTS = [
@@ -27,29 +28,23 @@ export function HomePage() {
   const { navigate } = useRouter();
   const [query, setQuery] = useState('');
   const loadPapers = useCallback(
-    (signal: AbortSignal) => api.listPapers({ limit: 5 }, { signal }),
+    (signal: AbortSignal) => api.listPapers({ limit: 3 }, { signal }),
     [api],
   );
   const papers = useAsync(loadPapers);
-  const loadConjectures = useCallback(
-    (signal: AbortSignal) => api.listConjectures({ limit: 3, status: 'open' }, { signal }),
-    [api],
-  );
-  const conjectures = useAsync(loadConjectures);
   return (
     <div className="page home">
       <header className="home-hero">
-        <p className="eyebrow">Mathesis · mathematical research review</p>
-        <h1>Mathematics, reviewed and carried forward.</h1>
-        <p className="lede">
-          Mathesis brings AI review, human mathematical judgment, computation, and formal proof into
-          one public record. Submit a manuscript to receive a clear decision, an analysis of its
-          arguments, and a path for what can be done next.
-        </p>
-        <p className="home-hero-note">
-          A result enters as a claim. It can leave with a decision, evidence, credit, and a place in
-          the next proof.
-        </p>
+        <div className="home-introduction">
+          <p className="eyebrow">Mathesis · mathematical research review</p>
+          <h1>Mathematics, reviewed and carried forward.</h1>
+          <p className="lede">
+            Mathematicians ask the questions and build on one another’s results. Mathesis supports
+            their work with AI review, computation and formal proof. Accepted research becomes part
+            of a shared knowledge base, with credit for its authors and the work it builds on.
+          </p>
+        </div>
+        <ResearchCycle />
         <form
           className="home-search"
           role="search"
@@ -90,85 +85,51 @@ export function HomePage() {
         </nav>
       </header>
 
-      <section className="home-purpose" aria-labelledby="purpose-heading">
-        <div>
-          <p className="eyebrow">What Mathesis does</p>
-          <h2 id="purpose-heading">One review loop for the life of a result.</h2>
-        </div>
-        <p>
-          AI reads the manuscript, checks its reasoning against the source and existing knowledge,
-          and runs the available computational checks. Authors and mathematicians keep the claim,
-          context, and credit. Accepted work can continue into formalization and new research.
-        </p>
+      <section className="home-overview" aria-labelledby="overview-heading">
+        <h2 id="overview-heading">From review to further research</h2>
+        <dl>
+          <div>
+            <dt>A clear decision</dt>
+            <dd>
+              Acceptance or rejection, with reasons. Accepted work can enter the public archive.
+            </dd>
+          </div>
+          <div>
+            <dt>Analysis and next steps</dt>
+            <dd>A review of the arguments and evidence, with suggestions and further questions.</dd>
+          </div>
+          <div>
+            <dt>Formal proof and credit</dt>
+            <dd>
+              Identify what to formalize in Lean and connect results to earlier work, crediting each
+              contribution.
+            </dd>
+          </div>
+        </dl>
       </section>
 
-      <ol className="home-flow" aria-label="The Mathesis review loop">
-        <li>
-          <span className="home-flow-number">01</span>
-          <h3>Review</h3>
-          <p>Read the arguments and decide whether the result is ready to be accepted.</p>
-        </li>
-        <li>
-          <span className="home-flow-number">02</span>
-          <h3>Check</h3>
-          <p>Compare the claims with the manuscript, calculations, sources, and prior work.</p>
-        </li>
-        <li>
-          <span className="home-flow-number">03</span>
-          <h3>Formalize</h3>
-          <p>Identify statements that deserve a Lean proof and connect them to existing work.</p>
-        </li>
-        <li>
-          <span className="home-flow-number">04</span>
-          <h3>Continue</h3>
-          <p>Turn accepted results into credited stepping stones for the next question.</p>
-        </li>
-      </ol>
-
-      <section className="home-outcomes" aria-labelledby="outcomes-heading">
-        <div>
-          <p className="eyebrow">What you receive</p>
-          <h2 id="outcomes-heading">A decision with useful mathematical detail.</h2>
-        </div>
-        <ul>
-          <li>
-            <strong>Accepted or not accepted</strong>
-            <span>A direct publication decision, with the reason made clear.</span>
-          </li>
-          <li>
-            <strong>Review analysis</strong>
-            <span>Arguments, evidence, computation, and limits explained in plain language.</span>
-          </li>
-          <li>
-            <strong>Further work</strong>
-            <span>Formalization targets and distinct directions worth exploring next.</span>
-          </li>
-        </ul>
-      </section>
-
-      <section className="subject-browse" aria-labelledby="subjects-h">
-        <h2 id="subjects-h">Browse by subject</h2>
-        <ul>
-          {SUBJECTS.map(([msc, title]) => (
-            <li key={msc}>
-              <Link to={{ kind: 'papers', msc }}>{title}</Link>
-            </li>
-          ))}
-        </ul>
-        <Link to={{ kind: 'papers' }}>All subjects and advanced search</Link>
-      </section>
-      <section aria-labelledby="recent-heading" className="archive-section">
+      <section aria-labelledby="recent-heading" className="home-research">
         <div className="section-heading">
           <h2 id="recent-heading">Latest research</h2>
-          <Link to={{ kind: 'papers' }}>Browse all</Link>
+          <Link to={{ kind: 'papers' }}>All research</Link>
         </div>
         <Async state={papers.state} onRetry={papers.reload}>
           {(listing) =>
             listing.items.length ? (
-              <ul className="entry-list archive-entries">
-                {listing.items.map((paper) => (
+              <ul className="home-papers">
+                {listing.items.slice(0, 3).map((paper) => (
                   <li key={paper.record}>
-                    <PaperEntry paper={paper} />
+                    <article>
+                      <h3>
+                        <Link to={{ kind: 'paper', record: paper.record }}>
+                          <InlineLatex source={paper.title} />
+                        </Link>
+                      </h3>
+                      <div className="entry-meta">
+                        <AuthorLine authors={paper.authors.map(({ name }) => ({ name }))} />
+                        {paper.accepted_at ? <DateText iso={paper.accepted_at} /> : null}
+                      </div>
+                    </article>
                   </li>
                 ))}
               </ul>
@@ -178,30 +139,19 @@ export function HomePage() {
           }
         </Async>
       </section>
-      <section aria-labelledby="open-heading" className="archive-section">
-        <div className="section-heading">
-          <h2 id="open-heading">Open conjectures</h2>
-          <Link to={{ kind: 'conjectures' }}>Browse all</Link>
-        </div>
-        <Async state={conjectures.state} onRetry={conjectures.reload}>
-          {(listing) =>
-            listing.items.length ? (
-              <ul className="entry-list archive-entries">
-                {listing.items
-                  .filter((item) => item.status === 'open')
-                  .slice(0, 3)
-                  .map((item) => (
-                    <li key={`${item.record}:${item.claim}`}>
-                      <ConjectureEntry conjecture={item} />
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <p className="muted">Accepted open problems will appear here.</p>
-            )
-          }
-        </Async>
-      </section>
+      <nav className="home-browse" aria-label="More research">
+        <Link to={{ kind: 'conjectures' }}>Open problems</Link>
+        <details className="home-subjects">
+          <summary>Browse by subject</summary>
+          <ul>
+            {SUBJECTS.map(([msc, title]) => (
+              <li key={msc}>
+                <Link to={{ kind: 'papers', msc }}>{title}</Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      </nav>
     </div>
   );
 }

@@ -256,25 +256,41 @@ describe('solving pages', () => {
     expect(document.body.textContent).not.toContain(receipt.target_digest);
   });
 
-  it('puts research before conjectures and gives readers clear browse and submit actions', async () => {
+  it('keeps the homepage brief with research, collapsed subjects and clear submission actions', async () => {
+    const user = userEvent.setup();
     const leaderboard = vi.fn(async () => []);
+    const listConjectures = vi.fn(async () => ({ items: [detail.summary], next_before: null }));
     renderWithApp(
       <HomePage />,
       fakeApi({
-        listConjectures: vi.fn(async () => ({ items: [detail.summary], next_before: null })),
+        listConjectures,
         listPapers: vi.fn(async () => ({
-          items: [{ ...paperSummary, new_results: 1 }],
+          items: [
+            {
+              ...paperSummary,
+              abstract_text: 'An abstract to read on the paper page.',
+              new_results: 1,
+            },
+            { ...paperSummary, record: 'WP-2026-0002', title: 'Second paper' },
+            { ...paperSummary, record: 'WP-2026-0003', title: 'Third paper' },
+            { ...paperSummary, record: 'WP-2026-0004', title: 'Fourth paper' },
+          ],
           next_before: null,
         })),
         leaderboard,
       }),
     );
     expect(await screen.findByRole('link', { name: paperSummary.title })).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'An open bound' })).toBeInTheDocument();
+    expect(screen.queryByText('An abstract to read on the paper page.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fourth paper' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Third paper' })).toBeInTheDocument();
     const intro = screen
       .getByRole('heading', { name: 'Mathematics, reviewed and carried forward.' })
       .closest('header')!;
     expect(within(intro).getByRole('search', { name: 'Search research' })).toBeVisible();
+    expect(
+      within(intro).getByRole('img', { name: 'People build a shared mathematical knowledge base' }),
+    ).toBeInTheDocument();
     expect(within(intro).getByRole('link', { name: 'Submit a manuscript' })).toHaveAttribute(
       'href',
       '/submit',
@@ -283,15 +299,21 @@ describe('solving pages', () => {
       'href',
       '/formalizations',
     );
-    expect(screen.getByRole('link', { name: 'Number theory' })).toHaveAttribute(
+    const subjects = screen.getByText('Browse by subject').closest('details')!;
+    expect(subjects).not.toHaveAttribute('open');
+    await user.click(screen.getByText('Browse by subject'));
+    expect(subjects).toHaveAttribute('open');
+    expect(within(subjects).getByRole('link', { name: 'Number theory' })).toHaveAttribute(
       'href',
       '/papers?msc=11',
     );
-    const research = screen.getByRole('heading', { name: 'Latest research' });
-    const conjectures = screen.getByRole('heading', { name: 'Open conjectures' });
-    expect(
-      research.compareDocumentPosition(conjectures) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Latest research' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All research' })).toHaveAttribute('href', '/papers');
+    expect(screen.getByRole('link', { name: 'Open problems' })).toHaveAttribute(
+      'href',
+      '/conjectures',
+    );
+    expect(listConjectures).not.toHaveBeenCalled();
     expect(screen.queryByRole('heading', { name: 'Leaderboard' })).not.toBeInTheDocument();
     expect(leaderboard).not.toHaveBeenCalled();
     const css = readFileSync('src/styles/app.css', 'utf8');
