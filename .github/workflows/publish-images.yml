@@ -22,6 +22,7 @@ on:
         type: boolean
 
 permissions:
+  actions: read
   contents: read
   packages: write
 
@@ -33,12 +34,51 @@ env:
   REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
-  app:
-    name: Publish web and API images
+  gate:
+    name: Wait for CI result
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
-        (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
+        github.event.workflow_run.event == 'push'
+      }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Require the triggering CI run to pass
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            state=$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID" --jq '[.status, (.conclusion // "")] | @tsv')
+            status=${state%%$'\t'*}
+            conclusion=${state#*$'\t'}
+            if [[ "$status" == completed ]]; then
+              [[ "$conclusion" == success ]] || {
+                echo "CI run $RUN_ID finished with $conclusion" >&2
+                exit 1
+              }
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "CI run $RUN_ID did not finish within 30 minutes" >&2
+          exit 1
+      - name: Manual dispatch does not need a CI run
+        if: github.event_name == 'workflow_dispatch'
+        run: echo 'Publishing the explicitly selected ref.'
+
+  app:
+    name: Publish web and API images
+    needs: gate
+    if: >-
+      ${{
+        needs.gate.result == 'success' &&
+        (github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'push')
       }}
     runs-on: ubuntu-24.04
     steps:
@@ -135,10 +175,12 @@ jobs:
 
   verifier:
     name: Publish Lean base and verifier image
+    needs: gate
     if: >-
       ${{
-        (github.event_name != 'workflow_dispatch' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success') ||
-        (github.event_name == 'workflow_dispatch' && inputs.verifier)
+        needs.gate.result == 'success' &&
+        ((github.event_name != 'workflow_dispatch' && github.event.workflow_run.event == 'push') ||
+        (github.event_name == 'workflow_dispatch' && inputs.verifier))
       }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
