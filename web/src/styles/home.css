@@ -5,11 +5,21 @@
 
 /* The home page introduces the work before it asks readers to browse it. */
 .home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(18rem, 1fr);
+  grid-template-areas:
+    'introduction cycle'
+    'search search'
+    'actions actions';
+  column-gap: clamp(2rem, 4vw, 4rem);
   padding: 1.5rem 0 3rem;
+}
+.home-introduction {
+  grid-area: introduction;
 }
 .home-hero h1 {
   max-width: 18ch;
-  font-size: clamp(2.5rem, 5vw, 4.4rem);
+  font-size: clamp(2.5rem, 4.6vw, 4.1rem);
   font-weight: 400;
   letter-spacing: -0.045em;
   line-height: 1.05;
@@ -23,28 +33,67 @@
   line-height: 1.65;
   margin-bottom: var(--space-4);
 }
-.home-hero-note {
-  max-width: 52ch;
+.home-cycle {
+  grid-area: cycle;
+  align-self: center;
+  width: 100%;
+  max-width: 25rem;
   margin: 0;
-  padding-left: var(--space-4);
-  border-left: 2px solid var(--accent);
+}
+.home-cycle figcaption {
+  margin-bottom: 0.75rem;
   color: var(--ink-soft);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.home-cycle svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.home-cycle-paths,
+.home-cycle marker path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.25;
+}
+.home-cycle-paths {
+  opacity: 0.6;
+}
+.home-cycle-labels {
+  fill: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 16px;
+}
+.home-cycle-labels .home-cycle-detail {
+  fill: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+}
+.home-cycle-center {
+  fill: var(--ink-soft);
+  font-family: var(--font-serif);
+  font-size: 16px;
 }
 .home-search {
+  grid-area: search;
+  width: 100%;
+  min-width: 0;
   max-width: 54rem;
   margin: 2.25rem 0 1.5rem;
 }
 .home-search label {
   display: block;
   margin-bottom: var(--space-2);
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .home-actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -153,6 +202,21 @@
   list-style: none;
 }
 
+@media (max-width: 58rem) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'introduction'
+      'search'
+      'actions'
+      'cycle';
+  }
+  .home-cycle {
+    max-width: 20rem;
+    justify-self: center;
+    margin-top: 2rem;
+  }
+}
 @media (max-width: 48rem) {
   .home-hero {
     padding-top: var(--space-4);

@@ -4,6 +4,7 @@ import { useAsync } from '../api/useAsync';
 import { Async, DateText } from '../components/ui';
 import { AuthorLine } from '../components/AuthorLine';
 import { InlineLatex } from '../components/Markdown';
+import { ResearchCycle } from '../components/ResearchCycle';
 import { Link, useRouter } from '../routing/router';
 import '../styles/home.css';
 
@@ -34,17 +35,16 @@ export function HomePage() {
   return (
     <div className="page home">
       <header className="home-hero">
-        <p className="eyebrow">Mathesis · mathematical research review</p>
-        <h1>Mathematics, reviewed and carried forward.</h1>
-        <p className="lede">
-          Mathesis brings AI review, human mathematical judgment, computation, and formal proof into
-          one public record. Submit a manuscript to receive a clear decision, an analysis of its
-          arguments, and a path for what can be done next.
-        </p>
-        <p className="home-hero-note">
-          A result enters as a claim. It can leave with a decision, evidence, credit, and a place in
-          the next proof.
-        </p>
+        <div className="home-introduction">
+          <p className="eyebrow">Mathesis · mathematical research review</p>
+          <h1>Mathematics, reviewed and carried forward.</h1>
+          <p className="lede">
+            Mathematicians ask the questions and build on one another’s results. Mathesis supports
+            their work with AI review, computation and formal proof. Accepted research becomes part
+            of a shared knowledge base, with credit for its authors and the work it builds on.
+          </p>
+        </div>
+        <ResearchCycle />
         <form
           className="home-search"
           role="search"

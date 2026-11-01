@@ -288,6 +288,9 @@ describe('solving pages', () => {
       .getByRole('heading', { name: 'Mathematics, reviewed and carried forward.' })
       .closest('header')!;
     expect(within(intro).getByRole('search', { name: 'Search research' })).toBeVisible();
+    expect(
+      within(intro).getByRole('img', { name: 'People build a shared mathematical knowledge base' }),
+    ).toBeInTheDocument();
     expect(within(intro).getByRole('link', { name: 'Submit a manuscript' })).toHaveAttribute(
       'href',
       '/submit',
