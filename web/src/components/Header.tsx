@@ -1,6 +1,6 @@
 import { ArchiveSearch } from './ArchiveSearch';
 import { useState } from 'react';
-import { currentPath, devSignInHref, errorMessage } from '../api/client';
+import { errorMessage } from '../api/client';
 import { hasRole, useSession } from '../auth/session';
 import { Link, useRouter } from '../routing/router';
 import type { Route } from '../routing/routes';
@@ -18,36 +18,9 @@ function NavLink({ to, label, active }: { to: Route; label: string; active: bool
   );
 }
 
-/** Local preview identities: one click signs in as `dev:<name>`. */
-const PREVIEW_IDENTITIES = [
-  { name: 'author', label: 'Author' },
-  { name: 'editor', label: 'Editor' },
-  { name: 'helper', label: 'Contributor' },
-  { name: 'bob', label: 'Second contributor' },
-] as const;
-
-function PreviewBar({ current }: { current: string | null }) {
-  return (
-    <div className="preview-bar" role="region" aria-label="Local preview">
-      <span>Local preview, view as:</span>
-      {PREVIEW_IDENTITIES.map(({ name, label }) =>
-        current === `dev:${name}` ? (
-          <strong key={name} aria-current="true">
-            {label}
-          </strong>
-        ) : (
-          <a key={name} href={devSignInHref(name, currentPath())}>
-            {label}
-          </a>
-        ),
-      )}
-    </div>
-  );
-}
-
 export function Header() {
   const { route } = useRouter();
-  const { session, person, devSignIn, signIn, signOut } = useSession();
+  const { session, person, signIn, signOut } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const k = route.kind;
@@ -55,7 +28,6 @@ export function Header() {
 
   return (
     <header className="site-header">
-      {devSignIn ? <PreviewBar current={person?.id ?? null} /> : null}
       <div className="site-header-inner">
         <Link to={{ kind: 'home' }} className="wordmark">
           <BrandMark />
@@ -76,11 +48,6 @@ export function Header() {
             to={{ kind: 'formalizations' }}
             label="Formalizations"
             active={k === 'formalizations' || k === 'statement'}
-          />
-          <NavLink
-            to={{ kind: 'research_graph' }}
-            label="Research graph"
-            active={k === 'research_graph'}
           />
           <NavLink to={{ kind: 'submit' }} label="Submit" active={k === 'submit'} />
           {person ? (
