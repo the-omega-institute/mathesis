@@ -1,5 +1,5 @@
-main:has(> .page.home) {
-  max-width: 96rem;
+#root:has(> main > .page.home) {
+  --page: 96rem;
 }
 
 .page.home {
