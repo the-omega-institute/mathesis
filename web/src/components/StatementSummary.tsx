@@ -93,7 +93,9 @@ export function StatementSummary({
       {main.length > 0 ? (
         <>
           <h3 className="statements-group">
-            {main.length === 1 ? t('Main result') : `Main results · ${main.length}`}
+            {main.length === 1
+              ? t('Main result')
+              : t('Main results · {count}', { count: main.length })}
           </h3>
           <ul className="statement-list">{main.map(row)}</ul>
         </>
@@ -134,7 +136,9 @@ export function PublicStatements({ claims }: { claims: readonly StatementLike[] 
       {main.length > 0 ? (
         <>
           <h3 className="statements-group">
-            {main.length === 1 ? t('Main result') : `Main results · ${main.length}`}
+            {main.length === 1
+              ? t('Main result')
+              : t('Main results · {count}', { count: main.length })}
           </h3>
           <ul className="statement-list">{main.map(row)}</ul>
         </>
@@ -193,9 +197,9 @@ function StatementRow({
           <LatexText source={name ?? claim.statement} className="statement-preview" />
         </span>
         <span className="statement-tags">
-          {verdict ? <span className={`tag tag-${verdict.tone}`}>{verdict.label}</span> : null}
+          {verdict ? <span className={`tag tag-${verdict.tone}`}>{t(verdict.label)}</span> : null}
           {isNew ? (
-            <span className={isNew === 'New' ? 'tag tag-accent' : 'tag tag-muted'}>{isNew}</span>
+            <span className={isNew === 'New' ? 'tag tag-accent' : 'tag tag-muted'}>{t(isNew)}</span>
           ) : null}
           {proved ? <span className="tag tag-good">{t('Lean ✓')}</span> : null}
         </span>

@@ -24,7 +24,7 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
       <h4>{t('Prerequisites and comparison')}</h4>
       <p>
         {t('Literature: ')}
-        {STATUS[reading.literature]}
+        {t(STATUS[reading.literature])}
       </p>
       <ul>
         {reading.baseline.map((item, index) => (
@@ -46,7 +46,7 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
       </ul>
       <Markdown text={reading.binding_analysis} />
       <h4>{t('Additional mathematical content')}</h4>
-      <Markdown text={reading.delta || 'No supported additional content identified.'} />
+      <Markdown text={reading.delta || t('No supported additional content identified.')} />
       {reading.witnesses.map((witness, index) => (
         <div key={index}>
           <p>
@@ -61,7 +61,7 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
       ))}
       <h4>{t('Mathematical value')}</h4>
       <p>
-        {reading.utility.kind.replaceAll('_', ' ')} · {STATUS[reading.utility.status]}
+        {reading.utility.kind.replaceAll('_', ' ')} · {t(STATUS[reading.utility.status])}
       </p>
       <Markdown text={reading.utility.rationale} />
       {(
@@ -83,7 +83,7 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
         <div>
           <h4>{t('Named open-problem settlement')}</h4>
           <p>
-            {reading.settlement.problem.name} · {STATUS[reading.settlement.status]}
+            {reading.settlement.problem.name} · {t(STATUS[reading.settlement.status])}
           </p>
           {(
             [
@@ -106,7 +106,7 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
         <div>
           <h4>{t('Separate information-gain analysis')}</h4>
           <p>
-            {STATUS[reading.information_gain.status]}
+            {t(STATUS[reading.information_gain.status])}
             {t('. This analysis does not decide publication.')}
           </p>
           {(['model', 'readout', 'task', 'correspondence', 'evidence'] as const).map((key) => (

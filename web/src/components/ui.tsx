@@ -37,7 +37,7 @@ export function ExternalLink({ href, children }: { href: string; children: React
 export function SourceLink({ source }: { source: Source }) {
   const href = sourceHref(source);
   const label = sourceLabel(source);
-  return href ? <ExternalLink href={href}>{t(label)}</ExternalLink> : <span>{t(label)}</span>;
+  return href ? <ExternalLink href={href}>{label}</ExternalLink> : <span>{label}</span>;
 }
 
 export function DateText({ iso, withTime = false }: { iso: string; withTime?: boolean }) {

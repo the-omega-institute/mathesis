@@ -2,7 +2,8 @@ import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { author } from '../test/fixtures';
+import { author, submission } from '../test/fixtures';
+import { SourceLink } from '../components/ui';
 import { fakeApi, renderWithApp } from '../test/render';
 import { formatDate } from '../lib/format';
 import { getLocale, setLocale } from './locale';
@@ -85,11 +86,14 @@ it('keeps the current submission step, entered mathematics and author profiles w
   await user.click(screen.getByText('Academic profiles (optional)'));
   await user.type(screen.getByLabelText('Website or other link'), 'https://example.edu/original');
   await user.click(screen.getByRole('button', { name: '中文' }));
+  expect(screen.getByRole('tab', { name: '检查并提交' })).toBeVisible();
+  expect(screen.getByRole('tab', { name: '作者' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByLabelText('姓名')).toHaveValue('Original Author');
   expect(screen.getByLabelText('个人网站或其他链接')).toHaveValue('https://example.edu/original');
   await user.click(screen.getByRole('button', { name: '上一步' }));
   expect(screen.getByLabelText('标题')).toHaveValue('A theorem titled Papers');
   expect(screen.getByLabelText('猜想表述')).toHaveValue('Every test preserves its hypothesis.');
+  expect(screen.getByText('例如 11B83、05D10')).toBeVisible();
   expect(api.createSubmission).not.toHaveBeenCalled();
 });
 
@@ -107,4 +111,48 @@ it('syncs another tab’s preference, and still works when browser storage is un
   expect(getLocale()).toBe('en');
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Mathematics, reviewed');
   failingStorage.mockRestore();
+});
+
+it('translates cached submission progress and pagination while preserving manuscript titles', async () => {
+  window.history.replaceState(null, '', '/submissions');
+  const user = userEvent.setup();
+  const api = fakeApi(
+    {
+      listSubmissions: vi.fn(async () => ({
+        items: [
+          {
+            ...submission,
+            title: 'Papers',
+            purpose: 'review_only' as const,
+            status: { state: 'review_complete' as const },
+          },
+        ],
+        next_before: 'next-page',
+      })),
+      reviewSummary: vi.fn(async () => ({
+        round: 1,
+        version: 1,
+        claims_revision: 1,
+        delivered_at: '2026-11-03T00:00:00Z',
+        in_progress: false,
+        interrupted: false,
+        has_execution_limits: false,
+      })),
+    },
+    author,
+  );
+  renderWithApp(<App />, api);
+  expect(await screen.findByText('Report ready')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: '中文' }));
+  expect(screen.getByRole('heading', { name: '我的工作', level: 1 })).toBeVisible();
+  expect(screen.getByText('报告已就绪')).toBeVisible();
+  expect(screen.getByRole('button', { name: '较早 →' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Papers' })).toBeVisible();
+});
+
+it('preserves named references even when their titles match interface copy', () => {
+  setLocale('zh');
+  renderWithApp(<SourceLink source={{ kind: 'named_work', locator: 'Papers' }} />, fakeApi());
+  expect(screen.getByText('Papers')).toBeVisible();
+  expect(screen.queryByText('论文')).toBeNull();
 });

@@ -79,8 +79,8 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>{copy.title}</h1>
-          <p className="lede">{copy.lede}</p>
+          <h1>{t(copy.title)}</h1>
+          <p className="lede">{t(copy.lede)}</p>
         </div>
         {scope === 'mine' && person ? (
           <Link to={{ kind: 'submit' }} className="button">
@@ -141,7 +141,7 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
           listing.items.length === 0 ? (
-            <p className="muted">{copy.empty}</p>
+            <p className="muted">{t(copy.empty)}</p>
           ) : (
             <ul className="entry-list">
               {listing.items.map((s) => (
