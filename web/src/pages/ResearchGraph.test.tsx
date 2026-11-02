@@ -61,8 +61,21 @@ const graph: ResearchGraph = {
   scope: 'Source-declared citations. Coverage is incomplete.',
 };
 describe('shared research graph', () => {
-  it('opens directly into a graph with source credit and no search form', async () => {
+  it('starts with Lean knowledge and leaves citations as a separate view', async () => {
+    const api = fakeApi();
+    renderWithApp(<ResearchGraphPage />, api);
+    expect(
+      await screen.findByRole('heading', { name: 'No public Lean results yet' }),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Lean results' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(api.researchGraph).not.toHaveBeenCalled();
+  });
+  it('opens citations with source credit and no search form', async () => {
     renderWithApp(<ResearchGraphPage />, fakeApi({ researchGraph: async () => graph }));
+    await userEvent.click(screen.getByRole('button', { name: 'Papers and sources' }));
     const map = await screen.findByRole('figure', { name: 'Research connections' });
     expect(within(map).getByRole('button', { name: /An old result E\. Earlier/ })).toHaveAttribute(
       'aria-pressed',

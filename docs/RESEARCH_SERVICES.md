@@ -1,10 +1,24 @@
 # Research services architecture
 
-Mathesis is a mathematical research archive with review as a core service.
-Readers discover papers and conjectures. Authors receive an Orchestra review;
-contributors can deposit existing Lean work with attribution and request
-independent verification. CMA is an execution adapter, not an account users
-must understand before submitting research.
+Mathesis brings people and AI together to review mathematics and develop a shared
+knowledge base grounded in Lean. Papers, short notes and written conjectures enter
+through mathematical review, including comparison with existing knowledge and
+analysis of new mathematical information. Accepted text identifies
+worthwhile formalization targets. Checked propositions and proof dependencies
+provide reusable foundations for further research. Mathematical authors, prior
+sources and formalizers retain their distinct attribution.
+
+The four main participation paths are submitting a paper/note, proposing a
+conjecture, working on an open problem, and contributing a formalization.
+Corrections and evidence-supported source relationships remain available in the
+context of the relevant result. Browser, CLI and agent access are channels to
+these same services.
+
+The current invitation programme uses service-provided model access. A NyxID
+sign-in establishes identity; it does not by itself attach a personal model
+subscription. Optional personal CMA access and hosted quota support retain their
+existing deployment flags. BYOK funding is distinct from providing a machine.
+The site only offers quota support when its deployment enables it.
 
 ## Architecture and responsibility
 
@@ -252,3 +266,41 @@ never creates a public verified theorem.
 
 Complete project preflight, independent adapters, manuscript evidence manifests and
 review coverage limits are specified in [project and evidence intake](PROJECT_AND_EVIDENCE_INTAKE.md).
+
+## Lean knowledge and public research connections
+
+The knowledge graph page opens with public author-confirmed Lean targets,
+independently checked intermediate propositions and actual proof-use connections.
+It projects the existing Rust public formalization-directory,
+checked-contribution and result-use services, in pages of eight targets. A failed
+neighborhood request produces a retryable error rather than an invented empty
+relationship. A source conjecture can remain open while one of its intermediate
+propositions is checked and reused elsewhere. Only the exact used proposition
+receives the dependency arrow; the surrounding source problem is not declared
+proved or independently sufficient.
+
+The separate “Papers and sources” view preserves the existing citation graph and
+its source credit. Citations do not become formal dependencies. Original query,
+focus and cursor links continue opening their citation view.
+
+The operator-admitted Trureturing source index already informs review. It is not
+yet a public declaration browser on this page: this view projects Mathesis's own
+current public targets and proof receipts. Existing upstream Lean evidence keeps
+its source identity and attribution; linking it does not manufacture a Mathesis
+verification receipt.
+
+## Importing a link to Lean code
+
+The web form can import a public GitHub `.lean` file using its permanent URL at a
+full 40- or 64-character Git revision. Blob and raw URLs resolve to the same
+canonical source reference. The browser reads at most 1 MiB, with a 30-second
+request deadline, no credentials or referrer, and no redirects. It rejects branch
+links, non-GitHub locations, HTML, empty files and invalid UTF-8. Source bytes,
+revision, declared mathematical authors, formalizers and license then enter the
+ordinary attributed deposit API. No GitHub identity is inferred to be an author.
+
+Multi-file work uses the existing complete-project upload. A linked single file
+can be an adapter alongside supporting project modules. Source reception does
+not imply verification: public target linking, preflight and the independent
+verifier retain their current requirements. Deposits without a public confirmed
+target remain private sources.

@@ -200,7 +200,7 @@ describe('solving pages', () => {
     );
     expect(screen.getByRole('link', { name: 'Submit a conjecture' })).toHaveAttribute(
       'href',
-      '/submit',
+      '/submit?type=conjecture',
     );
   });
 
@@ -287,17 +287,25 @@ describe('solving pages', () => {
     const intro = screen
       .getByRole('heading', { name: 'Mathematics, reviewed and carried forward.' })
       .closest('header')!;
-    expect(within(intro).getByRole('search', { name: 'Search research' })).toBeVisible();
+    expect(within(intro).queryByRole('search')).not.toBeInTheDocument();
     expect(
       within(intro).getByRole('img', { name: 'People build a shared mathematical knowledge base' }),
     ).toBeInTheDocument();
-    expect(within(intro).getByRole('link', { name: 'Submit a manuscript' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Submit a paper or note' })).toHaveAttribute(
       'href',
       '/submit',
     );
-    expect(within(intro).getByRole('link', { name: 'Contribute a formal proof' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Contribute a formalization' })).toHaveAttribute(
       'href',
       '/formalizations',
+    );
+    expect(screen.getByRole('link', { name: 'Propose a conjecture' })).toHaveAttribute(
+      'href',
+      '/submit?type=conjecture',
+    );
+    expect(screen.getByRole('link', { name: 'Work on an open problem' })).toHaveAttribute(
+      'href',
+      '/conjectures',
     );
     const subjects = screen.getByText('Browse by subject').closest('details')!;
     expect(subjects).not.toHaveAttribute('open');
@@ -324,6 +332,8 @@ describe('solving pages', () => {
   it('keeps research and submission in the main nav and community links in the footer', async () => {
     window.history.replaceState({}, '', '/');
     renderWithApp(<App />, fakeApi({}, author));
+    expect(screen.getAllByRole('search')).toHaveLength(1);
+    expect(screen.getByRole('search', { name: 'Search the archive' })).toBeVisible();
     const nav = screen.getByRole('navigation', { name: 'Main' });
     await within(nav).findByRole('link', { name: 'My work' });
     expect(

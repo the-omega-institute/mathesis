@@ -1,4 +1,5 @@
 import { InlineLatex } from './Markdown';
+import { readLeanSourceLink, type LinkedLeanSource } from '../lib/leanSourceLink';
 import { readLeanProject, type LeanProject } from '../lib/leanProject';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
@@ -92,6 +93,8 @@ function DepositForm({
   const [verification, setVerification] = useState<AttemptView | null>(null);
   const [license, setLicense] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [codeUrl, setCodeUrl] = useState('');
+  const [linkedSource, setLinkedSource] = useState<LinkedLeanSource | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [received, setReceived] = useState<LeanDeposit | null>(null);
@@ -115,9 +118,25 @@ function DepositForm({
       setBusy(false);
     }
   };
+  const importLink = async () => {
+    setBusy(true);
+    setError(null);
+    setPreflight(null);
+    try {
+      const source = await readLeanSourceLink(codeUrl);
+      setLinkedSource(source);
+      setFile(null);
+      setReference(source.url);
+      setSourceRevision(source.revision);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
   const body = async (): Promise<NewLeanDeposit> => {
-    if (!project && (!file || !file.name.endsWith('.lean') || !file.size))
-      throw new Error('Choose a Lean source or complete project.');
+    if (!project && !linkedSource && (!file || !file.name.endsWith('.lean') || !file.size))
+      throw new Error('Choose a Lean source, import a code link or upload a complete project.');
     if (file && (file.size > 1048576 || !file.name.endsWith('.lean')))
       throw new Error('Solution.lean must be at most 1 MB.');
     const modules: Record<string, string> = Object.assign(
@@ -133,7 +152,9 @@ function DepositForm({
     if (
       supporting.reduce(
         (size, f) => size + f.size,
-        existingBytes + (file?.size ?? new TextEncoder().encode(project?.solution ?? '').length),
+        existingBytes +
+          (file?.size ??
+            new TextEncoder().encode(linkedSource?.source ?? project?.solution ?? '').length),
       ) >
       8 * 1048576
     )
@@ -161,10 +182,10 @@ function DepositForm({
         .map((a) => a.trim())
         .filter(Boolean),
       statement,
-      source_reference: { kind: 'url', locator: reference },
+      source_reference: { kind: 'url', locator: linkedSource?.url ?? reference },
       toolchain,
       license,
-      solution: file ? await file.text() : (project?.solution ?? ''),
+      solution: file ? await file.text() : (linkedSource?.source ?? project?.solution ?? ''),
     };
   };
   const check = async () => {
@@ -210,8 +231,8 @@ function DepositForm({
   return (
     <>
       <p className="lede">
-        Submit the Lean sources for your proof. Credit the original mathematical work and the people
-        who formalized it.
+        Upload Lean sources or import a permanent link to a public .lean file. Credit the
+        mathematical work and the people who formalized it.
       </p>
       {target?.target ? (
         <div className="notice notice-info">
@@ -272,6 +293,7 @@ function DepositForm({
               maxLength={64}
               pattern="[a-fA-F0-9]{40}|[a-fA-F0-9]{64}"
               value={sourceRevision}
+              readOnly={Boolean(linkedSource)}
               onChange={(e) => setSourceRevision(e.target.value)}
             />
           </Field>
@@ -292,6 +314,7 @@ function DepositForm({
               required
               placeholder="Link to the paper or .lean source at a fixed revision"
               value={reference}
+              readOnly={Boolean(linkedSource)}
               onChange={(e) => setReference(e.target.value)}
             />
           </Field>
@@ -318,6 +341,39 @@ function DepositForm({
         </section>
         <section className="submission-options" aria-labelledby="lean-files-heading">
           <h2 id="lean-files-heading">Source & verification</h2>
+          <Field
+            label="Link to Lean code"
+            htmlFor="lean-code-link"
+            hint="A public GitHub .lean file at a fixed commit. For a proof with several files, upload its complete project below."
+          >
+            <input
+              id="lean-code-link"
+              maxLength={2000}
+              type="url"
+              placeholder="https://github.com/…/blob/…/Proof.lean"
+              value={codeUrl}
+              onChange={(event) => setCodeUrl(event.target.value)}
+            />
+          </Field>
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={busy || !codeUrl.trim()}
+            onClick={() => {
+              void importLink();
+            }}
+          >
+            Import Lean source
+          </button>
+          {linkedSource ? (
+            <p role="status">
+              Imported <a href={linkedSource.url}>{linkedSource.filename}</a>. The source will be
+              saved with its revision and attribution; verification follows submission.{' '}
+              <button type="button" className="text-button" onClick={() => setLinkedSource(null)}>
+                Remove linked source
+              </button>
+            </p>
+          ) : null}
           <fieldset className="project-intake">
             <legend>Complete Lean project</legend>
             <p className="hint">
@@ -394,9 +450,10 @@ function DepositForm({
               id="lean-source"
               type="file"
               accept=".lean"
-              required={!project}
+              required={!project && !linkedSource}
               onChange={(e) => {
                 setPreflight(null);
+                setLinkedSource(null);
                 setFile(e.target.files?.[0] ?? null);
               }}
             />

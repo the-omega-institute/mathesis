@@ -59,13 +59,14 @@ export function cliCommands(origin: string): string {
 
 export function ContributePage() {
   const origin = window.location.origin;
+  const { session } = useSession();
   return (
     <div className="page">
       <header className="page-head">
         <div>
           <h1>Contribute</h1>
           <p className="lede">
-            Solve conjectures, formalize statements, find errors, or support mathematical research.
+            Submit research, pose and solve conjectures, and contribute reusable formal proofs.
           </p>
           <p>
             <Link to={{ kind: 'conjectures' }}>Find a conjecture</Link> ·{' '}
@@ -75,6 +76,18 @@ export function ContributePage() {
         </div>
       </header>
 
+      <section>
+        <h2>Submit research or a conjecture</h2>
+        <p>
+          Submit a paper or note for a decision, mathematical analysis and directions for further
+          work. Propose a conjecture for review against existing knowledge. Accepted mathematics
+          enters the shared record with its authors and sources, and identifies work to formalize.
+        </p>
+        <p>
+          <Link to={{ kind: 'submit' }}>Submit a paper or note</Link> ·{' '}
+          <Link to={{ kind: 'submit', intake: 'conjecture' }}>Propose a conjecture</Link>
+        </p>
+      </section>
       <section aria-labelledby="solve-h">
         <h2 id="solve-h">Solve</h2>
         <ol className="solve-steps">
@@ -91,10 +104,11 @@ export function ContributePage() {
       <section>
         <h2>Formalize</h2>
         <p>
-          Choose an author-approved statement. Prove its confirmed Lean target; our verifier checks
-          it. Earn Formalized credit on your profile.
+          Build on an author-approved statement, or contribute a useful intermediate lemma. Upload a
+          Lean project or import a permanent link to existing code. Independently verified proofs
+          connect to the original result, crediting both the mathematics and its formalizers.
         </p>
-        <Link to={{ kind: 'papers' }}>Browse accepted papers</Link>
+        <Link to={{ kind: 'formalizations' }}>Find a statement to formalize</Link>
       </section>
       <section>
         <h2>Report errors</h2>
@@ -150,17 +164,26 @@ export function ContributePage() {
         </section>
       </details>
 
-      <section aria-labelledby="donate-h">
-        <h2 id="donate-h">Donate quota</h2>
+      <section aria-labelledby="access-h">
+        <h2 id="access-h">Invitation access</h2>
         <p>
-          Support Mathesis review and formalization work through NyxID. You can pause or revoke your
-          grant. Your contribution records the quota actually used.
+          Mathesis is currently welcoming researchers by invitation. Review and assisted
+          formalization use model access provided by the service.
         </p>
-        <p>
-          <Link to={{ kind: 'supporters' }}>Supporters</Link>
-        </p>
-        <DonationPanel />
       </section>
+      {session.status === 'signed_in' && session.donationsEnabled ? (
+        <section aria-labelledby="donate-h">
+          <h2 id="donate-h">Support model access</h2>
+          <p>
+            Share model quota through NyxID for review and formalization. You choose a limit and can
+            pause or revoke your grant. Only actual metered use is attributed.
+          </p>
+          <p>
+            <Link to={{ kind: 'supporters' }}>Supporters</Link>
+          </p>
+          <DonationPanel />
+        </section>
+      ) : null}
     </div>
   );
 }

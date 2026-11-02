@@ -209,3 +209,27 @@ These links record how the source work builds on earlier contributions. Formal
 proof dependency claims require separate mathematical evidence. Source credits
 remain source credits even after manuscript acceptance; independently checked
 Mathesis attempts retain their own verification receipts and attribution.
+
+## Operating the short-note boundary
+
+A producer Release containing `handoff.json` and a manuscript is a prepared
+scientific package. It is not a Mathesis delivery receipt. In the existing
+`outreach-mathesis-handoff.v1` contract, `prepared-not-submitted`,
+`third_party_processing_consent: not-asserted` and
+`statement_confirmation: required-in-mathesis` do not authorize the consumer to
+invent author choices or an exact statement confirmation.
+
+For each selected source, retain the authorized delivery receipt and follow its
+`next_action`. A `confirm_claims` receipt identifies a draft awaiting the exact
+submitting account's confirmation, not a running review. That account can use
+`delivery-confirmation` directly; a browser or human editor is not required.
+The producer may delegate this to an authorized intake operator, who checks the
+returned extraction against the exact manuscript. Preserve the source/version
+and claims-revision pins and replay the same request after transport uncertainty.
+Only the subsequent receipt establishes that review has started; only a public
+accepted record establishes display eligibility.
+
+Outreach issue #225 tracks this boundary. PR #226 records the waiting state but
+does not supply or execute an approved statement-confirmation manifest. Mathesis
+already supports this confirmation operation. Receiving source bytes alone must
+not be represented as a completed upstream-to-publication loop.

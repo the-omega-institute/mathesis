@@ -226,3 +226,10 @@ it.each([true, false])(
     );
   },
 );
+
+it('opens the conjecture form directly from its participation link', async () => {
+  renderWithApp(<SubmitPage initialIntake="conjecture" />, fakeApi({}, author));
+  expect(await screen.findByLabelText('Title')).toBeVisible();
+  expect(screen.queryByLabelText('Choose manuscript files')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Upload a manuscript instead' })).toBeVisible();
+});

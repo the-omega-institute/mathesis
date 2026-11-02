@@ -1,4 +1,5 @@
 import { useCallback, useId, useState } from 'react';
+import { LeanKnowledgeGraph } from '../components/LeanKnowledgeGraph';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import type { ResearchGraph, ResearchNode } from '../api/types';
@@ -16,31 +17,58 @@ export function ResearchGraphPage({
   q?: string;
   before?: string;
 }) {
+  const [layer, setLayer] = useState<'lean' | 'citations'>(
+    focus || q || before ? 'citations' : 'lean',
+  );
   const api = useApi();
   const load = useCallback(
     (signal: AbortSignal) => api.researchGraph({ focus, q, before }, { signal }),
     [api, focus, q, before],
   );
-  const graph = useAsync(load);
+  const graph = useAsync(layer === 'citations' ? load : null);
   return (
     <div className="page research-graph">
-      <h1>Research graph</h1>
-      <p>Follow the connections between papers and the earlier work they cite.</p>
+      <h1>Knowledge graph</h1>
+      <p>
+        Build on checked Lean results, follow their contributors, and explore the research behind
+        them.
+      </p>
+      <div className="filter-row" role="group" aria-label="Knowledge graph layer">
+        <button
+          type="button"
+          className="text-button"
+          aria-pressed={layer === 'lean'}
+          onClick={() => setLayer('lean')}
+        >
+          Lean results
+        </button>
+        <button
+          type="button"
+          className="text-button"
+          aria-pressed={layer === 'citations'}
+          onClick={() => setLayer('citations')}
+        >
+          Papers and sources
+        </button>
+      </div>
+      {layer === 'lean' ? <LeanKnowledgeGraph /> : null}
       {focus || q || before ? (
         <p>
           <Link to={{ kind: 'research_graph' }}>Back to the research graph</Link>
         </p>
       ) : null}
-      <Async state={graph.state} onRetry={graph.reload}>
-        {(value) => (
-          <GraphView
-            key={`${focus ?? ''}:${q ?? ''}:${before ?? ''}`}
-            graph={value}
-            focus={focus}
-            q={q}
-          />
-        )}
-      </Async>
+      {layer === 'citations' ? (
+        <Async state={graph.state} onRetry={graph.reload}>
+          {(value) => (
+            <GraphView
+              key={`${focus ?? ''}:${q ?? ''}:${before ?? ''}`}
+              graph={value}
+              focus={focus}
+              q={q}
+            />
+          )}
+        </Async>
+      ) : null}
     </div>
   );
 }

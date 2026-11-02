@@ -33,11 +33,13 @@ export function SubmitPage({
 }: {
   initialSubmission?: Submission;
   onSubmitted?: (s: Submission) => void;
-  initialIntake?: 'lean' | 'review';
+  initialIntake?: 'lean' | 'review' | 'conjecture';
   targetRecord?: string;
   targetClaim?: string;
 } = {}) {
-  const [typedEntry, setTypedEntry] = useState(false);
+  const [typedEntry, setTypedEntry] = useState(
+    initialIntake === 'conjecture' && !initialSubmission,
+  );
   const [intake, setIntake] = useState<'research' | 'lean'>(
     initialIntake === 'lean' ? 'lean' : 'research',
   );
