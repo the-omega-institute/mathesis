@@ -55,7 +55,7 @@ export function MyCma({ id }: { id?: string }) {
   return (
     <section ref={panel} id={id} aria-label={t('Use your own agents (optional)')}>
       <h2>{t('Use your own agents (optional)')}</h2>
-      <p>{CMA_COPY}</p>
+      <p>{t(CMA_COPY)}</p>
       {!person ? (
         <SignInPrompt what="use your own agents" />
       ) : (
@@ -73,7 +73,7 @@ export function MyCma({ id }: { id?: string }) {
                 {status.enabled ? (
                   <>
                     {needsSetup && REASONS[status.binding.reason] ? (
-                      <p className="hint">{REASONS[status.binding.reason]}</p>
+                      <p className="hint">{t(REASONS[status.binding.reason] ?? '')}</p>
                     ) : null}
                     <div className="button-row">
                       {status.binding.status !== 'ready' ? (
@@ -212,7 +212,7 @@ export function CmaHistory({
             · {attempt.payer === 'author' ? t('Your agents') : t('Mathesis')} ·{' '}
             {t(CMA_ATTEMPT_STATUS_LABELS[attempt.status] ?? 'Recorded')}
             {attempt.payer === 'operator' && ATTEMPT_REASONS[attempt.reason] ? (
-              <p className="hint">{ATTEMPT_REASONS[attempt.reason]}</p>
+              <p className="hint">{t(ATTEMPT_REASONS[attempt.reason] ?? '')}</p>
             ) : null}
           </li>
         ))}

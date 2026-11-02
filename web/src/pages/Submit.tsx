@@ -306,7 +306,11 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               </Field>
             </details>
             <div className="form-row">
-              <Field label={t('MSC 2020 codes (optional)')} htmlFor="msc" hint="e.g. 11B83, 05D10">
+              <Field
+                label={t('MSC 2020 codes (optional)')}
+                htmlFor="msc"
+                hint={t('e.g. 11B83, 05D10')}
+              >
                 <input id="msc" value={msc} onChange={(e) => setMsc(e.target.value)} />
               </Field>
               <Field label={t('DOI (optional)')} htmlFor="doi">

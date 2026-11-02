@@ -18,7 +18,7 @@ export function Pager<T>({
         disabled={!paged.hasNewer}
         onClick={paged.newer}
       >
-        {labels.newer}
+        {t(labels.newer)}
       </button>
       <span className="muted small">
         {t('Page ')}
@@ -30,7 +30,7 @@ export function Pager<T>({
         disabled={!paged.hasOlder}
         onClick={paged.older}
       >
-        {labels.older}
+        {t(labels.older)}
       </button>
     </nav>
   );

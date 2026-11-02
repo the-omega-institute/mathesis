@@ -54,7 +54,7 @@ export function SourceFields({
           id={`${idPrefix}-locator`}
           value={value.locator}
           required={required}
-          placeholder={PLACEHOLDERS[value.kind]}
+          placeholder={t(PLACEHOLDERS[value.kind])}
           onChange={(e) => onChange({ ...value, locator: e.target.value })}
         />
       </div>
@@ -83,7 +83,7 @@ export function SourceFields({
             <ExternalLink href={href}>{href}</ExternalLink>
           </>
         ) : (
-          'Shown as text; this locator does not resolve to a public link.'
+          t('Shown as text; this locator does not resolve to a public link.')
         )}
       </p>
     </div>

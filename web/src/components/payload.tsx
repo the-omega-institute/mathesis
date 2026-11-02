@@ -155,7 +155,7 @@ export function ReportView({
           {t('statements rev. ')}
           {report.claims_revision}
         </span>
-        {standing !== 'current' ? <Badge tone="muted">{STANDING_TEXT[standing]}</Badge> : null}
+        {standing !== 'current' ? <Badge tone="muted">{t(STANDING_TEXT[standing])}</Badge> : null}
       </header>
       {report.outcome.outcome === 'fail' ? (
         <p className="report-reason">{rejectReasonText(report.outcome.reason)}</p>

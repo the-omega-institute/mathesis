@@ -107,7 +107,7 @@ export function OutcomeBadge({ outcome, proposal }: { outcome: Outcome; proposal
       </Badge>
     );
   }
-  return <Badge tone={OUTCOME_TONES[outcome.outcome]}>{outcomeLabel(outcome)}</Badge>;
+  return <Badge tone={OUTCOME_TONES[outcome.outcome]}>{t(outcomeLabel(outcome))}</Badge>;
 }
 
 const ITEM_TONES: { [K in ItemState['state']]: BadgeTone } = {

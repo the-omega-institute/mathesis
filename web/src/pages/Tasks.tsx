@@ -190,7 +190,7 @@ function TaskRow({ task }: { task: Task }) {
           {task.title}
         </Link>
         <span className="badge-row">
-          <Badge tone="neutral" title={TASK_KIND_VERIFICATION[task.kind]}>
+          <Badge tone="neutral" title={t(TASK_KIND_VERIFICATION[task.kind])}>
             {t(TASK_KIND_LABELS[task.kind])}
           </Badge>
           <Badge tone={TASK_TONES[task.status.state]}>
@@ -299,7 +299,7 @@ export function TaskView({
           <h2 id="rules-h">{t('What to do')}</h2>
           <p>{t(TASK_KIND_DESCRIPTIONS[task.kind])}</p>
           <p className="small">
-            <strong>{t('What counts:')}</strong> {TASK_KIND_VERIFICATION[task.kind]}
+            <strong>{t('What counts:')}</strong> {t(TASK_KIND_VERIFICATION[task.kind])}
           </p>
           {context.nature ? <p className="small muted">{context.nature}</p> : null}
           {task.kind === 'formalize' ? (
