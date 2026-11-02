@@ -1,3 +1,4 @@
+import { t, setLocale, useLocale } from '../i18n/locale';
 import { ArchiveSearch } from './ArchiveSearch';
 import { useState } from 'react';
 import { errorMessage } from '../api/client';
@@ -13,12 +14,13 @@ function NavLink({ to, label, active }: { to: Route; label: string; active: bool
       className={active ? 'nav-link active' : 'nav-link'}
       aria-current={active ? 'page' : undefined}
     >
-      {label}
+      {t(label)}
     </Link>
   );
 }
 
 export function Header() {
+  const locale = useLocale();
   const { route } = useRouter();
   const { session, person, signIn, signOut } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,47 +35,66 @@ export function Header() {
           <BrandMark />
           Mathesis
         </Link>
-        <nav className="site-nav" aria-label="Main">
+        <nav className="site-nav" aria-label={t('Main')}>
           <NavLink
             to={{ kind: 'papers' }}
-            label="Papers"
+            label={t('Papers')}
             active={k === 'papers' || k === 'paper' || k === 'result'}
           />
           <NavLink
             to={{ kind: 'conjectures' }}
-            label="Conjectures"
+            label={t('Conjectures')}
             active={k === 'conjectures' || k === 'conjecture'}
           />
           <NavLink
             to={{ kind: 'formalizations' }}
-            label="Formalizations"
+            label={t('Formalizations')}
             active={k === 'formalizations' || k === 'statement'}
           />
-          <NavLink to={{ kind: 'submit' }} label="Submit" active={k === 'submit'} />
+          <NavLink to={{ kind: 'submit' }} label={t('Submit')} active={k === 'submit'} />
           {person ? (
             <NavLink
               to={{ kind: 'submissions' }}
-              label="My work"
+              label={t('My work')}
               active={k === 'submissions' || (k === 'submission' && !route.staff)}
             />
           ) : null}
           {staff ? (
             <NavLink
               to={{ kind: 'queue' }}
-              label="Review queue"
+              label={t('Review queue')}
               active={k === 'queue' || (k === 'submission' && !!route.staff)}
             />
           ) : null}
           {hasRole(person, 'admin') ? (
-            <NavLink to={{ kind: 'people' }} label="Accounts" active={k === 'people'} />
+            <NavLink to={{ kind: 'people' }} label={t('Accounts')} active={k === 'people'} />
           ) : null}
         </nav>
         <ArchiveSearch />
+        <div className="language-choice" role="group" aria-label={t('Language')}>
+          <button
+            type="button"
+            lang="en"
+            aria-pressed={locale === 'en'}
+            onClick={() => setLocale('en')}
+          >
+            English
+          </button>
+          <span aria-hidden="true">/</span>
+          <button
+            type="button"
+            lang="zh-Hans"
+            aria-pressed={locale === 'zh'}
+            onClick={() => setLocale('zh')}
+          >
+            中文
+          </button>
+        </div>
         <div className="account">
           {session.status === 'loading' ? <span className="muted small">…</span> : null}
           {session.status === 'anonymous' || session.status === 'error' ? (
             <button type="button" className="button button-quiet" onClick={() => signIn()}>
-              Sign in
+              {t('Sign in')}
             </button>
           ) : null}
           {person ? (
@@ -91,7 +112,9 @@ export function Header() {
                 <div className="user-panel">
                   <p className="user-name">{person.display_name}</p>
                   {person.email ? <p className="muted small">{person.email}</p> : null}
-                  {hasRole(person, 'admin') ? <p className="small muted">Administrator</p> : null}
+                  {hasRole(person, 'admin') ? (
+                    <p className="small muted">{t('Administrator')}</p>
+                  ) : null}
                   <button
                     type="button"
                     className="button button-quiet"
@@ -103,7 +126,7 @@ export function Header() {
                       );
                     }}
                   >
-                    Sign out
+                    {t('Sign out')}
                   </button>
                   {signOutError ? <p className="form-error">{signOutError}</p> : null}
                 </div>

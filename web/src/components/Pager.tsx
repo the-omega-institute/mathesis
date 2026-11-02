@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Paged } from '../api/usePaged';
 
 export function Pager<T>({
@@ -10,7 +11,7 @@ export function Pager<T>({
 }) {
   if (!paged.hasNewer && !paged.hasOlder) return null;
   return (
-    <nav className="pager" aria-label="Pagination">
+    <nav className="pager" aria-label={t('Pagination')}>
       <button
         type="button"
         className="button button-quiet"
@@ -19,7 +20,10 @@ export function Pager<T>({
       >
         {labels.newer}
       </button>
-      <span className="muted small">Page {paged.page}</span>
+      <span className="muted small">
+        {t('Page ')}
+        {paged.page}
+      </span>
       <button
         type="button"
         className="button button-quiet"

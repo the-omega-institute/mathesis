@@ -1,3 +1,4 @@
+import { getLocale, t } from '../i18n/locale';
 import type {
   AdmissionBasis,
   AiUseLevel,
@@ -339,5 +340,7 @@ export const SUBMISSION_KIND_LABELS = {
 
 /** "1 new result", "3 new results". */
 export function newResults(n: number): string {
-  return `${n} new result${n === 1 ? '' : 's'}`;
+  return getLocale() === 'zh'
+    ? t('{n} new results', { n })
+    : `${n} new result${n === 1 ? '' : 's'}`;
 }

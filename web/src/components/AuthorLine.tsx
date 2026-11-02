@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Author } from '../api/types';
 import { orcidHref, safeHttpUrl } from '../lib/links';
 import { texToText } from '../lib/texText';
@@ -21,7 +22,7 @@ export function AuthorLine({ authors }: { authors: readonly Author[] }) {
                 {' '}
                 <ExternalLink href={orcid}>
                   <span className="orcid" aria-label={`ORCID iD of ${texToText(a.name)}`}>
-                    iD
+                    {t('iD')}
                   </span>
                 </ExternalLink>
               </>
@@ -30,13 +31,13 @@ export function AuthorLine({ authors }: { authors: readonly Author[] }) {
             {scholar ? (
               <>
                 {' · '}
-                <ExternalLink href={scholar}>Google Scholar</ExternalLink>
+                <ExternalLink href={scholar}>{t('Google Scholar')}</ExternalLink>
               </>
             ) : null}
             {website ? (
               <>
                 {' · '}
-                <ExternalLink href={website}>website</ExternalLink>
+                <ExternalLink href={website}>{t('website')}</ExternalLink>
               </>
             ) : null}
           </li>

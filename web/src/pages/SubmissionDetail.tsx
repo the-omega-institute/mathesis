@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
 import { SubmitPage } from './Submit';
 import { FeedbackWorkspace } from '../components/FeedbackWorkspace';
@@ -188,15 +189,16 @@ export function Workspace({
           {canInspect ? (
             <p className="small">
               <Link to={{ kind: 'submission', id: s.id, ...(!staffView ? { staff: true } : {}) }}>
-                {staffView ? 'Author view' : 'Execution records'}
+                {staffView ? t('Author view') : t('Execution records')}
               </Link>
             </p>
           ) : null}
           <p className="entry-meta">
-            <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
+            <span>{t(SUBMISSION_KIND_LABELS[s.kind])}</span>
             <SubmissionStatusBadge status={s.status} label={standing.headline} />
             <span>
-              Version {current?.number ?? 1} · <DateText iso={s.created_at} />
+              {t('Version ')}
+              {current?.number ?? 1} · <DateText iso={s.created_at} />
             </span>
             {s.doi ? <DoiLink doi={s.doi} /> : null}
           </p>
@@ -208,17 +210,18 @@ export function Workspace({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View PDF
+                {t('View PDF')}
               </a>
             ) : null}
             {current ? (
               <a className="button button-quiet" href={sourceFileHref(s.id, current.number)}>
-                Download source
+                {t('Download source')}
               </a>
             ) : null}
             {s.status.state === 'accepted' ? (
               <Link className="button button-quiet" to={{ kind: 'paper', record: s.status.record }}>
-                Public page {s.status.record}
+                {t('Public page ')}
+                {s.status.record}
               </Link>
             ) : null}
           </div>
@@ -226,6 +229,7 @@ export function Workspace({
 
         <PaperExplanation
           text={
+            s.status.state === 'accepted' &&
             current?.plain_language?.claims_revision === s.claims_revision &&
             current.plain_language.source_sha256 === current.archive.sha256 &&
             current.plain_language.version === current.number
@@ -235,7 +239,7 @@ export function Workspace({
         />
         {!isStaff && s.abstract_text ? (
           <section aria-labelledby="manuscript-abstract-h">
-            <h2 id="manuscript-abstract-h">Abstract</h2>
+            <h2 id="manuscript-abstract-h">{t('Abstract')}</h2>
             <LatexText source={s.abstract_text} className="abstract" />
           </section>
         ) : null}
@@ -277,15 +281,16 @@ export function Workspace({
         !isStaff &&
         (isAuthor || canInspect) ? (
           <details className="history">
-            <summary>Results in this manuscript</summary>
+            <summary>{t('Results in this manuscript')}</summary>
             <StatementSummary submission={s} round={currentReview} />
           </details>
         ) : null}
         {state === 'accepted' && isAuthor ? (
           <section className="post-acceptance" id="formalization" aria-labelledby="accepted-h">
-            <h2 id="accepted-h">After acceptance</h2>
+            <h2 id="accepted-h">{t('After acceptance')}</h2>
             <p>
-              Record <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
+              {t('Record ')}
+              <code>{s.status.state === 'accepted' ? s.status.record : ''}</code>
               {s.decision?.decision === 'accept' ? (
                 <>
                   {' '}
@@ -299,7 +304,7 @@ export function Workspace({
             ) : null}
             {s.kind !== 'conjecture' ? (
               <>
-                <h3>Formalization in Lean</h3>
+                <h3>{t('Formalization in Lean')}</h3>
                 <FormalizationForAuthor submission={s} round={currentReview} onChange={onChange} />
               </>
             ) : null}
@@ -308,10 +313,11 @@ export function Workspace({
         {state === 'draft' ? <DraftNotice submission={s} /> : null}
         {state === 'draft' && isAuthor ? (
           <section aria-labelledby="confirm-h">
-            <h2 id="confirm-h">Check your manuscript</h2>
+            <h2 id="confirm-h">{t('Check your manuscript')}</h2>
             <p className="lede">
-              Open the PDF to check your manuscript. You can inspect the identified results below
-              before starting the review.
+              {t(
+                'Open the PDF to check your manuscript. You can inspect the identified results below before starting the review.',
+              )}
             </p>
             <ConfirmStatements
               key={`${s.id}-${s.versions.length}`}
@@ -323,7 +329,7 @@ export function Workspace({
 
         {awaitingReview && isAuthor ? (
           <details className="history">
-            <summary>Withdraw submission</summary>
+            <summary>{t('Withdraw submission')}</summary>
             <WithdrawPanel submission={s} onChange={onChange} />
           </details>
         ) : null}
@@ -331,7 +337,7 @@ export function Workspace({
         {!awaitingReview ? (
           <details className="history author-details">
             <summary>
-              {isStaff ? 'Details: evidence, history and settings' : 'Manuscript details'}
+              {isStaff ? t('Details: evidence, history and settings') : t('Manuscript details')}
             </summary>
             {!isStaff && state !== 'draft' && isAuthor ? (
               <RefereeWorkspace
@@ -354,19 +360,19 @@ export function Workspace({
             ) : null}
             <div className="folds">
               {reviewed && isStaff ? (
-                <Fold id="statements-h" title="Statements" hint={s.claims.length} open>
+                <Fold id="statements-h" title={t('Statements')} hint={s.claims.length} open>
                   <StatementList claims={s.claims} scope="ws" />
                 </Fold>
               ) : null}
 
               {reviewed && isStaff ? (
-                <Fold id="analysis-h" title="Analysis" open>
+                <Fold id="analysis-h" title={t('Analysis')} open>
                   <Async state={analysis.state} onRetry={analysis.reload}>
                     {(a) => <AnalysisView analysis={a} claims={s.claims} scope="ws" />}
                   </Async>
                   {state === 'accepted' ? (
                     <>
-                      <h3>Conjecture follow-ups</h3>
+                      <h3>{t('Conjecture follow-ups')}</h3>
                       <ConjectureList conjectures={s.conjectures} claims={s.claims} scope="ws" />
                     </>
                   ) : null}
@@ -374,7 +380,7 @@ export function Workspace({
               ) : null}
 
               {isStaff && s.purpose !== 'review_only' ? (
-                <Fold id="stages-h" title="Publication decision" open>
+                <Fold id="stages-h" title={t('Publication decision')} open>
                   {state === 'in_review' && isStaff && preview ? (
                     <DecisionView decision={preview} policy={policy} />
                   ) : null}
@@ -390,19 +396,19 @@ export function Workspace({
                   technicalDetails
                 />
               ) : null}
-              <Fold id="abstract-h" title={isStaff ? 'Abstract' : 'Author disclosure'} open>
+              <Fold id="abstract-h" title={isStaff ? t('Abstract') : t('Author disclosure')} open>
                 {isStaff && s.abstract_text ? (
                   <LatexText source={s.abstract_text} className="abstract" />
                 ) : null}
                 <p className="small">
-                  <strong>AI disclosure:</strong> {AI_USE_LABELS[s.ai_disclosure.level]} —{' '}
+                  <strong>{t('AI disclosure:')}</strong> {t(AI_USE_LABELS[s.ai_disclosure.level])} —{' '}
                   {s.ai_disclosure.statement}
                 </p>
               </Fold>
 
               <VersionsSection submission={s} technicalDetails={isStaff} />
               {isStaff ? (
-                <Fold id="compute-h" title="Advanced: compute settings and history">
+                <Fold id="compute-h" title={t('Advanced: compute settings and history')}>
                   {s.submitter === person?.id ? <MyCma /> : null}
                   <CmaHistory
                     attempts={referee.value?.cma_attempts ?? []}
@@ -412,7 +418,7 @@ export function Workspace({
               ) : null}
 
               {isAuthor ? (
-                <Fold id="settings-h" title="Settings">
+                <Fold id="settings-h" title={t('Settings')}>
                   {s.purpose !== 'review_only' &&
                   state !== 'withdrawn' &&
                   state !== 'not_accepted' ? (
@@ -445,7 +451,17 @@ export function Workspace({
 
 function DoiLink({ doi }: { doi: string }) {
   const href = sourceHref({ kind: 'doi', locator: doi });
-  return href ? <ExternalLink href={href}>doi:{doi}</ExternalLink> : <span>doi:{doi}</span>;
+  return href ? (
+    <ExternalLink href={href}>
+      {t('doi:')}
+      {doi}
+    </ExternalLink>
+  ) : (
+    <span>
+      {t('doi:')}
+      {doi}
+    </span>
+  );
 }
 
 function DraftNotice({ submission }: { submission: Submission }) {
@@ -454,25 +470,27 @@ function DraftNotice({ submission }: { submission: Submission }) {
   const warnings = current.parse_warnings;
   if (!current.compile_error && warnings.length === 0 && current.pdf) return null;
   return (
-    <section aria-label="Reading the source" className="notices">
+    <section aria-label={t('Reading the source')} className="notices">
       {current.compile_error ? (
         <div className="notice notice-error" role="alert">
           <p>
-            <strong>The PDF did not compile.</strong>
+            <strong>{t('The PDF did not compile.')}</strong>
           </p>
           <details>
-            <summary>Compilation details</summary>
+            <summary>{t('Compilation details')}</summary>
             <pre className="compile-log">{current.compile_error}</pre>
           </details>
         </div>
       ) : current.pdf ? null : (
-        <p className="notice notice-info">The PDF is being compiled.</p>
+        <p className="notice notice-info">{t('The PDF is being compiled.')}</p>
       )}
       {warnings.length > 0 ? (
         <div className="notice notice-info">
           <p>
             <strong>
-              Reading the source raised {warnings.length} warning{warnings.length === 1 ? '' : 's'}:
+              {t('Reading the source raised ')}
+              {warnings.length} {t(' warning')}
+              {warnings.length === 1 ? '' : 's'}:
             </strong>
           </p>
           <ul>
@@ -528,30 +546,35 @@ function VersionsSection({
   technicalDetails?: boolean;
 }) {
   return (
-    <Fold id="versions-h" title="Versions" hint={submission.versions.length} open>
+    <Fold id="versions-h" title={t('Versions')} hint={submission.versions.length} open>
       <ul className="version-list">
         {[...submission.versions].reverse().map((v) => (
           <li key={v.number}>
-            <strong>Version {v.number}</strong> · <DateText iso={v.uploaded_at} withTime /> ·{' '}
-            <span>{v.filename}</span> ({formatBytes(v.archive.bytes)})
+            <strong>
+              {t('Version ')}
+              {v.number}
+            </strong>{' '}
+            · <DateText iso={v.uploaded_at} withTime /> · <span>{v.filename}</span> (
+            {formatBytes(v.archive.bytes)})
             {technicalDetails ? (
               <>
                 {' '}
-                · main file <code>{v.main_file}</code>
+                {t('· main file ')}
+                <code>{v.main_file}</code>
               </>
             ) : null}
             {v.pdf ? (
               <>
                 {' '}
-                · <a href={pdfHref(submission.id, v.number)}>PDF</a>
+                · <a href={pdfHref(submission.id, v.number)}>{t('PDF')}</a>
               </>
             ) : v.compile_error ? (
               <>
                 {' '}
-                <Badge tone="bad">PDF failed</Badge>
+                <Badge tone="bad">{t('PDF failed')}</Badge>
               </>
             ) : null}{' '}
-            · <a href={sourceFileHref(submission.id, v.number)}>source</a>
+            · <a href={sourceFileHref(submission.id, v.number)}>{t('source')}</a>
             <EvidenceInventory
               files={v.evidence}
               submission={submission.id}

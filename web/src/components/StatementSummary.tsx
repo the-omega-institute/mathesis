@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useState } from 'react';
 import type {
   AuditedClaim,
@@ -78,23 +79,31 @@ export function StatementSummary({
     );
   };
   return (
-    <section className="statements" aria-label="Statements" aria-labelledby="statement-summary-h">
-      <h2 id="statement-summary-h">Statements</h2>
+    <section
+      className="statements"
+      aria-label={t('Statements')}
+      aria-labelledby="statement-summary-h"
+    >
+      <h2 id="statement-summary-h">{t('Statements')}</h2>
       <p className="small muted">
-        Claims confirmed from this version of the manuscript. Select one to see its full wording and
-        the review reading.
+        {t(
+          'Claims confirmed from this version of the manuscript. Select one to see its full wording and the review reading.',
+        )}
       </p>
       {main.length > 0 ? (
         <>
           <h3 className="statements-group">
-            {main.length === 1 ? 'Main result' : `Main results · ${main.length}`}
+            {main.length === 1 ? t('Main result') : `Main results · ${main.length}`}
           </h3>
           <ul className="statement-list">{main.map(row)}</ul>
         </>
       ) : null}
       {supporting.length > 0 ? (
         <>
-          <h3 className="statements-group">Supporting · {supporting.length}</h3>
+          <h3 className="statements-group">
+            {t('Supporting · ')}
+            {supporting.length}
+          </h3>
           <ul className="statement-list">{supporting.map(row)}</ul>
         </>
       ) : null}
@@ -125,14 +134,17 @@ export function PublicStatements({ claims }: { claims: readonly StatementLike[] 
       {main.length > 0 ? (
         <>
           <h3 className="statements-group">
-            {main.length === 1 ? 'Main result' : `Main results · ${main.length}`}
+            {main.length === 1 ? t('Main result') : `Main results · ${main.length}`}
           </h3>
           <ul className="statement-list">{main.map(row)}</ul>
         </>
       ) : null}
       {supporting.length > 0 ? (
         <>
-          <h3 className="statements-group">Supporting · {supporting.length}</h3>
+          <h3 className="statements-group">
+            {t('Supporting · ')}
+            {supporting.length}
+          </h3>
           <ul className="statement-list">{supporting.map(row)}</ul>
         </>
       ) : null}
@@ -175,7 +187,7 @@ function StatementRow({
         onClick={() => setOpen(!open)}
       >
         <span className="statement-kind">
-          {name ? CLAIM_KIND_LABELS[claim.kind] : resultLabel({ ...claim, section: undefined })}
+          {name ? t(CLAIM_KIND_LABELS[claim.kind]) : resultLabel({ ...claim, section: undefined })}
         </span>
         <span className="statement-name">
           <LatexText source={name ?? claim.statement} className="statement-preview" />
@@ -185,7 +197,7 @@ function StatementRow({
           {isNew ? (
             <span className={isNew === 'New' ? 'tag tag-accent' : 'tag tag-muted'}>{isNew}</span>
           ) : null}
-          {proved ? <span className="tag tag-good">Lean ✓</span> : null}
+          {proved ? <span className="tag tag-good">{t('Lean ✓')}</span> : null}
         </span>
       </button>
       {flagged && !open ? <p className="statement-note">{reading.comment}</p> : null}
@@ -197,10 +209,16 @@ function StatementRow({
             <LeanBadge artifact={artifact} />
           </p>
         ) : null}
-        {uses && uses.length > 0 ? <p className="small muted">Uses {uses.join(', ')}.</p> : null}
+        {uses && uses.length > 0 ? (
+          <p className="small muted">
+            {t('Uses ')}
+            {uses.join(', ')}.
+          </p>
+        ) : null}
         {theorem ? (
           <p className="small muted">
-            Proved in Lean 4 as <code>{theorem}</code>.
+            {t('Proved in Lean 4 as ')}
+            <code>{theorem}</code>.
           </p>
         ) : null}
       </div>

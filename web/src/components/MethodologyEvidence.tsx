@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { EvidenceStatus, MethodologyReading } from '../api/types';
 import { SHAPE_LABELS } from '../lib/labels';
 import { Markdown } from './Markdown';
@@ -11,44 +12,54 @@ const STATUS: Record<EvidenceStatus, string> = {
 export function MethodologyEvidence({ reading }: { reading: MethodologyReading }) {
   return (
     <details className="history">
-      <summary>New content and mathematical value · {SHAPE_LABELS[reading.escape]}</summary>
+      <summary>
+        {t('New content and mathematical value · ')}
+        {t(SHAPE_LABELS[reading.escape])}
+      </summary>
       <p className="hint">
-        Source-based reviewer judgments. Reported sources and computations are not independently
-        verified proofs.
+        {t(
+          'Source-based reviewer judgments. Reported sources and computations are not independently verified proofs.',
+        )}
       </p>
-      <h4>Prerequisites and comparison</h4>
-      <p>Literature: {STATUS[reading.literature]}</p>
+      <h4>{t('Prerequisites and comparison')}</h4>
+      <p>
+        {t('Literature: ')}
+        {STATUS[reading.literature]}
+      </p>
       <ul>
         {reading.baseline.map((item, index) => (
           <li key={index}>
             <Markdown text={item.statement} />
-            <p>Location: {item.location}</p>
+            <p>
+              {t('Location: ')}
+              {item.location}
+            </p>
             {item.source ? <Markdown text={item.source} /> : null}
           </li>
         ))}
       </ul>
-      <h4>Search scope</h4>
+      <h4>{t('Search scope')}</h4>
       <ul>
         {reading.searched.map((scope, index) => (
           <li key={index}>{scope}</li>
         ))}
       </ul>
       <Markdown text={reading.binding_analysis} />
-      <h4>Additional mathematical content</h4>
+      <h4>{t('Additional mathematical content')}</h4>
       <Markdown text={reading.delta || 'No supported additional content identified.'} />
       {reading.witnesses.map((witness, index) => (
         <div key={index}>
           <p>
-            {witness.kind === 'conclusion' ? 'Conclusion witness' : 'Intermediate witness'} ·{' '}
+            {witness.kind === 'conclusion' ? t('Conclusion witness') : t('Intermediate witness')} ·{' '}
             {witness.location}
           </p>
           <Markdown text={witness.statement} />
           <Markdown text={witness.non_binding_step} />
-          <p>Use in the proof:</p>
+          <p>{t('Use in the proof:')}</p>
           <Markdown text={witness.live_use} />
         </div>
       ))}
-      <h4>Mathematical value</h4>
+      <h4>{t('Mathematical value')}</h4>
       <p>
         {reading.utility.kind.replaceAll('_', ' ')} · {STATUS[reading.utility.status]}
       </p>
@@ -64,13 +75,13 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
         .filter(([, text]) => text)
         .map(([label, text]) => (
           <div key={label}>
-            <strong>{label}</strong>
+            <strong>{t(label)}</strong>
             <Markdown text={text} />
           </div>
         ))}
       {reading.settlement ? (
         <div>
-          <h4>Named open-problem settlement</h4>
+          <h4>{t('Named open-problem settlement')}</h4>
           <p>
             {reading.settlement.problem.name} · {STATUS[reading.settlement.status]}
           </p>
@@ -93,9 +104,10 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
       ) : null}
       {reading.information_gain ? (
         <div>
-          <h4>Separate information-gain analysis</h4>
+          <h4>{t('Separate information-gain analysis')}</h4>
           <p>
-            {STATUS[reading.information_gain.status]}. This analysis does not decide publication.
+            {STATUS[reading.information_gain.status]}
+            {t('. This analysis does not decide publication.')}
           </p>
           {(['model', 'readout', 'task', 'correspondence', 'evidence'] as const).map((key) => (
             <div key={key}>
@@ -107,7 +119,7 @@ export function MethodologyEvidence({ reading }: { reading: MethodologyReading }
       ) : null}
       {reading.limits.length ? (
         <>
-          <h4>Limits and unresolved questions</h4>
+          <h4>{t('Limits and unresolved questions')}</h4>
           <ul>
             {reading.limits.map((limit, index) => (
               <li key={index}>{limit}</li>

@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useId, useState } from 'react';
 import { useRouter } from '../routing/router';
 
@@ -9,14 +10,14 @@ export function ArchiveSearch() {
     <form
       className="global-search"
       role="search"
-      aria-label="Search the archive"
+      aria-label={t('Search the archive')}
       onSubmit={(event) => {
         event.preventDefault();
         navigate({ kind: 'papers', ...(query.trim() ? { q: query.trim() } : {}) });
       }}
     >
       <label htmlFor={id} className="visually-hidden">
-        Search all research
+        {t('Search all research')}
       </label>
       <input
         id={id}
@@ -24,10 +25,13 @@ export function ArchiveSearch() {
         maxLength={300}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Title, author, keyword…"
+        placeholder={t('Title, author, keyword…')}
       />
-      <button type="submit" className="button button-quiet">
-        Search
+      <button type="submit" className="global-search-submit" aria-label={t('Search')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 4.5 4.5" />
+        </svg>
       </button>
     </form>
   );

@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 export function PublicationChoice({
   checked,
   onChange,
@@ -14,10 +15,12 @@ export function PublicationChoice({
           onChange={(event) => onChange(event.target.checked)}
           aria-describedby="publication-choice-hint"
         />
-        <span>Make my results public once accepted.</span>
+        <span>{t('Make my results public once accepted.')}</span>
       </label>
       <p className="hint" id="publication-choice-hint">
-        Uncheck this box if you only want a review. Your manuscript and report will remain private.
+        {t(
+          'Uncheck this box if you only want a review. Your manuscript and report will remain private.',
+        )}
       </p>
     </div>
   );

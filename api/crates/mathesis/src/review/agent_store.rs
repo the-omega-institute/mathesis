@@ -227,13 +227,14 @@ impl RunStore for AgentStore {
             return Ok(false);
         }
         if let Some(generation) = self.logical_step.strip_prefix("explanation:")
-            && !paper.current_version().is_some_and(|v| {
-                Some(v.explanation_generation) == generation.parse::<u32>().ok()
-                    && !v.plain_language.as_ref().is_some_and(|e| {
-                        e.claims_revision == paper.claims_revision
-                            && e.source_sha256 == v.archive.sha256
-                    })
-            })
+            && (!matches!(paper.status, SubmissionStatus::Accepted { .. })
+                || !paper.current_version().is_some_and(|v| {
+                    Some(v.explanation_generation) == generation.parse::<u32>().ok()
+                        && !v.plain_language.as_ref().is_some_and(|e| {
+                            e.claims_revision == paper.claims_revision
+                                && e.source_sha256 == v.archive.sha256
+                        })
+                }))
         {
             return Ok(false);
         }

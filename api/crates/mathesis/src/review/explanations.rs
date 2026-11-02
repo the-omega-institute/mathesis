@@ -8,11 +8,7 @@ use mathesis_review::{advisor::AdvisorInput, referee_prompts::RefereeOut};
 impl Worker {
     pub(super) async fn paper_explanation_job(&self, job: &LeasedJob) -> Result<bool, Failure> {
         let paper = self.app.submission(&self.reviewer, &job.submission).await?;
-        if paper.claims_revision == 0
-            || matches!(
-                paper.status,
-                SubmissionStatus::Draft | SubmissionStatus::Withdrawn
-            )
+        if paper.claims_revision == 0 || !matches!(paper.status, SubmissionStatus::Accepted { .. })
         {
             return Ok(false);
         }

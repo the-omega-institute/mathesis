@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { ProofWork } from '../components/ProofWork';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
@@ -36,7 +37,7 @@ export function ResultPage({ record, claim }: { record: string; claim: string })
 /** Read the immutable accepted paper; no Lean target is required to cite its mathematics. */
 export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: string }) {
   const claim = paper.claims?.find((item) => item.id === claimId);
-  if (!claim) return <p>This result is not available publicly.</p>;
+  if (!claim) return <p>{t('This result is not available publicly.')}</p>;
   const record = paper.summary.record;
   const version = paper.publication?.version ?? paper.versions?.at(-1)?.number;
   const witness = paper.new_content?.find((item) => item.claim === claim.id);
@@ -53,7 +54,7 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
     <MacrosProvider macros={paper.macros ?? {}}>
       <article className="result-page">
         <p className="entry-meta">
-          From{' '}
+          {t('From')}{' '}
           <Link to={{ kind: 'paper', record }}>
             <InlineLatex source={paper.summary.title} />
           </Link>
@@ -67,14 +68,14 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
         {paper.summary.submission &&
         paper.versions?.find((item) => item.number === version)?.has_pdf ? (
           <p>
-            <a href={pdfHref(paper.summary.submission, version)}>Read in the paper (PDF)</a>
+            <a href={pdfHref(paper.summary.submission, version)}>{t('Read in the paper (PDF)')}</a>
             {claim.section ? ` · ${claim.section}` : ''}
           </p>
         ) : null}
         <Citation paper={paper.summary} locator={{ claim, version }} />
         {witness?.lemmas.length ? (
           <section>
-            <h2>Contribution</h2>
+            <h2>{t('Contribution')}</h2>
             {witness.lemmas.map((text, index) => (
               <LatexText key={index} source={text} />
             ))}
@@ -82,49 +83,50 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
         ) : null}
         <p>
           <Link to={{ kind: 'research_graph', focus: `paper:${record}` }}>
-            Explore the paper’s references and connections
+            {t('Explore the paper’s references and connections')}
           </Link>{' '}
-          in the shared research graph. These citations describe the manuscript; they are not
-          checked dependencies of this result.
+          {t(
+            'in the shared research graph. These citations describe the manuscript; they are not checked dependencies of this result.',
+          )}
         </p>
         <ResultConnections paper={paper} claim={claim} />
         <CheckedResultUses record={record} claim={claim.id} />
         <ResultProvenance paper={paper} claim={claim} />
         <section>
-          <h2>Formalization</h2>
+          <h2>{t('Formalization')}</h2>
           {claim.verified ? (
             <>
               <p>
-                <EntrantName entrant={claim.verified.entrant} /> proved the author-confirmed
-                statement in Lean.
+                <EntrantName entrant={claim.verified.entrant} />{' '}
+                {t(' proved the author-confirmed statement in Lean.')}
               </p>
               <ProofAttribution attribution={claim.verified.attribution} />
             </>
           ) : sourceProofHref && !claim.lean ? (
             <p>
-              Formalization is available from the original source.{' '}
+              {t('Formalization is available from the original source.')}{' '}
               <a href={sourceProofHref} target="_blank" rel="noreferrer">
-                Read the Lean proof
+                {t('Read the Lean proof')}
               </a>
             </p>
           ) : (
             <p>
               {claim.lean
-                ? 'A verified formal proof is available.'
+                ? t('A verified formal proof is available.')
                 : target
-                  ? 'An author-confirmed statement is available for a community formal proof.'
-                  : 'No public formal proof is available for this result.'}
+                  ? t('An author-confirmed statement is available for a community formal proof.')
+                  : t('No public formal proof is available for this result.')}
             </p>
           )}
           {claim.verified || claim.lean || target ? (
             <Link to={{ kind: 'statement', record, claim: claim.id }}>
-              View formalization and contributors
+              {t('View formalization and contributors')}
             </Link>
           ) : null}
         </section>
         {target ? <ProofWork record={record} claim={claim.id} /> : null}
         <details className="history">
-          <summary>Corrections</summary>
+          <summary>{t('Corrections')}</summary>
           <ReportError record={record} subject={{ kind: 'statement', claim: claim.id }} />
           <ErrorReports record={record} />
         </details>

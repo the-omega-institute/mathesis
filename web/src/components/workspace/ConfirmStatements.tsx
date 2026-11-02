@@ -1,3 +1,4 @@
+import { t } from '../../i18n/locale';
 import { useRef, useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
 import type { Claim, ClaimKind, ClaimRole, Source, Submission } from '../../api/types';
@@ -59,9 +60,13 @@ export function ConfirmStatements({
     return (
       <div className="notice notice-error" role="alert">
         <p>
-          No theorem-like statements were found in this version. Check that the paper uses
-          environments such as <code>theorem</code>, <code>lemma</code> or <code>conjecture</code>{' '}
-          declared with <code>\newtheorem</code>, then upload a new version.
+          {t(
+            'No theorem-like statements were found in this version. Check that the paper uses environments such as ',
+          )}
+          <code>theorem</code>, <code>lemma</code> {t(' or ')}
+          <code>conjecture</code> {t('declared with ')}
+          <code>\newtheorem</code>
+          {t(', then upload a new version.')}
         </p>
       </div>
     );
@@ -96,27 +101,30 @@ export function ConfirmStatements({
   };
 
   return (
-    <form className="confirm-form" onSubmit={submit} aria-label="Confirm statements">
-      <p>{extracted.length} mathematical statements are ready for review.</p>
+    <form className="confirm-form" onSubmit={submit} aria-label={t('Confirm statements')}>
+      <p>
+        {extracted.length} {t(' mathematical statements are ready for review.')}
+      </p>
       <details
         className="history"
         open={submission.versions.at(-1)?.parse_warnings.length ? true : undefined}
       >
-        <summary>Inspect identified results (optional)</summary>
+        <summary>{t('Inspect identified results (optional)')}</summary>
         <div className="confirmation-navigation" ref={navigation}>
           <div className="confirmation-progress" role="status">
             <strong>
-              {rows.length} statement{rows.length === 1 ? '' : 's'} ready
+              {rows.length} {t(' statement')}
+              {rows.length === 1 ? '' : 's'} {t(' ready')}
             </strong>
-            <span>Defaults accepted; edit exceptions only.</span>
+            <span>{t('Defaults accepted; edit exceptions only.')}</span>
           </div>
           <div className="confirmation-controls">
             <label>
-              Find a statement
+              {t('Find a statement')}
               <input
                 type="search"
                 value={query}
-                placeholder="Label, section or mathematical text"
+                placeholder={t('Label, section or mathematical text')}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setPage(0);
@@ -124,7 +132,7 @@ export function ConfirmStatements({
               />
             </label>
             <label>
-              Show
+              {t('Show')}
               <select
                 value={filter}
                 onChange={(e) => {
@@ -132,12 +140,12 @@ export function ConfirmStatements({
                   setPage(0);
                 }}
               >
-                <option value="all">All statements</option>
-                <option value="main">Main results</option>
+                <option value="all">{t('All statements')}</option>
+                <option value="main">{t('Main results')}</option>
               </select>
             </label>
             <label>
-              Jump to statement
+              {t('Jump to statement')}
               <select
                 value=""
                 onChange={(e) => {
@@ -148,7 +156,7 @@ export function ConfirmStatements({
                 }}
               >
                 <option value="" disabled>
-                  Choose statement…
+                  {t('Choose statement…')}
                 </option>
                 {extracted.map((claim) => (
                   <option key={claim.id} value={claim.id}>
@@ -160,27 +168,28 @@ export function ConfirmStatements({
             </label>
           </div>
           <p className="hint">
-            This is a one-time source check before review. You only need to edit a row when the
-            extraction is wrong; unedited statements keep the extracted defaults.
+            {t(
+              'This is a one-time source check before review. You only need to edit a row when the extraction is wrong; unedited statements keep the extracted defaults.',
+            )}
           </p>
         </div>
         <div className="table-wrap">
           <table className="data-table confirm-table">
-            <caption className="visually-hidden">Extracted statements</caption>
+            <caption className="visually-hidden">{t('Extracted statements')}</caption>
             <thead>
               <tr>
-                <th scope="col">Statement</th>
+                <th scope="col">{t('Statement')}</th>
                 <th scope="col" className="confirm-kind">
-                  Kind
+                  {t('Kind')}
                 </th>
                 <th scope="col" className="confirm-role">
-                  Role
+                  {t('Role')}
                 </th>
                 <th scope="col" className="confirm-deps">
-                  Uses
+                  {t('Uses')}
                 </th>
                 <th scope="col" className="confirm-exclude">
-                  Exclude
+                  {t('Exclude')}
                 </th>
               </tr>
             </thead>
@@ -206,19 +215,21 @@ export function ConfirmStatements({
             </tbody>
           </table>
         </div>
-        {!filtered.length ? <p role="status">No statements match this view.</p> : null}
-        <nav className="button-row confirmation-pages" aria-label="Statement pages">
+        {!filtered.length ? <p role="status">{t('No statements match this view.')}</p> : null}
+        <nav className="button-row confirmation-pages" aria-label={t('Statement pages')}>
           <button
             type="button"
             className="button button-quiet"
             disabled={activePage === 0}
             onClick={() => moveTo(activePage - 1)}
           >
-            Previous statements
+            {t('Previous statements')}
           </button>
           <span aria-live="polite">
-            Page {activePage + 1} of {Math.max(1, Math.ceil(filtered.length / pageSize))} ·{' '}
-            {filtered.length} matching
+            {t('Page ')}
+            {activePage + 1} {t(' of ')}
+            {Math.max(1, Math.ceil(filtered.length / pageSize))} · {filtered.length}{' '}
+            {t(' matching')}
           </span>
           <button
             type="button"
@@ -226,22 +237,23 @@ export function ConfirmStatements({
             disabled={(activePage + 1) * pageSize >= filtered.length}
             onClick={() => moveTo(activePage + 1)}
           >
-            Next statements
+            {t('Next statements')}
           </button>
         </nav>
         <p className="small" aria-live="polite">
-          {mainCount} main result{mainCount === 1 ? '' : 's'} · {excludedCount} excluded ·{' '}
-          {rows.length - excludedCount} included in review
+          {mainCount} {t(' main result')}
+          {mainCount === 1 ? '' : 's'} · {excludedCount} {t(' excluded ·')}{' '}
+          {rows.length - excludedCount} {t(' included in review')}
         </p>
       </details>
       <div className="button-row">
         <button
           type="submit"
           className="button"
-          aria-label="Start review with these statements"
+          aria-label={t('Start review with these statements')}
           disabled={busy}
         >
-          {busy ? 'Starting review…' : 'Start review'}
+          {busy ? t('Starting review…') : t('Start review')}
         </button>
       </div>
       <InlineError error={error} />
@@ -275,8 +287,11 @@ function ConfirmRowView({
           <code className="claim-id">{row.id}</code>
           {claim.latex_label ? <code className="muted small">{claim.latex_label}</code> : null}
           {!claim.has_proof && row.kind !== 'conjecture' && row.kind !== 'question' ? (
-            <Badge tone="muted" title="No proof environment follows this statement in the source">
-              No proof in source
+            <Badge
+              tone="muted"
+              title={t('No proof environment follows this statement in the source')}
+            >
+              {t('No proof in source')}
             </Badge>
           ) : null}
         </div>
@@ -286,7 +301,8 @@ function ConfirmRowView({
       </td>
       <td className="confirm-kind" data-label="Kind">
         <label className="visually-hidden" htmlFor={id('kind')}>
-          Kind of {row.id}
+          {t('Kind of ')}
+          {row.id}
         </label>
         <select
           id={id('kind')}
@@ -296,14 +312,15 @@ function ConfirmRowView({
         >
           {CLAIM_KINDS.map((k) => (
             <option key={k} value={k}>
-              {CLAIM_KIND_LABELS[k]}
+              {t(CLAIM_KIND_LABELS[k])}
             </option>
           ))}
         </select>
       </td>
       <td className="confirm-role" data-label="Role">
         <label className="visually-hidden" htmlFor={id('role')}>
-          Role of {row.id}
+          {t('Role of ')}
+          {row.id}
         </label>
         <select
           id={id('role')}
@@ -311,22 +328,23 @@ function ConfirmRowView({
           disabled={row.excluded}
           onChange={(e) => onPatch({ role: e.target.value as ClaimRole })}
         >
-          <option value="main">Main result</option>
-          <option value="supporting">Supporting</option>
+          <option value="main">{t('Main result')}</option>
+          <option value="supporting">{t('Supporting')}</option>
         </select>
       </td>
       <td className="confirm-deps" data-label="Uses">
         <label className="small" htmlFor={id('conjecture-deps')}>
-          Public conjectures {row.id} uses
+          {t('Public conjectures ')}
+          {row.id} {t(' uses')}
         </label>
         <input
           id={id('conjecture-deps')}
-          placeholder="WP-2026-0001:C1"
+          placeholder={t('WP-2026-0001:C1')}
           value={row.conjectureInput ?? ''}
           disabled={row.excluded}
           onChange={(e) => onPatch({ conjectureInput: e.target.value })}
         />
-        <p className="hint">Comma-separated record:claim references.</p>
+        <p className="hint">{t('Comma-separated record:claim references.')}</p>
         {others.length === 0 ? (
           <span className="muted small">—</span>
         ) : (
@@ -335,12 +353,19 @@ function ConfirmRowView({
             onToggle={(event) => setDependenciesOpen(event.currentTarget.open)}
           >
             <summary>
-              {row.dependsOn.length === 0 ? 'None' : row.dependsOn.join(', ')}
-              <span className="visually-hidden"> — statements {row.id} uses</span>
+              {row.dependsOn.length === 0 ? t('None') : row.dependsOn.join(', ')}
+              <span className="visually-hidden">
+                {' '}
+                {t(' — statements ')}
+                {row.id} {t(' uses')}
+              </span>
             </summary>
             {dependenciesOpen ? (
               <fieldset disabled={row.excluded}>
-                <legend className="visually-hidden">Statements {row.id} uses</legend>
+                <legend className="visually-hidden">
+                  {t('Statements ')}
+                  {row.id} {t(' uses')}
+                </legend>
                 {others.map((c) => {
                   const excluded = rows.find((r) => r.id === c.id)?.excluded ?? false;
                   return (
@@ -353,7 +378,7 @@ function ConfirmRowView({
                       />
                       <span className={excluded ? 'muted' : undefined}>
                         {c.id} · {statementTitle(c)}
-                        {excluded ? ' (excluded)' : ''}
+                        {excluded ? t(' (excluded)') : ''}
                       </span>
                     </label>
                   );
@@ -371,9 +396,12 @@ function ConfirmRowView({
             onChange={(e) => onPatch({ excluded: e.target.checked })}
           />
           <span>
-            <span className="visually-hidden">Exclude {row.id}</span>
+            <span className="visually-hidden">
+              {t('Exclude ')}
+              {row.id}
+            </span>
             <span aria-hidden="true" className="confirm-exclude-text">
-              Misparsed
+              {t('Misparsed')}
             </span>
           </span>
         </label>
@@ -406,12 +434,12 @@ function SettlesEditor({
             if (!e.target.checked) onPatch({ settles: undefined });
           }}
         />
-        <span>Settles a named open problem</span>
+        <span>{t('Settles a named open problem')}</span>
       </label>
       {open ? (
         <div className="settles-fields">
           <div className="field">
-            <label htmlFor={`settles-${row.id}-name`}>Name of the problem</label>
+            <label htmlFor={`settles-${row.id}-name`}>{t('Name of the problem')}</label>
             <input
               id={`settles-${row.id}-name`}
               value={settles.name}

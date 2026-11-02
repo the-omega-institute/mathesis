@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -64,7 +65,7 @@ export function AuthorPage({ name }: { name: string }) {
           <>
             <header className="page-head author-head">
               <div>
-                <p className="eyebrow">Author</p>
+                <p className="eyebrow">{t('Author')}</p>
                 <h1>{value.profile.name}</h1>
                 {value.profile.affiliation ? (
                   <p className="lede">{value.profile.affiliation}</p>
@@ -73,14 +74,14 @@ export function AuthorPage({ name }: { name: string }) {
               </div>
             </header>
 
-            <p className="author-counts" aria-label="Author contribution counts">
-              <strong>{value.papers.length}</strong> papers and notes ·{' '}
-              <strong>{value.conjectures.length}</strong> conjectures ·{' '}
-              <strong>{value.formalizations.length}</strong> formalization targets
+            <p className="author-counts" aria-label={t('Author contribution counts')}>
+              <strong>{value.papers.length}</strong> {t(' papers and notes ·')}{' '}
+              <strong>{value.conjectures.length}</strong> {t(' conjectures ·')}{' '}
+              <strong>{value.formalizations.length}</strong> {t(' formalization targets')}
             </p>
 
             <section aria-labelledby="author-papers-h">
-              <h2 id="author-papers-h">Papers and notes</h2>
+              <h2 id="author-papers-h">{t('Papers and notes')}</h2>
               {value.papers.length ? (
                 <ul className="entry-list">
                   {value.papers.map((paper) => (
@@ -89,7 +90,7 @@ export function AuthorPage({ name }: { name: string }) {
                         <InlineLatex source={paper.title} />
                       </Link>
                       <p className="entry-meta">
-                        <code>{paper.record}</code> · {SUBMISSION_KIND_LABELS[paper.kind]}
+                        <code>{paper.record}</code> · {t(SUBMISSION_KIND_LABELS[paper.kind])}
                         {paper.accepted_at ? (
                           <>
                             {' '}
@@ -101,12 +102,12 @@ export function AuthorPage({ name }: { name: string }) {
                   ))}
                 </ul>
               ) : (
-                <p className="muted">No accepted papers or notes found.</p>
+                <p className="muted">{t('No accepted papers or notes found.')}</p>
               )}
             </section>
 
             <section aria-labelledby="author-conjectures-h">
-              <h2 id="author-conjectures-h">Conjectures</h2>
+              <h2 id="author-conjectures-h">{t('Conjectures')}</h2>
               {value.conjectures.length ? (
                 <ul className="entry-list">
                   {value.conjectures.map((item) => (
@@ -128,12 +129,12 @@ export function AuthorPage({ name }: { name: string }) {
                   ))}
                 </ul>
               ) : (
-                <p className="muted">No conjectures found.</p>
+                <p className="muted">{t('No conjectures found.')}</p>
               )}
             </section>
 
             <section aria-labelledby="author-formalizations-h">
-              <h2 id="author-formalizations-h">Formalization</h2>
+              <h2 id="author-formalizations-h">{t('Formalization')}</h2>
               {value.formalizations.length ? (
                 <ul className="entry-list">
                   {value.formalizations.map((item) => (
@@ -151,7 +152,7 @@ export function AuthorPage({ name }: { name: string }) {
                   ))}
                 </ul>
               ) : (
-                <p className="muted">No formalization targets found.</p>
+                <p className="muted">{t('No formalization targets found.')}</p>
               )}
             </section>
           </>
@@ -169,8 +170,8 @@ function AuthorLinks({ author }: { author: Author }) {
           ORCID
         </a>
       ) : null}
-      {author.google_scholar ? <a href={author.google_scholar}>Google Scholar</a> : null}
-      {author.website ? <a href={author.website}>Personal website</a> : null}
+      {author.google_scholar ? <a href={author.google_scholar}>{t('Google Scholar')}</a> : null}
+      {author.website ? <a href={author.website}>{t('Personal website')}</a> : null}
     </p>
   );
 }

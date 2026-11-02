@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { PublicPaper } from '../api/types';
 import { sourceFileHref } from '../api/client';
 import { safeHttpUrl } from '../lib/links';
@@ -9,24 +10,31 @@ export function Bibliography({ paper }: { paper: PublicPaper }) {
   const version = paper.publication.version;
   return (
     <section aria-labelledby="references-h" className="paper-references">
-      <h2 id="references-h">References and connections</h2>
+      <h2 id="references-h">{t('References and connections')}</h2>
       <p>
         <Link to={{ kind: 'research_graph', focus: `paper:${paper.summary.record}` }}>
-          Explore this paper in the research graph
+          {t('Explore this paper in the research graph')}
         </Link>
         {' · '}
-        <Link to={{ kind: 'research_graph' }}>Browse the shared graph</Link>
+        <Link to={{ kind: 'research_graph' }}>{t('Browse the shared graph')}</Link>
       </p>
       <p className="muted">
-        Citations credit the literature named in the manuscript. They do not establish a checked
-        mathematical dependency or award proof credit.
+        {t(
+          'Citations credit the literature named in the manuscript. They do not establish a checked mathematical dependency or award proof credit.',
+        )}
       </p>
       {!bibliography ? (
-        <p>This accepted source version has not been indexed. Consult the original references.</p>
+        <p>
+          {t('This accepted source version has not been indexed. Consult the original references.')}
+        </p>
       ) : (
         <>
           {!bibliography.references.length ? (
-            <p>No literal citations were indexed from this version. Coverage may be incomplete.</p>
+            <p>
+              {t(
+                'No literal citations were indexed from this version. Coverage may be incomplete.',
+              )}
+            </p>
           ) : (
             <ol className="reference-list">
               {bibliography.references.map(({ work, display_text, reference: r }) => {
@@ -42,26 +50,40 @@ export function Bibliography({ paper }: { paper: PublicPaper }) {
                         {r.year ? ` (${r.year})` : ''}
                       </p>
                     ) : null}
-                    <p className="entry-meta">Cited earlier work · source-declared relationship.</p>
-                    {r.doi ? <p>DOI as supplied: {r.doi}</p> : null}
-                    {r.arxiv ? <p>arXiv as supplied: {r.arxiv}</p> : null}
+                    <p className="entry-meta">
+                      {t('Cited earlier work · source-declared relationship.')}
+                    </p>
+                    {r.doi ? (
+                      <p>
+                        {t('DOI as supplied: ')}
+                        {r.doi}
+                      </p>
+                    ) : null}
+                    {r.arxiv ? (
+                      <p>
+                        {t('arXiv as supplied: ')}
+                        {r.arxiv}
+                      </p>
+                    ) : null}
                     {href ? (
                       <a href={href} target="_blank" rel="noreferrer">
-                        Source link
+                        {t('Source link')}
                       </a>
                     ) : null}
                     <details>
-                      <summary>Source evidence</summary>
+                      <summary>{t('Source evidence')}</summary>
                       <pre className="reference-evidence">{r.raw}</pre>
-                      {r.raw_truncated ? <p>Only a bounded prefix is shown.</p> : null}
+                      {r.raw_truncated ? <p>{t('Only a bounded prefix is shown.')}</p> : null}
                       <p>
-                        Reference key {r.key} · version {version} · {r.source_location}
+                        {t('Reference key ')}
+                        {r.key} {t(' · version ')}
+                        {version} · {r.source_location}
                         {paper.summary.submission ? (
                           <>
                             {' '}
                             ·{' '}
                             <a href={sourceFileHref(paper.summary.submission, version)}>
-                              Original upload
+                              {t('Original upload')}
                             </a>
                           </>
                         ) : null}
@@ -73,7 +95,7 @@ export function Bibliography({ paper }: { paper: PublicPaper }) {
             </ol>
           )}
           <details>
-            <summary>Reference coverage</summary>
+            <summary>{t('Reference coverage')}</summary>
             <ul>
               {bibliography.limitations.map((s) => (
                 <li key={s}>{s}</li>

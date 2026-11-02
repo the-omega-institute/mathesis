@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { PublicClaim, PublicPaper } from '../api/types';
 import { Link } from '../routing/router';
 import { resultLabel } from '../lib/statements';
@@ -18,7 +19,7 @@ export function PaperResults({ paper }: { paper: PublicPaper }) {
           </h3>
           <LatexText source={claim.statement} className="result-excerpt" />
           {claim.verified || claim.lean ? (
-            <p className="small">A verified formal proof is available.</p>
+            <p className="small">{t('A verified formal proof is available.')}</p>
           ) : null}
         </li>
       ))}
@@ -26,11 +27,14 @@ export function PaperResults({ paper }: { paper: PublicPaper }) {
   );
   return (
     <section className="paper-results" aria-labelledby="results-h">
-      <h2 id="results-h">Results</h2>
+      <h2 id="results-h">{t('Results')}</h2>
       {list(main)}
       {supporting.length ? (
         <details>
-          <summary>Supporting statements ({supporting.length})</summary>
+          <summary>
+            {t('Supporting statements (')}
+            {supporting.length})
+          </summary>
           {list(supporting)}
         </details>
       ) : null}

@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type {
   AdmissionBasis,
   ClaimKind,
@@ -37,39 +38,39 @@ const SUBMISSION_TONES: { [K in SubmissionStatus['state']]: BadgeTone } = {
 
 export function SubmissionStatusBadge({
   status,
-  label = SUBMISSION_STATE_LABELS[status.state],
+  label = t(SUBMISSION_STATE_LABELS[status.state]),
 }: {
   status: SubmissionStatus;
   label?: string;
 }) {
-  return <Badge tone={SUBMISSION_TONES[status.state]}>{label}</Badge>;
+  return <Badge tone={SUBMISSION_TONES[status.state]}>{t(label)}</Badge>;
 }
 
 export function BasisBadge({ basis }: { basis: AdmissionBasis }) {
   return (
-    <Badge tone="neutral" title={BASIS_DESCRIPTIONS[basis]}>
-      {BASIS_LABELS[basis]}
+    <Badge tone="neutral" title={t(BASIS_DESCRIPTIONS[basis])}>
+      {t(BASIS_LABELS[basis])}
     </Badge>
   );
 }
 
 export function KindBadge({ kind }: { kind: ClaimKind }) {
-  return <Badge tone="neutral">{CLAIM_KIND_LABELS[kind]}</Badge>;
+  return <Badge tone="neutral">{t(CLAIM_KIND_LABELS[kind])}</Badge>;
 }
 
 export function RoleBadge({ role }: { role: ClaimRole }) {
   return (
     <Badge tone={role === 'main' ? 'accent' : 'muted'}>
-      {role === 'main' ? 'Main result' : 'Supporting'}
+      {role === 'main' ? t('Main result') : t('Supporting')}
     </Badge>
   );
 }
 
 export function ShapeBadge({ shape }: { shape: ProofShape }) {
   return (
-    <Badge tone={shape === 'content' ? 'good' : 'muted'} title={SHAPE_DESCRIPTIONS[shape]}>
-      <span className="visually-hidden">Shape: </span>
-      {SHAPE_LABELS[shape]}
+    <Badge tone={shape === 'content' ? 'good' : 'muted'} title={t(SHAPE_DESCRIPTIONS[shape])}>
+      <span className="visually-hidden">{t('Shape: ')}</span>
+      {t(SHAPE_LABELS[shape])}
     </Badge>
   );
 }
@@ -83,8 +84,8 @@ const STANDING_TONES: { [K in JudgementStanding]: BadgeTone } = {
 
 export function StandingBadge({ standing }: { standing: JudgementStanding }) {
   return (
-    <Badge tone={STANDING_TONES[standing]} title={STANDING_DESCRIPTIONS[standing]}>
-      {STANDING_LABELS[standing]}
+    <Badge tone={STANDING_TONES[standing]} title={t(STANDING_DESCRIPTIONS[standing])}>
+      {t(STANDING_LABELS[standing])}
     </Badge>
   );
 }
@@ -98,8 +99,11 @@ const OUTCOME_TONES: { [K in Outcome['outcome']]: BadgeTone } = {
 export function OutcomeBadge({ outcome, proposal }: { outcome: Outcome; proposal?: boolean }) {
   if (proposal) {
     return (
-      <Badge tone="warn" title="A machine pass on a judgement stage awaits an editor’s report.">
-        Pass (proposal)
+      <Badge
+        tone="warn"
+        title={t('A machine pass on a judgement stage awaits an editor’s report.')}
+      >
+        {t('Pass (proposal)')}
       </Badge>
     );
   }
@@ -115,7 +119,7 @@ const ITEM_TONES: { [K in ItemState['state']]: BadgeTone } = {
 };
 
 export function ItemStateBadge({ state }: { state: ItemState }) {
-  return <Badge tone={ITEM_TONES[state.state]}>{ITEM_STATE_LABELS[state.state]}</Badge>;
+  return <Badge tone={ITEM_TONES[state.state]}>{t(ITEM_STATE_LABELS[state.state])}</Badge>;
 }
 
 const CONJECTURE_TONES: { [K in ConjectureState['state']]: BadgeTone } = {
@@ -126,7 +130,9 @@ const CONJECTURE_TONES: { [K in ConjectureState['state']]: BadgeTone } = {
 };
 
 export function ConjectureStateBadge({ state }: { state: ConjectureState }) {
-  return <Badge tone={CONJECTURE_TONES[state.state]}>{CONJECTURE_STATE_LABELS[state.state]}</Badge>;
+  return (
+    <Badge tone={CONJECTURE_TONES[state.state]}>{t(CONJECTURE_STATE_LABELS[state.state])}</Badge>
+  );
 }
 
 /** "Lean verified", linked to the repository at the pinned commit. */
@@ -135,7 +141,7 @@ export function LeanBadge({ artifact }: { artifact: FormalArtifact }) {
   const label = artifactLabel(artifact);
   const badge = (
     <Badge tone="good" title={`Proved in Lean: ${label}`}>
-      Lean verified
+      {t('Lean verified')}
     </Badge>
   );
   return (

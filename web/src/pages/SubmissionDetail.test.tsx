@@ -517,12 +517,20 @@ it('shows one loading shell for the shared review resource on the author page', 
   expect(screen.getByRole('region', { name: 'Review' })).toHaveTextContent('Loading…');
 });
 
-it.each([true, false])(
-  'shows only source-bound exposition on the author page (current: %s)',
-  async (current) => {
+it.each([
+  ['accepted', true],
+  ['accepted', false],
+  ['in_review', true],
+  ['review_complete', true],
+  ['not_accepted', true],
+  ['draft', true],
+] as const)(
+  'shows source-bound exposition only after acceptance (state: %s, current: %s)',
+  async (state, current) => {
     const currentVersion = submission.versions.at(-1)!;
     const paper = {
       ...submission,
+      status: state === 'accepted' ? accepted.status : { state },
       versions: [
         {
           ...currentVersion,
@@ -541,7 +549,7 @@ it.each([true, false])(
       fakeApi({ getSubmission: vi.fn(async () => paper) }, author),
     );
     await screen.findByRole('heading', { level: 1, name: paper.title });
-    if (current)
+    if (state === 'accepted' && current)
       expect(screen.getByText('A readable account of this manuscript.')).toBeInTheDocument();
     else
       expect(screen.queryByText('A readable account of this manuscript.')).not.toBeInTheDocument();

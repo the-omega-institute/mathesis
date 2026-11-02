@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { PublicClaim, PublicPaper, SourceContribution } from '../api/types';
 import { safeHttpUrl } from '../lib/links';
 import { ExternalLink } from './ui';
@@ -45,15 +46,15 @@ export function ResultProvenance({ paper, claim }: { paper: PublicPaper; claim: 
   const evidence = origin.evidence.filter((item) => matchesResult(claim, item.claim_label));
   return (
     <section className="result-provenance" aria-labelledby="result-provenance-heading">
-      <h2 id="result-provenance-heading">Source and contributions</h2>
+      <h2 id="result-provenance-heading">{t('Source and contributions')}</h2>
       <p>
-        <EvidenceLink url={origin.source_url}>Original research</EvidenceLink>
+        <EvidenceLink url={origin.source_url}>{t('Original research')}</EvidenceLink>
         {' · '}
         {origin.license}
       </p>
       {contributions.length ? (
         <>
-          <p className="small muted">Contributions attributed in the original source.</p>
+          <p className="small muted">{t('Contributions attributed in the original source.')}</p>
           <ul className="contribution-history">
             {contributions.map((item) => (
               <li key={item.id}>
@@ -74,12 +75,12 @@ export function ResultProvenance({ paper, claim }: { paper: PublicPaper; claim: 
                   <LatexText source={item.scope} />
                   <p className="small">
                     <EvidenceLink url={item.evidence_url}>
-                      {item.role === 'formalization' ? 'Lean source' : 'Read the evidence'}
+                      {item.role === 'formalization' ? t('Lean source') : t('Read the evidence')}
                     </EvidenceLink>
                   </p>
                   {(item.depends_on ?? []).length ? (
                     <p className="small">
-                      Builds on:{' '}
+                      {t('Builds on:')}{' '}
                       {(item.depends_on ?? []).map((id, index) => {
                         const parent = origin.contributions?.find((entry) => entry.id === id);
                         return parent ? (
@@ -102,7 +103,7 @@ export function ResultProvenance({ paper, claim }: { paper: PublicPaper; claim: 
       ) : null}
       {evidence.length ? (
         <details className="source-evidence">
-          <summary>Supporting sources</summary>
+          <summary>{t('Supporting sources')}</summary>
           <ul>
             {evidence.map((item, index) => (
               <li key={index}>

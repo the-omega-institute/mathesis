@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { ConjectureFollowUp, PaperAnalysis, PriorWork } from '../api/types';
 import { formatDate } from '../lib/format';
 import { RELATION_LABELS, SETTLEMENT_LABELS } from '../lib/labels';
@@ -26,7 +27,7 @@ export function PriorWorkList({ prior }: { prior: readonly PriorWork[] }) {
       {prior.map((p, i) => (
         <li key={i}>
           <Badge tone={p.relation === 'related' ? 'muted' : 'warn'}>
-            {RELATION_LABELS[p.relation]}
+            {t(RELATION_LABELS[p.relation])}
           </Badge>{' '}
           <SourceLink source={p.source} />
           {p.note ? <Markdown text={p.note} /> : null}
@@ -54,23 +55,23 @@ export function AnalysisView({
     <div className="analysis">
       <dl className="record-meta analysis-counts">
         <div>
-          <dt>Main results</dt>
+          <dt>{t('Main results')}</dt>
           <dd>{analysis.main_results}</dd>
         </div>
         <div>
-          <dt>Main results with new content</dt>
+          <dt>{t('Main results with new content')}</dt>
           <dd>{analysis.main_with_content}</dd>
         </div>
         <div>
-          <dt>Main results already known</dt>
+          <dt>{t('Main results already known')}</dt>
           <dd>{analysis.main_known}</dd>
         </div>
         <div>
-          <dt>Open statements</dt>
+          <dt>{t('Open statements')}</dt>
           <dd>{analysis.open_statements}</dd>
         </div>
         <div>
-          <dt>Lean verified</dt>
+          <dt>{t('Lean verified')}</dt>
           <dd>{analysis.formalized}</dd>
         </div>
       </dl>
@@ -88,20 +89,21 @@ export function AnalysisView({
             </div>
             <div className="analysis-grid">
               <section aria-label={`Literature for ${c.claim}`}>
-                <h5>Literature (S2)</h5>
+                <h5>{t('Literature (S2)')}</h5>
                 {c.known ? (
                   <p>
-                    <Badge tone="warn">Known</Badge> Prior work states or directly implies it.
+                    <Badge tone="warn">{t('Known')}</Badge>{' '}
+                    {t(' Prior work states or directly implies it.')}
                   </p>
                 ) : c.prior.length > 0 ? (
-                  <p className="small">No prior work states or directly implies it.</p>
+                  <p className="small">{t('No prior work states or directly implies it.')}</p>
                 ) : (
-                  <p className="muted small">No prior work recorded.</p>
+                  <p className="muted small">{t('No prior work recorded.')}</p>
                 )}
                 <PriorWorkList prior={c.prior} />
               </section>
               <section aria-label={`Escape analysis for ${c.claim}`}>
-                <h5>Escape analysis (S3)</h5>
+                <h5>{t('Escape analysis (S3)')}</h5>
                 {c.assessment ? (
                   <EscapeAssessmentView
                     assessment={c.assessment}
@@ -114,19 +116,21 @@ export function AnalysisView({
                       {c.judgement.shape ? <ShapeBadge shape={c.judgement.shape} /> : null}
                       <StandingBadge standing={c.judgement.standing} />
                       <span className="muted small">
-                        {c.judgement.judgements} judgement{c.judgement.judgements === 1 ? '' : 's'}
+                        {c.judgement.judgements} {t(' judgement')}
+                        {c.judgement.judgements === 1 ? '' : 's'}
                       </span>
                     </div>
                     <WitnessList witnesses={c.judgement.witnesses} />
                   </div>
                 ) : (
-                  <p className="muted small">Not judged yet.</p>
+                  <p className="muted small">{t('Not judged yet.')}</p>
                 )}
                 {c.assessment && c.judgement ? (
                   <p className="small">
                     <StandingBadge standing={c.judgement.standing} />{' '}
                     <span className="muted">
-                      {c.judgement.judgements} judgement{c.judgement.judgements === 1 ? '' : 's'}
+                      {c.judgement.judgements} {t(' judgement')}
+                      {c.judgement.judgements === 1 ? '' : 's'}
                     </span>
                   </p>
                 ) : null}
@@ -148,7 +152,7 @@ export function ConjectureList({
   claims: readonly StatementLike[];
   scope?: string;
 }) {
-  if (conjectures.length === 0) return <p className="muted">No conjectures followed up.</p>;
+  if (conjectures.length === 0) return <p className="muted">{t('No conjectures followed up.')}</p>;
   return (
     <ul className="conjecture-list">
       {conjectures.map((c) => (
@@ -156,13 +160,16 @@ export function ConjectureList({
           <div className="claim-head">
             <ClaimRef id={c.claim} claims={claims} scope={scope} />
             <ConjectureStateBadge state={c.state} />
-            <span className="muted small">updated {formatDate(c.updated_at)}</span>
+            <span className="muted small">
+              {t('updated ')}
+              {formatDate(c.updated_at)}
+            </span>
           </div>
           {c.state.state === 'not_pursued' ? <p className="small">{c.state.reason}</p> : null}
           {c.state.state === 'settled' ? (
             <div>
               <p className="small">
-                <strong>{SETTLEMENT_LABELS[c.state.outcome]}.</strong>
+                <strong>{t(SETTLEMENT_LABELS[c.state.outcome])}.</strong>
               </p>
               <Markdown text={c.state.summary} />
             </div>

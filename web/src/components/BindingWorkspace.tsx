@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -37,21 +38,21 @@ export function BindingWorkspace({ submission }: { submission: Submission }) {
   }
   return (
     <details className="report">
-      <summary>Public binding discussions</summary>
+      <summary>{t('Public binding discussions')}</summary>
       <p>
-        For an accepted public paper with contributor access enabled, invite others to connect a
-        precise statement to existing mathematics. You choose the statement, public context and
-        source declarations before sharing. The manuscript and private review remain private.
+        {t(
+          'For an accepted public paper with contributor access enabled, invite others to connect a precise statement to existing mathematics. You choose the statement, public context and source declarations before sharing. The manuscript and private review remain private.',
+        )}
       </p>
       <button className="button button-quiet" onClick={resource.reload}>
-        Refresh binding discussions
+        {t('Refresh binding discussions')}
       </button>
       <InlineError error={error} />
       <Async state={resource.state} onRetry={resource.reload}>
         {(view) => (
           <>
             {!view.options.length && !view.boards.length ? (
-              <p>No source-audited statements are ready to share.</p>
+              <p>{t('No source-audited statements are ready to share.')}</p>
             ) : null}
             {author
               ? view.options.map((o) => (
@@ -65,29 +66,32 @@ export function BindingWorkspace({ submission }: { submission: Submission }) {
               : null}
             {view.boards.map((b) => (
               <section key={b.id}>
-                <h3>{b.target.subject.claim}: shared statement</h3>
+                <h3>
+                  {b.target.subject.claim}
+                  {t(': shared statement')}
+                </h3>
                 <Markdown text={b.target.statement} />
                 <Markdown text={b.context} />
                 <p>
                   {b.events.some((e) => e.event === 'revoked')
-                    ? 'Sharing revoked'
+                    ? t('Sharing revoked')
                     : b.target.subject.version !== submission.versions.at(-1)?.number ||
                         b.target.subject.claims_revision !== submission.claims_revision
-                      ? 'Source changed; sharing closed'
-                      : 'Sharing authorized'}{' '}
+                      ? t('Source changed; sharing closed')
+                      : t('Sharing authorized')}{' '}
                   · {b.license}
                 </p>
                 <Link to={{ kind: 'binding', id: submission.id, key: b.id }}>
-                  Open the public discussion
+                  {t('Open the public discussion')}
                 </Link>
                 <PrivateAudits board={b} />
                 {author && !b.events.some((e) => e.event === 'revoked') ? (
                   <form onSubmit={(e) => void revoke(e, b.id)}>
-                    <Field label="Reason for revoking sharing" htmlFor={`revoke-${b.id}`}>
+                    <Field label={t('Reason for revoking sharing')} htmlFor={`revoke-${b.id}`}>
                       <textarea id={`revoke-${b.id}`} name="reason" required maxLength={2000} />
                     </Field>
                     <button disabled={busy} className="button button-quiet">
-                      Revoke sharing and stop further audits
+                      {t('Revoke sharing and stop further audits')}
                     </button>
                   </form>
                 ) : null}
@@ -102,7 +106,7 @@ export function BindingWorkspace({ submission }: { submission: Submission }) {
 function PrivateAudits({ board }: { board: PrivateBindingView['boards'][number] }) {
   return (
     <details>
-      <summary>Private inspection history</summary>
+      <summary>{t('Private inspection history')}</summary>
       {board.events.map((event, i) =>
         event.event === 'audited' ? (
           <section key={i}>
@@ -111,8 +115,8 @@ function PrivateAudits({ board }: { board: PrivateBindingView['boards'][number] 
             <Markdown text={event.audit.evidence} />
             <p>
               {event.audit.evidence_complete
-                ? 'Required saved excerpts present'
-                : 'Source evidence incomplete'}
+                ? t('Required saved excerpts present')
+                : t('Source evidence incomplete')}
             </p>
           </section>
         ) : null,
@@ -159,15 +163,23 @@ function PublishSummary({
   }
   return (
     <details>
-      <summary>Share {o.target.subject.claim} for a binding discussion</summary>
+      <summary>
+        {t('Share ')}
+        {o.target.subject.claim} {t(' for a binding discussion')}
+      </summary>
       <form onSubmit={(e) => void submit(e)}>
-        <p>Exact statement to publish:</p>
+        <p>{t('Exact statement to publish:')}</p>
         <Markdown text={o.target.statement} />
         <p>
-          Submission {id}, source version {o.target.subject.version}, statements revision{' '}
-          {o.target.subject.claims_revision}, review round {o.target.subject.round}.
+          {t('Submission ')}
+          {id}
+          {t(', source version ')}
+          {o.target.subject.version}
+          {t(', statements revision')} {o.target.subject.claims_revision}
+          {t(', review round ')}
+          {o.target.subject.round}.
         </p>
-        <Field label="Public mathematical context" htmlFor={`context-${o.digest}`}>
+        <Field label={t('Public mathematical context')} htmlFor={`context-${o.digest}`}>
           <textarea
             id={`context-${o.digest}`}
             required
@@ -181,7 +193,7 @@ function PublishSummary({
           />
         </Field>
         <fieldset>
-          <legend>Source declarations to share (choose 1–40)</legend>
+          <legend>{t('Source declarations to share (choose 1–40)')}</legend>
           {o.target.sources.map((s) => (
             <label key={s.statement_id}>
               <input
@@ -201,7 +213,7 @@ function PublishSummary({
           ))}
         </fieldset>
         <details>
-          <summary>Preview the complete public mathematical payload</summary>
+          <summary>{t('Preview the complete public mathematical payload')}</summary>
           <pre className="code-block">
             {JSON.stringify(
               { target: { ...o.target, sources }, context, license: 'CC-BY-4.0' },
@@ -210,26 +222,28 @@ function PublishSummary({
             )}
           </pre>
           <p>
-            Your account attribution and authorization time are also public. Private queries and
-            audit notes are excluded.
+            {t(
+              'Your account attribution and authorization time are also public. Private queries and audit notes are excluded.',
+            )}
           </p>
         </details>
         <label>
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          I authorize public sharing of this exact statement, context and selected source identities
-          under CC BY 4.0, with my attribution, and independent AI inspection of contributions
-          against my manuscript.
+          {t(
+            'I authorize public sharing of this exact statement, context and selected source identities under CC BY 4.0, with my attribution, and independent AI inspection of contributions against my manuscript.',
+          )}
         </label>
         <p>
-          Revocation closes new access and inspection here. People who already received material
-          under CC BY 4.0 retain that license.
+          {t(
+            'Revocation closes new access and inspection here. People who already received material under CC BY 4.0 retain that license.',
+          )}
         </p>
         <InlineError error={error} />
         <button
           className="button"
           disabled={busy || !consent || !sources.length || sources.length > 40}
         >
-          Publish this summary
+          {t('Publish this summary')}
         </button>
       </form>
     </details>

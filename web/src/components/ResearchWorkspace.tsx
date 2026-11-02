@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n/locale';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -38,19 +39,20 @@ export function ResearchWorkspace({ submission }: { submission: Submission }) {
   const resource = useAsync(load);
   return (
     <details className="report">
-      <summary>Private research goals</summary>
+      <summary>{tr('Private research goals')}</summary>
       <p>
-        Work on a missing hypothesis or bridge from the source audit. The submitting author
-        authorizes a precise goal and confirms its Lean translation before any proof attempt.
+        {tr(
+          'Work on a missing hypothesis or bridge from the source audit. The submitting author authorizes a precise goal and confirms its Lean translation before any proof attempt.',
+        )}
       </p>
       <button className="button button-quiet" onClick={resource.reload}>
-        Refresh research status
+        {tr('Refresh research status')}
       </button>
       <Async state={resource.state} onRetry={resource.reload}>
         {(view) => (
           <>
             {!view.candidates.length && !view.obligations.length ? (
-              <p>No current audited research obligations are available.</p>
+              <p>{tr('No current audited research obligations are available.')}</p>
             ) : null}
             {author
               ? view.candidates.map((c) => (
@@ -129,10 +131,12 @@ function Adopt({
         {c.subject.claim} · {c.unresolved_text}
       </summary>
       <p>
-        Source version {c.subject.version} · round {c.subject.round}
+        {tr('Source version ')}
+        {c.subject.version} {tr(' · round ')}
+        {c.subject.round}
       </p>
       <Markdown text={c.original_statement} />
-      <h4>Premises and correspondence in the audit</h4>
+      <h4>{tr('Premises and correspondence in the audit')}</h4>
       <Markdown text={c.binding.argument} />
       <ul>
         {c.binding.premises.map((p) => (
@@ -156,24 +160,27 @@ function Adopt({
         ))}
       </ul>
       <p>
-        Define the complete goal below, including all assumptions. Preparing a target sends this
-        goal and the manuscript context to the configured AI services. Target preparation allows up
-        to three versions, each with at most one automatic correction after independent inspection.
+        {tr(
+          'Define the complete goal below, including all assumptions. Preparing a target sends this goal and the manuscript context to the configured AI services. Target preparation allows up to three versions, each with at most one automatic correction after independent inspection.',
+        )}
       </p>
       <form onSubmit={(e) => void submit(e)}>
-        <Field label="Definitions (one per line)" htmlFor={`${prefix}-definitions`}>
+        <Field label={tr('Definitions (one per line)')} htmlFor={`${prefix}-definitions`}>
           <textarea id={`${prefix}-definitions`} name="definitions" maxLength={30000} />
         </Field>
-        <Field label="Assumptions (one per line)" htmlFor={`${prefix}-hypotheses`}>
+        <Field label={tr('Assumptions (one per line)')} htmlFor={`${prefix}-hypotheses`}>
           <textarea id={`${prefix}-hypotheses`} name="hypotheses" maxLength={30000} />
         </Field>
-        <Field label="Variables and quantifiers" htmlFor={`${prefix}-quantifiers`}>
+        <Field label={tr('Variables and quantifiers')} htmlFor={`${prefix}-quantifiers`}>
           <textarea id={`${prefix}-quantifiers`} name="quantifiers" required maxLength={6000} />
         </Field>
-        <Field label="Exact conclusion to prove or refute" htmlFor={`${prefix}-conclusion`}>
+        <Field label={tr('Exact conclusion to prove or refute')} htmlFor={`${prefix}-conclusion`}>
           <textarea id={`${prefix}-conclusion`} name="conclusion" required maxLength={6000} />
         </Field>
-        <Field label="How this goal addresses the audited gap" htmlFor={`${prefix}-correspondence`}>
+        <Field
+          label={tr('How this goal addresses the audited gap')}
+          htmlFor={`${prefix}-correspondence`}
+        >
           <textarea
             id={`${prefix}-correspondence`}
             name="correspondence"
@@ -181,7 +188,7 @@ function Adopt({
             maxLength={6000}
           />
         </Field>
-        <Field label="Maximum proof attempts" htmlFor={`${prefix}-attempts`}>
+        <Field label={tr('Maximum proof attempts')} htmlFor={`${prefix}-attempts`}>
           <input
             id={`${prefix}-attempts`}
             name="attempts"
@@ -192,7 +199,7 @@ function Adopt({
             required
           />
         </Field>
-        <Field label="Authorization expires in days" htmlFor={`${prefix}-days`}>
+        <Field label={tr('Authorization expires in days')} htmlFor={`${prefix}-days`}>
           <input
             id={`${prefix}-days`}
             name="days"
@@ -204,13 +211,14 @@ function Adopt({
           />
         </Field>
         <label>
-          <input type="checkbox" name="consent" value="yes" required /> I authorize private research
-          processing of this exact goal, including target preparation and independent AI inspection.
-          I will confirm the exact target before submitting a proof.
+          <input type="checkbox" name="consent" value="yes" required />{' '}
+          {tr(
+            ' I authorize private research processing of this exact goal, including target preparation and independent AI inspection. I will confirm the exact target before submitting a proof.',
+          )}
         </label>
         <InlineError error={error} />
         <button className="button" disabled={busy}>
-          {busy ? 'Authorizing…' : 'Authorize private research'}
+          {busy ? tr('Authorizing…') : tr('Authorize private research')}
         </button>
       </form>
     </details>
@@ -266,16 +274,16 @@ function Obligation({
     'consent_required',
   ].includes(entry.state);
   return (
-    <section aria-label="Authorized research goal" className="finding-card">
+    <section aria-label={tr('Authorized research goal')} className="finding-card">
       <h4>{states[entry.state] ?? entry.state}</h4>
       <Markdown text={t.goal.conclusion} />
       <p>
-        Authorized <DateText iso={t.authorized_at} /> · expires{' '}
-        <DateText iso={t.budget.expires_at} /> · {entry.attempts.length}/{t.budget.max_attempts}{' '}
-        attempts
+        {tr('Authorized ')}
+        <DateText iso={t.authorized_at} /> {tr(' · expires')} <DateText iso={t.budget.expires_at} />{' '}
+        · {entry.attempts.length}/{t.budget.max_attempts} {tr('attempts')}
       </p>
       <details>
-        <summary>Complete goal and source binding</summary>
+        <summary>{tr('Complete goal and source binding')}</summary>
         <pre>{JSON.stringify({ goal: t.goal, candidate: t.candidate }, null, 2)}</pre>
       </details>
       {target ? (
@@ -283,12 +291,16 @@ function Obligation({
           <Markdown text={target.reading} />
           <pre>{target.lean}</pre>
           <p>
-            Target digest: <code style={{ overflowWrap: 'anywhere' }}>{target.digest}</code>
+            {tr('Target digest: ')}
+            <code style={{ overflowWrap: 'anywhere' }}>{target.digest}</code>
           </p>
-          <p>Toolchain: {target.toolchain}</p>
           <p>
-            Independent inspection: {target.faithfulness?.verdict ?? 'Unavailable'} ·{' '}
-            {target.faithfulness?.reason}
+            {tr('Toolchain: ')}
+            {target.toolchain}
+          </p>
+          <p>
+            {tr('Independent inspection: ')}
+            {target.faithfulness?.verdict ?? 'Unavailable'} · {target.faithfulness?.reason}
           </p>
           {target.faithfulness?.mismatch ? <p>{target.faithfulness.mismatch}</p> : null}
           {author && !closed && target.response.state === 'awaiting_author' ? (
@@ -302,9 +314,9 @@ function Obligation({
                   )
                 }
               >
-                Confirm this exact target
+                {tr('Confirm this exact target')}
               </button>
-              <Field label="Target correction" htmlFor={`${t.id}-correction`}>
+              <Field label={tr('Target correction')} htmlFor={`${t.id}-correction`}>
                 <textarea
                   id={`${t.id}-correction`}
                   value={correction}
@@ -325,7 +337,7 @@ function Obligation({
                   )
                 }
               >
-                Request target correction
+                {tr('Request target correction')}
               </button>
             </>
           ) : null}
@@ -335,21 +347,22 @@ function Obligation({
                 <textarea id={`${t.id}-solution`} name="solution" required maxLength={1048576} />
               </Field>
               <p>
-                Import Target and provide wishpool_solution or wishpool_disproof for the confirmed
-                proposition.
+                {tr(
+                  'Import Target and provide wishpool_solution or wishpool_disproof for the confirmed proposition.',
+                )}
               </p>
               <Field
-                label="Additional Lean modules (JSON object, optional)"
+                label={tr('Additional Lean modules (JSON object, optional)')}
                 htmlFor={`${t.id}-modules`}
               >
                 <textarea
                   id={`${t.id}-modules`}
                   name="modules"
-                  placeholder={'{"MyLemma": "import Mathlib\n…"}'}
+                  placeholder={tr('{"MyLemma": "import Mathlib\n…"}')}
                 />
               </Field>
               <button className="button" disabled={busy}>
-                Submit for independent verification
+                {tr('Submit for independent verification')}
               </button>
             </form>
           ) : null}
@@ -358,13 +371,15 @@ function Obligation({
       {entry.attempts.map((a) => (
         <div key={a.id}>
           <p>
-            Attempt {a.id}: {a.invalidated ?? a.receipt?.verdict ?? 'Awaiting verification'}
+            {tr('Attempt ')}
+            {a.id}: {a.invalidated ?? a.receipt?.verdict ?? 'Awaiting verification'}
           </p>
           {a.receipt ? (
             <>
               <p>{a.receipt.reason}</p>
               <p>
-                Checked <DateText iso={a.receipt.checked_at} /> · {a.receipt.toolchain}
+                {tr('Checked ')}
+                <DateText iso={a.receipt.checked_at} /> · {a.receipt.toolchain}
               </p>
             </>
           ) : null}
@@ -380,7 +395,7 @@ function Obligation({
                 .finally(() => setBusy(false));
             }}
           >
-            Read saved sources and receipt
+            {tr('Read saved sources and receipt')}
           </button>
           {author && !closed && a.receipt && a.receipt.verdict !== 'rejected' ? (
             <button
@@ -401,25 +416,25 @@ function Obligation({
                   .finally(() => setBusy(false));
               }}
             >
-              Request review of this result
+              {tr('Request review of this result')}
             </button>
           ) : null}
         </div>
       ))}
       {proof ? (
         <details open>
-          <summary>Saved attempt</summary>
+          <summary>{tr('Saved attempt')}</summary>
           <pre>{proof}</pre>
         </details>
       ) : null}
       <p className="hint">
-        A verified result applies to the exact target. A new source audit must establish how it
-        addresses the original claim. Private research results do not receive public contribution
-        credit.
+        {tr(
+          'A verified result applies to the exact target. A new source audit must establish how it addresses the original claim. Private research results do not receive public contribution credit.',
+        )}
       </p>
       {author && !closed ? (
         <>
-          <Field label="Reason for stopping" htmlFor={`${t.id}-stop`}>
+          <Field label={tr('Reason for stopping')} htmlFor={`${t.id}-stop`}>
             <input
               id={`${t.id}-stop`}
               value={stopReason}
@@ -432,7 +447,7 @@ function Obligation({
             disabled={busy || !stopReason.trim()}
             onClick={() => void mutate(() => api.stopResearch(id, t.id, stopReason))}
           >
-            Stop research
+            {tr('Stop research')}
           </button>
         </>
       ) : null}

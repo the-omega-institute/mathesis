@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Submission } from '../api/types';
 import { InlineLatex } from '../components/Markdown';
 import { LeanWorkspace } from '../components/LeanDeposit';
@@ -83,7 +84,7 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
         </div>
         {scope === 'mine' && person ? (
           <Link to={{ kind: 'submit' }} className="button">
-            Submit work
+            {t('Submit work')}
           </Link>
         ) : null}
       </header>
@@ -91,7 +92,7 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
         {(reports) =>
           reports.length ? (
             <section className="notice">
-              <h2>Confirmed errors in your work</h2>
+              <h2>{t('Confirmed errors in your work')}</h2>
               <ul>
                 {reports.map((r) => (
                   <li key={r.id}>
@@ -109,11 +110,13 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
         <SignInPrompt what={`see ${copy.title.toLowerCase()}`} />
       ) : null}
       {person !== null && !allowed ? (
-        <p className="notice notice-info">The review queue is available to authorized staff.</p>
+        <p className="notice notice-info">
+          {t('The review queue is available to authorized staff.')}
+        </p>
       ) : null}
       {notifications.state.status === 'ok' && notifications.state.value.length ? (
-        <section aria-label="Conjecture solutions">
-          <h2>Your conjectures have answers</h2>
+        <section aria-label={t('Conjecture solutions')}>
+          <h2>{t('Your conjectures have answers')}</h2>
           <ul className="entry-list">
             {notifications.state.value.map((n) => (
               <li key={n.attempt}>
@@ -121,7 +124,8 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
                   {n.record} · {n.claim}
                 </Link>
                 <p>
-                  {n.entrant.name} submitted a verified answer. <DateText iso={n.at} />
+                  {n.entrant.name} {t(' submitted a verified answer. ')}
+                  <DateText iso={n.at} />
                 </p>
               </li>
             ))}
@@ -131,7 +135,7 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
       {scope === 'mine' && person ? (
         <>
           <LeanWorkspace />
-          <h2>Research submissions</h2>
+          <h2>{t('Research submissions')}</h2>
         </>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
@@ -203,7 +207,7 @@ function SubmissionRow({
         <InlineLatex source={s.title || s.versions.at(-1)?.filename || 'Untitled manuscript'} />
       </Link>
       <p className="entry-meta">
-        <span>{SUBMISSION_KIND_LABELS[s.kind]}</span>
+        <span>{t(SUBMISSION_KIND_LABELS[s.kind])}</span>
         <SubmissionStatusBadge status={s.status} label={label} />
         <span>{formatAuthors(s.authors)}</span>
         {s.status.state !== 'in_review' && newResultCount(s) > 0 ? (
@@ -211,12 +215,17 @@ function SubmissionRow({
         ) : null}
         {s.formalization.items.some((i) => i.state.state === 'verified') ? (
           <span>
-            Lean ✓ {s.formalization.items.filter((i) => i.state.state === 'verified').length}
+            {t('Lean ✓ ')}
+            {s.formalization.items.filter((i) => i.state.state === 'verified').length}
           </span>
         ) : null}
-        <span>· version {s.versions.length}</span>
         <span>
-          · updated <DateText iso={s.updated_at} />
+          {t('· version ')}
+          {s.versions.length}
+        </span>
+        <span>
+          {t('· updated ')}
+          <DateText iso={s.updated_at} />
         </span>
         {s.status.state === 'accepted' ? (
           <span>
@@ -226,25 +235,27 @@ function SubmissionRow({
       </p>
       {s.intake && !s.intake.confirmed_request && s.status.state === 'draft' ? (
         <p className="small">
-          Continue submission: check the PDF and complete the manuscript details.
+          {t('Continue submission: check the PDF and complete the manuscript details.')}
         </p>
       ) : null}
       {reportReady ? (
         <p className="small">
-          The final report is ready to read.
-          {value.has_execution_limits ? ' The report explains which checks remain incomplete.' : ''}
+          {t('The final report is ready to read.')}
+          {value.has_execution_limits
+            ? t(' The report explains which checks remain incomplete.')
+            : ''}
         </p>
       ) : null}
       {waitingForDecision ? <p className="small">{decisionWaitingMessage(s)}</p> : null}
       {summary.state.status === 'error' ? (
         <p className="small">
-          Your manuscript is saved.{' '}
+          {t('Your manuscript is saved.')}{' '}
           <button
             type="button"
             className="button button-quiet button-small"
             onClick={summary.reload}
           >
-            Retry status
+            {t('Retry status')}
           </button>
         </p>
       ) : null}

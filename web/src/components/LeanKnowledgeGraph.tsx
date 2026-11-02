@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useId, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -55,14 +56,14 @@ export function LeanKnowledgeGraph() {
                 className="text-button"
                 onClick={() => setBefore(data.page.next_before!)}
               >
-                More formal results
+                {t('More formal results')}
               </button>
             </p>
           ) : null}
           {before ? (
             <p>
               <button type="button" className="text-button" onClick={() => setBefore(undefined)}>
-                Back to the first results
+                {t('Back to the first results')}
               </button>
             </p>
           ) : null}
@@ -148,12 +149,13 @@ export function LeanGraphView({
   if (!selected)
     return (
       <div className="research-map-empty">
-        <h2>No public Lean results yet</h2>
+        <h2>{t('No public Lean results yet')}</h2>
         <p>
-          Author-confirmed statements, checked propositions and their proof connections will appear
-          here as research becomes public.
+          {t(
+            'Author-confirmed statements, checked propositions and their proof connections will appear here as research becomes public.',
+          )}
         </p>
-        <Link to={{ kind: 'submit', intake: 'lean' }}>Contribute Lean work</Link>
+        <Link to={{ kind: 'submit', intake: 'lean' }}>{t('Contribute Lean work')}</Link>
       </div>
     );
   const neighbors = [...edges.values()].filter(
@@ -163,19 +165,19 @@ export function LeanGraphView({
   const use = selected.use ?? neighbors[0]?.use;
   return (
     <div className="research-map-layout">
-      <figure className="research-map" aria-label="Lean knowledge connections">
+      <figure className="research-map" aria-label={t('Lean knowledge connections')}>
         <div
           className="research-map-scroll"
           role="region"
           tabIndex={0}
-          aria-label="Scrollable Lean knowledge graph"
+          aria-label={t('Scrollable Lean knowledge graph')}
         >
           <div className="research-map-canvas" style={{ height }}>
             <span className="research-map-column" style={{ left: '2.2%' }}>
-              Checked propositions
+              {t('Checked propositions')}
             </span>
             <span className="research-map-column" style={{ left: '63%' }}>
-              Results & formalization targets
+              {t('Results & formalization targets')}
             </span>
             <svg viewBox={`0 0 730 ${height}`} preserveAspectRatio="none" aria-hidden="true">
               <defs>
@@ -221,12 +223,12 @@ export function LeanGraphView({
                   </span>
                   <span className="research-map-node-authors">
                     {node.checked || propositions.has(node.id)
-                      ? 'Lean checked'
+                      ? t('Lean checked')
                       : node.item?.status === 'open'
-                        ? 'Awaiting formal proof'
+                        ? t('Awaiting formal proof')
                         : node.item?.status === 'disproved'
-                          ? 'Lean disproof'
-                          : 'Lean checked'}
+                          ? t('Lean disproof')
+                          : t('Lean checked')}
                   </span>
                 </button>
               );
@@ -234,14 +236,15 @@ export function LeanGraphView({
           </div>
         </div>
         <figcaption>
-          Arrows show which contributed propositions a checked proof actually uses. Select a result
-          to see its sources and contributors.
+          {t(
+            'Arrows show which contributed propositions a checked proof actually uses. Select a result to see its sources and contributors.',
+          )}
         </figcaption>
       </figure>
       <section
         id={panelId}
         className="research-map-detail"
-        aria-label="Selected Lean result"
+        aria-label={t('Selected Lean result')}
         role="region"
       >
         <h2>
@@ -254,14 +257,15 @@ export function LeanGraphView({
           <Link
             to={{ kind: 'result', record: selected.context.record, claim: selected.context.claim }}
           >
-            Read the mathematics and contribution history
+            {t('Read the mathematics and contribution history')}
           </Link>
         </p>
         {contribution ? (
           <>
             <LatexText source={contribution.intermediate.proposition} />
             <p>
-              Formalization contributed by <EntrantName entrant={contribution.contributor} />.
+              {t('Formalization contributed by ')}
+              <EntrantName entrant={contribution.contributor} />.
             </p>
             <ProofAttribution attribution={contribution.attribution ?? undefined} />
           </>
@@ -270,10 +274,11 @@ export function LeanGraphView({
             <LatexText source={selected.item.statement} />
             {selected.item.contributor ? (
               <p>
-                Verified contribution by <EntrantName entrant={selected.item.contributor} />.
+                {t('Verified contribution by ')}
+                <EntrantName entrant={selected.item.contributor} />.
               </p>
             ) : (
-              <p>This confirmed Lean target is open for contributions.</p>
+              <p>{t('This confirmed Lean target is open for contributions.')}</p>
             )}
             <ProofAttribution attribution={selected.item.attribution ?? undefined} />
           </>
@@ -282,14 +287,15 @@ export function LeanGraphView({
           <>
             <LatexText source={use.contribution.proposition} />
             <p>
-              Formalization contributed by <EntrantName entrant={use.contributor} />.
+              {t('Formalization contributed by ')}
+              <EntrantName entrant={use.contributor} />.
             </p>
             <ProofAttribution attribution={use.attribution ?? undefined} />
           </>
         ) : null}
         {neighbors.length ? (
           <>
-            <h3>{propositions.has(selected.id) ? 'A stepping stone for' : 'Builds on'} </h3>
+            <h3>{propositions.has(selected.id) ? t('A stepping stone for') : t('Builds on')} </h3>
             <ul>
               {neighbors.map((edge) => {
                 const other = nodes.find(
@@ -315,7 +321,7 @@ export function LeanGraphView({
             <a
               href={`/api/v1/papers/${encodeURIComponent(use.result.record)}/statements/${encodeURIComponent(use.result.claim)}/attempts/${encodeURIComponent(use.attempt)}/bundle`}
             >
-              Read the checked proof and its sources
+              {t('Read the checked proof and its sources')}
             </a>
           </p>
         ) : null}
@@ -324,13 +330,14 @@ export function LeanGraphView({
             <a
               href={`/api/v1/papers/${encodeURIComponent(contribution.origin.record)}/statements/${encodeURIComponent(contribution.origin.claim)}/attempts/${encodeURIComponent(contribution.origin.attempt)}/bundle`}
             >
-              Read this proposition’s checked source
+              {t('Read this proposition’s checked source')}
             </a>
           </p>
         ) : null}
         <p className="small muted">
-          This view follows checked declarations. A useful intermediate proposition can be verified
-          while its source problem remains open.
+          {t(
+            'This view follows checked declarations. A useful intermediate proposition can be verified while its source problem remains open.',
+          )}
         </p>
       </section>
     </div>

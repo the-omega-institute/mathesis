@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { safeHttpUrl } from '../lib/links';
 import type { EvidenceAttachment } from '../api/types';
 import type { EvidenceInput } from '../lib/sourceBundle';
@@ -14,14 +15,14 @@ export function EvidencePicker({
     onChange(value.map((entry, i) => (i === index ? { ...entry, ...update } : entry)));
   return (
     <fieldset className="evidence-picker">
-      <legend>Computational evidence & supplements (optional)</legend>
+      <legend>{t('Computational evidence & supplements (optional)')}</legend>
       <p className="hint">
-        Attach certificates, computation logs, data, a PDF reading copy or source files. They are
-        saved with this manuscript version and included in the review inventory. A supplied
-        certificate is not yet independently verified.
+        {t(
+          'Attach certificates, computation logs, data, a PDF reading copy or source files. They are saved with this manuscript version and included in the review inventory. A supplied certificate is not yet independently verified.',
+        )}
       </p>
       <label>
-        Attach evidence files (optional)
+        {t('Attach evidence files (optional)')}
         <input
           type="file"
           multiple
@@ -42,21 +43,23 @@ export function EvidencePicker({
       {value.map((entry, index) => (
         <div className="evidence-card" key={`${index}-${entry.file.name}`}>
           <strong>{entry.file.name}</strong>{' '}
-          <span className="small muted">{Math.ceil(entry.file.size / 1024)} KB</span>
-          <Field label="Evidence type" htmlFor={`evidence-${index}-kind`}>
+          <span className="small muted">
+            {Math.ceil(entry.file.size / 1024)} {t(' KB')}
+          </span>
+          <Field label={t('Evidence type')} htmlFor={`evidence-${index}-kind`}>
             <select
               id={`evidence-${index}-kind`}
               value={entry.kind}
               onChange={(e) => patch(index, { kind: e.target.value as EvidenceAttachment['kind'] })}
             >
-              <option value="certificate">Certificate</option>
-              <option value="computation">Computation / log</option>
-              <option value="source">Source code</option>
-              <option value="data">Data</option>
-              <option value="supplement">Supplement</option>
+              <option value="certificate">{t('Certificate')}</option>
+              <option value="computation">{t('Computation / log')}</option>
+              <option value="source">{t('Source code')}</option>
+              <option value="data">{t('Data')}</option>
+              <option value="supplement">{t('Supplement')}</option>
             </select>
           </Field>
-          <Field label="What does this support?" htmlFor={`evidence-${index}-description`}>
+          <Field label={t('What does this support?')} htmlFor={`evidence-${index}-description`}>
             <textarea
               id={`evidence-${index}-description`}
               required
@@ -66,19 +69,19 @@ export function EvidencePicker({
             />
           </Field>
           <Field
-            label="Statement labels (optional, comma-separated)"
+            label={t('Statement labels (optional, comma-separated)')}
             htmlFor={`evidence-${index}-claims`}
           >
             <input
               id={`evidence-${index}-claims`}
-              placeholder="thm:main, C1"
+              placeholder={t('thm:main, C1')}
               value={entry.claims.join(', ')}
               onChange={(e) =>
                 patch(index, { claims: e.target.value.split(',').map((s) => s.trim()) })
               }
             />
           </Field>
-          <Field label="Source URL (optional)" htmlFor={`evidence-${index}-url`}>
+          <Field label={t('Source URL (optional)')} htmlFor={`evidence-${index}-url`}>
             <input
               id={`evidence-${index}-url`}
               type="url"
@@ -86,7 +89,7 @@ export function EvidencePicker({
               onChange={(e) => patch(index, { source_url: e.target.value || undefined })}
             />
           </Field>
-          <Field label="Full Git commit (optional)" htmlFor={`evidence-${index}-revision`}>
+          <Field label={t('Full Git commit (optional)')} htmlFor={`evidence-${index}-revision`}>
             <input
               id={`evidence-${index}-revision`}
               value={entry.source_revision ?? ''}
@@ -98,7 +101,8 @@ export function EvidencePicker({
             className="button button-quiet button-small"
             onClick={() => onChange(value.filter((_, i) => i !== index))}
           >
-            Remove {entry.file.name}
+            {t('Remove ')}
+            {entry.file.name}
           </button>
         </div>
       ))}
@@ -119,9 +123,12 @@ export function EvidenceInventory({
   if (!files?.length) return null;
   return (
     <section className="evidence-inventory" aria-label={`Evidence for version ${version}`}>
-      <h3>Supplementary material · version {version}</h3>
+      <h3>
+        {t('Supplementary material · version ')}
+        {version}
+      </h3>
       <p className="hint">
-        Additional material supplied by the authors with this manuscript version.
+        {t('Additional material supplied by the authors with this manuscript version.')}
       </p>
       <ul className="entry-list">
         {files.map((file) => (
@@ -132,26 +139,30 @@ export function EvidenceInventory({
             >
               {file.path}
             </a>{' '}
-            · {file.kind} · {file.bytes.toLocaleString()} bytes
+            · {file.kind} · {file.bytes.toLocaleString()} {t(' bytes')}
             <p>{file.description}</p>
             {file.claims.length ? (
-              <p className="small">Supports: {file.claims.join(', ')}</p>
+              <p className="small">
+                {t('Supports: ')}
+                {file.claims.join(', ')}
+              </p>
             ) : null}
             {file.source_url && safeHttpUrl(file.source_url) ? (
               <p className="small">
                 <a href={file.source_url} target="_blank" rel="noopener noreferrer">
-                  Reported source
+                  {t('Reported source')}
                 </a>
               </p>
             ) : null}
             {technicalDetails && file.source_revision ? (
               <p className="small">
-                Source revision: <code>{file.source_revision}</code>
+                {t('Source revision: ')}
+                <code>{file.source_revision}</code>
               </p>
             ) : null}
             {technicalDetails ? (
               <details>
-                <summary>File fingerprint</summary>
+                <summary>{t('File fingerprint')}</summary>
                 <code className="evidence-hash">SHA-256 {file.sha256}</code>
               </details>
             ) : null}

@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { usePaged } from '../api/usePaged';
@@ -21,9 +22,9 @@ export function PeoplePage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <p className="eyebrow">Admin</p>
-          <h1>Accounts</h1>
-          <p className="lede">Signed-in accounts and administrator access.</p>
+          <p className="eyebrow">{t('Admin')}</p>
+          <h1>{t('Accounts')}</h1>
+          <p className="lede">{t('Signed-in accounts and administrator access.')}</p>
         </div>
       </header>
       {session.status === 'loading' ? <Loading /> : null}
@@ -31,12 +32,12 @@ export function PeoplePage() {
         <SignInPrompt what="manage people" />
       ) : null}
       {person !== null && !isAdmin ? (
-        <p className="notice notice-info">Only administrators can manage accounts.</p>
+        <p className="notice notice-info">{t('Only administrators can manage accounts.')}</p>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
           listing.items.length === 0 ? (
-            <p className="muted">No one yet.</p>
+            <p className="muted">{t('No one yet.')}</p>
           ) : (
             <ul className="people">
               {listing.items.map((p) => (
@@ -92,33 +93,37 @@ function PersonRow({ person: initial, isSelf }: { person: Person; isSelf: boolea
       <div className="person-id">
         <p className="person-name">
           {person.display_name}
-          {isSelf ? <span className="muted small"> (you)</span> : null}
+          {isSelf ? <span className="muted small"> {t(' (you)')}</span> : null}
         </p>
         <p className="muted small">
           {[person.email, person.affiliation, person.orcid].filter(Boolean).join(' · ')}
         </p>
         <p className="muted small">
-          Last seen <DateText iso={person.last_seen_at} />
+          {t('Last seen ')}
+          <DateText iso={person.last_seen_at} />
         </p>
       </div>
       <fieldset className="role-boxes">
-        <legend className="visually-hidden">Administrator access for {person.display_name}</legend>
+        <legend className="visually-hidden">
+          {t('Administrator access for ')}
+          {person.display_name}
+        </legend>
         <label className="checkbox">
           <input
             type="checkbox"
             checked={roles.includes('admin')}
             onChange={(e) => toggle('admin', e.target.checked)}
           />
-          <span>Administrator</span>
+          <span>{t('Administrator')}</span>
         </label>
       </fieldset>
       <div className="person-actions">
         <button type="button" className="button" disabled={!dirty || busy} onClick={save}>
-          {busy ? 'Saving…' : 'Save access'}
+          {busy ? t('Saving…') : t('Save access')}
         </button>
         {saved && !dirty ? (
           <span className="form-success small" role="status">
-            Saved
+            {t('Saved')}
           </span>
         ) : null}
         <InlineError error={error} />

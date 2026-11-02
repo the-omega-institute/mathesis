@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useState } from 'react';
 import type { PaperSummary } from '../api/types';
 import { paperBibtex, paperCitation, type CitationLocator } from '../lib/citation';
@@ -27,9 +28,9 @@ export function Citation({
   };
   return (
     <details className="citation" id="citation">
-      <summary>{locator.claim ? 'Cite this result' : 'Cite this paper'}</summary>
+      <summary>{locator.claim ? t('Cite this result') : t('Cite this paper')}</summary>
       <label className="citation-format">
-        Citation format
+        {t('Citation format')}
         <select
           value={format}
           onChange={(event) => {
@@ -38,8 +39,8 @@ export function Citation({
             setError(false);
           }}
         >
-          <option value="text">Plain text</option>
-          <option value="bibtex">BibTeX</option>
+          <option value="text">{t('Plain text')}</option>
+          <option value="bibtex">{t('BibTeX')}</option>
         </select>
       </label>
       {format === 'text' ? (
@@ -64,16 +65,16 @@ export function Citation({
               )
             }
           >
-            {copied ? 'Copied' : 'Copy citation'}
+            {copied ? t('Copied') : t('Copy citation')}
           </button>
         ) : null}
         <button type="button" className="button button-quiet button-small" onClick={download}>
-          Download BibTeX
+          {t('Download BibTeX')}
         </button>
       </div>
       {error ? (
         <p role="status" className="small">
-          Copying is unavailable. Select the citation above, or download the BibTeX file.
+          {t('Copying is unavailable. Select the citation above, or download the BibTeX file.')}
         </p>
       ) : null}
     </details>

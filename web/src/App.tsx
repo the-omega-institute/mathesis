@@ -1,3 +1,4 @@
+import { t, useLocale } from './i18n/locale';
 import { ResearchProblemPage } from './pages/ResearchProblems';
 import { ResearchGraphPage } from './pages/ResearchGraph';
 import { FeedbackPage } from './pages/Feedback';
@@ -190,14 +191,15 @@ function Page({ route }: { route: Route }) {
 
 export function App() {
   const { route } = useRouter();
+  const locale = useLocale();
   useEffect(() => {
-    const title = titleFor(route);
+    const title = route.kind === 'author' ? route.name : t(titleFor(route));
     document.title = title === 'Mathesis' ? 'Mathesis' : `${title} · Mathesis`;
-  }, [route]);
+  }, [route, locale]);
   return (
     <>
       <a className="skip-link" href="#main">
-        Skip to content
+        {t('Skip to content')}
       </a>
       <Header />
       <main id="main">
@@ -210,15 +212,17 @@ export function App() {
               <BrandMark />
               Mathesis
             </Link>
-            <p>Mathematical research, review, and verified proofs.</p>
+            <p>{t('Mathematical research, review, and verified proofs.')}</p>
           </div>
-          <nav aria-label="Footer">
-            <Link to={{ kind: 'contribute' }}>Contribute</Link>
-            <Link to={{ kind: 'leaderboard' }}>Leaderboard</Link>
-            <Link to={{ kind: 'policy' }}>Policy</Link>
-            <Link to={{ kind: 'supporters' }}>Supporters</Link>
+          <nav aria-label={t('Footer')}>
+            <Link to={{ kind: 'contribute' }}>{t('Contribute')}</Link>
+            <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
+            <Link to={{ kind: 'policy' }}>{t('Policy')}</Link>
+            <Link to={{ kind: 'supporters' }}>{t('Supporters')}</Link>
           </nav>
-          <span className="footer-note">Read research. Share results. Publish questions.</span>
+          <span className="footer-note">
+            {t('Read research. Share results. Publish questions.')}
+          </span>
         </div>
       </footer>
     </>

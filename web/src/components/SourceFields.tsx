@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Source, SourceKind } from '../api/types';
 import { SOURCE_KIND_LABELS } from '../lib/labels';
 import { sourceHref } from '../lib/links';
@@ -34,7 +35,7 @@ export function SourceFields({
   return (
     <div className="source-fields">
       <div className="field">
-        <label htmlFor={`${idPrefix}-kind`}>Kind</label>
+        <label htmlFor={`${idPrefix}-kind`}>{t('Kind')}</label>
         <select
           id={`${idPrefix}-kind`}
           value={value.kind}
@@ -42,13 +43,13 @@ export function SourceFields({
         >
           {kinds.map((k) => (
             <option key={k} value={k}>
-              {SOURCE_KIND_LABELS[k]}
+              {t(SOURCE_KIND_LABELS[k])}
             </option>
           ))}
         </select>
       </div>
       <div className="field grow">
-        <label htmlFor={`${idPrefix}-locator`}>Locator</label>
+        <label htmlFor={`${idPrefix}-locator`}>{t('Locator')}</label>
         <input
           id={`${idPrefix}-locator`}
           value={value.locator}
@@ -59,7 +60,7 @@ export function SourceFields({
       </div>
       {withYear ? (
         <div className="field narrow">
-          <label htmlFor={`${idPrefix}-year`}>Year</label>
+          <label htmlFor={`${idPrefix}-year`}>{t('Year')}</label>
           <input
             id={`${idPrefix}-year`}
             inputMode="numeric"
@@ -78,7 +79,8 @@ export function SourceFields({
           ' '
         ) : href ? (
           <>
-            Resolves to <ExternalLink href={href}>{href}</ExternalLink>
+            {t('Resolves to ')}
+            <ExternalLink href={href}>{href}</ExternalLink>
           </>
         ) : (
           'Shown as text; this locator does not resolve to a public link.'

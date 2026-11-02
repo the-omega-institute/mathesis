@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { PriorRelation, PriorWork } from '../api/types';
 import { RELATIONS, RELATION_LABELS, SOURCE_KINDS } from '../lib/labels';
 import { statementTitle, type StatementLike } from './claims';
@@ -21,8 +22,8 @@ export function PriorWorkEditor({
   const first = claims[0]?.id ?? '';
   return (
     <fieldset className="prior-editor">
-      <legend>Prior works</legend>
-      {value.length === 0 ? <p className="muted small">None listed.</p> : null}
+      <legend>{t('Prior works')}</legend>
+      {value.length === 0 ? <p className="muted small">{t('None listed.')}</p> : null}
       <ol>
         {value.map((p, i) => {
           const id = `${idPrefix}-${i}`;
@@ -31,7 +32,7 @@ export function PriorWorkEditor({
               <div className="form-row">
                 {claims.length > 1 ? (
                   <div className="field">
-                    <label htmlFor={`${id}-claim`}>Statement</label>
+                    <label htmlFor={`${id}-claim`}>{t('Statement')}</label>
                     <select
                       id={`${id}-claim`}
                       value={p.claim}
@@ -46,7 +47,7 @@ export function PriorWorkEditor({
                   </div>
                 ) : null}
                 <div className="field">
-                  <label htmlFor={`${id}-relation`}>Relation</label>
+                  <label htmlFor={`${id}-relation`}>{t('Relation')}</label>
                   <select
                     id={`${id}-relation`}
                     value={p.relation}
@@ -54,7 +55,7 @@ export function PriorWorkEditor({
                   >
                     {RELATIONS.map((r) => (
                       <option key={r} value={r}>
-                        {RELATION_LABELS[r]}
+                        {t(RELATION_LABELS[r])}
                       </option>
                     ))}
                   </select>
@@ -68,7 +69,7 @@ export function PriorWorkEditor({
                 onChange={(source) => set(i, { source })}
               />
               <div className="field">
-                <label htmlFor={`${id}-note`}>Note</label>
+                <label htmlFor={`${id}-note`}>{t('Note')}</label>
                 <input
                   id={`${id}-note`}
                   value={p.note}
@@ -80,7 +81,8 @@ export function PriorWorkEditor({
                 className="link-button"
                 onClick={() => onChange(value.filter((_, j) => j !== i))}
               >
-                Remove prior work {i + 1}
+                {t('Remove prior work ')}
+                {i + 1}
               </button>
             </li>
           );
@@ -96,7 +98,7 @@ export function PriorWorkEditor({
           ])
         }
       >
-        Add prior work
+        {t('Add prior work')}
       </button>
     </fieldset>
   );

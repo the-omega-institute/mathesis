@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -14,13 +15,14 @@ export function FeedbackPage({ id, proposalKey }: { id: string; proposalKey: str
   const resource = useAsync(load);
   return (
     <div className="page">
-      <h1>Knowledge proposal</h1>
+      <h1>{t('Knowledge proposal')}</h1>
       <p>
-        Inspect the exact evidence and license before authorizing export. A package download leaves
-        upstream submission and admission to its existing process.
+        {t(
+          'Inspect the exact evidence and license before authorizing export. A package download leaves upstream submission and admission to its existing process.',
+        )}
       </p>
       <button className="button button-quiet" onClick={resource.reload}>
-        Refresh authorization and observations
+        {t('Refresh authorization and observations')}
       </button>
       <Async state={resource.state} onRetry={resource.reload}>
         {(view) => (
@@ -86,32 +88,38 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
     <article className="panel">
       <h2>{p.kind.kind.replaceAll('_', ' ')}</h2>
       <p>
-        {view.state.replaceAll('_', ' ')} · {p.source.record} · Source version {p.source.version}
+        {view.state.replaceAll('_', ' ')} · {p.source.record} {t(' · Source version ')}
+        {p.source.version}
       </p>
       <p>
-        Exact digest: <code>{p.digest}</code>
+        {t('Exact digest: ')}
+        <code>{p.digest}</code>
       </p>
-      <p>Producer: {p.producer}</p>
-      <h3>Required authorization</h3>
+      <p>
+        {t('Producer: ')}
+        {p.producer}
+      </p>
+      <h3>{t('Required authorization')}</h3>
       <ul>
         {p.required_signers.map((s) => (
           <li key={s}>
             {s}:{' '}
             {p.events.some((e) => e.event === 'authorized' && e.by === s)
-              ? 'Exact package authorized'
-              : 'Awaiting authorization'}
+              ? t('Exact package authorized')
+              : t('Awaiting authorization')}
           </li>
         ))}
       </ul>
       {active ? (
         <>
-          <h3>Exact evidence and original attribution</h3>
+          <h3>{t('Exact evidence and original attribution')}</h3>
           <pre className="code-block">{JSON.stringify(view.payload, null, 2)}</pre>
         </>
       ) : (
         <p>
-          New package access is closed because consent or source evidence changed. Private event
-          history is retained.
+          {t(
+            'New package access is closed because consent or source evidence changed. Private event history is retained.',
+          )}
         </p>
       )}
       {signer && active && !approved ? (
@@ -122,9 +130,9 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
             />
-            I hold the applicable rights to my contributed material, have inspected this exact
-            package and its original attribution and licenses, and authorize its export under
-            Apache-2.0.
+            {t(
+              'I hold the applicable rights to my contributed material, have inspected this exact package and its original attribution and licenses, and authorize its export under Apache-2.0.',
+            )}
           </label>
           <button
             className="button"
@@ -140,27 +148,28 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
               )
             }
           >
-            Authorize this exact package
+            {t('Authorize this exact package')}
           </button>
         </>
       ) : null}
       {signer && view.state === 'authorized' ? (
         <button className="button" disabled={busy} onClick={() => void action(download)}>
-          Download authorized proposal
+          {t('Download authorized proposal')}
         </button>
       ) : null}
       <InlineError error={error} />
       {signer && !p.events.some((e) => e.event === 'revoked') ? (
         <form onSubmit={revoke}>
           <p>
-            Revocation stops new access, downloads and observations here. Previously issued licenses
-            remain in effect.
+            {t(
+              'Revocation stops new access, downloads and observations here. Previously issued licenses remain in effect.',
+            )}
           </p>
-          <Field label="Reason for revocation" htmlFor="feedback-revoke">
+          <Field label={t('Reason for revocation')} htmlFor="feedback-revoke">
             <textarea id="feedback-revoke" name="reason" required maxLength={2000} />
           </Field>
           <button className="button button-quiet" disabled={busy}>
-            Revoke further export
+            {t('Revoke further export')}
           </button>
         </form>
       ) : null}
@@ -168,14 +177,14 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
       view.state === 'authorized' &&
       p.events.some((e) => e.event === 'exported') ? (
         <details>
-          <summary>Observe an actual upstream publication</summary>
+          <summary>{t('Observe an actual upstream publication')}</summary>
           <p>
-            Enter a Trureturing PR and the full declaration identities from an independently
-            admitted source index. This requests a read-only check; it does not assert acceptance.
-            At most ten explicit observations are allowed.
+            {t(
+              'Enter a Trureturing PR and the full declaration identities from an independently admitted source index. This requests a read-only check; it does not assert acceptance. At most ten explicit observations are allowed.',
+            )}
           </p>
           <form onSubmit={observe}>
-            <Field label="Trureturing pull request number" htmlFor="feedback-pr">
+            <Field label={t('Trureturing pull request number')} htmlFor="feedback-pr">
               <input
                 id="feedback-pr"
                 name="pull_request"
@@ -185,7 +194,7 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
                 required
               />
             </Field>
-            <Field label="Admitted index revision" htmlFor="feedback-index">
+            <Field label={t('Admitted index revision')} htmlFor="feedback-index">
               <input
                 id="feedback-index"
                 name="index_revision"
@@ -193,41 +202,50 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
                 pattern="sha256:[a-f0-9]{64}"
               />
             </Field>
-            <Field label="Observation key (use a new key for a later check)" htmlFor="feedback-key">
+            <Field
+              label={t('Observation key (use a new key for a later check)')}
+              htmlFor="feedback-key"
+            >
               <input id="feedback-key" name="observation_key" required maxLength={100} />
             </Field>
-            <Field label="Full declaration identities (JSON array)" htmlFor="feedback-declarations">
+            <Field
+              label={t('Full declaration identities (JSON array)')}
+              htmlFor="feedback-declarations"
+            >
               <textarea id="feedback-declarations" name="declarations" required rows={8} />
             </Field>
             <button className="button" disabled={busy}>
-              Request read-only observation
+              {t('Request read-only observation')}
             </button>
           </form>
         </details>
       ) : null}
-      <h3>Authorization and observation history</h3>
-      {p.events.length === 0 ? <p>No export authorizations recorded.</p> : null}
+      <h3>{t('Authorization and observation history')}</h3>
+      {p.events.length === 0 ? <p>{t('No export authorizations recorded.')}</p> : null}
       {p.events.map((e, i) => (
         <section key={i}>
           {e.event === 'observed' ? (
             <>
               <h4>
-                PR #{e.observation.pull_request}: {e.observation.reference_state}
+                {t('PR #')}
+                {e.observation.pull_request}: {e.observation.reference_state}
               </h4>
               <p>
-                Included in consumed source:{' '}
-                {e.observation.merge_in_consumed_source ? 'Established' : 'Not established'}
+                {t('Included in consumed source:')}{' '}
+                {e.observation.merge_in_consumed_source ? t('Established') : t('Not established')}
               </p>
               <p>
-                Consumed source:{' '}
+                {t('Consumed source:')}{' '}
                 <code>{e.observation.consumed_source_commit || 'Unavailable'}</code>
               </p>
               {e.observation.declarations.map((d, j) => (
                 <p key={j}>
                   {d.identity.declaration_name_key}:{' '}
-                  {d.present ? 'Exact declaration found' : 'Not established'}; module proposal
-                  provenance: {d.package_marker_present ? 'Found' : 'Not established'}; original
-                  freeze status: {d.freeze_status ?? 'Unavailable'}
+                  {d.present ? t('Exact declaration found') : t('Not established')}
+                  {t('; module proposal provenance: ')}
+                  {d.package_marker_present ? t('Found') : t('Not established')}
+                  {t('; original freeze status: ')}
+                  {d.freeze_status ?? 'Unavailable'}
                 </p>
               ))}
               <ObservationEvidence id={id} proposal={p.id} request={e.observation.request} />
@@ -243,7 +261,7 @@ function Proposal({ view, changed }: { view: FeedbackView; changed: () => void }
             </p>
           )}
           <details>
-            <summary>Exact event record</summary>
+            <summary>{t('Exact event record')}</summary>
             <pre className="code-block">{JSON.stringify(e, null, 2)}</pre>
           </details>
         </section>
@@ -273,9 +291,9 @@ function ObservationEvidence({
   }
   return (
     <details>
-      <summary>Saved observation evidence</summary>
+      <summary>{t('Saved observation evidence')}</summary>
       <button className="button button-quiet" onClick={() => void read()}>
-        Read checksummed observation
+        {t('Read checksummed observation')}
       </button>
       <InlineError error={error} />
       {evidence ? <pre className="code-block">{JSON.stringify(evidence, null, 2)}</pre> : null}

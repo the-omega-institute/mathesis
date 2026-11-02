@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { ComputationReceipt, RefereeRound } from '../api/types';
 
 const states: Record<ComputationReceipt['state'], string> = {
@@ -10,11 +11,12 @@ const states: Record<ComputationReceipt['state'], string> = {
 export function ComputationEvidence({ round }: { round: RefereeRound }) {
   if (!round.computation_receipts?.length) return null;
   return (
-    <section aria-label="Replayed finite computations" className="report">
-      <h3>Replayed finite computations</h3>
+    <section aria-label={t('Replayed finite computations')} className="report">
+      <h3>{t('Replayed finite computations')}</h3>
       <p>
-        These results check the specified finite calculation. The source audit must establish
-        whether it applies to your statement.
+        {t(
+          'These results check the specified finite calculation. The source audit must establish whether it applies to your statement.',
+        )}
       </p>
       {round.computation_receipts.map((receipt) => (
         <details className="history" key={receipt.attachment.path}>
@@ -23,19 +25,32 @@ export function ComputationEvidence({ round }: { round: RefereeRound }) {
           </summary>
           {receipt.numerator !== null && receipt.denominator !== null ? (
             <p>
-              Exact quadratic form: {receipt.numerator}/{receipt.denominator}
+              {t('Exact quadratic form: ')}
+              {receipt.numerator}/{receipt.denominator}
             </p>
           ) : null}
           <p>{receipt.explanation}</p>
-          <p>Declared claim references: {receipt.attachment.claims.join(', ') || 'None'}</p>
           <p>
-            Source version {receipt.version} · statements revision {receipt.claims_revision}
+            {t('Declared claim references: ')}
+            {receipt.attachment.claims.join(', ') || 'None'}
           </p>
           <p>
-            Input SHA-256: <code>{receipt.attachment.sha256}</code>
+            {t('Source version ')}
+            {receipt.version} {t(' · statements revision ')}
+            {receipt.claims_revision}
           </p>
-          <p>Calculation protocol: {receipt.protocol}</p>
-          <p>Checked: {receipt.checked_at}</p>
+          <p>
+            {t('Input SHA-256: ')}
+            <code>{receipt.attachment.sha256}</code>
+          </p>
+          <p>
+            {t('Calculation protocol: ')}
+            {receipt.protocol}
+          </p>
+          <p>
+            {t('Checked: ')}
+            {receipt.checked_at}
+          </p>
         </details>
       ))}
     </section>

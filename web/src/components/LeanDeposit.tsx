@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { InlineLatex } from './Markdown';
 import { readLeanSourceLink, type LinkedLeanSource } from '../lib/leanSourceLink';
 import { readLeanProject, type LeanProject } from '../lib/leanProject';
@@ -49,18 +50,18 @@ export function LeanDepositForm({
         ) : (
           <>
             <section className="community-proof-intro">
-              <h2>Prove an existing statement</h2>
+              <h2>{t('Prove an existing statement')}</h2>
               <p>
-                Choose a conjecture or theorem in Mathesis and contribute its formal proof in Lean.
-                Your verified proof will be linked to the original result, with credit for your
-                contribution.
+                {t(
+                  'Choose a conjecture or theorem in Mathesis and contribute its formal proof in Lean. Your verified proof will be linked to the original result, with credit for your contribution.',
+                )}
               </p>
               <Link className="button" to={{ kind: 'formalizations' }}>
-                Find a statement to formalize
+                {t('Find a statement to formalize')}
               </Link>
             </section>
             <details className="history">
-              <summary>Deposit an existing formalization without a linked statement</summary>
+              <summary>{t('Deposit an existing formalization without a linked statement')}</summary>
               <DepositForm />
             </details>
           </>
@@ -245,8 +246,9 @@ function DepositForm({
   return (
     <>
       <p className="lede">
-        Upload Lean sources or import a permanent link to a public .lean file. Credit the
-        mathematical work and the people who formalized it.
+        {t(
+          'Upload Lean sources or import a permanent link to a public .lean file. Credit the mathematical work and the people who formalized it.',
+        )}
       </p>
       {target?.target ? (
         <div className="notice notice-info">
@@ -254,35 +256,41 @@ function DepositForm({
             {target.claim.label} · <InlineLatex source={target.title} />
           </strong>
           <p>
-            The author confirmed this exact target. Your submission will request independent
-            verification against it.
+            {t(
+              'The author confirmed this exact target. Your submission will request independent verification against it.',
+            )}
           </p>
           <a
             href={`/api/v1/papers/${encodeURIComponent(target.record)}/statements/${encodeURIComponent(target.claim.id)}/target`}
             download="Target.lean"
           >
-            Download Target.lean
+            {t('Download Target.lean')}
           </a>
-          <p className="small">Toolchain: {target.target.toolchain}</p>
+          <p className="small">
+            {t('Toolchain: ')}
+            {target.target.toolchain}
+          </p>
         </div>
       ) : (
         <p className="hint">
-          Your source stays in your private workspace until a linked proof is independently
-          verified. <Link to={{ kind: 'formalizations' }}>Choose a confirmed statement</Link> to
-          submit directly for verification.
+          {t(
+            'Your source stays in your private workspace until a linked proof is independently verified. ',
+          )}
+          <Link to={{ kind: 'formalizations' }}>{t('Choose a confirmed statement')}</Link>{' '}
+          {t(' to submit directly for verification.')}
         </p>
       )}
       <form
         className="form lean-deposit-form"
-        aria-label="Submit Lean formalization"
+        aria-label={t('Submit Lean formalization')}
         onChange={() => setPreflight(null)}
         onSubmit={(e) => {
           void submit(e);
         }}
       >
         <section className="submission-manuscript" aria-labelledby="lean-work-heading">
-          <h2 id="lean-work-heading">Work & attribution</h2>
-          <Field label="Title" htmlFor="lean-title">
+          <h2 id="lean-work-heading">{t('Work & attribution')}</h2>
+          <Field label={t('Title')} htmlFor="lean-title">
             <input
               id="lean-title"
               required
@@ -291,16 +299,16 @@ function DepositForm({
               onChange={(e) => setTitle(e.target.value)}
             />
           </Field>
-          <NameEntries label="Original authors" value={authors} onChange={setAuthors} />
+          <NameEntries label={t('Original authors')} value={authors} onChange={setAuthors} />
           <NameEntries
-            label="Formalization contributors"
+            label={t('Formalization contributors')}
             value={formalizers}
             onChange={setFormalizers}
           />
           <Field
-            label="Git commit (optional)"
+            label={t('Git commit (optional)')}
             htmlFor="lean-revision"
-            hint="Full 40 or 64 character commit hash for the reported source."
+            hint={t('Full 40 or 64 character commit hash for the reported source.')}
           >
             <input
               id="lean-revision"
@@ -311,7 +319,7 @@ function DepositForm({
               onChange={(e) => setSourceRevision(e.target.value)}
             />
           </Field>
-          <Field label="Mathematical statement" htmlFor="lean-statement">
+          <Field label={t('Mathematical statement')} htmlFor="lean-statement">
             <textarea
               id="lean-statement"
               required
@@ -321,18 +329,18 @@ function DepositForm({
               onChange={(e) => setStatement(e.target.value)}
             />
           </Field>
-          <Field label="Original research or source URL" htmlFor="lean-reference">
+          <Field label={t('Original research or source URL')} htmlFor="lean-reference">
             <input
               id="lean-reference"
               type="url"
               required
-              placeholder="Link to the paper or .lean source at a fixed revision"
+              placeholder={t('Link to the paper or .lean source at a fixed revision')}
               value={reference}
               readOnly={Boolean(linkedSource)}
               onChange={(e) => setReference(e.target.value)}
             />
           </Field>
-          <Field label="Lean / Mathlib version pin" htmlFor="lean-toolchain">
+          <Field label={t('Lean / Mathlib version pin')} htmlFor="lean-toolchain">
             <input
               id="lean-toolchain"
               required
@@ -342,23 +350,25 @@ function DepositForm({
               onChange={(e) => setToolchain(e.target.value)}
             />
           </Field>
-          <Field label="Source license" htmlFor="lean-license">
+          <Field label={t('Source license')} htmlFor="lean-license">
             <input
               id="lean-license"
               required
               maxLength={200}
-              placeholder="e.g. Apache-2.0"
+              placeholder={t('e.g. Apache-2.0')}
               value={license}
               onChange={(e) => setLicense(e.target.value)}
             />
           </Field>
         </section>
         <section className="submission-options" aria-labelledby="lean-files-heading">
-          <h2 id="lean-files-heading">Source & verification</h2>
+          <h2 id="lean-files-heading">{t('Source & verification')}</h2>
           <Field
-            label="Link to Lean code"
+            label={t('Link to Lean code')}
             htmlFor="lean-code-link"
-            hint="A public GitHub .lean file at a fixed commit. For a proof with several files, upload its complete project below."
+            hint={t(
+              'A public GitHub .lean file at a fixed commit. For a proof with several files, upload its complete project below.',
+            )}
           >
             <input
               id="lean-code-link"
@@ -377,28 +387,31 @@ function DepositForm({
               void importLink();
             }}
           >
-            Import Lean source
+            {t('Import Lean source')}
           </button>
           {linkedSource ? (
             <p role="status">
-              Imported <a href={linkedSource.url}>{linkedSource.filename}</a>. The source will be
-              saved with its revision and attribution.{' '}
+              {t('Imported ')}
+              <a href={linkedSource.url}>{linkedSource.filename}</a>
+              {t('. The source will be saved with its revision and attribution.')}{' '}
               {linkedSource.moduleName === 'Solution'
-                ? 'This file is the Solution adapter.'
-                : 'Add a Solution.lean adapter below to verify this module against a confirmed statement.'}{' '}
+                ? t('This file is the Solution adapter.')
+                : t(
+                    'Add a Solution.lean adapter below to verify this module against a confirmed statement.',
+                  )}{' '}
               <button type="button" className="text-button" onClick={() => setLinkedSource(null)}>
-                Remove linked source
+                {t('Remove linked source')}
               </button>
             </p>
           ) : null}
           <fieldset className="project-intake">
-            <legend>Complete Lean project</legend>
+            <legend>{t('Complete Lean project')}</legend>
             <p className="hint">
-              Upload a source ZIP / tar.gz or choose a project folder. Up to 512 modules and 8 MB of
-              Lean source; directory structure and pinned configuration are preserved. Build caches
-              and .git are excluded from folder intake.
+              {t(
+                'Upload a source ZIP / tar.gz or choose a project folder. Up to 512 modules and 8 MB of Lean source; directory structure and pinned configuration are preserved. Build caches and .git are excluded from folder intake.',
+              )}
             </p>
-            <Field label="Project archive" htmlFor="lean-project-archive">
+            <Field label={t('Project archive')} htmlFor="lean-project-archive">
               <input
                 id="lean-project-archive"
                 type="file"
@@ -409,7 +422,7 @@ function DepositForm({
                 }}
               />
             </Field>
-            <Field label="Project folder" htmlFor="lean-project-folder">
+            <Field label={t('Project folder')} htmlFor="lean-project-folder">
               <input
                 id="lean-project-folder"
                 type="file"
@@ -426,11 +439,12 @@ function DepositForm({
             {project ? (
               <div role="status">
                 <p>
-                  {Object.keys(project.modules).length} modules ·{' '}
-                  {Object.keys(project.project_files).length} configuration / documentation files
+                  {Object.keys(project.modules).length} {t(' modules ·')}{' '}
+                  {Object.keys(project.project_files).length}{' '}
+                  {t(' configuration / documentation files')}
                 </p>
                 <details>
-                  <summary>Project files</summary>
+                  <summary>{t('Project files')}</summary>
                   <ul>
                     {Object.keys(project.project_files)
                       .concat(
@@ -453,7 +467,7 @@ function DepositForm({
                     setPreflight(null);
                   }}
                 >
-                  Remove project
+                  {t('Remove project')}
                 </button>
               </div>
             ) : null}
@@ -461,7 +475,9 @@ function DepositForm({
           <Field
             label="Solution.lean / standalone source (up to 1 MB)"
             htmlFor="lean-source"
-            hint="Optional for a source deposit. To verify a project, supply an adapter importing Target and your project modules, with theorem wishpool_solution : wishpool_target_prop. Original project modules remain intact."
+            hint={t(
+              'Optional for a source deposit. To verify a project, supply an adapter importing Target and your project modules, with theorem wishpool_solution : wishpool_target_prop. Original project modules remain intact.',
+            )}
           >
             <input
               id="lean-source"
@@ -476,9 +492,11 @@ function DepositForm({
             />
           </Field>
           <Field
-            label="Supporting Lean modules (optional)"
+            label={t('Supporting Lean modules (optional)')}
             htmlFor="lean-modules"
-            hint="Up to 512 modules, 8 MB total. Choose a folder or archive above to preserve nested paths. Mathlib comes from the confirmed toolchain; custom dependencies and Lake scripts are not executed."
+            hint={t(
+              'Up to 512 modules, 8 MB total. Choose a folder or archive above to preserve nested paths. Mathlib comes from the confirmed toolchain; custom dependencies and Lake scripts are not executed.',
+            )}
           >
             <input
               id="lean-modules"
@@ -496,23 +514,26 @@ function DepositForm({
               void check();
             }}
           >
-            Run compatibility preflight
+            {t('Run compatibility preflight')}
           </button>
           {preflight ? <PreflightReport report={preflight} /> : null}
           <InlineError error={error} />
           <button className="button" type="submit" disabled={busy}>
             {busy
-              ? 'Submitting…'
+              ? t('Submitting…')
               : target
-                ? 'Submit and request verification'
-                : 'Submit formalization'}
+                ? t('Submit and request verification')
+                : t('Submit formalization')}
           </button>
         </section>
       </form>
       {received ? (
         <p className="notice notice-info" role="status">
-          Source received: {received.title}.{' '}
-          {verification ? `Verification ${verification.state}.` : 'Verification has not run yet.'}
+          {t('Source received: ')}
+          {received.title}.{' '}
+          {verification
+            ? `Verification ${verification.state}.`
+            : t('Verification has not run yet.')}
         </p>
       ) : null}
       <DepositListing deposits={deposits} target={target} />
@@ -538,7 +559,7 @@ function DepositListing({
 }) {
   return (
     <section>
-      <h2>Your formalization submissions</h2>
+      <h2>{t('Your formalization submissions')}</h2>
       <Async state={deposits.state} onRetry={deposits.reload}>
         {(page) =>
           page.items.length ? (
@@ -550,7 +571,7 @@ function DepositListing({
               ))}
             </ul>
           ) : (
-            <p className="muted">Your submitted Lean sources will appear here.</p>
+            <p className="muted">{t('Your submitted Lean sources will appear here.')}</p>
           )
         }
       </Async>
@@ -612,29 +633,30 @@ function DepositEntry({
         <InlineLatex source={deposit.title} />
       </h3>
       <p className="small muted">
-        {deposit.authors.join(', ')} · received <DateText iso={deposit.submitted_at} />
+        {deposit.authors.join(', ')} {t(' · received ')}
+        <DateText iso={deposit.submitted_at} />
       </p>
       <p>
         <a href={`/api/v1/formalizations/${encodeURIComponent(deposit.id)}/source`}>
-          Download submitted source
+          {t('Download submitted source')}
         </a>{' '}
         · {deposit.license} ·{' '}
         <a href={`/api/v1/formalizations/${encodeURIComponent(deposit.id)}/project`}>
-          Download complete project
+          {t('Download complete project')}
         </a>
         {deposit.modules && Object.keys(deposit.modules).length
           ? ` · ${Object.keys(deposit.modules).length} supporting modules`
           : ''}
       </p>
       <details>
-        <summary>Verify against a confirmed statement</summary>
+        <summary>{t('Verify against a confirmed statement')}</summary>
         <p>
-          <Link to={{ kind: 'formalizations' }}>Browse confirmed statements →</Link>
+          <Link to={{ kind: 'formalizations' }}>{t('Browse confirmed statements →')}</Link>
         </p>
         <p className="hint">
-          Use a source module that imports Target and declares wishpool_solution or
-          wishpool_disproof. The stored toolchain must match the target. Verified proofs and their
-          original attribution appear on the public source record.
+          {t(
+            'Use a source module that imports Target and declares wishpool_solution or wishpool_disproof. The stored toolchain must match the target. Verified proofs and their original attribution appear on the public source record.',
+          )}
         </p>
         <form
           className="form"
@@ -643,16 +665,16 @@ function DepositEntry({
           }}
         >
           <label>
-            Paper record
+            {t('Paper record')}
             <input
               required
-              placeholder="WP-2026-0001"
+              placeholder={t('WP-2026-0001')}
               value={record}
               onChange={(e) => setRecord(e.target.value)}
             />
           </label>
           <label>
-            Statement
+            {t('Statement')}
             <input
               required
               placeholder="C1"
@@ -663,7 +685,9 @@ function DepositEntry({
           <Field
             label="Solution.lean adapter (optional replacement)"
             htmlFor={`adapter-${deposit.id}`}
-            hint="Use the saved source, or attach a target adapter while preserving the deposited project."
+            hint={t(
+              'Use the saved source, or attach a target adapter while preserving the deposited project.',
+            )}
           >
             <input
               id={`adapter-${deposit.id}`}
@@ -673,7 +697,7 @@ function DepositEntry({
             />
           </Field>
           <button className="button button-small" disabled={busy}>
-            {busy ? 'Submitting…' : 'Request verification'}
+            {busy ? t('Submitting…') : t('Request verification')}
           </button>
         </form>
       </details>
@@ -686,15 +710,17 @@ function DepositEntry({
             void refresh(id);
           }}
         >
-          Check verification {id.slice(0, 8)}
+          {t('Check verification ')}
+          {id.slice(0, 8)}
         </button>
       ))}
       {result ? (
         <p role="status">
-          Verification: <strong>{result.state}</strong>
+          {t('Verification: ')}
+          <strong>{result.state}</strong>
           {result.receipt
             ? ` — ${result.receipt.reason}`
-            : '. Waiting for an independent verifier receipt.'}
+            : t('. Waiting for an independent verifier receipt.')}
         </p>
       ) : null}
       <InlineError error={error} />
@@ -706,19 +732,20 @@ function PreflightReport({ report }: { report: LeanPreflight }) {
   return (
     <section
       className={`notice ${report.errors.length ? 'notice-error' : 'notice-info'}`}
-      aria-label="Compatibility preflight"
+      aria-label={t('Compatibility preflight')}
     >
       <h3>
         {report.errors.length
-          ? 'Source can be saved · verification needs attention'
-          : 'Static checks passed · independent verification still required'}
+          ? t('Source can be saved · verification needs attention')
+          : t('Static checks passed · independent verification still required')}
       </h3>
       <p>
-        {report.modules} modules · {report.source_bytes.toLocaleString()} source bytes
+        {report.modules} {t(' modules · ')}
+        {report.source_bytes.toLocaleString()} {t(' source bytes')}
       </p>
       {report.dependencies.length ? (
         <details>
-          <summary>Dependency pins</summary>
+          <summary>{t('Dependency pins')}</summary>
           <ul>
             {report.dependencies.map((d) => (
               <li key={d}>
@@ -737,7 +764,10 @@ function PreflightReport({ report }: { report: LeanPreflight }) {
       ) : null}
       {report.errors.length > 5 ? (
         <details>
-          <summary>Show {report.errors.length - 5} more compatibility findings</summary>
+          <summary>
+            {t('Show ')}
+            {report.errors.length - 5} {t(' more compatibility findings')}
+          </summary>
           <ul>
             {report.errors.slice(5).map((error, i) => (
               <li key={i}>{error}</li>
@@ -766,13 +796,13 @@ function NameEntries({
   const names = value.split('\n');
   return (
     <fieldset className="name-entries">
-      <legend>{label}</legend>
+      <legend>{t(label)}</legend>
       {names.map((name, index) => (
         <div className="name-entry" key={index}>
           <input
-            aria-label={`${label} ${index + 1}`}
+            aria-label={`${t(label)} ${index + 1}`}
             value={name}
-            placeholder="Full name"
+            placeholder={t('Full name')}
             onChange={(event) =>
               onChange(names.map((item, i) => (i === index ? event.target.value : item)).join('\n'))
             }
@@ -784,7 +814,7 @@ function NameEntries({
               aria-label={`Remove ${label.toLowerCase()} ${index + 1}`}
               onClick={() => onChange(names.filter((_, i) => i !== index).join('\n'))}
             >
-              Remove
+              {t('Remove')}
             </button>
           ) : null}
         </div>
@@ -794,7 +824,8 @@ function NameEntries({
         className="button button-quiet button-small"
         onClick={() => onChange([...names, ''].join('\n'))}
       >
-        Add {label === 'Original authors' ? 'author' : 'contributor'}
+        {t('Add ')}
+        {label === 'Original authors' ? 'author' : 'contributor'}
       </button>
     </fieldset>
   );

@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -52,8 +53,8 @@ export function MyCma({ id }: { id?: string }) {
   };
   const returnTo = window.location.pathname + window.location.search;
   return (
-    <section ref={panel} id={id} aria-label="Use your own agents (optional)">
-      <h2>Use your own agents (optional)</h2>
+    <section ref={panel} id={id} aria-label={t('Use your own agents (optional)')}>
+      <h2>{t('Use your own agents (optional)')}</h2>
       <p>{CMA_COPY}</p>
       {!person ? (
         <SignInPrompt what="use your own agents" />
@@ -65,7 +66,9 @@ export function MyCma({ id }: { id?: string }) {
             return (
               <>
                 <p role="status">
-                  {status.enabled ? STATUS_LABELS[status.binding.status] : 'Not available yet'}
+                  {status.enabled
+                    ? t(STATUS_LABELS[status.binding.status])
+                    : t('Not available yet')}
                 </p>
                 {status.enabled ? (
                   <>
@@ -78,7 +81,7 @@ export function MyCma({ id }: { id?: string }) {
                           className="button button-quiet"
                           href={`/auth/cma/connect?return_to=${encodeURIComponent(returnTo)}`}
                         >
-                          Connect
+                          {t('Connect')}
                         </a>
                       ) : null}
                       {needsSetup ? (
@@ -88,7 +91,7 @@ export function MyCma({ id }: { id?: string }) {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Open compute setup
+                          {t('Open compute setup')}
                         </a>
                       ) : null}
                       {status.binding.status !== 'disconnected' ? (
@@ -99,14 +102,14 @@ export function MyCma({ id }: { id?: string }) {
                             void mutate(() => api.disconnectCma());
                           }}
                         >
-                          Disconnect
+                          {t('Disconnect')}
                         </button>
                       ) : null}
                     </div>
                     {needsSetup ? (
                       <form
                         className="inline-form"
-                        aria-label="Compute workspace"
+                        aria-label={t('Compute workspace')}
                         onSubmit={(event: FormEvent) => {
                           event.preventDefault();
                           const id = workspace.trim() || status.binding.workspace_id || '';
@@ -118,7 +121,7 @@ export function MyCma({ id }: { id?: string }) {
                           );
                         }}
                       >
-                        <Field label="Compute workspace ID" htmlFor="cma-workspace">
+                        <Field label={t('Compute workspace ID')} htmlFor="cma-workspace">
                           <input
                             id="cma-workspace"
                             value={workspace}
@@ -132,7 +135,7 @@ export function MyCma({ id }: { id?: string }) {
                           type="submit"
                           disabled={busy || !(workspace.trim() || status.binding.workspace_id)}
                         >
-                          Save / recheck workspace
+                          {t('Save / recheck workspace')}
                         </button>
                       </form>
                     ) : null}
@@ -185,11 +188,12 @@ export function CmaHistory({
 }) {
   if (attempts.length === 0) return null;
   return (
-    <section className="cma-history" aria-label="Execution records">
-      <h2>Execution records</h2>
+    <section className="cma-history" aria-label={t('Execution records')}>
+      <h2>{t('Execution records')}</h2>
       <p className="hint">
-        Each entry is one technical attempt. Earlier failures remain in the record after a
-        successful recovery.
+        {t(
+          'Each entry is one technical attempt. Earlier failures remain in the record after a successful recovery.',
+        )}
       </p>
       <ul className="entry-list">
         {attempts.map((attempt, index) => (
@@ -197,16 +201,16 @@ export function CmaHistory({
             <span className="small muted">
               {attempt.step.match(/^r(\d+):/)
                 ? `Round ${attempt.step.match(/^r(\d+):/)![1]}${currentRound && attempt.step.startsWith(`r${currentRound}:`) ? ' · current' : ' · previous'}`
-                : 'Recorded attempt'}{' '}
+                : t('Recorded attempt')}{' '}
               ·{' '}
             </span>
             <strong>
               {attempt.kind
-                ? (STEP_LABELS[attempt.kind] ?? 'Other automated step')
-                : 'Earlier review step'}
+                ? t(STEP_LABELS[attempt.kind] ?? 'Other automated step')
+                : t('Earlier review step')}
             </strong>{' '}
-            · {attempt.payer === 'author' ? 'Your agents' : 'Mathesis'} ·{' '}
-            {CMA_ATTEMPT_STATUS_LABELS[attempt.status] ?? 'Recorded'}
+            · {attempt.payer === 'author' ? t('Your agents') : t('Mathesis')} ·{' '}
+            {t(CMA_ATTEMPT_STATUS_LABELS[attempt.status] ?? 'Recorded')}
             {attempt.payer === 'operator' && ATTEMPT_REASONS[attempt.reason] ? (
               <p className="hint">{ATTEMPT_REASONS[attempt.reason]}</p>
             ) : null}

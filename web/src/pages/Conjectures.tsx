@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { ResearchProblems } from './ResearchProblems';
 import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState } from 'react';
@@ -20,10 +21,14 @@ export function ConjectureEntry({ conjecture: c }: { conjecture: ConjectureSumma
       <p className="entry-meta">
         <code>{c.record}</code>
         <span>{c.claim}</span>
-        <span>{SUBMISSION_KIND_LABELS[c.kind ?? 'conjecture']}</span>
+        <span>{t(SUBMISSION_KIND_LABELS[c.kind ?? 'conjecture'])}</span>
         <span>{c.source}</span>
         <Badge tone={c.status === 'open' ? 'muted' : 'good'}>
-          {c.status === 'solved' ? 'Solved' : c.status === 'disproved' ? 'Disproved' : 'Open'}
+          {c.status === 'solved'
+            ? t('Solved')
+            : c.status === 'disproved'
+              ? t('Disproved')
+              : t('Open')}
         </Badge>
       </p>
       <div className="entry-meta">
@@ -32,10 +37,10 @@ export function ConjectureEntry({ conjecture: c }: { conjecture: ConjectureSumma
       </div>
       <LatexText source={c.statement} className="conjecture-one-line" />
       <p className="small muted">
-        {c.attempts} attempts ·{' '}
+        {c.attempts} {t(' attempts ·')}{' '}
         {c.lean_statement_status === 'confirmed'
-          ? 'Target confirmed by author'
-          : 'Target awaiting author confirmation'}
+          ? t('Target confirmed by author')
+          : t('Target awaiting author confirmation')}
       </p>
       {c.solver ? <EntrantName entrant={c.solver} /> : null}
     </article>
@@ -57,13 +62,13 @@ export function ConjecturesPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Conjectures</h1>
+          <h1>{t('Conjectures')}</h1>
           <p className="lede">
-            Follow a problem through new results, readable notes and formal proofs.
+            {t('Follow a problem through new results, readable notes and formal proofs.')}
           </p>
         </div>
       </header>
-      <div className="filter-row" aria-label="Status">
+      <div className="filter-row" aria-label={t('Status')}>
         {(['research', 'open', 'solved', 'disproved'] as const).map((v) => (
           <button
             key={v}
@@ -73,12 +78,12 @@ export function ConjecturesPage() {
             onClick={() => setStatus(v)}
           >
             {v === 'research'
-              ? 'Research record'
+              ? t('Research record')
               : v === 'open'
-                ? 'Open questions'
+                ? t('Open questions')
                 : v === 'solved'
-                  ? 'Proved in Lean'
-                  : 'Disproved in Lean'}
+                  ? t('Proved in Lean')
+                  : t('Disproved in Lean')}
           </button>
         ))}
       </div>
@@ -91,9 +96,9 @@ export function ConjecturesPage() {
               const items = listing.items.filter((c) => (c.status ?? 'open') === status);
               return items.length === 0 ? (
                 <div className="empty-state">
-                  <p>No {status} conjectures here yet.</p>
+                  <p>{t('No {status} conjectures here yet.', { status: t(status) })}</p>
                   <Link className="button" to={{ kind: 'submit', intake: 'conjecture' }}>
-                    Submit a conjecture
+                    {t('Submit a conjecture')}
                   </Link>
                 </div>
               ) : (

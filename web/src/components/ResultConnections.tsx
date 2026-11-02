@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -31,28 +32,28 @@ export function ResultConnections({ paper, claim }: { paper: PublicPaper; claim:
   );
   return (
     <section className="result-relations">
-      <h2>Connections within this paper</h2>
-      <p className="small muted">Dependencies stated in the manuscript.</p>
+      <h2>{t('Connections within this paper')}</h2>
+      <p className="small muted">{t('Dependencies stated in the manuscript.')}</p>
       <div className="result-neighborhood">
         <div>
           {assumptions.length ? (
             <>
-              <h3>Conditional on these assumptions</h3>
+              <h3>{t('Conditional on these assumptions')}</h3>
               {links(assumptions)}
             </>
           ) : null}
           {uses.length ? (
             <>
-              <h3>Uses these results</h3>
+              <h3>{t('Uses these results')}</h3>
               {links(uses)}
             </>
           ) : null}
           {!dependencies.length ? (
-            <p className="small muted">No prerequisites recorded here.</p>
+            <p className="small muted">{t('No prerequisites recorded here.')}</p>
           ) : null}
         </div>
         <div className="result-neighborhood-current" aria-current="true">
-          <span className="small muted">This result</span>
+          <span className="small muted">{t('This result')}</span>
           <p>
             <InlineLatex source={resultLabel(claim)} />
           </p>
@@ -61,12 +62,14 @@ export function ResultConnections({ paper, claim }: { paper: PublicPaper; claim:
           {usedBy.length ? (
             <>
               <h3>
-                {isOpenKind(claim.kind) ? 'Assumed in these statements' : 'Used in these results'}
+                {isOpenKind(claim.kind)
+                  ? t('Assumed in these statements')
+                  : t('Used in these results')}
               </h3>
               {links(usedBy)}
             </>
           ) : (
-            <p className="small muted">No later uses recorded here.</p>
+            <p className="small muted">{t('No later uses recorded here.')}</p>
           )}
         </div>
       </div>
@@ -99,24 +102,27 @@ export function CheckedResultUses({ record, claim }: { record: string; claim: st
             <Link to={{ kind: 'result', record: other.record, claim: other.claim }}>
               <InlineLatex source={`${label} — ${other.title}`} />
             </Link>{' '}
-            · version {other.version}
+            {t('· version ')}
+            {other.version}
             <p className="small">{other.authors.map((a) => a.name).join(', ')}</p>
             <p>
-              {forward ? 'Uses' : 'Used the checked proposition'} “{edge.contribution.title}”,
-              contributed by <EntrantName entrant={edge.contributor} /> ·{' '}
-              {edge.contribution.license}.
+              {forward ? t('Uses') : t('Used the checked proposition')} “{edge.contribution.title}
+              {t('”, contributed by ')}
+              <EntrantName entrant={edge.contributor} /> · {edge.contribution.license}.
             </p>
             <ProofAttribution attribution={edge.attribution ?? undefined} />
             <p className="small">
-              Evidence: the named proposition occurs in the independently checked proof term. The
-              complete checked source context contains {edge.joint_context.length} contributed
-              proposition{edge.joint_context.length === 1 ? '' : 's'}; individual sufficiency is not
-              asserted.
+              {t(
+                'Evidence: the named proposition occurs in the independently checked proof term. The complete checked source context contains ',
+              )}
+              {edge.joint_context.length} {t(' contributed proposition')}
+              {edge.joint_context.length === 1 ? '' : 's'}
+              {t('; individual sufficiency is not asserted.')}
             </p>
             <a
               href={`/api/v1/papers/${encodeURIComponent(edge.result.record)}/statements/${encodeURIComponent(edge.result.claim)}/attempts/${encodeURIComponent(edge.attempt)}/bundle`}
             >
-              Read proof sources and verification details
+              {t('Read proof sources and verification details')}
             </a>
           </li>
         );
@@ -125,21 +131,21 @@ export function CheckedResultUses({ record, claim }: { record: string; claim: st
   );
   return (
     <section className="result-relations">
-      <h2>Checked contribution use</h2>
+      <h2>{t('Checked contribution use')}</h2>
       <p>
-        These links concern the exact named propositions contributed during proof work. The source
-        result itself may remain unfinished. Citations and unused imports do not establish checked
-        use.
+        {t(
+          'These links concern the exact named propositions contributed during proof work. The source result itself may remain unfinished. Citations and unused imports do not establish checked use.',
+        )}
       </p>
       {outgoing.length ? (
         <>
-          <h3>Uses propositions from these results</h3>
+          <h3>{t('Uses propositions from these results')}</h3>
           {list(outgoing, true)}
         </>
       ) : null}
       {incoming.length ? (
         <>
-          <h3>Propositions used in these results</h3>
+          <h3>{t('Propositions used in these results')}</h3>
           {list(incoming, false)}
         </>
       ) : null}

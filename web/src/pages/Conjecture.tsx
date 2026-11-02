@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { ProofWork } from '../components/ProofWork';
 import { InlineLatex } from '../components/Markdown';
 import { Link } from '../routing/router';
@@ -43,35 +44,36 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
         <ReportError record={s.record} subject={{ kind: 'statement', claim: s.claim }} />
         <div className="status-card">
           <h2>
-            {s.status === 'open' ? 'Open' : s.status === 'solved' ? 'Solved' : 'Disproved'}
+            {s.status === 'open' ? t('Open') : s.status === 'solved' ? t('Solved') : t('Disproved')}
             {s.solver ? (
               <>
                 {' '}
-                by <EntrantName entrant={s.solver} />
+                {t('by ')}
+                <EntrantName entrant={s.solver} />
               </>
             ) : null}
           </h2>
           <p>
             {s.status === 'open'
-              ? 'A first verified solution earns one point.'
-              : 'The solver proved or disproved the author-confirmed Lean target.'}
+              ? t('A first verified solution earns one point.')
+              : t('The solver proved or disproved the author-confirmed Lean target.')}
           </p>
         </div>
         <section>
-          <h2>Statement</h2>
+          <h2>{t('Statement')}</h2>
           <LatexText source={s.statement} />
         </section>
         <section>
-          <h2>Formal statement</h2>
+          <h2>{t('Formal statement')}</h2>
           {c.target ? (
             <>
-              <p>The author confirmed these exact definitions and statement.</p>
+              <p>{t('The author confirmed these exact definitions and statement.')}</p>
               <ReportError
                 record={s.record}
                 subject={{ kind: 'target', claim: s.claim, digest: c.target.digest }}
               />
               <details>
-                <summary>View Lean statement</summary>
+                <summary>{t('View Lean statement')}</summary>
                 <pre>
                   <code>{c.target.lean}</code>
                 </pre>
@@ -82,34 +84,36 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
                     navigator.clipboard?.writeText(c.target!.lean).then(() => setCopied(true))
                   }
                 >
-                  {copied ? 'Copied' : 'Copy target'}
+                  {copied ? t('Copied') : t('Copy target')}
                 </button>
               </details>
               <a className="button button-quiet" href={path} download="Target.lean">
-                Download Target.lean
+                {t('Download Target.lean')}
               </a>
             </>
           ) : (
             <p className="muted">
-              The target is being prepared and confirmed by the submitting author.
+              {t('The target is being prepared and confirmed by the submitting author.')}
             </p>
           )}
         </section>
         {c.target ? (
           <section>
-            <h2>Contribute a proof or disproof</h2>
+            <h2>{t('Contribute a proof or disproof')}</h2>
             <Link
               className="button"
               to={{ kind: 'submit', intake: 'lean', record: s.record, claim: s.claim }}
             >
-              Submit attributed Lean work
+              {t('Submit attributed Lean work')}
             </Link>
             <p>
-              Import Target and prove <code>wishpool_solution : wishpool_target_prop</code>, or
-              disprove it with <code>wishpool_disproof : ¬ wishpool_target_prop</code>.
+              {t('Import Target and prove ')}
+              <code>wishpool_solution : wishpool_target_prop</code>
+              {t(', or disprove it with ')}
+              <code>wishpool_disproof : ¬ wishpool_target_prop</code>.
             </p>
             <details className="history">
-              <summary>Submit from the command line</summary>
+              <summary>{t('Submit from the command line')}</summary>
               <pre>
                 <code>{`mathesis-contribute attempt ${s.record} ${s.claim} Solution.lean`}</code>
               </pre>
@@ -119,12 +123,13 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
         ) : null}
         {winner ? (
           <section>
-            <h2>Verified solution</h2>
+            <h2>{t('Verified solution')}</h2>
             <p>
-              Checked in Lean on <DateText iso={winner.receipt.checked_at} />.
+              {t('Checked in Lean on ')}
+              <DateText iso={winner.receipt.checked_at} />.
             </p>
             <details>
-              <summary>View Lean proof</summary>
+              <summary>{t('View Lean proof')}</summary>
               <pre>
                 <code>{winner.solution}</code>
               </pre>
@@ -132,7 +137,7 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
           </section>
         ) : null}
         <section>
-          <h2>Verified attempts</h2>
+          <h2>{t('Verified attempts')}</h2>
           {c.verified_attempts.length ? (
             <ul className="entry-list">
               {c.verified_attempts.map((a) => (
@@ -142,14 +147,14 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
                   <a
                     href={`/api/v1/papers/${encodeURIComponent(s.record)}/statements/${encodeURIComponent(s.claim)}/attempts/${encodeURIComponent(a.id)}/bundle`}
                   >
-                    Download proof and verification details
+                    {t('Download proof and verification details')}
                   </a>
                   <p>
-                    {a.also_verified ? 'Also verified' : 'First verified'} ·{' '}
+                    {a.also_verified ? t('Also verified') : t('First verified')} ·{' '}
                     <DateText iso={a.receipt.checked_at} />
                   </p>
                   <details>
-                    <summary>View Lean proof</summary>
+                    <summary>{t('View Lean proof')}</summary>
                     <pre>
                       <code>{a.solution}</code>
                     </pre>
@@ -158,7 +163,7 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
               ))}
             </ul>
           ) : (
-            <p className="muted">No verified attempts yet.</p>
+            <p className="muted">{t('No verified attempts yet.')}</p>
           )}
         </section>
         {c.target ? <ProofWork record={s.record} claim={s.claim} /> : null}
@@ -237,14 +242,14 @@ export function AttemptForm({
           void submit(e);
         }}
       >
-        <label htmlFor="solution-file">Lean solution (up to 1 MB)</label>
+        <label htmlFor="solution-file">{t('Lean solution (up to 1 MB)')}</label>
         <input
           id="solution-file"
           type="file"
           accept=".lean"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <label htmlFor="attempt-entrant">Submit as</label>
+        <label htmlFor="attempt-entrant">{t('Submit as')}</label>
         <select id="attempt-entrant" value={agent} onChange={(e) => setAgent(e.target.value)}>
           <option value="">{person.display_name}</option>
           {agents.state.status === 'ok'
@@ -252,12 +257,12 @@ export function AttemptForm({
                 .filter((a) => !a.retired)
                 .map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} (Agent)
+                    {a.name} {t(' (Agent)')}
                   </option>
                 ))
             : null}
         </select>
-        <label htmlFor="attempt-note">Note (optional, private)</label>
+        <label htmlFor="attempt-note">{t('Note (optional, private)')}</label>
         <textarea
           id="attempt-note"
           maxLength={2000}
@@ -265,17 +270,20 @@ export function AttemptForm({
           onChange={(e) => setNote(e.target.value)}
         />
         <button type="submit" className="button" disabled={busy}>
-          {busy ? 'Submitting…' : 'Submit for verification'}
+          {busy ? t('Submitting…') : t('Submit for verification')}
         </button>
         <InlineError error={error} />
       </form>
       {attempt ? (
         <div className="notice" role="status">
-          <p>Your proof attempt: {attempt.state}</p>
+          <p>
+            {t('Your proof attempt: ')}
+            {attempt.state}
+          </p>
           {attempt.receipt || attempt.reason ? (
             <p>{attempt.receipt?.reason ?? attempt.reason}</p>
           ) : (
-            <p>Your attempt is private while it waits for verification.</p>
+            <p>{t('Your attempt is private while it waits for verification.')}</p>
           )}
           <button
             type="button"
@@ -284,7 +292,7 @@ export function AttemptForm({
               void refresh();
             }}
           >
-            Refresh status
+            {t('Refresh status')}
           </button>
         </div>
       ) : null}
@@ -292,16 +300,19 @@ export function AttemptForm({
         {(attempts) =>
           attempts.length ? (
             <details>
-              <summary>My attempts ({attempts.length})</summary>
+              <summary>
+                {t('My attempts (')}
+                {attempts.length})
+              </summary>
               <ul>
                 {attempts.map((a) => (
                   <li key={a.id}>
                     {a.entrant.name} ·{' '}
                     {a.intermediate
                       ? `Auxiliary proposition “${a.intermediate.title}”`
-                      : 'Final target'}
+                      : t('Final target')}
                     : {a.state}
-                    {a.intermediate ? ' (the final goal may remain unfinished)' : ''}
+                    {a.intermediate ? t(' (the final goal may remain unfinished)') : ''}
                     {a.receipt || a.reason ? ` — ${a.receipt?.reason ?? a.reason}` : ''}
                   </li>
                 ))}

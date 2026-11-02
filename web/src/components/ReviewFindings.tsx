@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useState, type FormEvent } from 'react';
 import type { RefereeFile, RefereeRound, Submission } from '../api/types';
 import { useApi } from '../api/context';
@@ -39,11 +40,12 @@ export function ReviewFindings({
     );
   if (!rounds.length) return null;
   return (
-    <section className="review-findings" aria-label="Review findings and responses">
-      <h3>Review findings</h3>
+    <section className="review-findings" aria-label={t('Review findings and responses')}>
+      <h3>{t('Review findings')}</h3>
       <p className="small muted">
-        Read the findings below and respond with a clarification or correction. Your response will
-        be considered in a follow-up review.
+        {t(
+          'Read the findings below and respond with a clarification or correction. Your response will be considered in a follow-up review.',
+        )}
       </p>
       {rounds.map((round) => (
         <div key={round.number}>
@@ -54,7 +56,7 @@ export function ReviewFindings({
           </h4>
           {showSourceIdentity && round.source_sha256 ? (
             <p className="hint">
-              Source SHA-256:{' '}
+              {t('Source SHA-256:')}{' '}
               <code style={{ overflowWrap: 'anywhere' }}>{round.source_sha256}</code>
             </p>
           ) : null}
@@ -71,25 +73,32 @@ export function ReviewFindings({
                         ? `R${round.number}-A${index + 1}`
                         : `Finding ${index + 1}`}
                     </strong>{' '}
-                    · {AUDIT_FINDING_LABELS[finding.status]} ·{' '}
+                    · {t(AUDIT_FINDING_LABELS[finding.status])} ·{' '}
                     <InlineLatex source={readable(finding.concern)} />
                   </summary>
                   {finding.location ? (
-                    <p className="small">Reported location: {finding.location}</p>
+                    <p className="small">
+                      {t('Reported location: ')}
+                      {finding.location}
+                    </p>
                   ) : null}
                   <Markdown text={readable(finding.note)} />
                   {finding.evidence ? (
                     <div className="finding-evidence">
-                      <h5>Supporting evidence</h5>
+                      <h5>{t('Supporting evidence')}</h5>
                       <p className="hint">
                         {finding.basis === 'opened_source'
-                          ? 'The reviewer reports opening the cited source; the citation has not been independently confirmed.'
-                          : 'Supporting reasoning from the review.'}
+                          ? t(
+                              'The reviewer reports opening the cited source; the citation has not been independently confirmed.',
+                            )
+                          : t('Supporting reasoning from the review.')}
                       </p>
                       <Markdown text={readable(finding.evidence)} />
                     </div>
                   ) : (
-                    <p className="hint">No separate evidence was recorded for this finding.</p>
+                    <p className="hint">
+                      {t('No separate evidence was recorded for this finding.')}
+                    </p>
                   )}
                   {responses.map((response) => {
                     const checked = [...file.rounds]
@@ -113,8 +122,8 @@ export function ReviewFindings({
                     return (
                       <div className="finding-response" key={response.id}>
                         <p className="small">
-                          Author response · version {response.version} ·{' '}
-                          <DateText iso={response.at} />
+                          {t('Author response · version ')}
+                          {response.version} · <DateText iso={response.at} />
                         </p>
                         <Markdown text={response.body} />
                         {assessment ? (
@@ -122,12 +131,14 @@ export function ReviewFindings({
                             <p className="small">
                               <strong>
                                 {assessment.status === 'addressed'
-                                  ? 'Addressed in this review'
+                                  ? t('Addressed in this review')
                                   : assessment.status === 'unresolved'
-                                    ? 'Concern remains'
-                                    : 'Further evidence needed'}
+                                    ? t('Concern remains')
+                                    : t('Further evidence needed')}
                               </strong>{' '}
-                              · round {checked!.number} · version {response.version}
+                              {t('· round ')}
+                              {checked!.number} {t(' · version ')}
+                              {response.version}
                             </p>
                             <Markdown text={readable(assessment.explanation)} />
                             {assessment.evidence.length ? (
@@ -141,7 +152,7 @@ export function ReviewFindings({
                                     </a>
                                     {showSourceIdentity ? (
                                       <p className="hint">
-                                        SHA-256:{' '}
+                                        {t('SHA-256:')}{' '}
                                         <code style={{ overflowWrap: 'anywhere' }}>{e.sha256}</code>
                                       </p>
                                     ) : null}
@@ -150,17 +161,17 @@ export function ReviewFindings({
                               </ul>
                             ) : null}
                             <p className="hint">
-                              This assessment applies to the manuscript version reviewed.
+                              {t('This assessment applies to the manuscript version reviewed.')}
                             </p>
                           </div>
                         ) : null}
                         <p className="hint">
                           {!current
-                            ? 'This response refers to an earlier version of the manuscript.'
+                            ? t('This response refers to an earlier version of the manuscript.')
                             : checked && !assessment
                               ? `Re-reviewed in round ${checked.number}. Read that report for the conclusion.`
                               : !checked
-                                ? 'Re-review requested. A new review will address this response.'
+                                ? t('Re-review requested. A new review will address this response.')
                                 : null}
                         </p>
                       </div>
@@ -230,7 +241,7 @@ function ResponseForm({
       aria-label={`Respond to R${round.number}-A${concern + 1}`}
     >
       <Field
-        label="Your response or correction"
+        label={t('Your response or correction')}
         htmlFor={label}
         hint={`This requests review of source version ${submission.versions.at(-1)?.number}. Upload and confirm a revision first if the source has changed.`}
       >
@@ -244,7 +255,7 @@ function ResponseForm({
         />
       </Field>
       <button className="button button-small" disabled={busy || !body.trim()}>
-        {busy ? 'Requesting…' : 'Send response & request re-review'}
+        {busy ? t('Requesting…') : t('Send response & request re-review')}
       </button>
       <InlineError error={error} />
     </form>

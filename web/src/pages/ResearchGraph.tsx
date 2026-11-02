@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useId, useState } from 'react';
 import { LeanKnowledgeGraph } from '../components/LeanKnowledgeGraph';
 import { useApi } from '../api/context';
@@ -28,19 +29,20 @@ export function ResearchGraphPage({
   const graph = useAsync(layer === 'citations' ? load : null);
   return (
     <div className="page research-graph">
-      <h1>Knowledge graph</h1>
+      <h1>{t('Knowledge graph')}</h1>
       <p>
-        Build on checked Lean results, follow their contributors, and explore the research behind
-        them.
+        {t(
+          'Build on checked Lean results, follow their contributors, and explore the research behind them.',
+        )}
       </p>
-      <div className="filter-row" role="group" aria-label="Knowledge graph layer">
+      <div className="filter-row" role="group" aria-label={t('Knowledge graph layer')}>
         <button
           type="button"
           className="text-button"
           aria-pressed={layer === 'lean'}
           onClick={() => setLayer('lean')}
         >
-          Lean results
+          {t('Lean results')}
         </button>
         <button
           type="button"
@@ -48,13 +50,13 @@ export function ResearchGraphPage({
           aria-pressed={layer === 'citations'}
           onClick={() => setLayer('citations')}
         >
-          Papers and sources
+          {t('Papers and sources')}
         </button>
       </div>
       {layer === 'lean' ? <LeanKnowledgeGraph /> : null}
       {focus || q || before ? (
         <p>
-          <Link to={{ kind: 'research_graph' }}>Back to the research graph</Link>
+          <Link to={{ kind: 'research_graph' }}>{t('Back to the research graph')}</Link>
         </p>
       ) : null}
       {layer === 'citations' ? (
@@ -157,19 +159,19 @@ export function GraphView({
     <>
       {selected ? (
         <div className="research-map-layout">
-          <figure className="research-map" aria-label="Research connections">
+          <figure className="research-map" aria-label={t('Research connections')}>
             <div
               className="research-map-scroll"
               role="region"
               tabIndex={0}
-              aria-label="Scrollable citation map"
+              aria-label={t('Scrollable citation map')}
             >
               <div className="research-map-canvas" style={{ height }}>
                 <span className="research-map-column" style={{ left: '2.2%' }}>
-                  Earlier literature
+                  {t('Earlier literature')}
                 </span>
                 <span className="research-map-column" style={{ left: '63%' }}>
-                  Mathesis papers
+                  {t('Mathesis papers')}
                 </span>
                 <svg viewBox={`0 0 730 ${height}`} preserveAspectRatio="none" aria-hidden="true">
                   <defs>
@@ -225,29 +227,30 @@ export function GraphView({
               </div>
             </div>
             <figcaption>
-              Arrows lead from an earlier work to papers that cite it. Select a work to see its
-              authors and connections.
+              {t(
+                'Arrows lead from an earlier work to papers that cite it. Select a work to see its authors and connections.',
+              )}
             </figcaption>
             {literature.length > REFERENCES_PER_VIEW ? (
-              <nav className="research-map-paging" aria-label="References in this map">
+              <nav className="research-map-paging" aria-label={t('References in this map')}>
                 <button
                   type="button"
                   disabled={currentPage === 0}
                   onClick={() => turnPage(currentPage - 1)}
                 >
-                  Previous references
+                  {t('Previous references')}
                 </button>
                 <span>
                   {currentPage * REFERENCES_PER_VIEW + 1}–
-                  {Math.min((currentPage + 1) * REFERENCES_PER_VIEW, literature.length)} of{' '}
-                  {literature.length} references in this view
+                  {Math.min((currentPage + 1) * REFERENCES_PER_VIEW, literature.length)} {t(' of')}{' '}
+                  {literature.length} {t(' references in this view')}
                 </span>
                 <button
                   type="button"
                   disabled={(currentPage + 1) * REFERENCES_PER_VIEW >= literature.length}
                   onClick={() => turnPage(currentPage + 1)}
                 >
-                  Next references
+                  {t('Next references')}
                 </button>
               </nav>
             ) : null}
@@ -263,36 +266,38 @@ export function GraphView({
         </div>
       ) : (
         <div className="research-map-empty">
-          <h2>{focus || q ? 'No works in this view' : 'No public connections yet'}</h2>
+          <h2>{focus || q ? t('No works in this view') : t('No public connections yet')}</h2>
           <p>
             {focus || q
-              ? 'No public work is available for this view.'
-              : 'The map will grow as papers and their references become publicly available.'}
+              ? t('No public work is available for this view.')
+              : t('The map will grow as papers and their references become publicly available.')}
           </p>
         </div>
       )}
       {graph.next_before ? (
         <p>
           <Link to={{ kind: 'research_graph', focus, q, before: graph.next_before }}>
-            Next group of papers
+            {t('Next group of papers')}
           </Link>
         </p>
       ) : null}
       <details className="research-map-about">
-        <summary>About this graph</summary>
+        <summary>{t('About this graph')}</summary>
         <p>
-          Connections show citations recorded in public manuscripts. Mathematical dependencies and
-          checked formalizations have their own evidence on each result page.
+          {t(
+            'Connections show citations recorded in public manuscripts. Mathematical dependencies and checked formalizations have their own evidence on each result page.',
+          )}
         </p>
         <p>{graph.scope}</p>
         <ul>
           {graph.coverage.map((c) => (
             <li key={c.record}>
-              <Link to={{ kind: 'paper', record: c.record }}>{c.record}</Link> · version {c.version}
+              <Link to={{ kind: 'paper', record: c.record }}>{c.record}</Link> {t(' · version ')}
+              {c.version}
               {!c.method
-                ? ' · references not indexed'
+                ? t(' · references not indexed')
                 : c.method === 'pdf_unindexed_v1'
-                  ? ' · PDF references not indexed'
+                  ? t(' · PDF references not indexed')
                   : ''}
               <ul>
                 {c.limitations.map((s) => (
@@ -325,9 +330,9 @@ function WorkDetails({
     .map((id) => nodes.get(id))
     .filter((n): n is ResearchNode => Boolean(n));
   return (
-    <section id={id} className="research-map-detail" aria-label="Selected work">
+    <section id={id} className="research-map-detail" aria-label={t('Selected work')}>
       <p className="entry-meta">
-        {node.kind === 'literature' ? 'Earlier work' : 'Published paper'}
+        {node.kind === 'literature' ? t('Earlier work') : t('Published paper')}
       </p>
       <h2>
         <InlineLatex source={node.title} />
@@ -336,19 +341,21 @@ function WorkDetails({
         <p className="research-map-credit">{node.authors.join('; ')}</p>
       ) : null}
       <p className="research-map-links">
-        <Link to={{ kind: 'research_graph', focus: node.id }}>Explore these connections</Link>
+        <Link to={{ kind: 'research_graph', focus: node.id }}>
+          {t('Explore these connections')}
+        </Link>
         {node.record ? (
-          <Link to={{ kind: 'paper', record: node.record }}>Read paper and results</Link>
+          <Link to={{ kind: 'paper', record: node.record }}>{t('Read paper and results')}</Link>
         ) : null}
         {href ? (
           <a href={href} target="_blank" rel="noreferrer">
-            Original source
+            {t('Original source')}
           </a>
         ) : null}
       </p>
       {neighbors.length ? (
         <>
-          <h3>{node.kind === 'literature' ? 'Cited by' : 'References'}</h3>
+          <h3>{node.kind === 'literature' ? t('Cited by') : t('References')}</h3>
           <ul className="research-map-neighbors">
             {neighbors.map((n) => (
               <li key={n.id}>
@@ -360,11 +367,13 @@ function WorkDetails({
           </ul>
         </>
       ) : (
-        <p className="muted">No citation connections are available for this work in this view.</p>
+        <p className="muted">
+          {t('No citation connections are available for this work in this view.')}
+        </p>
       )}
       {edges.length ? (
         <details>
-          <summary>Source evidence</summary>
+          <summary>{t('Source evidence')}</summary>
           <ol className="research-map-evidence">
             {edges.map((edge) => (
               <li key={`${edge.record}:${edge.version}:${edge.reference_key}`}>
@@ -385,9 +394,9 @@ function WorkDetails({
                 ) : null}
                 <pre className="reference-evidence">{edge.raw}</pre>
                 <p className="small">
-                  Reference key {edge.reference_key} · {edge.source_location} · version{' '}
-                  {edge.version}
-                  {edge.raw_truncated ? ' · source excerpt' : ''}
+                  {t('Reference key ')}
+                  {edge.reference_key} · {edge.source_location} {t(' · version')} {edge.version}
+                  {edge.raw_truncated ? t(' · source excerpt') : ''}
                 </p>
               </li>
             ))}
