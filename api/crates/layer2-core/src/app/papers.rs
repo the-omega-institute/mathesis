@@ -554,10 +554,6 @@ impl App {
             self.ports.queue.enqueue(id, JobKind::Stage(stage)).await?;
         }
         self.ports.queue.enqueue(id, JobKind::Referee).await?;
-        self.ports
-            .queue
-            .enqueue(id, JobKind::PaperExplanation)
-            .await?;
         if submission.claims_revision != before {
             self.close_tasks(id, "the statements changed").await?;
         }

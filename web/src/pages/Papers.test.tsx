@@ -1,3 +1,5 @@
+import { act } from '@testing-library/react';
+import { setLocale } from '../i18n/locale';
 import userEvent from '@testing-library/user-event';
 import { screen, within, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -23,7 +25,7 @@ describe('public paper page', () => {
       english.compareDocumentPosition(screen.getByRole('heading', { name: 'Abstract' })) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    await userEvent.setup().click(screen.getByRole('button', { name: '中文' }));
+    act(() => setLocale('zh'));
     expect(screen.getByText('易懂的数学背景。')).toBeInTheDocument();
   });
 

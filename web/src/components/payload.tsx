@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Claim, Evidence, Stage, StagePayload, StageReport } from '../api/types';
 import { RELATION_LABELS, rejectReasonText, reviewerLabel, shortId } from '../lib/labels';
 import { safeHttpUrl } from '../lib/links';
@@ -27,7 +28,7 @@ export function PayloadView({
               <span className="check-mark" aria-hidden="true">
                 {c.passed ? '✓' : '✗'}
               </span>
-              <span className="visually-hidden">{c.passed ? 'Passed: ' : 'Failed: '}</span>
+              <span className="visually-hidden">{c.passed ? t('Passed: ') : t('Failed: ')}</span>
               <code>{c.name}</code>
               {c.detail ? <span className="check-detail"> — {c.detail}</span> : null}
             </li>
@@ -37,7 +38,10 @@ export function PayloadView({
     case 'claims':
       return (
         <details className="history">
-          <summary>Confirmed statements ({payload.claims.length})</summary>
+          <summary>
+            {t('Confirmed statements (')}
+            {payload.claims.length})
+          </summary>
           <StatementList claims={payload.claims} scope={scope} />
         </details>
       );
@@ -45,10 +49,13 @@ export function PayloadView({
       return (
         <div className="literature">
           {payload.searched.length > 0 ? (
-            <p className="muted">Searched: {payload.searched.join(' · ')}</p>
+            <p className="muted">
+              {t('Searched: ')}
+              {payload.searched.join(' · ')}
+            </p>
           ) : null}
           {payload.prior.length === 0 ? (
-            <p>No prior work bearing on the statements was found.</p>
+            <p>{t('No prior work bearing on the statements was found.')}</p>
           ) : (
             <ul className="prior-list">
               {payload.prior.map((p, i) => (
@@ -56,7 +63,7 @@ export function PayloadView({
                   <div>
                     <ClaimRef id={p.claim} claims={claims} />{' '}
                     <Badge tone={p.relation === 'related' ? 'muted' : 'warn'}>
-                      {RELATION_LABELS[p.relation]}
+                      {t(RELATION_LABELS[p.relation])}
                     </Badge>{' '}
                     <SourceLink source={p.source} />
                   </div>
@@ -69,7 +76,7 @@ export function PayloadView({
       );
     case 'escape':
       return payload.assessments.length === 0 ? (
-        <p className="muted">No assessments.</p>
+        <p className="muted">{t('No assessments.')}</p>
       ) : (
         <ul className="assessment-list">
           {payload.assessments.map((a, i) => (
@@ -86,7 +93,7 @@ function EvidenceList({ evidence }: { evidence: readonly Evidence[] }) {
   if (evidence.length === 0) return null;
   return (
     <div className="evidence">
-      <h5>Evidence</h5>
+      <h5>{t('Evidence')}</h5>
       <ul>
         {evidence.map((e, i) => {
           const href = safeHttpUrl(e.locator);
@@ -144,7 +151,10 @@ export function ReportView({
         <span className="muted">
           <DateText iso={report.filed_at} withTime />
         </span>
-        <span className="muted">statements rev. {report.claims_revision}</span>
+        <span className="muted">
+          {t('statements rev. ')}
+          {report.claims_revision}
+        </span>
         {standing !== 'current' ? <Badge tone="muted">{STANDING_TEXT[standing]}</Badge> : null}
       </header>
       {report.outcome.outcome === 'fail' ? (
@@ -152,12 +162,12 @@ export function ReportView({
       ) : null}
       {report.outcome.outcome === 'needs_human' ? (
         <p className="report-question">
-          <strong>Open question (for the editors):</strong> {report.outcome.question}
+          <strong>{t('Open question (for the editors):')}</strong> {report.outcome.question}
         </p>
       ) : null}
       {proposal ? (
         <p className="hint">
-          A machine pass on this stage is a proposal until an editor files a report.
+          {t('A machine pass on this stage is a proposal until an editor files a report.')}
         </p>
       ) : null}
       {report.summary ? <Markdown text={report.summary} className="report-summary" /> : null}

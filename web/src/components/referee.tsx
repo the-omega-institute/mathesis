@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { FinalReviewReport } from './FinalReviewReport';
 import { useState, type FormEvent } from 'react';
 import { ReviewFindings } from './ReviewFindings';
@@ -77,12 +78,12 @@ export function RefereeWorkspace(
   if (!isStaff) {
     if (presentation === 'details' || submission.status.state === 'in_review') return null;
     return (
-      <section className="referee-panel" aria-label="Review">
+      <section className="referee-panel" aria-label={t('Review')}>
         <Async state={resource.state} onRetry={reload}>
           {(file) => (
             <>
               {hasWaitingResponse(file, submission) ? (
-                <p role="status">A follow-up review is queued.</p>
+                <p role="status">{t('A follow-up review is queued.')}</p>
               ) : null}
               <FinalReviewReport submission={submission} file={file} />
               {submission.status.state !== 'in_review' &&
@@ -90,7 +91,7 @@ export function RefereeWorkspace(
                 (letter) => letter.round === currentAuthorRound(submission, file)?.number,
               ) ? (
                 <details className="history">
-                  <summary>Respond to the review</summary>
+                  <summary>{t('Respond to the review')}</summary>
                   <ReviewFindings
                     submission={submission}
                     file={file}
@@ -109,7 +110,7 @@ export function RefereeWorkspace(
 
   return (
     <section className="referee-panel" aria-labelledby="referee-h">
-      <h2 id="referee-h">Review</h2>
+      <h2 id="referee-h">{t('Review')}</h2>
       <Async state={resource.state} onRetry={reload}>
         {(file) => {
           const rounds = [...file.rounds].sort((a, b) => b.number - a.number);
@@ -132,13 +133,14 @@ export function RefereeWorkspace(
           return (
             <>
               <p className="review-status" role="status">
-                {current ? roundStatus(current, sent, includeFormal) : 'No review has started.'}
+                {current ? roundStatus(current, sent, includeFormal) : t('No review has started.')}
               </p>
               <FinalReviewReport submission={submission} file={file} />
               <details className="history current-execution">
                 <summary>
-                  Current execution · round {current?.number ?? '—'}
-                  {sent.length ? ' · Report delivered' : ''}
+                  {t('Current execution · round ')}
+                  {current?.number ?? '—'}
+                  {sent.length ? t(' · Report delivered') : ''}
                 </summary>
                 <ReviewFindings
                   submission={submission}
@@ -167,21 +169,22 @@ export function RefereeWorkspace(
               {rounds.length > 1 || earlierLetters.length > 0 ? (
                 <details className="history">
                   <summary>
-                    Previous executions (
-                    {rounds.filter((round) => round.number !== current?.number).length}) ·
-                    historical outcomes
+                    {t('Previous executions (')}
+                    {rounds.filter((round) => round.number !== current?.number).length}
+                    {t(') · historical outcomes')}
                   </summary>
                   <p className="hint">
-                    These attempts preceded the current review. Their failures do not change a
-                    subsequently delivered report.
+                    {t(
+                      'These attempts preceded the current review. Their failures do not change a subsequently delivered report.',
+                    )}
                   </p>
                   {rounds
                     .filter((round) => round.number !== current?.number)
                     .map((round) => (
                       <div className="referee-earlier" key={round.number}>
                         <h3>
-                          Review of version {round.version} ·{' '}
-                          <DateText iso={round.started_at} withTime />
+                          {t('Review of version ')}
+                          {round.version} · <DateText iso={round.started_at} withTime />
                         </h3>
                         <RoundView
                           {...props}
@@ -204,13 +207,13 @@ export function RefereeWorkspace(
                     onClick={() => void restart()}
                     title={
                       active
-                        ? 'Wait for the current review to finish.'
+                        ? t('Wait for the current review to finish.')
                         : submission.status.state !== 'in_review'
-                          ? 'A review can be started only while the paper is in review.'
+                          ? t('A review can be started only while the paper is in review.')
                           : undefined
                     }
                   >
-                    {current ? 'Start a new review' : 'Start review'}
+                    {current ? t('Start a new review') : t('Start review')}
                   </button>
                 </div>
               ) : null}
@@ -287,20 +290,20 @@ function StepProgress({ name, step }: { name: string; step: Step<unknown> }) {
             {state.queue_position !== undefined
               ? `In queue (#${state.queue_position})`
               : STEP_STATE_LABELS.running}
-            {' · since '}
+            {t(' · since ')}
             <DateText iso={state.since} withTime />
           </>
         ) : state.state === 'failed' || state.state === 'skipped' ? (
           <>
-            {STEP_STATE_LABELS[state.state]}: {state.reason}
+            {t(STEP_STATE_LABELS[state.state])}: {state.reason}
           </>
         ) : (
-          STEP_STATE_LABELS[state.state]
+          t(STEP_STATE_LABELS[state.state])
         )}
       </span>
       {state.state === 'failed' && state.detail ? (
         <details className="history">
-          <summary>Failure details</summary>
+          <summary>{t('Failure details')}</summary>
           <Markdown text={state.detail} />
         </details>
       ) : null}
@@ -325,11 +328,13 @@ function RoundView({
     <div className="referee-round">
       {round.review_method ? (
         <p className="hint">
-          Review method: {round.review_method} · source version {round.version} · statements
-          revision {round.claims_revision}
+          {t('Review method: ')}
+          {round.review_method} {t(' · source version ')}
+          {round.version} {t(' · statements revision ')}
+          {round.claims_revision}
         </p>
       ) : null}
-      <ol className="referee-progress" aria-label="Review progress">
+      <ol className="referee-progress" aria-label={t('Review progress')}>
         <StepProgress name={STEP_NAMES.referee} step={round.referee} />
         {round.audit ? <StepProgress name={STEP_NAMES.audit} step={round.audit} /> : null}
         {round.advice ? <StepProgress name={STEP_NAMES.advice} step={round.advice} /> : null}
@@ -344,7 +349,7 @@ function RoundView({
         <SentLetters letters={[...sent]} authorView showSender />
       ) : round.letter?.state.state === 'done' ? (
         <div className="tool-form">
-          <h3>Letter to the authors</h3>
+          <h3>{t('Letter to the authors')}</h3>
           {isEditor ? (
             <LetterForm
               key={round.letter.state.at}
@@ -365,25 +370,27 @@ function RoundView({
       {round.referee.state.state === 'done' ? (
         <details className="history">
           <summary>
-            Referee report ·{' '}
+            {t('Referee report ·')}{' '}
             {round.referee.state.result.recommendation
-              ? RECOMMENDATION_LABELS[round.referee.state.result.recommendation]
-              : 'No recommendation'}
+              ? t(RECOMMENDATION_LABELS[round.referee.state.result.recommendation])
+              : t('No recommendation')}
           </summary>
           <ReportView report={round.referee.state.result} submission={submission} />
         </details>
       ) : null}
       {round.audit?.state.state === 'done' ? (
         <details className="history">
-          <summary>Audit result</summary>
+          <summary>{t('Audit result')}</summary>
           <AuditView audit={round.audit.state.result} />
         </details>
       ) : null}
       {round.advice?.state.state === 'done' ? (
         <details className="history">
           <summary>
-            Suggestions · {round.advice.state.result.improvements.length} improvements,{' '}
-            {round.advice.state.result.formalization.length} statements that could go to Lean
+            {t('Suggestions · ')}
+            {round.advice.state.result.improvements.length} {t(' improvements,')}{' '}
+            {round.advice.state.result.formalization.length}{' '}
+            {t(' statements that could go to Lean')}
           </summary>
           <AdviceView
             advice={round.advice.state.result}
@@ -396,9 +403,9 @@ function RoundView({
       {formal ? (
         <details className="history">
           <summary>
-            Lean check ·{' '}
-            {formal.attempts.filter((attempt) => attempt.outcome === 'compiled').length} of{' '}
-            {formal.attempts.length} proved
+            {t('Lean check ·')}{' '}
+            {formal.attempts.filter((attempt) => attempt.outcome === 'compiled').length} {t(' of')}{' '}
+            {formal.attempts.length} {t(' proved')}
           </summary>
           <ProbeView probe={formal} submission={submission} />
         </details>
@@ -408,7 +415,7 @@ function RoundView({
 }
 
 function StatementRef({ id, submission }: { id?: string; submission: Submission }) {
-  if (!id) return <span className="muted">Whole paper</span>;
+  if (!id) return <span className="muted">{t('Whole paper')}</span>;
   const known = submission.claims.some((claim) => claim.id === id);
   return (
     <span>
@@ -443,23 +450,28 @@ export function ReportView({
 }) {
   return (
     <div className="report referee-report">
-      <h3>Referee report</h3>
+      <h3>{t('Referee report')}</h3>
       {report.recommendation ? (
-        <Badge tone="accent" title="Referee assessment; the publication criteria decide acceptance">
-          Referee recommends {RECOMMENDATION_LABELS[report.recommendation]}
+        <Badge
+          tone="accent"
+          title={t('Referee assessment; the publication criteria decide acceptance')}
+        >
+          {t('Referee recommends ')}
+          {t(RECOMMENDATION_LABELS[report.recommendation])}
         </Badge>
       ) : (
-        <p className="muted">No readable recommendation was returned.</p>
+        <p className="muted">{t('No readable recommendation was returned.')}</p>
       )}
       <p className="small muted">
-        This recommendation is feedback. The source-based check and publication decision are
-        recorded separately.
+        {t(
+          'This recommendation is feedback. The source-based check and publication decision are recorded separately.',
+        )}
       </p>
       <Markdown text={report.summary} />
       <div className="report-discussion">
         {report.strengths.length > 0 ? (
-          <section className="report-strengths" aria-label="Strengths">
-            <h4>Strengths</h4>
+          <section className="report-strengths" aria-label={t('Strengths')}>
+            <h4>{t('Strengths')}</h4>
             <MarkdownList items={report.strengths} />
           </section>
         ) : null}
@@ -469,7 +481,7 @@ export function ReportView({
             if (concerns.length === 0) return null;
             return (
               <div key={severity}>
-                <h4>{SEVERITY_LABELS[severity]}</h4>
+                <h4>{t(SEVERITY_LABELS[severity])}</h4>
                 <ul>
                   {concerns.map((concern, i) => (
                     <li key={i}>
@@ -487,16 +499,18 @@ export function ReportView({
       </div>
       {report.claims.length > 0 ? (
         <>
-          <h4>Per-statement readings</h4>
+          <h4>{t('Per-statement readings')}</h4>
           <table className="data-table referee-table">
-            <caption className="visually-hidden">The referee’s per-statement readings</caption>
+            <caption className="visually-hidden">
+              {t('The referee’s per-statement readings')}
+            </caption>
             <thead>
               <tr>
-                <th>Statement</th>
-                <th>Reading</th>
-                <th>Witnesses</th>
-                <th>Known source</th>
-                <th>Note</th>
+                <th>{t('Statement')}</th>
+                <th>{t('Reading')}</th>
+                <th>{t('Witnesses')}</th>
+                <th>{t('Known source')}</th>
+                <th>{t('Note')}</th>
               </tr>
             </thead>
             <tbody>
@@ -505,7 +519,7 @@ export function ReportView({
                   <td data-label="Statement">
                     <StatementRef id={claim.claim} submission={submission} />
                   </td>
-                  <td data-label="Reading">{SHAPE_LABELS[claim.shape]}</td>
+                  <td data-label="Reading">{t(SHAPE_LABELS[claim.shape])}</td>
                   <td data-label="Witnesses">
                     {claim.witnesses.length > 0 ? (
                       <MarkdownList items={claim.witnesses} />
@@ -514,7 +528,7 @@ export function ReportView({
                     )}
                   </td>
                   <td data-label="Known source">
-                    {claim.known ? <Markdown text={claim.known} /> : 'None named'}
+                    {claim.known ? <Markdown text={claim.known} /> : t('None named')}
                   </td>
                   <td data-label="Note">
                     <Markdown text={claim.note} />
@@ -525,14 +539,14 @@ export function ReportView({
           </table>
         </>
       ) : null}
-      <h4>Limits of this review</h4>
+      <h4>{t('Limits of this review')}</h4>
       {report.limits.length > 0 ? (
         <MarkdownList items={report.limits} />
       ) : (
-        <p className="muted">The referee did not specify its limits.</p>
+        <p className="muted">{t('The referee did not specify its limits.')}</p>
       )}
       <details className="history">
-        <summary>Full referee answer</summary>
+        <summary>{t('Full referee answer')}</summary>
         <Markdown text={report.text} />
       </details>
     </div>
@@ -555,10 +569,13 @@ function correctnessLabel(value: string) {
 function AuditView({ audit }: { audit: RefereeAudit }) {
   return (
     <div className="report">
-      <h3>Source check</h3>
-      <Badge>{RECOMMENDATION_LABELS[audit.verdict]}</Badge>
+      <h3>{t('Source check')}</h3>
+      <Badge>{t(RECOMMENDATION_LABELS[audit.verdict])}</Badge>
       <p>{audit.summary}</p>
-      <p>Agrees with referee: {audit.agrees_with_referee ? 'Yes' : 'No'}</p>
+      <p>
+        {t('Agrees with referee: ')}
+        {audit.agrees_with_referee ? t('Yes') : t('No')}
+      </p>
       <ul>
         {audit.claims.map((c) => (
           <li key={c.claim}>
@@ -567,7 +584,7 @@ function AuditView({ audit }: { audit: RefereeAudit }) {
             </strong>
             <p>{c.comment}</p>
             <p>
-              {c.shape ? SHAPE_LABELS[c.shape] : 'No proof reading'}
+              {c.shape ? t(SHAPE_LABELS[c.shape]) : t('No proof reading')}
               {c.known ? ` · ${c.known}` : ''}
             </p>
             <MarkdownList items={c.witnesses} />
@@ -579,10 +596,15 @@ function AuditView({ audit }: { audit: RefereeAudit }) {
       <ul>
         {audit.concerns.map((c, i) => (
           <li key={i}>
-            <strong>{AUDIT_FINDING_LABELS[c.status]}</strong>
+            <strong>{t(AUDIT_FINDING_LABELS[c.status])}</strong>
             <p>{c.concern}</p>
             <Markdown text={c.note} />
-            {c.location ? <p>Reported location: {c.location}</p> : null}
+            {c.location ? (
+              <p>
+                {t('Reported location: ')}
+                {c.location}
+              </p>
+            ) : null}
             {c.evidence ? <Markdown text={c.evidence} /> : null}
           </li>
         ))}
@@ -601,28 +623,28 @@ function AdviceView({
 } & Pick<WorkspaceProps, 'submission' | 'isEditor' | 'onChange'>) {
   return (
     <div className="report">
-      <h3>Contributor advice</h3>
+      <h3>{t('Contributor advice')}</h3>
       <Markdown text={advice.summary} />
       <p className="small muted">
-        Checked items include the adviser’s evidence. Proposed items still need checking.
+        {t('Checked items include the adviser’s evidence. Proposed items still need checking.')}
       </p>
       {advice.improvements.length > 0 ? (
         <table className="data-table referee-table">
-          <caption className="visually-hidden">Suggested improvements</caption>
+          <caption className="visually-hidden">{t('Suggested improvements')}</caption>
           <thead>
             <tr>
-              <th>Kind</th>
-              <th>Statement</th>
-              <th>Suggestion</th>
-              <th>How we help</th>
-              <th>Effort</th>
-              <th>Status and evidence</th>
+              <th>{t('Kind')}</th>
+              <th>{t('Statement')}</th>
+              <th>{t('Suggestion')}</th>
+              <th>{t('How we help')}</th>
+              <th>{t('Effort')}</th>
+              <th>{t('Status and evidence')}</th>
             </tr>
           </thead>
           <tbody>
             {advice.improvements.map((item, i) => (
               <tr key={i}>
-                <td data-label="Kind">{IMPROVEMENT_KIND_LABELS[item.kind]}</td>
+                <td data-label="Kind">{t(IMPROVEMENT_KIND_LABELS[item.kind])}</td>
                 <td data-label="Statement">
                   <StatementRef id={item.claim} submission={submission} />
                 </td>
@@ -632,10 +654,10 @@ function AdviceView({
                 <td data-label="How we help">
                   <Markdown text={item.how_we_help} />
                 </td>
-                <td data-label="Effort">{EFFORT_LABELS[item.effort]}</td>
+                <td data-label="Effort">{t(EFFORT_LABELS[item.effort])}</td>
                 <td data-label="Status and evidence">
                   <Badge tone={item.status === 'checked' ? 'good' : 'warn'}>
-                    {EVIDENCE_LABELS[item.status]}
+                    {t(EVIDENCE_LABELS[item.status])}
                   </Badge>
                   {item.evidence ? <Markdown text={item.evidence} /> : null}
                 </td>
@@ -646,7 +668,7 @@ function AdviceView({
       ) : null}
       {advice.formalization.length > 0 ? (
         <>
-          <h4>Formalization candidates</h4>
+          <h4>{t('Formalization candidates')}</h4>
           <ul className="formal-list">
             {advice.formalization.map((candidate, i) => (
               <li key={i}>
@@ -704,29 +726,32 @@ function CandidateView({
       <div className="claim-head">
         <StatementRef id={candidate.claim} submission={submission} />
         <Badge tone={candidate.feasibility === 'ready' ? 'accent' : 'muted'}>
-          {FEASIBILITY_LABELS[candidate.feasibility]}
+          {t(FEASIBILITY_LABELS[candidate.feasibility])}
         </Badge>
-        <span className="small">Effort: {EFFORT_LABELS[candidate.effort]}</span>
+        <span className="small">
+          {t('Effort: ')}
+          {t(EFFORT_LABELS[candidate.effort])}
+        </span>
       </div>
-      <h5>Mathlib notions</h5>
+      <h5>{t('Mathlib notions')}</h5>
       {candidate.mathlib.length > 0 ? (
         <MarkdownList items={candidate.mathlib} />
       ) : (
-        <p className="muted">None named.</p>
+        <p className="muted">{t('None named.')}</p>
       )}
-      <h5>Missing pieces</h5>
+      <h5>{t('Missing pieces')}</h5>
       {candidate.missing.length > 0 ? (
         <MarkdownList items={candidate.missing} />
       ) : (
-        <p className="muted">None named.</p>
+        <p className="muted">{t('None named.')}</p>
       )}
-      <h5>Lean sketch</h5>
+      <h5>{t('Lean sketch')}</h5>
       <div className="code-block">
         <pre>
           <code>{candidate.lean_sketch}</code>
         </pre>
       </div>
-      <h5>Plan</h5>
+      <h5>{t('Plan')}</h5>
       <Markdown text={candidate.plan} />
       {canPropose ? (
         <button
@@ -735,7 +760,7 @@ function CandidateView({
           disabled={busy}
           onClick={() => void propose()}
         >
-          Propose formalization
+          {t('Propose formalization')}
         </button>
       ) : null}
       <InlineError error={error} />
@@ -746,9 +771,10 @@ function CandidateView({
 function ProbeView({ probe, submission }: { probe: FormalProbe; submission: Submission }) {
   return (
     <div className="report">
-      <h3>Lean formalization probe</h3>
+      <h3>{t('Lean formalization probe')}</h3>
       <p className="small muted">
-        Private · {probe.toolchain} · check that each Lean statement matches the paper
+        {t('Private · ')}
+        {probe.toolchain} {t(' · check that each Lean statement matches the paper')}
       </p>
       {probe.summary ? <Markdown text={probe.summary} /> : null}
       <ul className="formal-list">
@@ -757,19 +783,20 @@ function ProbeView({ probe, submission }: { probe: FormalProbe; submission: Subm
             <div className="claim-head">
               <StatementRef id={attempt.claim} submission={submission} />
               <Badge tone={attempt.outcome === 'compiled' ? 'good' : 'warn'}>
-                {PROBE_OUTCOME_LABELS[attempt.outcome]}
+                {t(PROBE_OUTCOME_LABELS[attempt.outcome])}
               </Badge>
               {attempt.theorem ? <code className="small">{attempt.theorem}</code> : null}
             </div>
             {attempt.outcome === 'compiled' ? (
               <p className="small">
-                Axioms: {(attempt.axioms?.length ?? 0) > 0 ? attempt.axioms?.join(', ') : 'none'}
+                {t('Axioms: ')}
+                {(attempt.axioms?.length ?? 0) > 0 ? attempt.axioms?.join(', ') : 'none'}
               </p>
             ) : null}
             {attempt.note ? <Markdown text={attempt.note} /> : null}
             {attempt.log ? (
               <details className="history">
-                <summary>Why the check failed</summary>
+                <summary>{t('Why the check failed')}</summary>
                 <div className="code-block">
                   <pre>
                     <code>{attempt.log}</code>
@@ -779,7 +806,7 @@ function ProbeView({ probe, submission }: { probe: FormalProbe; submission: Subm
             ) : null}
             {attempt.lean ? (
               <details className="history">
-                <summary>Lean source</summary>
+                <summary>{t('Lean source')}</summary>
                 <div className="code-block">
                   <pre>
                     <code>{attempt.lean}</code>
@@ -841,24 +868,24 @@ function LetterForm({
   return (
     <form
       className="form"
-      aria-label="Send feedback to the author"
+      aria-label={t('Send feedback to the author')}
       onSubmit={(event) => void submit(event)}
     >
-      <Field label="Assessment" htmlFor="feedback-assessment">
+      <Field label={t('Assessment')} htmlFor="feedback-assessment">
         <select
           id="feedback-assessment"
           value={assessment}
           onChange={(e) => setAssessment(e.target.value as Recommendation | '')}
           disabled={busy}
         >
-          <option value="accept">Accept</option>
-          <option value="minor_revision">Minor revision</option>
-          <option value="major_revision">Major revision</option>
-          <option value="reject">Reject</option>
-          <option value="">No assessment</option>
+          <option value="accept">{t('Accept')}</option>
+          <option value="minor_revision">{t('Minor revision')}</option>
+          <option value="major_revision">{t('Major revision')}</option>
+          <option value="reject">{t('Reject')}</option>
+          <option value="">{t('No assessment')}</option>
         </select>
       </Field>
-      <Field label="Subject" htmlFor="feedback-subject">
+      <Field label={t('Subject')} htmlFor="feedback-subject">
         <input
           id="feedback-subject"
           value={subject}
@@ -867,7 +894,11 @@ function LetterForm({
           required
         />
       </Field>
-      <Field label="Body" htmlFor="feedback-body" hint="Markdown with LaTeX; sent to the author.">
+      <Field
+        label={t('Body')}
+        htmlFor="feedback-body"
+        hint={t('Markdown with LaTeX; sent to the author.')}
+      >
         <textarea
           id="feedback-body"
           rows={10}
@@ -878,9 +909,9 @@ function LetterForm({
         />
       </Field>
       <Field
-        label="Note"
+        label={t('Note')}
         htmlFor="feedback-note"
-        hint="Also shared with the author, in an expandable block."
+        hint={t('Also shared with the author, in an expandable block.')}
       >
         <textarea
           id="feedback-note"
@@ -891,13 +922,13 @@ function LetterForm({
         />
       </Field>
       <details className="history">
-        <summary>Preview</summary>
-        <div className="preview" role="region" aria-label="Feedback preview">
-          <h4>Body preview</h4>
+        <summary>{t('Preview')}</summary>
+        <div className="preview" role="region" aria-label={t('Feedback preview')}>
+          <h4>{t('Body preview')}</h4>
           <Markdown text={body} lineBreaks />
           {note.trim() ? (
             <>
-              <h4>Note preview</h4>
+              <h4>{t('Note preview')}</h4>
               <Markdown text={note} />
             </>
           ) : null}
@@ -905,11 +936,11 @@ function LetterForm({
       </details>
       <div className="button-row">
         <button type="submit" className="button" disabled={busy}>
-          {busy ? 'Sending…' : 'Send to author'}
+          {busy ? t('Sending…') : t('Send to author')}
         </button>
       </div>
       <InlineError error={error} />
-      {sent ? <p role="status">Feedback sent to the author.</p> : null}
+      {sent ? <p role="status">{t('Feedback sent to the author.')}</p> : null}
     </form>
   );
 }
@@ -925,7 +956,7 @@ function LetterText({ letter }: { letter: LetterDraft }) {
       <Markdown text={letter.body} lineBreaks />
       {letter.note ? (
         <details className="history">
-          <summary>Note</summary>
+          <summary>{t('Note')}</summary>
           <Markdown text={letter.note} />
         </details>
       ) : null}
@@ -947,12 +978,12 @@ function LetterBody({ body, note }: { body: string; note: string }) {
           className="button button-quiet button-small letter-more"
           onClick={() => setFull(true)}
         >
-          Read the full letter
+          {t('Read the full letter')}
         </button>
       ) : null}
       {note && !short ? (
         <details className="history">
-          <summary>Note</summary>
+          <summary>{t('Note')}</summary>
           <Markdown text={note} />
         </details>
       ) : null}
@@ -987,8 +1018,13 @@ function SentLetters({
               </h3>
               <p className="entry-meta">
                 <DateText iso={letter.sent_at} withTime />
-                {showSender ? <span>Sent by {letter.sent_by}</span> : null}
-                {showSender && letter.edited ? <Badge tone="muted">Edited</Badge> : null}
+                {showSender ? (
+                  <span>
+                    {t('Sent by ')}
+                    {letter.sent_by}
+                  </span>
+                ) : null}
+                {showSender && letter.edited ? <Badge tone="muted">{t('Edited')}</Badge> : null}
               </p>
               <LetterBody body={letter.body} note={letter.note} />
             </>
@@ -1006,19 +1042,19 @@ function SentLetters({
                 ) : null}
                 {' · '}
                 <DateText iso={letter.sent_at} withTime />
-                {' · Sent by '}
+                {t(' · Sent by ')}
                 <span>{letter.sent_by}</span>
                 {letter.edited ? (
                   <>
                     {' '}
-                    <Badge tone="muted">Edited</Badge>
+                    <Badge tone="muted">{t('Edited')}</Badge>
                   </>
                 ) : null}
               </summary>
               <Markdown text={letter.body} lineBreaks />
               {letter.note ? (
                 <details className="history">
-                  <summary>Note</summary>
+                  <summary>{t('Note')}</summary>
                   <Markdown text={letter.note} />
                 </details>
               ) : null}
@@ -1031,7 +1067,7 @@ function SentLetters({
 }
 
 function AssessmentBadge({ assessment }: { assessment: Recommendation }) {
-  const label = RECOMMENDATION_LABELS[assessment];
+  const label = t(RECOMMENDATION_LABELS[assessment]);
   return (
     <Badge tone={assessment === 'accept' ? 'good' : assessment === 'reject' ? 'bad' : 'warn'}>
       {label[0]!.toUpperCase() + label.slice(1)}

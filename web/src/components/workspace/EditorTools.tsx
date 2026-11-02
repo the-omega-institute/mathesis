@@ -1,3 +1,4 @@
+import { t as tr } from '../../i18n/locale';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
 import { useAsync } from '../../api/useAsync';
@@ -73,7 +74,7 @@ export function EditorTools({
 }) {
   const state = submission.status.state;
   return (
-    <Fold id="editor-h" title="Editor tools" className="tools">
+    <Fold id="editor-h" title={tr('Editor tools')} className="tools">
       {state === 'in_review' ? (
         <>
           <DecidePanel submission={submission} decision={decision} onChange={onChange} />
@@ -92,10 +93,10 @@ export function EditorTools({
         </>
       ) : null}
       {state === 'draft' ? (
-        <p className="muted">The author has not confirmed the statements yet.</p>
+        <p className="muted">{tr('The author has not confirmed the statements yet.')}</p>
       ) : null}
       {state === 'not_accepted' || state === 'withdrawn' ? (
-        <p className="muted">No editorial action is open on this paper.</p>
+        <p className="muted">{tr('No editorial action is open on this paper.')}</p>
       ) : null}
     </Fold>
   );
@@ -114,9 +115,9 @@ function DecidePanel({
   const m = useMutation(onChange);
   return (
     <div className="tool-form">
-      <h3>Decision</h3>
+      <h3>{tr('Decision')}</h3>
       <p className="small">
-        Applies the threshold to the current reports.{' '}
+        {tr('Applies the threshold to the current reports.')}{' '}
         {decision?.decision === 'pending'
           ? `The preview is pending (${decision.detail}); applying now will be refused.`
           : null}
@@ -127,7 +128,7 @@ function DecidePanel({
         disabled={m.busy}
         onClick={() => m.run(() => api.applyDecision(submission.id))}
       >
-        Apply decision
+        {tr('Apply decision')}
       </button>
       <InlineError error={m.error} />
     </div>
@@ -164,14 +165,15 @@ function LiteratureReportForm({
   const decisive = prior.map((p, i) => ({ p, i })).filter(({ p }) => p.relation !== 'related');
 
   return (
-    <form className="tool-form" onSubmit={submit} aria-label="File a literature report">
-      <h3>S2 Literature report</h3>
+    <form className="tool-form" onSubmit={submit} aria-label={tr('File a literature report')}>
+      <h3>{tr('S2 Literature report')}</h3>
       <p className="small">
-        The networked referee and Codex audit report opened literature sources in the S2 history
-        above. This report decides the stage.
+        {tr(
+          'The networked referee and Codex audit report opened literature sources in the S2 history above. This report decides the stage.',
+        )}
       </p>
       <PriorWorkEditor idPrefix="lit-prior" value={prior} claims={targets} onChange={setPrior} />
-      <Field label="Searched (one per line)" htmlFor="lit-searched">
+      <Field label={tr('Searched (one per line)')} htmlFor="lit-searched">
         <textarea
           id="lit-searched"
           rows={3}
@@ -179,7 +181,7 @@ function LiteratureReportForm({
           onChange={(e) => setSearched(e.target.value)}
         />
       </Field>
-      <Field label="Summary" htmlFor="lit-summary">
+      <Field label={tr('Summary')} htmlFor="lit-summary">
         <textarea
           id="lit-summary"
           rows={3}
@@ -188,7 +190,7 @@ function LiteratureReportForm({
         />
       </Field>
       <fieldset className="radio-list">
-        <legend>Outcome</legend>
+        <legend>{tr('Outcome')}</legend>
         <label className="radio">
           <input
             type="radio"
@@ -196,7 +198,7 @@ function LiteratureReportForm({
             checked={outcome === 'pass'}
             onChange={() => setOutcome('pass')}
           />
-          <span>Pass — no main result is stated in or directly implied by prior work</span>
+          <span>{tr('Pass — no main result is stated in or directly implied by prior work')}</span>
         </label>
         <label className="radio">
           <input
@@ -205,7 +207,7 @@ function LiteratureReportForm({
             checked={outcome === 'fail'}
             onChange={() => setOutcome('fail')}
           />
-          <span>Fail — a main result is known</span>
+          <span>{tr('Fail — a main result is known')}</span>
         </label>
         <label className="radio">
           <input
@@ -214,34 +216,34 @@ function LiteratureReportForm({
             checked={outcome === 'needs_human'}
             onChange={() => setOutcome('needs_human')}
           />
-          <span>Needs another editor</span>
+          <span>{tr('Needs another editor')}</span>
         </label>
       </fieldset>
       {outcome === 'fail' ? (
-        <Field label="Known by" htmlFor="lit-known">
+        <Field label={tr('Known by')} htmlFor="lit-known">
           <select
             id="lit-known"
             value={knownBy}
             onChange={(e) => setKnownBy(Number(e.target.value))}
           >
             {decisive.length === 0 ? (
-              <option value={-1}>Add a prior work that states or implies it</option>
+              <option value={-1}>{tr('Add a prior work that states or implies it')}</option>
             ) : null}
             {decisive.map(({ p, i }) => (
               <option key={i} value={i}>
-                {p.claim}: {sourceLabel(p.source)} ({RELATION_LABELS[p.relation]})
+                {p.claim}: {sourceLabel(p.source)} ({tr(RELATION_LABELS[p.relation])})
               </option>
             ))}
           </select>
         </Field>
       ) : null}
       {outcome === 'needs_human' ? (
-        <Field label="Question" htmlFor="lit-question">
+        <Field label={tr('Question')} htmlFor="lit-question">
           <input id="lit-question" value={question} onChange={(e) => setQuestion(e.target.value)} />
         </Field>
       ) : null}
       <button type="submit" className="button" disabled={m.busy}>
-        File S2 report
+        {tr('File S2 report')}
       </button>
       <InlineError error={m.error} />
     </form>
@@ -275,21 +277,21 @@ function JudgeForm({ submission }: { submission: Submission }) {
     );
   };
   return (
-    <form className="tool-form" onSubmit={submit} aria-label="Judge a statement">
-      <h3>S3 Judge a statement</h3>
-      <p className="small">An editor’s judgement confirms the statement’s shape.</p>
-      <Field label="Statement" htmlFor="judge-claim">
+    <form className="tool-form" onSubmit={submit} aria-label={tr('Judge a statement')}>
+      <h3>{tr('S3 Judge a statement')}</h3>
+      <p className="small">{tr('An editor’s judgement confirms the statement’s shape.')}</p>
+      <Field label={tr('Statement')} htmlFor="judge-claim">
         <select id="judge-claim" value={claim} onChange={(e) => setClaim(e.target.value)}>
           {proved.map((c) => (
             <option key={c.id} value={c.id}>
               {c.id} · {statementTitle(c)}
-              {c.role === 'main' ? ' (main)' : ''}
+              {c.role === 'main' ? tr(' (main)') : ''}
             </option>
           ))}
         </select>
       </Field>
       <fieldset className="radio-list">
-        <legend>Shape</legend>
+        <legend>{tr('Shape')}</legend>
         {(['content', 'bind_only'] as const).map((s) => (
           <label key={s} className="radio">
             <input
@@ -299,13 +301,16 @@ function JudgeForm({ submission }: { submission: Submission }) {
               onChange={() => setShape(s)}
             />
             <span>
-              <strong>{SHAPE_LABELS[s]}</strong> — {SHAPE_DESCRIPTIONS[s]}
+              <strong>{tr(SHAPE_LABELS[s])}</strong> — {tr(SHAPE_DESCRIPTIONS[s])}
             </span>
           </label>
         ))}
       </fieldset>
       {shape === 'content' ? (
-        <Field label="Escape witnesses (one per line, Markdown with TeX)" htmlFor="judge-witnesses">
+        <Field
+          label={tr('Escape witnesses (one per line, Markdown with TeX)')}
+          htmlFor="judge-witnesses"
+        >
           <textarea
             id="judge-witnesses"
             rows={3}
@@ -314,7 +319,7 @@ function JudgeForm({ submission }: { submission: Submission }) {
           />
         </Field>
       ) : null}
-      <Field label="Rationale" htmlFor="judge-rationale">
+      <Field label={tr('Rationale')} htmlFor="judge-rationale">
         <textarea
           id="judge-rationale"
           rows={3}
@@ -323,11 +328,12 @@ function JudgeForm({ submission }: { submission: Submission }) {
         />
       </Field>
       <button type="submit" className="button" disabled={m.busy}>
-        File judgement
+        {tr('File judgement')}
       </button>
       {done ? (
         <p className="form-success small" role="status">
-          Judgement on {done} filed.
+          {tr('Judgement on ')}
+          {done} {tr(' filed.')}
         </p>
       ) : null}
       <InlineError error={m.error} />
@@ -340,10 +346,11 @@ function AdoptPanel({ submission, onChange }: { submission: Submission; onChange
   const m = useMutation(onChange);
   return (
     <div className="tool-form">
-      <h3>S3 Adopt judgements</h3>
+      <h3>{tr('S3 Adopt judgements')}</h3>
       <p className="small">
-        Files the S3 report from the settled judgements (confirmed or corroborated). Every main
-        result needs one.
+        {tr(
+          'Files the S3 report from the settled judgements (confirmed or corroborated). Every main result needs one.',
+        )}
       </p>
       <button
         type="button"
@@ -351,7 +358,7 @@ function AdoptPanel({ submission, onChange }: { submission: Submission; onChange
         disabled={m.busy}
         onClick={() => m.run(() => api.adoptJudgements(submission.id))}
       >
-        Adopt judgements and file S3
+        {tr('Adopt judgements and file S3')}
       </button>
       <InlineError error={m.error} />
     </div>
@@ -372,12 +379,13 @@ function TasksPanel({ submission, person }: { submission: Submission; person: Pe
   });
   return (
     <div className="tool-form">
-      <h3>Contributor tasks</h3>
+      <h3>{tr('Contributor tasks')}</h3>
       {submission.open_to_contributors ? (
         <>
           <p className="small">
-            Cuts tasks from the paper: escape judgements and literature checks while in review;
-            formalizations of approved statements and conjecture probes after acceptance.
+            {tr(
+              'Cuts tasks from the paper: escape judgements and literature checks while in review; formalizations of approved statements and conjecture probes after acceptance.',
+            )}
           </p>
           <button
             type="button"
@@ -385,36 +393,37 @@ function TasksPanel({ submission, person }: { submission: Submission; person: Pe
             disabled={m.busy}
             onClick={() => m.run(() => api.generateTasks(submission.id))}
           >
-            Generate tasks
+            {tr('Generate tasks')}
           </button>
           {generated ? (
             <p className="form-success small" role="status">
-              {generated.created} created, {generated.existing} already open.
+              {generated.created} {tr(' created, ')}
+              {generated.existing} {tr(' already open.')}
             </p>
           ) : null}
           <InlineError error={m.error} />
         </>
       ) : (
         <p className="small muted">
-          The author has not opened this paper to volunteer contributors.
+          {tr('The author has not opened this paper to volunteer contributors.')}
         </p>
       )}
       <Async state={tasks.state} onRetry={tasks.reload}>
         {(listing) =>
           listing.items.length === 0 ? (
-            <p className="muted small">No tasks for this paper.</p>
+            <p className="muted small">{tr('No tasks for this paper.')}</p>
           ) : (
             <ul className="entry-list">
               {listing.items.map((t) => (
                 <li key={t.id}>
                   <p className="entry-meta">
                     <Link to={{ kind: 'task', id: t.id }}>{t.title}</Link>
-                    <span>· {TASK_KIND_LABELS[t.kind]}</span>
-                    <span>· {TASK_STATE_LABELS[t.status.state]}</span>
+                    <span>· {tr(TASK_KIND_LABELS[t.kind])}</span>
+                    <span>· {tr(TASK_STATE_LABELS[t.status.state])}</span>
                   </p>
                   {t.status.state === 'submitted' || t.status.state === 'done' ? (
                     <details>
-                      <summary>Contributions</summary>
+                      <summary>{tr('Contributions')}</summary>
                       <ContributionList task={t.id} person={person} />
                     </details>
                   ) : null}
@@ -444,11 +453,11 @@ function FormalizationEditor({
   const [reason, setReason] = useState('');
   return (
     <div className="tool-form">
-      <h3>Formalization</h3>
+      <h3>{tr('Formalization')}</h3>
       {proposable.length > 0 ? (
         <form
           className="inline-form"
-          aria-label="Propose a statement for formalization"
+          aria-label={tr('Propose a statement for formalization')}
           onSubmit={(e) => {
             e.preventDefault();
             if (reason.trim() === '') {
@@ -461,7 +470,7 @@ function FormalizationEditor({
             );
           }}
         >
-          <Field label="Propose statement" htmlFor="formal-claim">
+          <Field label={tr('Propose statement')} htmlFor="formal-claim">
             <select id="formal-claim" value={claim} onChange={(e) => setClaim(e.target.value)}>
               {proposable.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -470,11 +479,11 @@ function FormalizationEditor({
               ))}
             </select>
           </Field>
-          <Field label="Reason (shown to the author)" htmlFor="formal-reason">
+          <Field label={tr('Reason (shown to the author)')} htmlFor="formal-reason">
             <input id="formal-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>
           <button type="submit" className="button button-small" disabled={proposeM.busy}>
-            Propose
+            {tr('Propose')}
           </button>
           <InlineError error={proposeM.error} />
         </form>
@@ -490,7 +499,10 @@ function FormalizationEditor({
               </div>
               <p className="small">{item.reason}</p>
               {item.state.state === 'declined' ? (
-                <p className="small muted">Author declined: {item.state.reason}</p>
+                <p className="small muted">
+                  {tr('Author declined: ')}
+                  {item.state.reason}
+                </p>
               ) : null}
               {item.state.state === 'verified' ? (
                 <FormalArtifactView artifact={item.state.artifact} axioms={item.state.axioms} />
@@ -514,7 +526,7 @@ function ConjectureEditor({
   if (open.length === 0) return null;
   return (
     <div className="tool-form">
-      <h3>Conjecture follow-ups</h3>
+      <h3>{tr('Conjecture follow-ups')}</h3>
       <ul className="conjecture-list">
         {open.map((c) => {
           const current = submission.conjectures.find((f) => f.claim === c.id);
@@ -570,7 +582,7 @@ function ConjectureForm({
         m.run(() => api.updateConjecture(submission.id, claim, built.value));
       }}
     >
-      <Field label="State" htmlFor={id('state')}>
+      <Field label={tr('State')} htmlFor={id('state')}>
         <select
           id={id('state')}
           value={state}
@@ -578,19 +590,19 @@ function ConjectureForm({
         >
           {CONJECTURE_STATES.map((s) => (
             <option key={s} value={s}>
-              {CONJECTURE_STATE_LABELS[s]}
+              {tr(CONJECTURE_STATE_LABELS[s])}
             </option>
           ))}
         </select>
       </Field>
       {state === 'not_pursued' ? (
-        <Field label="Reason" htmlFor={id('reason')}>
+        <Field label={tr('Reason')} htmlFor={id('reason')}>
           <input id={id('reason')} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       ) : null}
       {state === 'settled' ? (
         <>
-          <Field label="Outcome" htmlFor={id('outcome')}>
+          <Field label={tr('Outcome')} htmlFor={id('outcome')}>
             <select
               id={id('outcome')}
               value={outcome}
@@ -598,12 +610,12 @@ function ConjectureForm({
             >
               {SETTLEMENT_OUTCOMES.map((o) => (
                 <option key={o} value={o}>
-                  {SETTLEMENT_LABELS[o]}
+                  {tr(SETTLEMENT_LABELS[o])}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Summary" htmlFor={id('summary')}>
+          <Field label={tr('Summary')} htmlFor={id('summary')}>
             <input
               id={id('summary')}
               value={summary}
@@ -613,7 +625,7 @@ function ConjectureForm({
         </>
       ) : null}
       <button type="submit" className="button button-small" disabled={m.busy}>
-        Update
+        {tr('Update')}
       </button>
       <InlineError error={m.error} />
     </form>

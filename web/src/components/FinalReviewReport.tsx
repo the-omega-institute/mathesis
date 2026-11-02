@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { RefereeFile, Submission } from '../api/types';
 import { currentAuthorRound } from '../lib/authorStanding';
 import { authorReport, authorReportPreview } from '../lib/authorReport';
@@ -24,7 +25,9 @@ export function FinalReviewReport({
   const letter = currentReport(submission, file);
   if (['draft', 'in_review', 'withdrawn'].includes(submission.status.state)) return null;
   if (!round || !letter)
-    return <p className="muted">The final report will appear here when the review is complete.</p>;
+    return (
+      <p className="muted">{t('The final report will appear here when the review is complete.')}</p>
+    );
   const text = authorReport(submission, round, letter);
   const preview = authorReportPreview(submission, round, letter);
   if (!text || !preview) return null;
@@ -43,19 +46,20 @@ export function FinalReviewReport({
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return (
-    <section className="final-review-report" aria-label="Final review report">
+    <section className="final-review-report" aria-label={t('Final review report')}>
       <div className="section-heading">
-        <h2>Review report</h2>
+        <h2>{t('Review report')}</h2>
         <button type="button" className="button button-quiet button-small" onClick={download}>
-          Download report
+          {t('Download report')}
         </button>
       </div>
       <p className="entry-meta">
-        Reviewed · <DateText iso={letter.sent_at} />
+        {t('Reviewed · ')}
+        <DateText iso={letter.sent_at} />
       </p>
       <Markdown text={preview} texDelimiters />
       <details className="history report-details">
-        <summary>Detailed report: findings and recommendations</summary>
+        <summary>{t('Detailed report: findings and recommendations')}</summary>
         <Markdown text={text} texDelimiters />
       </details>
     </section>

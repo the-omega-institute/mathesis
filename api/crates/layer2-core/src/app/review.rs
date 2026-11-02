@@ -352,6 +352,8 @@ impl App {
             submission.status,
             SubmissionStatus::Accepted { .. } | SubmissionStatus::NotAccepted
         ) {
+            // A retry must recover an enqueue failure after acceptance was saved.
+            self.enqueue_accepted_explanation(&submission).await?;
             return Ok(submission);
         }
         if !submission.is_open() {
@@ -449,6 +451,7 @@ impl App {
             submission.problem_check_requested = true;
         }
         self.save(&mut submission).await?;
+        self.enqueue_accepted_explanation(&submission).await?;
         if matches!(submission.status, SubmissionStatus::Accepted { .. })
             && submission.kind != SubmissionKind::Conjecture
             && submission.analysis_visibility == Visibility::Public
@@ -459,5 +462,23 @@ impl App {
                 .await?;
         }
         Ok(submission)
+    }
+
+    async fn enqueue_accepted_explanation(&self, paper: &Submission) -> CoreResult<()> {
+        if matches!(paper.status, SubmissionStatus::Accepted { .. })
+            && paper.current_version().is_some_and(|v| {
+                !v.plain_language.as_ref().is_some_and(|e| {
+                    e.version == v.number
+                        && e.claims_revision == paper.claims_revision
+                        && e.source_sha256 == v.archive.sha256
+                })
+            })
+        {
+            self.ports
+                .queue
+                .enqueue(&paper.id, crate::ports::JobKind::PaperExplanation)
+                .await?;
+        }
+        Ok(())
     }
 }

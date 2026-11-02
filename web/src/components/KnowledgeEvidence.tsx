@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { ClaimCoverage, KnowledgeQueryReceipt, RefereeRound } from '../api/types';
 import { Markdown } from './Markdown';
 
@@ -53,57 +54,79 @@ export function KnowledgeQueries({
     receipts.length === 0 ||
     missingSemantic.length > 0;
   return (
-    <section aria-label="Knowledge search evidence" className="report">
-      <h3>Knowledge search</h3>
+    <section aria-label={t('Knowledge search evidence')} className="report">
+      <h3>{t('Knowledge search')}</h3>
       <p>
         {incomplete
-          ? 'Required knowledge evidence is incomplete. This search cannot establish sufficient novelty evidence.'
-          : 'The recorded bounded searches completed. Candidate matches still require a mathematical comparison.'}
+          ? t(
+              'Required knowledge evidence is incomplete. This search cannot establish sufficient novelty evidence.',
+            )
+          : t(
+              'The recorded bounded searches completed. Candidate matches still require a mathematical comparison.',
+            )}
       </p>
       <p className="hint">
-        A search with no matches does not establish novelty. External literature remains part of the
-        review.
+        {t(
+          'A search with no matches does not establish novelty. External literature remains part of the review.',
+        )}
       </p>
       {receipts.some((r) => r.retryable) ? (
         <p>
-          The source can be retried after the recorded limitation is resolved. Staff can start a new
-          review on this manuscript version; the earlier evidence is retained.
+          {t(
+            'The source can be retried after the recorded limitation is resolved. Staff can start a new review on this manuscript version; the earlier evidence is retained.',
+          )}
         </p>
       ) : null}
-      {pending.length ? <p>{pending.length} admitted queries are awaiting a result.</p> : null}
+      {pending.length ? (
+        <p>
+          {pending.length} {t(' admitted queries are awaiting a result.')}
+        </p>
+      ) : null}
       {missingSemantic.length ? (
-        <p>Required semantic queries have no recorded result for: {missingSemantic.join(', ')}.</p>
+        <p>
+          {t('Required semantic queries have no recorded result for: ')}
+          {missingSemantic.join(', ')}.
+        </p>
       ) : null}
       {receipts.map((receipt) => (
         <details key={receipt.id} className="history">
           <summary>
-            {receipt.subject.claim} · {states[receipt.state]} · {receipt.returned.length} candidate
-            declarations
+            {receipt.subject.claim} · {states[receipt.state]} · {receipt.returned.length}{' '}
+            {t(' candidate declarations')}
           </summary>
-          <p>Query: {receipt.query}</p>
           <p>
-            Snapshot: <code>{receipt.snapshot ?? 'Not available'}</code>
+            {t('Query: ')}
+            {receipt.query}
           </p>
           <p>
-            Index: <code>{receipt.index_revision ?? 'Not available'}</code>
+            {t('Snapshot: ')}
+            <code>{receipt.snapshot ?? 'Not available'}</code>
+          </p>
+          <p>
+            {t('Index: ')}
+            <code>{receipt.index_revision ?? 'Not available'}</code>
           </p>
           {receipt.scopes.map((scope, i) => (
-            <p key={i}>Search scope: {scope}</p>
+            <p key={i}>
+              {t('Search scope: ')}
+              {scope}
+            </p>
           ))}
           {receipt.limits.map((limit, i) => (
             <p key={i}>{limit}</p>
           ))}
           {receipt.state === 'complete' && receipt.returned.length === 0 ? (
-            <p>No candidate was returned within this search scope.</p>
+            <p>{t('No candidate was returned within this search scope.')}</p>
           ) : null}
           {receipt.response ? (
             <p>
               <a
                 href={`/api/v1/submissions/${encodeURIComponent(submissionId)}/referee/knowledge/${encodeURIComponent(receipt.id)}`}
               >
-                Download the saved source evidence
+                {t('Download the saved source evidence')}
               </a>{' '}
-              · SHA-256 <code>{receipt.response.sha256}</code>
+              {t('· SHA-256 ')}
+              <code>{receipt.response.sha256}</code>
             </p>
           ) : null}
         </details>
@@ -119,20 +142,25 @@ export function CoverageEvidence({ coverage }: { coverage: ClaimCoverage }) {
       <h4>{relations[coverage.relation]}</h4>
       <p>
         {coverage.qualification.level === 'source_audited'
-          ? 'Source-based reviewer judgment; not a formal coverage certificate.'
-          : 'Uncertified proposal; no formal coverage qualification.'}
+          ? t('Source-based reviewer judgment; not a formal coverage certificate.')
+          : t('Uncertified proposal; no formal coverage qualification.')}
       </p>
       {coverage.qualification.level === 'certificate_claim' ? (
         <p>
-          Claimed certificate protocol: <code>{coverage.qualification.protocol}</code>. This
-          consumer has no admitted coverage checker for it. The claim grants no formal coverage
-          qualification.
+          {t('Claimed certificate protocol: ')}
+          <code>{coverage.qualification.protocol}</code>
+          {t(
+            '. This consumer has no admitted coverage checker for it. The claim grants no formal coverage qualification.',
+          )}
         </p>
       ) : null}
       <Markdown text={coverage.summary} />
       {binding ? (
         <>
-          <p>Joint premise set · relation: {binding.relation}</p>
+          <p>
+            {t('Joint premise set · relation: ')}
+            {binding.relation}
+          </p>
           <ul>
             {binding.premises.map((premise) => (
               <li key={premise.statement_id}>
@@ -145,7 +173,8 @@ export function CoverageEvidence({ coverage }: { coverage: ClaimCoverage }) {
           <Markdown text={binding.argument} />
           {binding.parameters.map((parameter, i) => (
             <p key={i}>
-              Parameter {parameter.parameter}: {parameter.expression}
+              {t('Parameter ')}
+              {parameter.parameter}: {parameter.expression}
             </p>
           ))}
           {binding.hypotheses.map((hypothesis, i) => (
@@ -156,7 +185,7 @@ export function CoverageEvidence({ coverage }: { coverage: ClaimCoverage }) {
           ))}
           {binding.unresolved.length ? (
             <>
-              <h4>Remaining obligations</h4>
+              <h4>{t('Remaining obligations')}</h4>
               <ul>
                 {binding.unresolved.map((obligation, i) => (
                   <li key={i}>
@@ -172,12 +201,17 @@ export function CoverageEvidence({ coverage }: { coverage: ClaimCoverage }) {
         <p key={i}>{limit}</p>
       ))}
       <details>
-        <summary>Comparison identity</summary>
+        <summary>{t('Comparison identity')}</summary>
         <p>
-          Source version {coverage.subject.version} · statements revision{' '}
-          {coverage.subject.claims_revision} · round {coverage.subject.round}
+          {t('Source version ')}
+          {coverage.subject.version} {t(' · statements revision')}{' '}
+          {coverage.subject.claims_revision} {t(' · round ')}
+          {coverage.subject.round}
         </p>
-        <p>Receipts: {coverage.receipt_ids.join(', ')}</p>
+        <p>
+          {t('Receipts: ')}
+          {coverage.receipt_ids.join(', ')}
+        </p>
       </details>
     </section>
   );

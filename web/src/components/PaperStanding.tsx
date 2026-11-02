@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useEffect, useState } from 'react';
 import type { RefereeFile, Submission } from '../api/types';
 import { authorStanding, awaitingDecision, decisionWaitingMessage } from '../lib/authorStanding';
@@ -61,9 +62,9 @@ export function PaperStanding({
                       ? 'Review details are currently unavailable. Your manuscript is saved.'
                       : 'Your final review report is being prepared.';
   return (
-    <section className={`standing standing-${tone}`} aria-label="Paper standing">
+    <section className={`standing standing-${tone}`} aria-label={t('Paper standing')}>
       <div className="standing-head">
-        <h2 className="standing-title">{standing.headline}</h2>
+        <h2 className="standing-title">{t(standing.headline)}</h2>
         {status.state === 'accepted' ? (
           <span className="standing-record">{status.record}</span>
         ) : null}
@@ -71,10 +72,12 @@ export function PaperStanding({
       {submission.decision?.decision === 'accept' ? (
         <p>
           {submission.decision.basis === 'escape_witness'
-            ? 'The review found new mathematical content in a main result.'
+            ? t('The review found new mathematical content in a main result.')
             : submission.decision.basis === 'open_problem_settlement'
-              ? 'The review found that a main result settles a named open problem.'
-              : 'The review found a well-posed open conjecture whose resolution would carry new mathematical content.'}
+              ? t('The review found that a main result settles a named open problem.')
+              : t(
+                  'The review found a well-posed open conjecture whose resolution would carry new mathematical content.',
+                )}
         </p>
       ) : null}
       {status.state === 'not_accepted' && submission.decision?.decision === 'not_accepted' ? (
@@ -84,11 +87,11 @@ export function PaperStanding({
           ))}
         </ul>
       ) : null}
-      <p role="status">{showExecutionDetails ? standing.doing : authorMessage}</p>
+      <p role="status">{t(showExecutionDetails ? standing.doing : authorMessage)}</p>
       {showExecutionDetails ? (
         <>
-          <p className="standing-next">{standing.nextAction}</p>
-          <p className="small">{standing.timing}</p>
+          <p className="standing-next">{t(standing.nextAction)}</p>
+          <p className="small">{t(standing.timing)}</p>
         </>
       ) : null}
       {mayRevise && onRevise ? (
@@ -99,7 +102,7 @@ export function PaperStanding({
             aria-controls="standing-revision-form"
             onClick={onRevise}
           >
-            {compileFailure ? 'Upload a corrected version' : 'Upload a revised version'}
+            {compileFailure ? t('Upload a corrected version') : t('Upload a revised version')}
           </button>
         </div>
       ) : null}

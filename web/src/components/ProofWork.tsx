@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -32,25 +33,27 @@ export function ProofWork({ record, claim }: { record: string; claim: string }) 
   const contributions = useAsync(loadContributions);
   if (!work.value) return null;
   return (
-    <section className="proof-work" aria-label="Current proof work">
-      <h2>Current proof work</h2>
-      <p>The goal is a complete proof of the author-confirmed statement above.</p>
+    <section className="proof-work" aria-label={t('Current proof work')}>
+      <h2>{t('Current proof work')}</h2>
+      <p>{t('The goal is a complete proof of the author-confirmed statement above.')}</p>
       {work.value.managed ? (
         <>
           <p>{labels[work.value.state]}</p>
           {work.value.state === 'not_authorized' && work.value.total_generations > 0 ? (
             <p>
-              The confirmed statement changed. The saved allowance and used generations remain; the
-              author must save an allowance for this statement before automatic work resumes.
+              {t(
+                'The confirmed statement changed. The saved allowance and used generations remain; the author must save an allowance for this statement before automatic work resumes.',
+              )}
             </p>
           ) : null}
           <p className="small">
-            {work.value.used_generations} of {work.value.total_generations} authorized generations
-            used
+            {work.value.used_generations} {t(' of ')}
+            {work.value.total_generations} {t(' authorized generations used')}
             {work.value.expires_at ? (
               <>
                 {' '}
-                · Expires <DateText iso={work.value.expires_at} withTime />
+                {t('· Expires ')}
+                <DateText iso={work.value.expires_at} withTime />
               </>
             ) : null}
             .
@@ -66,10 +69,11 @@ export function ProofWork({ record, claim }: { record: string; claim: string }) 
           ) : null}
         </>
       ) : null}
-      <h3>Checked propositions</h3>
+      <h3>{t('Checked propositions')}</h3>
       <p className="small">
-        These named propositions passed the independent Lean verifier. Each receipt covers its
-        stated proposition and complete source context. The final goal may remain unfinished.
+        {t(
+          'These named propositions passed the independent Lean verifier. Each receipt covers its stated proposition and complete source context. The final goal may remain unfinished.',
+        )}
       </p>
       {contributions.value?.length ? (
         <ul className="entry-list">
@@ -78,9 +82,11 @@ export function ProofWork({ record, claim }: { record: string; claim: string }) 
           ))}
         </ul>
       ) : contributions.state.status === 'error' ? (
-        <p>Checked propositions are currently unavailable.</p>
+        <p>{t('Checked propositions are currently unavailable.')}</p>
       ) : (
-        <p className="muted">No independently checked auxiliary propositions are available yet.</p>
+        <p className="muted">
+          {t('No independently checked auxiliary propositions are available yet.')}
+        </p>
       )}
       {person ? (
         <IntermediateForm record={record} claim={claim} target={work.value.target_digest} />
@@ -101,7 +107,7 @@ export function ProofWork({ record, claim }: { record: string; claim: string }) 
           contributions.reload();
         }}
       >
-        Refresh proof work
+        {t('Refresh proof work')}
       </button>
     </section>
   );
@@ -112,21 +118,23 @@ function Contribution({ contribution: c }: { contribution: CheckedContribution }
     <li>
       <strong>{c.intermediate.title}</strong>
       <p>
-        Proof contribution by <EntrantName entrant={c.contributor} /> · {c.intermediate.license}.
+        {t('Proof contribution by ')}
+        <EntrantName entrant={c.contributor} /> · {c.intermediate.license}.
       </p>
       <p className="small">
-        Mathematical source: {c.authors.map((a) => a.name).join(', ')}. Checked{' '}
-        <DateText iso={c.receipt.checked_at} />.
+        {t('Mathematical source: ')}
+        {c.authors.map((a) => a.name).join(', ')}
+        {t('. Checked')} <DateText iso={c.receipt.checked_at} />.
       </p>
       <ProofAttribution attribution={c.attribution ?? undefined} />
       <details>
-        <summary>Exact Lean proposition</summary>
+        <summary>{t('Exact Lean proposition')}</summary>
         <pre>
           <code>{c.intermediate.proposition}</code>
         </pre>
       </details>
       <a href={`/api/v1/contributions/${encodeURIComponent(c.origin.attempt)}/bundle`}>
-        Download proposition, sources and verification details
+        {t('Download proposition, sources and verification details')}
       </a>
     </li>
   );
@@ -175,11 +183,11 @@ function WorkControls({
   };
   return (
     <details>
-      <summary>Automatic proof work allowance</summary>
+      <summary>{t('Automatic proof work allowance')}</summary>
       <p>
-        Allow 1–20 generations in total, expiring within 30 days. Pausing and resuming retain all
-        used generations and the original work. Increasing the total or extending the expiry is a
-        new explicit authorization.
+        {t(
+          'Allow 1–20 generations in total, expiring within 30 days. Pausing and resuming retain all used generations and the original work. Increasing the total or extending the expiry is a new explicit authorization.',
+        )}
       </p>
       <form
         onSubmit={(event) => {
@@ -188,7 +196,7 @@ function WorkControls({
         }}
       >
         <label>
-          Total generations
+          {t('Total generations')}
           <input
             type="number"
             min={Math.max(1, work.used_generations)}
@@ -199,7 +207,7 @@ function WorkControls({
           />
         </label>
         <label>
-          Expiry
+          {t('Expiry')}
           <input
             type="datetime-local"
             value={expires}
@@ -208,7 +216,7 @@ function WorkControls({
           />
         </label>
         <button className="button" disabled={busy}>
-          Save allowance
+          {t('Save allowance')}
         </button>
         {work.total_generations > 0 && work.state !== 'not_authorized' ? (
           <button
@@ -217,7 +225,7 @@ function WorkControls({
             disabled={busy || (!work.paused && work.state === 'expired')}
             onClick={() => void save(!work.paused, true)}
           >
-            {work.paused ? 'Resume saved work' : 'Pause proof work'}
+            {work.paused ? t('Resume saved work') : t('Pause proof work')}
           </button>
         ) : null}
         <InlineError error={error} />
@@ -268,40 +276,39 @@ function IntermediateForm({
   };
   return (
     <details>
-      <summary>Contribute an auxiliary proposition</summary>
+      <summary>{t('Contribute an auxiliary proposition')}</summary>
       <p>
-        Submit a named theorem in a self-contained Lean module using the pinned Mathlib environment.
-        It can help later proof work even while the final goal remains open. Retain the original
-        source license and credit; attributed existing projects can use the documented deposit
-        interface.
+        {t(
+          'Submit a named theorem in a self-contained Lean module using the pinned Mathlib environment. It can help later proof work even while the final goal remains open. Retain the original source license and credit; attributed existing projects can use the documented deposit interface.',
+        )}
       </p>
       <form onSubmit={(event) => void submit(event)}>
         <label>
-          Proposition title
+          {t('Proposition title')}
           <input name="title" maxLength={200} required />
         </label>
         <label>
-          Fully qualified theorem name
-          <input name="declaration" placeholder="Research.helper" required />
+          {t('Fully qualified theorem name')}
+          <input name="declaration" placeholder={t('Research.helper')} required />
         </label>
         <label>
-          Lean proposition
+          {t('Lean proposition')}
           <textarea name="proposition" maxLength={20000} required />
         </label>
         <label>
-          Source license
+          {t('Source license')}
           <input name="license" maxLength={200} required />
         </label>
         <label>
-          Lean module name
-          <input name="module" placeholder="Research.Helpers" required />
+          {t('Lean module name')}
+          <input name="module" placeholder={t('Research.Helpers')} required />
         </label>
         <label>
-          Complete module source
+          {t('Complete module source')}
           <textarea name="source" required />
         </label>
         <button className="button" disabled={busy}>
-          Submit proposition for checking
+          {t('Submit proposition for checking')}
         </button>
         <InlineError error={error} />
         {status ? <p role="status">{status}</p> : null}
@@ -372,18 +379,18 @@ function ReuseForm({
   };
   return (
     <details>
-      <summary>Use checked propositions in a proof</summary>
+      <summary>{t('Use checked propositions in a proof')}</summary>
       <p>
-        Select up to eight propositions. Their exact modules, original licenses and contributor
-        credit travel with your attempt. Import their modules in your proof. A joint source context
-        does not establish that each proposition suffices on its own.
+        {t(
+          'Select up to eight propositions. Their exact modules, original licenses and contributor credit travel with your attempt. Import their modules in your proof. A joint source context does not establish that each proposition suffices on its own.',
+        )}
       </p>
       <label>
-        Another Mathesis result link
+        {t('Another Mathesis result link')}
         <input type="url" value={source} onChange={(e) => setSource(e.target.value)} />
       </label>
       <button type="button" className="button button-quiet" onClick={() => void load()}>
-        Find checked propositions
+        {t('Find checked propositions')}
       </button>
       <form onSubmit={(event) => void submit(event)}>
         {choices.map((c) => (
@@ -403,11 +410,11 @@ function ReuseForm({
           </label>
         ))}
         <label>
-          Complete Lean proof
+          {t('Complete Lean proof')}
           <textarea value={solution} onChange={(e) => setSolution(e.target.value)} required />
         </label>
         <button className="button" disabled={busy || !selected.length || selected.length > 8}>
-          Submit proof with checked sources
+          {t('Submit proof with checked sources')}
         </button>
         <InlineError error={error} />
         {status ? <p role="status">{status}</p> : null}

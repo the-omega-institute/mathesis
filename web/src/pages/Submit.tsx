@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useState, type FormEvent } from 'react';
 import { LeanDepositForm } from '../components/LeanDeposit';
 import { useApi } from '../api/context';
@@ -51,11 +52,12 @@ export function SubmitPage({
     <div className="page submission-page">
       <header className="page-head submission-heading">
         <div>
-          <h1>{intake === 'lean' ? 'Contribute a formalization' : 'New submission'}</h1>
+          <h1>{intake === 'lean' ? t('Contribute a formalization') : t('New submission')}</h1>
           {intake === 'lean' ? (
             <p>
-              Submit a Lean proof of an existing conjecture or theorem. Verified contributions
-              credit the original authors and the formalizers.
+              {t(
+                'Submit a Lean proof of an existing conjecture or theorem. Verified contributions credit the original authors and the formalizers.',
+              )}
             </p>
           ) : null}
         </div>
@@ -65,7 +67,7 @@ export function SubmitPage({
             className="text-button submission-kind-link"
             onClick={() => setIntake(intake === 'lean' ? 'research' : 'lean')}
           >
-            {intake === 'lean' ? 'Submit a manuscript' : 'Community formalization'}
+            {intake === 'lean' ? t('Submit a manuscript') : t('Community formalization')}
           </button>
         ) : null}
       </header>
@@ -93,8 +95,8 @@ export function SubmitPage({
         <p className="small intake-alternative">
           <button type="button" className="text-button" onClick={() => setTypedEntry(!typedEntry)}>
             {typedEntry
-              ? 'Upload a manuscript instead'
-              : 'No manuscript file? Write a conjecture here'}
+              ? t('Upload a manuscript instead')
+              : t('No manuscript file? Write a conjecture here')}
           </button>
         </p>
       ) : null}
@@ -175,10 +177,10 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
     <form
       className="form submission-form submission-wizard"
       onSubmit={(e) => void submit(e)}
-      aria-label="Submit work"
+      aria-label={t('Submit work')}
       noValidate
     >
-      <div className="submission-tabs" role="tablist" aria-label="Submission steps">
+      <div className="submission-tabs" role="tablist" aria-label={t('Submission steps')}>
         {tabs.map((label, index) => (
           <button
             key={label}
@@ -211,7 +213,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
             <span className="step-number" aria-hidden="true">
               {index + 1}
             </span>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -221,14 +223,19 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
         id={`submit-panel-${step}`}
         aria-labelledby={`submit-tab-${step}`}
       >
-        <p className="eyebrow">Research submission · Step {step + 1} of 3</p>
+        <p className="eyebrow">
+          {t('Research submission · Step ')}
+          {step + 1} {t(' of 3')}
+        </p>
         {step === 0 ? (
           <>
-            <h2>State your conjecture</h2>
+            <h2>{t('State your conjecture')}</h2>
             <p className="hint">
-              Give the conjecture a title and a precise statement. Mathematical notation is welcome.
+              {t(
+                'Give the conjecture a title and a precise statement. Mathematical notation is welcome.',
+              )}
             </p>
-            <Field label="Title" htmlFor="manuscript-title">
+            <Field label={t('Title')} htmlFor="manuscript-title">
               <input
                 id="manuscript-title"
                 required
@@ -237,7 +244,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
                 onChange={(e) => setTitle(e.target.value)}
               />
             </Field>
-            <Field label="Abstract" htmlFor="manuscript-abstract">
+            <Field label={t('Abstract')} htmlFor="manuscript-abstract">
               <textarea
                 id="manuscript-abstract"
                 rows={5}
@@ -246,7 +253,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
                 onChange={(e) => setAbstract(e.target.value)}
               />
             </Field>
-            <Field label="Conjecture statement" htmlFor="conjecture-statement">
+            <Field label={t('Conjecture statement')} htmlFor="conjecture-statement">
               <textarea
                 id="conjecture-statement"
                 rows={5}
@@ -257,11 +264,11 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               />
             </Field>
             {statement ? (
-              <div aria-label="Statement preview">
+              <div aria-label={t('Statement preview')}>
                 <LatexText source={statement} />
               </div>
             ) : null}
-            <Field label="Background (optional)" htmlFor="conjecture-background">
+            <Field label={t('Background (optional)')} htmlFor="conjecture-background">
               <textarea
                 id="conjecture-background"
                 rows={3}
@@ -270,7 +277,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
                 onChange={(e) => setBackground(e.target.value)}
               />
             </Field>
-            <Field label="Original source (optional)" htmlFor="conjecture-origin">
+            <Field label={t('Original source (optional)')} htmlFor="conjecture-origin">
               <input
                 id="conjecture-origin"
                 value={origin}
@@ -279,11 +286,11 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               />
             </Field>
             <details className="plain-details">
-              <summary>AI use in the manuscript (optional)</summary>
+              <summary>{t('AI use in the manuscript (optional)')}</summary>
               <Field
-                label="AI use in this work"
+                label={t('AI use in this work')}
                 htmlFor="ai-level"
-                hint={AI_USE_DESCRIPTIONS[aiLevel]}
+                hint={t(AI_USE_DESCRIPTIONS[aiLevel])}
               >
                 <select
                   id="ai-level"
@@ -292,22 +299,22 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
                 >
                   {AI_USES.map((level) => (
                     <option key={level} value={level}>
-                      {AI_USE_LABELS[level]}
+                      {t(AI_USE_LABELS[level])}
                     </option>
                   ))}
                 </select>
               </Field>
             </details>
             <div className="form-row">
-              <Field label="MSC 2020 codes (optional)" htmlFor="msc" hint="e.g. 11B83, 05D10">
+              <Field label={t('MSC 2020 codes (optional)')} htmlFor="msc" hint="e.g. 11B83, 05D10">
                 <input id="msc" value={msc} onChange={(e) => setMsc(e.target.value)} />
               </Field>
-              <Field label="DOI (optional)" htmlFor="doi">
+              <Field label={t('DOI (optional)')} htmlFor="doi">
                 <input
                   id="doi"
                   value={doi}
                   onChange={(e) => setDoi(e.target.value)}
-                  placeholder="10.48550/arXiv.…"
+                  placeholder={t('10.48550/arXiv.…')}
                 />
               </Field>
             </div>
@@ -315,10 +322,10 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
         ) : null}
         {step === 1 ? (
           <>
-            <h2>Authors and affiliations</h2>
+            <h2>{t('Authors and affiliations')}</h2>
             <p className="hint">
-              List all authors in manuscript order. The submitting account is {person?.display_name}
-              .
+              {t('List all authors in manuscript order. The submitting account is ')}
+              {person?.display_name}.
             </p>
             {authors.map((author, index) => (
               <AuthorFields
@@ -338,27 +345,29 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               disabled={authors.length >= 50}
               onClick={() => setAuthors((current) => [...current, emptyAuthor()])}
             >
-              Add another author
+              {t('Add another author')}
             </button>
           </>
         ) : null}
         {step === 2 ? (
           <>
-            <h2>Review your submission</h2>
+            <h2>{t('Review your submission')}</h2>
             <dl className="submission-summary">
-              <dt>Title</dt>
+              <dt>{t('Title')}</dt>
               <dd>{title || 'Not entered'}</dd>
-              <dt>Authors</dt>
+              <dt>{t('Authors')}</dt>
               <dd>{supplied.map((a) => a.name).join(', ') || 'Not entered'}</dd>
-              <dt>Manuscript</dt>
-              <dd>Typed conjecture</dd>
-              <dt>Purpose</dt>
-              <dd>{makePublic ? 'Review for publication' : 'Private review feedback'}</dd>
+              <dt>{t('Manuscript')}</dt>
+              <dd>{t('Typed conjecture')}</dd>
+              <dt>{t('Purpose')}</dt>
+              <dd>{makePublic ? t('Review for publication') : t('Private review feedback')}</dd>
             </dl>
             <Field
-              label="Cover note (optional)"
+              label={t('Cover note (optional)')}
               htmlFor="review-scope"
-              hint="Mention a particular result or question you would like the review to address."
+              hint={t(
+                'Mention a particular result or question you would like the review to address.',
+              )}
             >
               <textarea
                 id="review-scope"
@@ -380,23 +389,25 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
               disabled={busy}
               onClick={() => changeStep(step - 1)}
             >
-              Back
+              {t('Back')}
             </button>
           ) : (
             <span />
           )}
           {step < 2 ? (
             <button type="button" className="button" onClick={() => changeStep(step + 1)}>
-              Continue
+              {t('Continue')}
             </button>
           ) : (
             <button type="submit" className="button" disabled={busy}>
-              {busy ? 'Preparing…' : 'Prepare conjecture PDF'}
+              {busy ? t('Preparing…') : t('Prepare conjecture PDF')}
             </button>
           )}
         </div>
         {step === 2 ? (
-          <p className="hint">You can check the manuscript PDF before starting the review.</p>
+          <p className="hint">
+            {t('You can check the manuscript PDF before starting the review.')}
+          </p>
         ) : null}
       </div>
     </form>

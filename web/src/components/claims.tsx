@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { ReactNode } from 'react';
 import type { ClaimKind, ClaimRole, EscapeAssessment, FormalArtifact, Settles } from '../api/types';
 import { MethodologyEvidence } from './MethodologyEvidence';
@@ -42,7 +43,7 @@ export function ClaimRef({
   scope?: string;
 }) {
   const claim = claims.find((c) => c.id === id);
-  if (!claim) return <span>Unidentified prerequisite</span>;
+  if (!claim) return <span>{t('Unidentified prerequisite')}</span>;
   return (
     <a href={`#${claimAnchor(id, scope)}`} className="claim-ref">
       {statementTitle(claim)}
@@ -69,8 +70,11 @@ export function StatementView({
         <KindBadge kind={claim.kind} />
         <RoleBadge role={claim.role} />
         {claim.has_proof === false && claim.kind !== 'conjecture' && claim.kind !== 'question' ? (
-          <Badge tone="muted" title="No proof environment follows this statement in the source">
-            No proof in source
+          <Badge
+            tone="muted"
+            title={t('No proof environment follows this statement in the source')}
+          >
+            {t('No proof in source')}
           </Badge>
         ) : null}
         {claim.lean ? <LeanBadge artifact={claim.lean} /> : null}
@@ -79,7 +83,7 @@ export function StatementView({
       <LatexText source={claim.statement} className="statement" />
       {deps.length > 0 ? (
         <p className="claim-deps">
-          Uses{' '}
+          {t('Uses')}{' '}
           {deps.map((d, i) => (
             <span key={d}>
               {i > 0 ? ', ' : null}
@@ -88,11 +92,12 @@ export function StatementView({
           ))}
         </p>
       ) : scope === 'public' ? (
-        <p className="claim-deps">Uses no other statements.</p>
+        <p className="claim-deps">{t('Uses no other statements.')}</p>
       ) : null}
       {claim.settles ? (
         <p className="claim-settles">
-          Settles <em>{claim.settles.name}</em> (<SourceLink source={claim.settles.source} />)
+          {t('Settles ')}
+          <em>{claim.settles.name}</em> (<SourceLink source={claim.settles.source} />)
         </p>
       ) : null}
       {children}
@@ -130,7 +135,7 @@ export function WitnessList({ witnesses }: { witnesses: readonly string[] }) {
   if (witnesses.length === 0) return null;
   return (
     <div className="witnesses">
-      <h5>Escape witnesses</h5>
+      <h5>{t('Escape witnesses')}</h5>
       <ol>
         {witnesses.map((w, i) => (
           <li key={i}>
@@ -162,13 +167,14 @@ export function EscapeAssessmentView({
       </div>
       <WitnessList witnesses={assessment.witnesses} />
       {assessment.shape === 'content' && assessment.witnesses.length === 0 ? (
-        <p className="muted">No witnesses named.</p>
+        <p className="muted">{t('No witnesses named.')}</p>
       ) : null}
       {assessment.rationale ? <Markdown text={assessment.rationale} className="rationale" /> : null}
       {assessment.methodology ? <MethodologyEvidence reading={assessment.methodology} /> : null}
       {rate ? (
         <p className="escape-rate">
-          <span className="escape-rate-label">Escape rate</span> on <em>{rate.arena}</em>:{' '}
+          <span className="escape-rate-label">{t('Escape rate')}</span> {t(' on ')}
+          <em>{rate.arena}</em>:{' '}
           <span
             className="fraction"
             aria-label={`${formatEscapeRate(rate)}, ${escapeRateTrend(rate)}`}
@@ -176,7 +182,8 @@ export function EscapeAssessmentView({
             {formatEscapeRate(rate)}
           </span>{' '}
           <span className="muted">
-            (artifact <ArtifactLink value={rate.artifact} />)
+            {t('(artifact ')}
+            <ArtifactLink value={rate.artifact} />)
           </span>
         </p>
       ) : null}
@@ -207,15 +214,18 @@ export function FormalArtifactView({
         {flagged.length > 0 ? (
           <>
             {' '}
-            <Badge tone="bad" title="Uses axioms beyond propext, Classical.choice and Quot.sound">
-              Non-standard axioms
+            <Badge
+              tone="bad"
+              title={t('Uses axioms beyond propext, Classical.choice and Quot.sound')}
+            >
+              {t('Non-standard axioms')}
             </Badge>
           </>
         ) : null}
       </p>
       {artifact.declarations.length > 0 ? (
         <p className="formal-decls">
-          Declarations:{' '}
+          {t('Declarations:')}{' '}
           {artifact.declarations.map((d, i) => (
             <span key={d}>
               {i > 0 ? ', ' : null}
@@ -226,9 +236,9 @@ export function FormalArtifactView({
       ) : null}
       {axioms ? (
         <p className="axioms">
-          Axioms:{' '}
+          {t('Axioms:')}{' '}
           {axioms.length === 0 ? (
-            <span className="muted">none</span>
+            <span className="muted">{t('none')}</span>
           ) : (
             axioms.map((a, i) => (
               <span key={a}>

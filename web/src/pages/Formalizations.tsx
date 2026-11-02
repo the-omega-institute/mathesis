@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
@@ -33,33 +34,35 @@ export function FormalizationsPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <p className="eyebrow">Participate in mathematical research</p>
-          <h1>Formalizations</h1>
-          <p className="lede">Turn an argument into a checked proof.</p>
+          <p className="eyebrow">{t('Participate in mathematical research')}</p>
+          <h1>{t('Formalizations')}</h1>
+          <p className="lede">{t('Turn an argument into a checked proof.')}</p>
           <p>
-            Formalize a published result, prove or disprove a conjecture, or contribute existing
-            Lean work with its original attribution.
+            {t(
+              'Formalize a published result, prove or disprove a conjecture, or contribute existing Lean work with its original attribution.',
+            )}
           </p>
         </div>
         <Link className="button" to={{ kind: 'submit', intake: 'lean' }}>
-          Submit Lean work <span aria-hidden="true">↗</span>
+          {t('Submit Lean work ')}
+          <span aria-hidden="true">↗</span>
         </Link>
       </header>
       <div className="formalization-intro">
         <p>
-          <strong>01 · Choose a statement</strong>
-          <span>Browse exact targets confirmed by their authors.</span>
+          <strong>{t('01 · Choose a statement')}</strong>
+          <span>{t('Browse exact targets confirmed by their authors.')}</span>
         </p>
         <p>
-          <strong>02 · Contribute your proof</strong>
-          <span>Submit Lean sources and credit the people behind them.</span>
+          <strong>{t('02 · Contribute your proof')}</strong>
+          <span>{t('Submit Lean sources and credit the people behind them.')}</span>
         </p>
         <p>
-          <strong>03 · Get a checked receipt</strong>
-          <span>Verified proofs appear with their source research.</span>
+          <strong>{t('03 · Get a checked receipt')}</strong>
+          <span>{t('Verified proofs appear with their source research.')}</span>
         </p>
       </div>
-      <div className="filter-row" role="group" aria-label="Formalization status">
+      <div className="filter-row" role="group" aria-label={t('Formalization status')}>
         {[
           ['open', 'Ready to formalize'],
           ['verified', 'Verified proofs'],
@@ -71,31 +74,31 @@ export function FormalizationsPage() {
             aria-pressed={status === value}
             onClick={() => setStatus(value!)}
           >
-            {label}
+            {t(label ?? '')}
           </button>
         ))}
       </div>
       <form className="formalization-search" role="search" onSubmit={search}>
         <label htmlFor="formalization-query" className="visually-hidden">
-          Find a statement
+          {t('Find a statement')}
         </label>
         <input
           id="formalization-query"
           type="search"
           maxLength={200}
-          placeholder="Search statements, papers, or authors"
+          placeholder={t('Search statements, papers, or authors')}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
         <label htmlFor="formalization-kind" className="visually-hidden">
-          Statement type
+          {t('Statement type')}
         </label>
         <select id="formalization-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-          <option value="">All statements</option>
-          <option value="paper">Paper results</option>
-          <option value="conjecture">Conjectures</option>
+          <option value="">{t('All statements')}</option>
+          <option value="paper">{t('Paper results')}</option>
+          <option value="conjecture">{t('Conjectures')}</option>
         </select>
-        <button className="button button-quiet">Search</button>
+        <button className="button button-quiet">{t('Search')}</button>
       </form>
       <Async state={paged.state} onRetry={paged.reload}>
         {(page) =>
@@ -109,10 +112,10 @@ export function FormalizationsPage() {
                       <span>{item.label}</span>
                       <Badge tone={item.status === 'open' ? 'muted' : 'good'}>
                         {item.status === 'open'
-                          ? 'Target ready'
+                          ? t('Target ready')
                           : item.status === 'verified'
-                            ? 'Lean ✓'
-                            : 'Lean disproof'}
+                            ? t('Lean ✓')
+                            : t('Lean disproof')}
                       </Badge>
                     </p>
                     <Link
@@ -125,9 +128,9 @@ export function FormalizationsPage() {
                     <LatexText source={item.statement} />
                     {item.contributor ? (
                       <p className="small">
-                        Verified contribution by <EntrantName entrant={item.contributor} /> ·{' '}
-                        {item.verified_count} verified{' '}
-                        {item.verified_count === 1 ? 'attempt' : 'attempts'}
+                        {t('Verified contribution by ')}
+                        <EntrantName entrant={item.contributor} /> · {item.verified_count}{' '}
+                        {t(' verified')} {item.verified_count === 1 ? 'attempt' : 'attempts'}
                       </p>
                     ) : null}
                     <ProofAttribution attribution={item.attribution ?? undefined} />
@@ -141,13 +144,14 @@ export function FormalizationsPage() {
                           claim: item.claim,
                         }}
                       >
-                        {item.status === 'open' ? 'Contribute a proof' : 'Add another proof'}
+                        {item.status === 'open' ? t('Contribute a proof') : t('Add another proof')}
                       </Link>
                       <Link
                         className="text-link"
                         to={{ kind: 'statement', record: item.record, claim: item.claim }}
                       >
-                        View statement & {item.status === 'open' ? 'target' : 'receipt'} →
+                        {t('View statement & ')}
+                        {item.status === 'open' ? 'target' : 'receipt'} →
                       </Link>
                     </div>
                   </article>
@@ -158,18 +162,22 @@ export function FormalizationsPage() {
             <div className="empty-state">
               <h2>
                 {query || kind
-                  ? 'No matching statements'
+                  ? t('No matching statements')
                   : status === 'open'
-                    ? 'The next proof can start with you.'
-                    : 'Verified contributions will appear here.'}
+                    ? t('The next proof can start with you.')
+                    : t('Verified contributions will appear here.')}
               </h2>
               <p>
                 {status === 'open'
-                  ? 'Targets appear here after author approval and confirmation. You can already submit an existing formalization with its authors, source, and license.'
-                  : 'Only independent verification of the current confirmed target makes a contribution public here.'}
+                  ? t(
+                      'Targets appear here after author approval and confirmation. You can already submit an existing formalization with its authors, source, and license.',
+                    )
+                  : t(
+                      'Only independent verification of the current confirmed target makes a contribution public here.',
+                    )}
               </p>
               <Link className="text-link" to={{ kind: 'submit', intake: 'lean' }}>
-                Submit existing Lean work →
+                {t('Submit existing Lean work →')}
               </Link>
             </div>
           )

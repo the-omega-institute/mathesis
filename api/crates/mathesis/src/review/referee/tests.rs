@@ -6029,7 +6029,13 @@ async fn internal_cma_compile_failure_is_saved_without_starting_a_model() {
 
 #[tokio::test]
 async fn bilingual_exposition_runs_once_without_oracle_or_a_review_round() {
-    let w = World::new(vec![], true).await;
+    let mut w = World::new(vec![], true).await;
+    w.paper.status = SubmissionStatus::Accepted {
+        record: "WP-2026-0001".into(),
+    };
+    mathesis_core::ports::SubmissionStore::replace(w.stores.as_ref(), &w.paper, w.paper.revision)
+        .await
+        .unwrap();
     mathesis_core::ports::ReviewQueue::enqueue(&*w.stores, &w.paper.id, JobKind::PaperExplanation)
         .await
         .unwrap();
@@ -6056,4 +6062,16 @@ async fn bilingual_exposition_runs_once_without_oracle_or_a_review_round() {
     assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 0);
     assert!(w.file().await.rounds.is_empty());
     assert_eq!(paper.status, w.paper.status);
+}
+
+#[tokio::test]
+async fn queued_exposition_for_an_unaccepted_paper_does_not_call_a_model() {
+    let w = World::new(vec![], true).await;
+    mathesis_core::ports::ReviewQueue::enqueue(&*w.stores, &w.paper.id, JobKind::PaperExplanation)
+        .await
+        .unwrap();
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert!(!w.worker.paper_explanation_job(&job).await.unwrap());
+    assert_eq!(w.advisor.explanations.load(Ordering::SeqCst), 0);
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
 }

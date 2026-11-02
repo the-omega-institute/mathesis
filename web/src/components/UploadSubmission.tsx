@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { pdfHref } from '../api/client';
@@ -238,11 +239,11 @@ export function UploadSubmission({
   return (
     <form
       className="form submission-form submission-wizard"
-      aria-label="Submit work"
+      aria-label={t('Submit work')}
       noValidate
       onSubmit={(e) => void submit(e)}
     >
-      <div className="submission-tabs" role="tablist" aria-label="Submission steps">
+      <div className="submission-tabs" role="tablist" aria-label={t('Submission steps')}>
         {steps.map((label, index) => (
           <button
             type="button"
@@ -275,7 +276,7 @@ export function UploadSubmission({
             <span className="step-number" aria-hidden="true">
               {index + 1}.
             </span>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -287,15 +288,18 @@ export function UploadSubmission({
       >
         {step === 0 ? (
           <>
-            <h2>Upload your manuscript</h2>
+            <h2>{t('Upload your manuscript')}</h2>
             <p className="submission-instruction">
-              Start with your paper. We will prepare a PDF and fill in the details we can read from
-              it.
+              {t(
+                'Start with your paper. We will prepare a PDF and fill in the details we can read from it.',
+              )}
             </p>
             <Field
-              label={draft ? 'Replace manuscript files' : 'Choose manuscript files'}
+              label={draft ? t('Replace manuscript files') : t('Choose manuscript files')}
               htmlFor="source-file"
-              hint="PDF, .tex, .zip or .tar.gz · up to 30 MB. You may select several TeX, bibliography and figure files together."
+              hint={t(
+                'PDF, .tex, .zip or .tar.gz · up to 30 MB. You may select several TeX, bibliography and figure files together.',
+              )}
             >
               <input
                 id="source-file"
@@ -309,11 +313,12 @@ export function UploadSubmission({
               />
             </Field>
             <p className="hint">
-              For projects with subfolders, upload a ZIP or tar.gz containing the complete source.
-              PDF files need selectable text.
+              {t(
+                'For projects with subfolders, upload a ZIP or tar.gz containing the complete source. PDF files need selectable text.',
+              )}
             </p>
             {files.length ? (
-              <ul className="upload-files" aria-label="Selected manuscript files">
+              <ul className="upload-files" aria-label={t('Selected manuscript files')}>
                 {files.map((file, i) => (
                   <li key={i}>
                     {file.name}
@@ -323,10 +328,13 @@ export function UploadSubmission({
               </ul>
             ) : null}
             {draft && !files.length ? (
-              <p className="small">Saved manuscript: {version?.filename}</p>
+              <p className="small">
+                {t('Saved manuscript: ')}
+                {version?.filename}
+              </p>
             ) : null}
             <details className="plain-details">
-              <summary>Supplementary material (optional)</summary>
+              <summary>{t('Supplementary material (optional)')}</summary>
               <EvidencePicker value={evidence} onChange={setEvidence} />
             </details>
           </>
@@ -335,33 +343,34 @@ export function UploadSubmission({
           <>
             <div className="pdf-heading">
               <div>
-                <h2>Check your manuscript</h2>
+                <h2>{t('Check your manuscript')}</h2>
                 <p>{version?.filename}</p>
               </div>
               {ready && draft ? (
                 <a href={pdfHref(draft.id, version?.number)} target="_blank" rel="noreferrer">
-                  Open PDF in a new tab
+                  {t('Open PDF in a new tab')}
                 </a>
               ) : null}
             </div>
             {preparing ? (
               <p role="status" className="preparation-status">
-                Preparing your PDF…
+                {t('Preparing your PDF…')}
               </p>
             ) : null}
             <InlineError error={pollError} />
             {version?.compile_error ? (
               <div role="alert">
                 <p className="form-error">
-                  The manuscript could not be compiled. Correct the source files and upload them
-                  again.
+                  {t(
+                    'The manuscript could not be compiled. Correct the source files and upload them again.',
+                  )}
                 </p>
                 <details className="plain-details">
-                  <summary>Compilation details</summary>
+                  <summary>{t('Compilation details')}</summary>
                   <pre>{version.compile_error}</pre>
                 </details>
                 <button type="button" className="button button-quiet" onClick={() => changeStep(0)}>
-                  Replace files
+                  {t('Replace files')}
                 </button>
               </div>
             ) : null}
@@ -369,16 +378,18 @@ export function UploadSubmission({
               <>
                 <iframe
                   className="manuscript-pdf"
-                  title="Manuscript PDF preview"
+                  title={t('Manuscript PDF preview')}
                   src={pdfHref(draft.id, version?.number)}
                 />
                 {version?.parse_warnings.length ? (
                   <div className="extraction-notes">
                     <p>
-                      Please check the mathematical notation and statement boundaries in the PDF.
+                      {t(
+                        'Please check the mathematical notation and statement boundaries in the PDF.',
+                      )}
                     </p>
                     <details className="plain-details">
-                      <summary>Reading notes</summary>
+                      <summary>{t('Reading notes')}</summary>
                       <ul>
                         {version.parse_warnings.map((w, i) => (
                           <li key={i}>{w}</li>
@@ -393,11 +404,13 @@ export function UploadSubmission({
         ) : null}
         {step === 2 ? (
           <>
-            <h2>Manuscript details</h2>
+            <h2>{t('Manuscript details')}</h2>
             <p className="submission-instruction">
-              Check the title and abstract read from your manuscript. You can edit either field.
+              {t(
+                'Check the title and abstract read from your manuscript. You can edit either field.',
+              )}
             </p>
-            <Field label="Title" htmlFor="manuscript-title">
+            <Field label={t('Title')} htmlFor="manuscript-title">
               <input
                 id="manuscript-title"
                 value={title}
@@ -406,9 +419,9 @@ export function UploadSubmission({
               />
             </Field>
             <Field
-              label="Abstract"
+              label={t('Abstract')}
               htmlFor="manuscript-abstract"
-              hint="LaTeX mathematical notation is supported."
+              hint={t('LaTeX mathematical notation is supported.')}
             >
               <textarea
                 id="manuscript-abstract"
@@ -419,11 +432,11 @@ export function UploadSubmission({
               />
             </Field>
             <details className="plain-details">
-              <summary>AI use in the manuscript (optional)</summary>
+              <summary>{t('AI use in the manuscript (optional)')}</summary>
               <Field
-                label="AI use in this work"
+                label={t('AI use in this work')}
                 htmlFor="ai-level"
-                hint={AI_USE_DESCRIPTIONS[aiLevel]}
+                hint={t(AI_USE_DESCRIPTIONS[aiLevel])}
               >
                 <select
                   id="ai-level"
@@ -432,16 +445,16 @@ export function UploadSubmission({
                 >
                   {AI_USES.map((level) => (
                     <option key={level} value={level}>
-                      {AI_USE_LABELS[level]}
+                      {t(AI_USE_LABELS[level])}
                     </option>
                   ))}
                 </select>
               </Field>
             </details>
             <details className="plain-details">
-              <summary>Classification and DOI (optional)</summary>
+              <summary>{t('Classification and DOI (optional)')}</summary>
               <div className="form-row">
-                <Field label="MSC 2020 codes (optional)" htmlFor="msc">
+                <Field label={t('MSC 2020 codes (optional)')} htmlFor="msc">
                   <input
                     id="msc"
                     value={msc}
@@ -449,7 +462,7 @@ export function UploadSubmission({
                     placeholder="11B83, 05D10"
                   />
                 </Field>
-                <Field label="DOI (optional)" htmlFor="doi">
+                <Field label={t('DOI (optional)')} htmlFor="doi">
                   <input id="doi" value={doi} onChange={(e) => setDoi(e.target.value)} />
                 </Field>
               </div>
@@ -458,10 +471,11 @@ export function UploadSubmission({
         ) : null}
         {step === 3 ? (
           <>
-            <h2>Authors and affiliations</h2>
+            <h2>{t('Authors and affiliations')}</h2>
             <p className="submission-instruction">
-              Check the names and their order against the manuscript. Add affiliations where
-              appropriate.
+              {t(
+                'Check the names and their order against the manuscript. Add affiliations where appropriate.',
+              )}
             </p>
             {authors.map((author, i) => (
               <AuthorFields
@@ -481,13 +495,13 @@ export function UploadSubmission({
               disabled={authors.length >= 50}
               onClick={() => setAuthors((current) => [...current, emptyAuthor()])}
             >
-              Add another author
+              {t('Add another author')}
             </button>
           </>
         ) : null}
         {step === 4 ? (
           <>
-            <h2>Review and submit</h2>
+            <h2>{t('Review and submit')}</h2>
             <div className="manuscript-summary">
               <h3>{title || 'Untitled manuscript'}</h3>
               <p>{authors.map((a) => a.name).join(', ')}</p>
@@ -495,11 +509,11 @@ export function UploadSubmission({
               <p className="small">
                 {version?.filename} ·{' '}
                 <button type="button" className="text-button" onClick={() => changeStep(1)}>
-                  Check PDF
+                  {t('Check PDF')}
                 </button>
               </p>
             </div>
-            <Field label="Cover note (optional)" htmlFor="review-scope">
+            <Field label={t('Cover note (optional)')} htmlFor="review-scope">
               <textarea
                 id="review-scope"
                 rows={3}
@@ -509,10 +523,14 @@ export function UploadSubmission({
               />
             </Field>
             <details className="plain-details">
-              <summary>Identified results ({rows.length})</summary>
+              <summary>
+                {t('Identified results (')}
+                {rows.length})
+              </summary>
               <p className="hint">
-                These statements will be reviewed. Adjust a main result or exclude a statement if
-                needed.
+                {t(
+                  'These statements will be reviewed. Adjust a main result or exclude a statement if needed.',
+                )}
               </p>
               {rows.map((row) => (
                 <div className="intake-claim" key={row.id}>
@@ -535,7 +553,7 @@ export function UploadSubmission({
                           )
                         }
                       />
-                      Main result
+                      {t('Main result')}
                     </label>
                     <label className="checkbox">
                       <input
@@ -547,7 +565,7 @@ export function UploadSubmission({
                           )
                         }
                       />
-                      Exclude
+                      {t('Exclude')}
                     </label>
                   </div>
                 </div>
@@ -566,24 +584,24 @@ export function UploadSubmission({
                 disabled={busy}
                 onClick={() => changeStep(step - 1)}
               >
-                Back
+                {t('Back')}
               </button>
             ) : null}
           </div>
           <button type="submit" className="button" disabled={busy || (step === 1 && !ready)}>
             {busy
               ? step === 0
-                ? 'Uploading…'
-                : 'Submitting…'
+                ? t('Uploading…')
+                : t('Submitting…')
               : step === 0
                 ? draft && !files.length
-                  ? 'Return to PDF'
-                  : 'Upload and prepare PDF'
+                  ? t('Return to PDF')
+                  : t('Upload and prepare PDF')
                 : step === 4
-                  ? 'Submit for review'
+                  ? t('Submit for review')
                   : step === 1
-                    ? 'Continue to details'
-                    : 'Continue'}
+                    ? t('Continue to details')
+                    : t('Continue')}
           </button>
         </div>
       </div>

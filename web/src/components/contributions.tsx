@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -31,7 +32,7 @@ export function ContributionList({ task, person }: { task: string; person: Perso
       <Async state={listing.state} onRetry={listing.reload}>
         {(l) =>
           l.items.length === 0 ? (
-            <p className="muted small">No contributions yet.</p>
+            <p className="muted small">{t('No contributions yet.')}</p>
           ) : (
             <ul className="assessment-list">
               {l.items.map((c) => (
@@ -64,14 +65,14 @@ export function ContributionView({
     <div className="contribution">
       <div className="report-head">
         <Badge tone={CONTRIBUTION_TONES[c.status.state]}>
-          {CONTRIBUTION_STATE_LABELS[c.status.state]}
+          {t(CONTRIBUTION_STATE_LABELS[c.status.state])}
         </Badge>
         <span className="reviewer">
           <code title={c.contributor}>{shortId(c.contributor)}</code>
-          {person?.id === c.contributor ? <span className="muted"> (you)</span> : null}
+          {person?.id === c.contributor ? <span className="muted"> {t(' (you)')}</span> : null}
         </span>
         <span className="muted">
-          {c.agent.tool} · {c.agent.model} · {MODE_LABELS[c.mode]}
+          {c.agent.tool} · {c.agent.model} · {t(MODE_LABELS[c.mode])}
         </span>
         <span className="muted">
           <DateText iso={c.submitted_at} withTime />
@@ -82,8 +83,9 @@ export function ContributionView({
       <OutputView contribution={c} />
       {c.tokens ? (
         <p className="muted small">
-          {formatCount(c.tokens.input)} input + {formatCount(c.tokens.output)} output tokens,{' '}
-          {c.tokens.metered ? 'metered by NyxID' : 'self-reported'}
+          {formatCount(c.tokens.input)} {t(' input + ')}
+          {formatCount(c.tokens.output)} {t(' output tokens,')}{' '}
+          {c.tokens.metered ? t('metered by NyxID') : 'self-reported'}
         </p>
       ) : null}
       {canReview ? <ReviewForm contribution={c} onChange={setC} /> : null}
@@ -107,12 +109,15 @@ function OutputView({ contribution }: { contribution: Contribution }) {
         <div>
           {o.summary ? <Markdown text={o.summary} /> : null}
           {o.searched.length > 0 ? (
-            <p className="muted small">Searched: {o.searched.join(' · ')}</p>
+            <p className="muted small">
+              {t('Searched: ')}
+              {o.searched.join(' · ')}
+            </p>
           ) : null}
           {o.prior.length > 0 ? (
             <PriorWorkList prior={o.prior} />
           ) : (
-            <p className="small">No prior work found.</p>
+            <p className="small">{t('No prior work found.')}</p>
           )}
         </div>
       );
@@ -122,7 +127,7 @@ function OutputView({ contribution }: { contribution: Contribution }) {
       const href = safeHttpUrl(o.url);
       return (
         <p>
-          Pull request:{' '}
+          {t('Pull request:')}{' '}
           {href ? <ExternalLink href={href}>{o.url}</ExternalLink> : <code>{o.url}</code>}
         </p>
       );
@@ -163,7 +168,7 @@ function ReviewForm({
   return (
     <div className="inline-form">
       <div className="field">
-        <label htmlFor={id}>Editor’s note</label>
+        <label htmlFor={id}>{t('Editor’s note')}</label>
         <input id={id} value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
       <div className="button-row">
@@ -173,7 +178,7 @@ function ReviewForm({
           disabled={busy}
           onClick={() => review(true)}
         >
-          Accept
+          {t('Accept')}
         </button>
         <button
           type="button"
@@ -181,7 +186,7 @@ function ReviewForm({
           disabled={busy}
           onClick={() => review(false)}
         >
-          Reject
+          {t('Reject')}
         </button>
       </div>
       <InlineError error={error} />

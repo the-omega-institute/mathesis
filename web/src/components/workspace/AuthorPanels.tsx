@@ -1,3 +1,4 @@
+import { t } from '../../i18n/locale';
 import { ProofWork } from '../ProofWork';
 import { EvidencePicker } from '../EvidenceFiles';
 import { bundleManuscript, withEvidence, type EvidenceInput } from '../../lib/sourceBundle';
@@ -59,15 +60,14 @@ export function ContributorsToggle({
           onChange={(e) => m.run(() => api.setContributors(submission.id, e.target.checked))}
         />
         <span>
-          Volunteer contributors may help analyse this paper. While it is in review they see the
-          statements, their dependencies, the title and the abstract; after acceptance they may help
-          formalize approved statements and probe conjectures. Turning this off closes the paper’s
-          open tasks.
+          {t(
+            'Volunteer contributors may help analyse this paper. While it is in review they see the statements, their dependencies, the title and the abstract; after acceptance they may help formalize approved statements and probe conjectures. Turning this off closes the paper’s open tasks.',
+          )}
         </span>
       </label>
       {open ? (
         <p className="small">
-          <Link to={{ kind: 'tasks', submission: submission.id }}>Tasks for this paper</Link>
+          <Link to={{ kind: 'tasks', submission: submission.id }}>{t('Tasks for this paper')}</Link>
         </p>
       ) : null}
       <InlineError error={m.error} />
@@ -90,7 +90,7 @@ export function WithdrawPanel({
       {confirming ? (
         <div className="button-row">
           <span className="small">
-            Withdraw the paper? Review stops and the paper stays private.
+            {t('Withdraw the paper? Review stops and the paper stays private.')}
           </span>
           <button
             type="button"
@@ -103,19 +103,19 @@ export function WithdrawPanel({
               )
             }
           >
-            Withdraw
+            {t('Withdraw')}
           </button>
           <button
             type="button"
             className="button button-quiet"
             onClick={() => setConfirming(false)}
           >
-            Keep it
+            {t('Keep it')}
           </button>
         </div>
       ) : (
         <button type="button" className="button button-quiet" onClick={() => setConfirming(true)}>
-          Withdraw paper…
+          {t('Withdraw paper…')}
         </button>
       )}
       <InlineError error={m.error} />
@@ -163,16 +163,17 @@ export function NewVersionForm({
     );
   };
   return (
-    <form className="tool-form" onSubmit={submit} aria-label="Upload a new version" noValidate>
-      <h3>Upload a new version</h3>
+    <form className="tool-form" onSubmit={submit} aria-label={t('Upload a new version')} noValidate>
+      <h3>{t('Upload a new version')}</h3>
       <p className="small">
-        The paper returns to draft: the statements are read again from the new source and you
-        confirm them again. Reports on the earlier statements no longer count.
+        {t(
+          'The paper returns to draft: the statements are read again from the new source and you confirm them again. Reports on the earlier statements no longer count.',
+        )}
       </p>
       <Field
-        label="Revised manuscript files"
+        label={t('Revised manuscript files')}
         htmlFor="version-file"
-        hint="PDF, .tex, .zip, .tar.gz or multiple source files; at most 30 MB"
+        hint={t('PDF, .tex, .zip, .tar.gz or multiple source files; at most 30 MB')}
       >
         <input
           key={key}
@@ -184,7 +185,7 @@ export function NewVersionForm({
         />
       </Field>
       <EvidencePicker value={evidence} onChange={setEvidence} />
-      <Field label="What changed" htmlFor="version-note">
+      <Field label={t('What changed')} htmlFor="version-note">
         <textarea
           id="version-note"
           rows={2}
@@ -193,7 +194,7 @@ export function NewVersionForm({
         />
       </Field>
       <button type="submit" className="button" disabled={m.busy}>
-        {m.busy ? 'Uploading…' : 'Upload version'}
+        {m.busy ? t('Uploading…') : t('Upload version')}
       </button>
       <InlineError error={m.error} />
     </form>
@@ -212,10 +213,11 @@ export function VisibilityChoice({
   const current = submission.analysis_visibility;
   return (
     <fieldset className="radio-list visibility">
-      <legend>Public display</legend>
+      <legend>{t('Public display')}</legend>
       <p className="small">
-        Currently: <strong>{VISIBILITY_LABELS[current]}</strong>. Reviews and letters are only shown
-        to you.
+        {t('Currently: ')}
+        <strong>{t(VISIBILITY_LABELS[current])}</strong>
+        {t('. Reviews and letters are only shown to you.')}
       </p>
       <label className="radio">
         <input
@@ -226,7 +228,8 @@ export function VisibilityChoice({
           onChange={() => m.run(() => api.setVisibility(submission.id, 'public'))}
         />
         <span>
-          <strong>Public</strong> — show statements, dependencies, new lemmas and verified Lean.
+          <strong>{t('Public')}</strong>{' '}
+          {t(' — show statements, dependencies, new lemmas and verified Lean.')}
         </span>
       </label>
       <label className="radio">
@@ -238,7 +241,7 @@ export function VisibilityChoice({
           onChange={() => m.run(() => api.setVisibility(submission.id, 'private'))}
         />
         <span>
-          <strong>Private</strong> — show only the title, authors, kind and record.
+          <strong>{t('Private')}</strong> {t(' — show only the title, authors, kind and record.')}
         </span>
       </label>
       <InlineError error={m.error} />
@@ -276,10 +279,10 @@ export function FormalizationForAuthor({
                   {!item.progress ? <ItemStateBadge state={item.state} /> : null}
                 </div>
                 <p className="small">
-                  <strong>Why this result:</strong> {item.reason}
+                  <strong>{t('Why this result:')}</strong> {item.reason}
                 </p>
                 {!publicWork && item.state.state !== 'declined' ? (
-                  <p className="small">Proof work is paused while this paper is private.</p>
+                  <p className="small">{t('Proof work is paused while this paper is private.')}</p>
                 ) : item.progress ? (
                   <FormalizationProgressView progress={item.progress} />
                 ) : (
@@ -293,13 +296,16 @@ export function FormalizationForAuthor({
                   <ProofWork record={submission.status.record} claim={item.claim} />
                 ) : null}
                 {item.state.state === 'declined' ? (
-                  <p className="small muted">You declined: {item.state.reason}</p>
+                  <p className="small muted">
+                    {t('You declined: ')}
+                    {item.state.reason}
+                  </p>
                 ) : null}
                 {publicWork && item.state.state === 'proposed' ? (
                   <>
                     {claim ? (
                       <details>
-                        <summary>Statement</summary>
+                        <summary>{t('Statement')}</summary>
                         <StatementView claim={claim} claims={submission.claims} scope="proposal" />
                       </details>
                     ) : null}
@@ -315,19 +321,22 @@ export function FormalizationForAuthor({
           })}
         </ul>
       ) : (
-        <p className="muted">No formalization has been requested.</p>
+        <p className="muted">{t('No formalization has been requested.')}</p>
       )}
       {publicWork && selected ? (
         <details>
           <summary>
-            {items.length ? 'Choose another result to formalize' : 'Choose a result to formalize'}
+            {items.length
+              ? t('Choose another result to formalize')
+              : t('Choose a result to formalize')}
           </summary>
           <p>
-            You can request a community formal proof. You will check the mathematical statement
-            before it is shared.
+            {t(
+              'You can request a community formal proof. You will check the mathematical statement before it is shared.',
+            )}
           </p>
           <label>
-            Result
+            {t('Result')}
             <select value={selected.id} onChange={(event) => setChosen(event.target.value)}>
               {available.map((claim) => (
                 <option key={claim.id} value={claim.id}>
@@ -364,7 +373,7 @@ function FormalizationProgressView({
     blocked: 'Needs attention before work can continue',
   };
   return (
-    <div className="formal-progress" aria-label="Formalization progress">
+    <div className="formal-progress" aria-label={t('Formalization progress')}>
       <p className="small">
         <strong>{labels[progress.state]}</strong>
         {progress.attempts
@@ -374,7 +383,7 @@ function FormalizationProgressView({
       {progress.next_step ? <p className="small muted">{progress.next_step}</p> : null}
       {progress.note ? (
         <details>
-          <summary>Verification details</summary>
+          <summary>{t('Verification details')}</summary>
           <p className="small">{progress.note}</p>
         </details>
       ) : null}
@@ -408,7 +417,7 @@ function FormalizationResponse({
     <div className="inline-form">
       {allowDecline ? (
         <div className="field">
-          <label htmlFor={id}>Reason (needed when declining)</label>
+          <label htmlFor={id}>{t('Reason (needed when declining)')}</label>
           <input id={id} value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>
       ) : null}
@@ -426,7 +435,7 @@ function FormalizationResponse({
             )
           }
         >
-          {allowDecline ? 'Approve formalization' : 'Request formalization'}
+          {allowDecline ? t('Approve formalization') : t('Request formalization')}
         </button>
         {allowDecline ? (
           <button
@@ -446,7 +455,7 @@ function FormalizationResponse({
               );
             }}
           >
-            Decline
+            {t('Decline')}
           </button>
         ) : null}
       </div>
@@ -469,11 +478,12 @@ export function LeanStatementCard({
       submission.lean_statements.some((a) => a.claim === c.id),
   );
   return (
-    <section className="lean-statement-card" aria-label="Lean statement">
-      <h2>Does this match your statement?</h2>
+    <section className="lean-statement-card" aria-label={t('Lean statement')}>
+      <h2>{t('Does this match your statement?')}</h2>
       <p>
-        Lean checks that this statement is well formed. Confirm that its meaning matches your
-        statement.
+        {t(
+          'Lean checks that this statement is well formed. Confirm that its meaning matches your statement.',
+        )}
       </p>
       {claims.map((claim) => {
         const attempt = [...submission.lean_statements]
@@ -494,7 +504,7 @@ export function LeanStatementCard({
                 onChange={onChange}
               />
             ) : (
-              <p role="status">The Lean statement is being prepared.</p>
+              <p role="status">{t('The Lean statement is being prepared.')}</p>
             )}
           </div>
         );
@@ -539,26 +549,29 @@ function LeanStatementResponse({
       </pre>
       {attempt.faithfulness ? (
         <div className="notice">
-          <strong>Our check: {attempt.faithfulness.verdict}</strong>
+          <strong>
+            {t('Our check: ')}
+            {attempt.faithfulness.verdict}
+          </strong>
           <p>{attempt.faithfulness.reason}</p>
           {attempt.faithfulness.mismatch ? <p>{attempt.faithfulness.mismatch}</p> : null}
           {attempt.faithfulness.regenerated ? (
-            <p className="small muted">Regenerated once after our check.</p>
+            <p className="small muted">{t('Regenerated once after our check.')}</p>
           ) : null}
         </div>
       ) : (
-        <p>Awaiting the faithfulness check.</p>
+        <p>{t('Awaiting the faithfulness check.')}</p>
       )}
       {attempt.response.state === 'confirmed' ? (
         <p role="status">
           {canRespond
-            ? 'You confirmed this statement.'
-            : 'The submitting author confirmed this statement.'}
+            ? t('You confirmed this statement.')
+            : t('The submitting author confirmed this statement.')}
         </p>
       ) : attempt.response.state === 'rejected' ? (
-        <p role="status">A revised statement is being prepared with your correction.</p>
+        <p role="status">{t('A revised statement is being prepared with your correction.')}</p>
       ) : !canRespond ? (
-        <p role="status">Awaiting confirmation from the submitting author.</p>
+        <p role="status">{t('Awaiting confirmation from the submitting author.')}</p>
       ) : (
         <>
           <div className="button-row">
@@ -568,7 +581,7 @@ function LeanStatementResponse({
               disabled={mutation.busy || !attempt.faithfulness}
               onClick={() => respond(true)}
             >
-              Yes, this matches my statement
+              {t('Yes, this matches my statement')}
             </button>
             <button
               type="button"
@@ -576,12 +589,12 @@ function LeanStatementResponse({
               disabled={mutation.busy}
               onClick={() => setRejecting(true)}
             >
-              No, it should say…
+              {t('No, it should say…')}
             </button>
           </div>
           {rejecting ? (
             <div className="form">
-              <Field label="What should it say?" htmlFor={`lean-correction-${attempt.claim}`}>
+              <Field label={t('What should it say?')} htmlFor={`lean-correction-${attempt.claim}`}>
                 <textarea
                   id={`lean-correction-${attempt.claim}`}
                   rows={3}
@@ -596,7 +609,7 @@ function LeanStatementResponse({
                 disabled={mutation.busy}
                 onClick={() => respond(false)}
               >
-                Request a revised statement
+                {t('Request a revised statement')}
               </button>
             </div>
           ) : null}

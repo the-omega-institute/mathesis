@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { ManuscriptOrigin } from '../api/types';
 import { LatexText } from './Markdown';
 import { ExternalLink } from './ui';
@@ -13,15 +14,18 @@ export function ManuscriptSources({ origin }: { origin: ManuscriptOrigin }) {
   const source = safeHttpUrl(origin.source_url);
   return (
     <section aria-labelledby="manuscript-sources-h">
-      <h2 id="manuscript-sources-h">Original source</h2>
+      <h2 id="manuscript-sources-h">{t('Original source')}</h2>
       <p>
-        {source ? <ExternalLink href={source}>Original manuscript and sources</ExternalLink> : null}
+        {source ? (
+          <ExternalLink href={source}>{t('Original manuscript and sources')}</ExternalLink>
+        ) : null}
         {source && origin.license ? ' · ' : null}
         {origin.license ? origin.license : null}
       </p>
       <p className="small muted">
-        This record preserves the original problem association and the sources supplied with the
-        manuscript.
+        {t(
+          'This record preserves the original problem association and the sources supplied with the manuscript.',
+        )}
       </p>
       {origin.evidence.length ? (
         <ul className="entry-list">

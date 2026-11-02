@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { Link } from '../routing/router';
 import type { ReactNode } from 'react';
 import { isApiError, errorMessage, signIn } from '../api/client';
@@ -18,7 +19,7 @@ export function Badge({
   title?: string;
 }) {
   return (
-    <span className={`badge badge-${tone}`} title={title}>
+    <span className={`badge badge-${tone}`} title={title ? t(title) : undefined}>
       {children}
     </span>
   );
@@ -36,7 +37,7 @@ export function ExternalLink({ href, children }: { href: string; children: React
 export function SourceLink({ source }: { source: Source }) {
   const href = sourceHref(source);
   const label = sourceLabel(source);
-  return href ? <ExternalLink href={href}>{label}</ExternalLink> : <span>{label}</span>;
+  return href ? <ExternalLink href={href}>{t(label)}</ExternalLink> : <span>{t(label)}</span>;
 }
 
 export function DateText({ iso, withTime = false }: { iso: string; withTime?: boolean }) {
@@ -50,7 +51,7 @@ export function DateText({ iso, withTime = false }: { iso: string; withTime?: bo
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <p className="muted loading" role="status">
-      {label}
+      {t(label)}
     </p>
   );
 }
@@ -60,9 +61,9 @@ export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () =
   if (isApiError(error) && error.code === 'not_authenticated') {
     return (
       <div className="notice notice-info" role="alert">
-        <p>You need to sign in to see this.</p>
+        <p>{t('You need to sign in to see this.')}</p>
         <button type="button" className="button" onClick={() => signIn()}>
-          Sign in
+          {t('Sign in')}
         </button>
       </div>
     );
@@ -76,11 +77,11 @@ export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () =
   return (
     <div className="notice notice-error" role="alert">
       <p>
-        <strong>{heading}.</strong> {errorMessage(error)}
+        <strong>{t(heading)}.</strong> {errorMessage(error)}
       </p>
       {onRetry ? (
         <button type="button" className="button button-quiet" onClick={onRetry}>
-          Reload page data
+          {t('Reload page data')}
         </button>
       ) : null}
     </div>
@@ -131,7 +132,7 @@ export function Field({
 }) {
   return (
     <div className="field">
-      <label htmlFor={htmlFor}>{label}</label>
+      <label htmlFor={htmlFor}>{t(label)}</label>
       {children}
       {hint ? <p className="hint">{hint}</p> : null}
     </div>
@@ -141,7 +142,7 @@ export function Field({
 export function MscList({ codes }: { codes: readonly string[] }) {
   if (codes.length === 0) return null;
   return (
-    <span className="msc" aria-label="MSC 2020 codes">
+    <span className="msc" aria-label={t('MSC 2020 codes')}>
       {codes.map((code) => (
         <Link key={code} to={{ kind: 'papers', msc: code }}>
           {code}
@@ -154,9 +155,12 @@ export function MscList({ codes }: { codes: readonly string[] }) {
 export function SignInPrompt({ what }: { what: string }) {
   return (
     <div className="notice notice-info">
-      <p>Sign in to {what}.</p>
+      <p>
+        {t('Sign in to ')}
+        {t(what)}.
+      </p>
       <button type="button" className="button" onClick={() => signIn()}>
-        Sign in
+        {t('Sign in')}
       </button>
     </div>
   );
@@ -181,7 +185,7 @@ export function Fold({
   return (
     <details open={open} className={className ? `fold ${className}` : 'fold'}>
       <summary>
-        <h2 id={id}>{title}</h2>
+        <h2 id={id}>{t(title)}</h2>
         {hint !== undefined ? <span className="fold-hint">{hint}</span> : null}
       </summary>
       <div className="fold-body">{children}</div>

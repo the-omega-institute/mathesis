@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
 import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
@@ -32,12 +33,13 @@ export function PaperEntry({ paper }: { paper: PaperSummary }) {
       <div className="entry-meta">
         <AuthorLine authors={paper.authors} />
         <p>
-          · <code>{paper.record}</code> · {SUBMISSION_KIND_LABELS[paper.kind]}
+          · <code>{paper.record}</code> · {t(SUBMISSION_KIND_LABELS[paper.kind])}
         </p>
         <p>
           {paper.accepted_at ? (
             <>
-              · accepted <DateText iso={paper.accepted_at} />
+              {t('· accepted ')}
+              <DateText iso={paper.accepted_at} />
             </>
           ) : null}
         </p>
@@ -47,7 +49,12 @@ export function PaperEntry({ paper }: { paper: PaperSummary }) {
       ) : null}
       <p className="entry-meta">
         {paper.new_results ? <span>{newResults(paper.new_results)}</span> : null}
-        {paper.lean_verified ? <Badge tone="good">Lean ✓ {paper.lean_verified}</Badge> : null}
+        {paper.lean_verified ? (
+          <Badge tone="good">
+            {t('Lean ✓ ')}
+            {paper.lean_verified}
+          </Badge>
+        ) : null}
         <MscList codes={paper.msc ?? []} />
       </p>
     </article>
@@ -75,17 +82,19 @@ export function PapersPage({
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Research archive</h1>
+          <h1>{t('Research archive')}</h1>
           <p className="lede">
-            Papers and notes with new mathematical content, and conjectures accepted for display.{' '}
-            <Link to={{ kind: 'policy' }}>Review policy</Link>
+            {t(
+              'Papers and notes with new mathematical content, and conjectures accepted for display.',
+            )}{' '}
+            <Link to={{ kind: 'policy' }}>{t('Review policy')}</Link>
           </p>
         </div>
       </header>
       <form
         className="archive-search"
         role="search"
-        aria-label="Search papers"
+        aria-label={t('Search papers')}
         onSubmit={(event) => {
           event.preventDefault();
           setQuery({ ...draft });
@@ -99,18 +108,18 @@ export function PapersPage({
         }}
       >
         <div className="archive-search-main">
-          <label htmlFor="paper-query">Find research</label>
+          <label htmlFor="paper-query">{t('Find research')}</label>
           <div className="archive-search-input">
             <input
               id="paper-query"
               type="search"
               maxLength={300}
-              placeholder="Title, author, abstract, DOI or record…"
+              placeholder={t('Title, author, abstract, DOI or record…')}
               value={draft.q ?? ''}
               onChange={(e) => setDraft({ ...draft, q: e.target.value })}
             />
             <button className="button" type="submit">
-              Search
+              {t('Search')}
             </button>
           </div>
         </div>
@@ -120,36 +129,36 @@ export function PapersPage({
             Boolean(initialFilters.author || initialFilters.msc || initialFilters.kind) || undefined
           }
         >
-          <summary>Advanced search</summary>
+          <summary>{t('Advanced search')}</summary>
           <div className="archive-search-filters">
             <label>
-              Author
+              {t('Author')}
               <input
                 maxLength={160}
-                placeholder="Author name"
+                placeholder={t('Author name')}
                 value={draft.author ?? ''}
                 onChange={(e) => setDraft({ ...draft, author: e.target.value })}
               />
             </label>
             <label>
-              Subject (MSC)
+              {t('Subject (MSC)')}
               <input
                 maxLength={5}
-                placeholder="e.g. 11 or 11A"
+                placeholder={t('e.g. 11 or 11A')}
                 value={draft.msc ?? ''}
                 onChange={(e) => setDraft({ ...draft, msc: e.target.value })}
               />
             </label>
             <label>
-              Type
+              {t('Type')}
               <select
                 value={draft.kind ?? ''}
                 onChange={(e) => setDraft({ ...draft, kind: e.target.value as PaperQuery['kind'] })}
               >
-                <option value="">All research</option>
-                <option value="paper">Papers</option>
-                <option value="note">Short notes</option>
-                <option value="conjecture">Conjectures</option>
+                <option value="">{t('All research')}</option>
+                <option value="paper">{t('Papers')}</option>
+                <option value="note">{t('Short notes')}</option>
+                <option value="conjecture">{t('Conjectures')}</option>
               </select>
             </label>
             <button
@@ -161,19 +170,19 @@ export function PapersPage({
                 navigate({ kind: 'papers' });
               }}
             >
-              Clear filters
+              {t('Clear filters')}
             </button>
           </div>
         </details>
         <p className="hint">
-          Search papers, notes and conjectures by title, author, abstract or identifier.
+          {t('Search papers, notes and conjectures by title, author, abstract or identifier.')}
         </p>
       </form>
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
           listing.items.length === 0 ? (
             <p className="muted">
-              No papers match this view. Try a broader search or clear the filters.
+              {t('No papers match this view. Try a broader search or clear the filters.')}
             </p>
           ) : (
             <ul className="entry-list">
@@ -220,8 +229,8 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
       <article className="paper academic-paper">
         <PaperMetadata paper={paper} />
         <p className="entry-meta">
-          <Link to={{ kind: 'papers' }}>Research archive</Link> · {s.record} ·{' '}
-          {SUBMISSION_KIND_LABELS[s.kind]}
+          <Link to={{ kind: 'papers' }}>{t('Research archive')}</Link> · {s.record} ·{' '}
+          {t(SUBMISSION_KIND_LABELS[s.kind])}
         </p>
         <header className="record-head">
           <h1>
@@ -231,44 +240,47 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           <p className="entry-meta">
             {versions[0] ? (
               <>
-                First version <DateText iso={versions[0].uploaded_at} /> ·{' '}
+                {t('First version ')}
+                <DateText iso={versions[0].uploaded_at} /> ·{' '}
               </>
             ) : null}
             {s.accepted_at ? (
               <>
-                Accepted <DateText iso={s.accepted_at} />
+                {t('Accepted ')}
+                <DateText iso={s.accepted_at} />
               </>
             ) : null}
             {latest ? ` · version ${latest.number}` : null}
           </p>
-          <nav className="paper-access" aria-label="Paper files and citation">
+          <nav className="paper-access" aria-label={t('Paper files and citation')}>
             {latest?.has_pdf && s.submission ? (
-              <a href={pdfHref(s.submission, latest.number)}>View PDF</a>
+              <a href={pdfHref(s.submission, latest.number)}>{t('View PDF')}</a>
             ) : null}
             {latest && s.submission && !latest.source_is_pdf ? (
               <a href={sourceFileHref(s.submission, latest.number)}>
-                {latest.source_is_pdf === false ? 'Download source' : 'Original upload'}
+                {latest.source_is_pdf === false ? t('Download source') : t('Original upload')}
               </a>
             ) : null}
             <a
               href="#citation"
               onClick={() => document.getElementById('citation')?.setAttribute('open', '')}
             >
-              Cite
+              {t('Cite')}
             </a>
-            {repo ? <ExternalLink href={repo}>Formal proofs</ExternalLink> : null}
+            {repo ? <ExternalLink href={repo}>{t('Formal proofs')}</ExternalLink> : null}
           </nav>
         </header>
         {paper.confirmed_error_reports ? (
           <p className="notice" role="status">
-            This version has {paper.confirmed_error_reports} confirmed error report(s). Read the
-            corrections before relying on its results.
+            {t('This version has ')}
+            {paper.confirmed_error_reports}{' '}
+            {t(' confirmed error report(s). Read the corrections before relying on its results.')}
           </p>
         ) : null}
         <PaperExplanation text={paper.plain_language} />
         {s.abstract_text ? (
           <section aria-labelledby="abstract-h" className="paper-abstract">
-            <h2 id="abstract-h">Abstract</h2>
+            <h2 id="abstract-h">{t('Abstract')}</h2>
             <LatexText source={s.abstract_text} className="abstract" />
           </section>
         ) : null}
@@ -276,12 +288,15 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           <dl className="paper-metadata">
             {s.msc?.length ? (
               <>
-                <dt>Subjects</dt>
+                <dt>{t('Subjects')}</dt>
                 <dd>
                   {s.msc.map((code, index) => (
                     <span key={code}>
                       {index ? '; ' : ''}
-                      <Link to={{ kind: 'papers', msc: code }}>MSC {code}</Link>
+                      <Link to={{ kind: 'papers', msc: code }}>
+                        {t('MSC ')}
+                        {code}
+                      </Link>
                     </span>
                   ))}
                 </dd>
@@ -289,7 +304,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             ) : null}
             {s.doi ? (
               <>
-                <dt>{arxiv ? 'arXiv' : 'DOI'}</dt>
+                <dt>{arxiv ? t('arXiv') : t('DOI')}</dt>
                 <dd>
                   {doiHref ? (
                     <ExternalLink
@@ -307,17 +322,22 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
         ) : null}
         {versions.length ? (
           <section aria-labelledby="public-versions-h" className="paper-versions">
-            <h2 id="public-versions-h">Version history</h2>
+            <h2 id="public-versions-h">{t('Version history')}</h2>
             <ol className="version-list">
               {[...versions].reverse().map((version) => (
                 <li key={version.number}>
-                  <strong>Version {version.number}</strong> · <DateText iso={version.uploaded_at} />
+                  <strong>
+                    {t('Version ')}
+                    {version.number}
+                  </strong>{' '}
+                  · <DateText iso={version.uploaded_at} />
                   {version.has_pdf && s.submission ? (
                     <>
                       {' '}
                       ·{' '}
                       <a href={pdfHref(s.submission, version.number)}>
-                        Version {version.number} PDF
+                        {t('Version ')}
+                        {version.number} {t(' PDF')}
                       </a>
                     </>
                   ) : null}
@@ -326,7 +346,8 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                       {' '}
                       ·{' '}
                       <a href={sourceFileHref(s.submission, version.number)}>
-                        Version {version.number} source
+                        {t('Version ')}
+                        {version.number} {t(' source')}
                       </a>
                     </>
                   ) : null}
@@ -342,11 +363,11 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
         {claims.length ? (
           <PaperResults paper={paper} />
         ) : (
-          <p className="muted">The author keeps the mathematical details private.</p>
+          <p className="muted">{t('The author keeps the mathematical details private.')}</p>
         )}
         {claims.length ? (
           <details className="history">
-            <summary>Corrections</summary>
+            <summary>{t('Corrections')}</summary>
             <ReportError record={s.record} subject={{ kind: 'review' }} />
             <ErrorReports record={s.record} />
           </details>

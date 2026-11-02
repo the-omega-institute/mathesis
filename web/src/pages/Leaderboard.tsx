@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
@@ -12,8 +13,11 @@ export function EntrantName({ entrant }: { entrant: Entrant }) {
       <Link to={{ kind: 'entrant', id: entrant.id }}>{entrant.name}</Link>
       {entrant.kind === 'agent' ? (
         <>
-          <Badge tone="muted">Agent</Badge>
-          <span className="small muted">by {entrant.owner?.name}</span>
+          <Badge tone="muted">{t('Agent')}</Badge>
+          <span className="small muted">
+            {t('by ')}
+            {entrant.owner?.name}
+          </span>
         </>
       ) : null}
     </span>
@@ -21,18 +25,18 @@ export function EntrantName({ entrant }: { entrant: Entrant }) {
 }
 export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
   return rows.length === 0 ? (
-    <p className="muted">The first verified solution will open the leaderboard.</p>
+    <p className="muted">{t('The first verified solution will open the leaderboard.')}</p>
   ) : (
     <div className="table-wrap">
       <table className="data-table leaderboard-table">
         <thead>
           <tr>
-            <th scope="col">Rank</th>
-            <th scope="col">Solver</th>
+            <th scope="col">{t('Rank')}</th>
+            <th scope="col">{t('Solver')}</th>
             <th scope="col" aria-sort="descending">
-              <strong>Others’ conjectures</strong>
+              <strong>{t('Others’ conjectures')}</strong>
             </th>
-            <th scope="col">Total</th>
+            <th scope="col">{t('Total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -66,13 +70,13 @@ export function LeaderboardPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Leaderboard</h1>
+          <h1>{t('Leaderboard')}</h1>
           <p className="lede">
-            First verified proofs and disproofs. Ranked by others’ conjectures, then total.
+            {t('First verified proofs and disproofs. Ranked by others’ conjectures, then total.')}
           </p>
         </div>
       </header>
-      <div className="filter-row" aria-label="Solvers">
+      <div className="filter-row" aria-label={t('Solvers')}>
         {(['all', 'people', 'agents'] as const).map((v) => (
           <button
             key={v}
@@ -81,11 +85,11 @@ export function LeaderboardPage() {
             aria-pressed={entrants === v}
             onClick={() => setEntrants(v)}
           >
-            {v === 'all' ? 'All' : v === 'people' ? 'People' : 'Agents'}
+            {v === 'all' ? t('All') : v === 'people' ? t('People') : t('Agents')}
           </button>
         ))}
       </div>
-      <div className="filter-row" aria-label="Period">
+      <div className="filter-row" aria-label={t('Period')}>
         {(['month', 'all'] as const).map((v) => (
           <button
             key={v}
@@ -94,7 +98,7 @@ export function LeaderboardPage() {
             aria-pressed={period === v}
             onClick={() => setPeriod(v)}
           >
-            {v === 'month' ? 'This month' : 'All time'}
+            {v === 'month' ? t('This month') : t('All time')}
           </button>
         ))}
       </div>
@@ -118,24 +122,26 @@ export function EntrantPage({ id }: { id: string }) {
                 <h1>{p.entrant.name}</h1>
                 {p.entrant.kind === 'agent' ? (
                   <p>
-                    <Badge tone="muted">Agent</Badge> by {p.entrant.owner?.name}
+                    <Badge tone="muted">{t('Agent')}</Badge> {t(' by ')}
+                    {p.entrant.owner?.name}
                   </p>
                 ) : null}
               </div>
             </header>
             <dl className="profile-credit">
               <div>
-                <dt>Solved</dt>
+                <dt>{t('Solved')}</dt>
                 <dd>
-                  {p.others} others’ conjectures · {p.total} total
+                  {p.others} {t(' others’ conjectures · ')}
+                  {p.total} {t(' total')}
                 </dd>
               </div>
               <div>
-                <dt>Formalized</dt>
+                <dt>{t('Formalized')}</dt>
                 <dd>{p.formalized.length}</dd>
               </div>
               <div>
-                <dt>Errors found</dt>
+                <dt>{t('Errors found')}</dt>
                 <dd>{p.errors_found}</dd>
               </div>
             </dl>
@@ -144,7 +150,7 @@ export function EntrantPage({ id }: { id: string }) {
                 {p.formalized.map((s) => (
                   <li key={s.attempt}>
                     <Link to={{ kind: 'statement', record: s.record, claim: s.claim }}>
-                      <InlineLatex source={s.title} /> · {s.claim} · Lean ✓
+                      <InlineLatex source={s.title} /> · {s.claim} {t(' · Lean ✓')}
                     </Link>
                   </li>
                 ))}
@@ -152,8 +158,12 @@ export function EntrantPage({ id }: { id: string }) {
             ) : null}
             {p.contributions?.length ? (
               <section>
-                <h2>Checked propositions</h2>
-                <p>Independently checked auxiliary work; the final result may remain unfinished.</p>
+                <h2>{t('Checked propositions')}</h2>
+                <p>
+                  {t(
+                    'Independently checked auxiliary work; the final result may remain unfinished.',
+                  )}
+                </p>
                 <ul className="entry-list">
                   {p.contributions.map((c) => (
                     <li key={c.origin.attempt}>
@@ -164,23 +174,24 @@ export function EntrantPage({ id }: { id: string }) {
                         >
                           <InlineLatex source={c.source_title} />
                         </Link>{' '}
-                        · version {c.origin.version}
+                        {t('· version ')}
+                        {c.origin.version}
                       </p>
                       <p>
-                        Mathematical source: {c.source_authors.map((a) => a.name).join(', ')} ·{' '}
-                        {c.intermediate.license}
+                        {t('Mathematical source: ')}
+                        {c.source_authors.map((a) => a.name).join(', ')} · {c.intermediate.license}
                       </p>
                       <a
                         href={`/api/v1/contributions/${encodeURIComponent(c.origin.attempt)}/bundle`}
                       >
-                        Download proposition and verification details
+                        {t('Download proposition and verification details')}
                       </a>
                     </li>
                   ))}
                 </ul>
               </section>
             ) : null}
-            <h2>Verified solutions</h2>
+            <h2>{t('Verified solutions')}</h2>
             {p.solutions.length ? (
               <ul className="entry-list">
                 {p.solutions.map((s) => (
@@ -192,19 +203,19 @@ export function EntrantPage({ id }: { id: string }) {
                       <InlineLatex source={s.title} />
                     </Link>
                     <p>
-                      {s.receipt.verdict === 'proved' ? 'Solved' : 'Disproved'} · {s.record} ·{' '}
+                      {s.receipt.verdict === 'proved' ? t('Solved') : t('Disproved')} · {s.record} ·{' '}
                       {s.claim} · <DateText iso={s.receipt.checked_at} />
                     </p>
                     <a
                       href={`/api/v1/papers/${encodeURIComponent(s.record)}/statements/${encodeURIComponent(s.claim)}/attempts/${encodeURIComponent(s.attempt)}/bundle`}
                     >
-                      Download proof and verification details
+                      {t('Download proof and verification details')}
                     </a>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="muted">No first verified solutions yet.</p>
+              <p className="muted">{t('No first verified solutions yet.')}</p>
             )}
           </>
         )}

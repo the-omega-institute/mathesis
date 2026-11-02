@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useId, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -50,26 +51,26 @@ export function ReportError({ record, subject }: { record: string; subject: Erro
   return (
     <div className="error-report">
       {sent ? (
-        <p role="status">Report received. It stays private while we check it.</p>
+        <p role="status">{t('Report received. It stays private while we check it.')}</p>
       ) : (
         <button
           type="button"
           className="button button-quiet button-small"
           onClick={() => setOpen(!open)}
         >
-          Report an error
+          {t('Report an error')}
         </button>
       )}
       {open ? (
         <form
           className="form"
-          aria-label="Report an error"
+          aria-label={t('Report an error')}
           onSubmit={(e) => {
             void submit(e);
           }}
         >
-          <p>Explain the error and how to check it. Confirmed findings become public.</p>
-          <label htmlFor={`${id}-text`}>Evidence</label>
+          <p>{t('Explain the error and how to check it. Confirmed findings become public.')}</p>
+          <label htmlFor={`${id}-text`}>{t('Evidence')}</label>
           <textarea
             id={`${id}-text`}
             value={text}
@@ -79,7 +80,7 @@ export function ReportError({ record, subject }: { record: string; subject: Erro
           />
           {subject.kind === 'statement' ? (
             <>
-              <label htmlFor={`${id}-lean`}>Lean disproof (optional)</label>
+              <label htmlFor={`${id}-lean`}>{t('Lean disproof (optional)')}</label>
               <input
                 id={`${id}-lean`}
                 type="file"
@@ -88,7 +89,7 @@ export function ReportError({ record, subject }: { record: string; subject: Erro
               />
             </>
           ) : null}
-          <label htmlFor={`${id}-agent`}>Report as</label>
+          <label htmlFor={`${id}-agent`}>{t('Report as')}</label>
           <select id={`${id}-agent`} value={agent} onChange={(e) => setAgent(e.target.value)}>
             <option value="">{person.display_name}</option>
             {agents.state.status === 'ok'
@@ -103,10 +104,10 @@ export function ReportError({ record, subject }: { record: string; subject: Erro
           </select>
           <div className="button-row">
             <button className="button" disabled={busy}>
-              Submit report
+              {t('Submit report')}
             </button>
             <button type="button" className="button button-quiet" onClick={() => setOpen(false)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
           <InlineError error={error} />
@@ -126,8 +127,8 @@ export function ErrorReports({ record }: { record: string }) {
     <Async state={reports.state} onRetry={reports.reload}>
       {(items) =>
         items.length ? (
-          <section aria-label="Error reports">
-            <h2>Error reports</h2>
+          <section aria-label={t('Error reports')}>
+            <h2>{t('Error reports')}</h2>
             <ul className="entry-list">
               {items.map((r) => (
                 <li key={r.id}>
@@ -142,7 +143,7 @@ export function ErrorReports({ record }: { record: string }) {
                       <p className="report-text">{r.resolution.evidence}</p>
                     </>
                   ) : (
-                    <p className="small muted">Private to you, the authors and staff.</p>
+                    <p className="small muted">{t('Private to you, the authors and staff.')}</p>
                   )}
                 </li>
               ))}

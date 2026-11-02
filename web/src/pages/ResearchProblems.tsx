@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -28,8 +29,8 @@ const roles: Record<SourceContribution['role'], string> = {
 export function ProblemLinks({ links }: { links: ResearchProblemLink[] }) {
   if (!links.length) return null;
   return (
-    <section aria-label="Related problems">
-      <h2>Related problems</h2>
+    <section aria-label={t('Related problems')}>
+      <h2>{t('Related problems')}</h2>
       <ul>
         {links.map((p) => (
           <li key={p.id}>
@@ -53,7 +54,7 @@ export function ResearchProblems() {
   const paged = usePaged(load);
   return (
     <>
-      <p>Original problems and the accepted papers and notes that build on them.</p>
+      <p>{t('Original problems and the accepted papers and notes that build on them.')}</p>
       <Async state={paged.state} onRetry={paged.reload}>
         {(page) =>
           page.items.length ? (
@@ -65,15 +66,16 @@ export function ResearchProblems() {
                   </Link>
                   <p className="entry-meta">
                     {statuses[p.status]} · {p.notes}{' '}
-                    {p.notes === 1 ? 'paper or note' : 'papers and notes'}
+                    {p.notes === 1 ? t('paper or note') : t('papers and notes')}
                   </p>
                 </li>
               ))}
             </ul>
           ) : (
             <p>
-              Research records appear here when related papers or notes are accepted for public
-              display.
+              {t(
+                'Research records appear here when related papers or notes are accepted for public display.',
+              )}
             </p>
           )
         }
@@ -92,7 +94,7 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
   const problem = useAsync(load);
   return (
     <div className="page">
-      <Link to={{ kind: 'conjectures' }}>Conjectures</Link>
+      <Link to={{ kind: 'conjectures' }}>{t('Conjectures')}</Link>
       <Async state={problem.state} onRetry={problem.reload}>
         {(p) => (
           <article>
@@ -107,12 +109,12 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
             {p.descriptions.map((d, index) => {
               const href = sourceHref(d.problem.source);
               return (
-                <section key={`${d.id}-${index}`} aria-label="Original problem">
-                  <h2>Original problem</h2>
+                <section key={`${d.id}-${index}`} aria-label={t('Original problem')}>
+                  <h2>{t('Original problem')}</h2>
                   <LatexText source={d.statement} />
                   {d.proposed_by?.length ? (
                     <p>
-                      Proposed by{' '}
+                      {t('Proposed by')}{' '}
                       {d.proposed_by.map((person, i) => {
                         const url = person.profile_url && safeHttpUrl(person.profile_url);
                         return (
@@ -140,11 +142,11 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
             })}
             {before ? (
               <p>
-                <Link to={{ kind: 'research_problem', id }}>Back to the first notes</Link>
+                <Link to={{ kind: 'research_problem', id }}>{t('Back to the first notes')}</Link>
               </p>
             ) : null}
             <section aria-labelledby="problem-notes-h">
-              <h2 id="problem-notes-h">Papers and notes</h2>
+              <h2 id="problem-notes-h">{t('Papers and notes')}</h2>
               {p.notes.map((note) => (
                 <article key={note.record} className="paper-entry">
                   <h3>
@@ -154,14 +156,15 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                   </h3>
                   <AuthorLine authors={note.authors} />
                   <p className="entry-meta">
-                    Version {note.version} · <DateText iso={note.updated_at} /> · {note.license}
+                    {t('Version ')}
+                    {note.version} · <DateText iso={note.updated_at} /> · {note.license}
                   </p>
                   <p>
                     <Link to={{ kind: 'paper', record: note.record }}>
-                      Read full text and version history
+                      {t('Read full text and version history')}
                     </Link>
                     {' · '}
-                    <ExternalLink href={note.source_url}>Original publication</ExternalLink>
+                    <ExternalLink href={note.source_url}>{t('Original publication')}</ExternalLink>
                   </p>
                   <ul>
                     {note.results.map((result) => (
@@ -177,7 +180,7 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                   </ul>
                   {note.evidence.filter((e) => e.kind === 'lean_source').length ? (
                     <p>
-                      Lean evidence:{' '}
+                      {t('Lean evidence:')}{' '}
                       {note.evidence
                         .filter((e) => e.kind === 'lean_source')
                         .map((e, i) => (
@@ -190,14 +193,16 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                   ) : null}
                   {note.contributions.length ? (
                     <details>
-                      <summary>Contributions recorded in this note</summary>
+                      <summary>{t('Contributions recorded in this note')}</summary>
                       <ul>
                         {note.contributions.map((c) => (
                           <li key={c.id}>
                             <strong>{roles[c.role]}</strong> ·{' '}
                             {c.contributors.map((person) => person.name).join('; ')}
                             <LatexText source={c.scope} />
-                            <ExternalLink href={c.evidence_url}>Contribution evidence</ExternalLink>
+                            <ExternalLink href={c.evidence_url}>
+                              {t('Contribution evidence')}
+                            </ExternalLink>
                           </li>
                         ))}
                       </ul>
@@ -209,14 +214,16 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
             {p.next_before ? (
               <p>
                 <Link to={{ kind: 'research_problem', id, before: p.next_before }}>
-                  More papers and notes
+                  {t('More papers and notes')}
                 </Link>
               </p>
             ) : null}
             <p>
-              Follow a named result to read its statement, formal proofs and later contributions.
+              {t(
+                'Follow a named result to read its statement, formal proofs and later contributions.',
+              )}
             </p>
-            <Link to={{ kind: 'formalizations' }}>Contribute a formal proof</Link>
+            <Link to={{ kind: 'formalizations' }}>{t('Contribute a formal proof')}</Link>
           </article>
         )}
       </Async>

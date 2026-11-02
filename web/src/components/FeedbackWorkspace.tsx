@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -21,22 +22,22 @@ export function FeedbackWorkspace({ submission }: { submission: Submission }) {
   const resource = useAsync(load);
   return (
     <details className="report">
-      <summary>Authorized knowledge proposals</summary>
+      <summary>{t('Authorized knowledge proposals')}</summary>
       <p>
-        Prepare a proposal from accepted public work for Trureturing’s existing intake. Every
-        required rights holder approves the exact package separately before download. Upstream
-        admission has its own review.
+        {t(
+          'Prepare a proposal from accepted public work for Trureturing’s existing intake. Every required rights holder approves the exact package separately before download. Upstream admission has its own review.',
+        )}
       </p>
       {person?.id === submission.submitter ? (
         <PrepareFeedback submission={submission} changed={resource.reload} />
       ) : null}
       <button className="button button-quiet" onClick={resource.reload}>
-        Refresh proposals
+        {t('Refresh proposals')}
       </button>
       <Async state={resource.state} onRetry={resource.reload}>
         {(items) => (
           <>
-            {!items.length ? <p>No proposals prepared.</p> : null}
+            {!items.length ? <p>{t('No proposals prepared.')}</p> : null}
             {items.map((p) => (
               <p key={p.id}>
                 <Link to={{ kind: 'feedback', id: submission.id, key: p.id }}>
@@ -44,8 +45,8 @@ export function FeedbackWorkspace({ submission }: { submission: Submission }) {
                 </Link>{' '}
                 —{' '}
                 {p.events.some((e) => e.event === 'revoked')
-                  ? 'Revoked'
-                  : 'Open authorization and observation history'}
+                  ? t('Revoked')
+                  : t('Open authorization and observation history')}
               </p>
             ))}
           </>
@@ -133,7 +134,7 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
   }
   return (
     <section>
-      <h3>Prepare an exact proposal</h3>
+      <h3>{t('Prepare an exact proposal')}</h3>
       <form onSubmit={(e) => void inspect(e)}>
         <fieldset
           disabled={busy}
@@ -142,23 +143,25 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
             setConsent(false);
           }}
         >
-          <legend>Proposal evidence</legend>
-          <Field label="Proposal channel" htmlFor="feedback-kind">
+          <legend>{t('Proposal evidence')}</legend>
+          <Field label={t('Proposal channel')} htmlFor="feedback-kind">
             <select
               id="feedback-kind"
               value={kind}
               onChange={(e) => setKind(e.target.value as FeedbackKind['kind'])}
             >
-              <option value="open_problem">Open problem</option>
-              <option value="verified_solution">Verified solution</option>
-              <option value="library_binding">Library binding</option>
-              <option value="witness_formalization">Content witness for formalization</option>
-              <option value="dtr_registration">DTR registration proposal</option>
-              <option value="erratum">Confirmed erratum</option>
+              <option value="open_problem">{t('Open problem')}</option>
+              <option value="verified_solution">{t('Verified solution')}</option>
+              <option value="library_binding">{t('Library binding')}</option>
+              <option value="witness_formalization">
+                {t('Content witness for formalization')}
+              </option>
+              <option value="dtr_registration">{t('DTR registration proposal')}</option>
+              <option value="erratum">{t('Confirmed erratum')}</option>
             </select>
           </Field>
           {kind !== 'library_binding' && kind !== 'erratum' ? (
-            <Field label="Confirmed statement" htmlFor="feedback-claim">
+            <Field label={t('Confirmed statement')} htmlFor="feedback-claim">
               <select name="claim" id="feedback-claim">
                 {submission.claims.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -169,16 +172,16 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
             </Field>
           ) : null}
           {kind === 'verified_solution' || kind === 'dtr_registration' ? (
-            <Text name="attempt" label="Verified attempt ID" />
+            <Text name="attempt" label={t('Verified attempt ID')} />
           ) : null}
           {kind === 'library_binding' ? (
             <>
-              <Text name="board" label="Public binding summary ID" />
-              <Text name="contribution" label="Supported contribution ID" />
+              <Text name="board" label={t('Public binding summary ID')} />
+              <Text name="contribution" label={t('Supported contribution ID')} />
             </>
           ) : null}
           {kind === 'witness_formalization' ? (
-            <Field label="Witness number (first witness is 0)" htmlFor="feedback-witness">
+            <Field label={t('Witness number (first witness is 0)')} htmlFor="feedback-witness">
               <input
                 type="number"
                 id="feedback-witness"
@@ -191,9 +194,9 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
           ) : null}
           {kind === 'erratum' ? (
             <>
-              <Text name="report" label="Confirmed error report ID" />
+              <Text name="report" label={t('Confirmed error report ID')} />
               <Field
-                label="Affected upstream declaration identities (JSON array)"
+                label={t('Affected upstream declaration identities (JSON array)')}
                 htmlFor="feedback-upstream"
               >
                 <textarea id="feedback-upstream" name="upstream" required rows={8} />
@@ -203,8 +206,9 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
           {kind === 'dtr_registration' ? (
             <>
               <p>
-                Describe all four proposed registration slots. Upstream checks determine whether a
-                registration can be admitted.
+                {t(
+                  'Describe all four proposed registration slots. Upstream checks determine whether a registration can be admitted.',
+                )}
               </p>
               {(['escape_from', 'readout_via', 'realization', 'escape_continues'] as const).map(
                 (name) => (
@@ -217,16 +221,20 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
           ) : null}
         </fieldset>
         <button className="button" disabled={busy}>
-          Preview exact evidence
+          {t('Preview exact evidence')}
         </button>
       </form>
       <InlineError error={error} />
       {preview ? (
         <>
-          <h4>Exact package for approval</h4>
-          <p>Required rights holders: {preview.required_signers.join(', ')}</p>
+          <h4>{t('Exact package for approval')}</h4>
           <p>
-            Payload digest: <code>{preview.digest}</code>
+            {t('Required rights holders: ')}
+            {preview.required_signers.join(', ')}
+          </p>
+          <p>
+            {t('Payload digest: ')}
+            <code>{preview.digest}</code>
           </p>
           <pre className="code-block">{JSON.stringify(preview.payload, null, 2)}</pre>
           <label>
@@ -235,11 +243,12 @@ function PrepareFeedback({ submission, changed }: { submission: Submission; chan
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
             />
-            I approve preparing this exact package for the listed rights holders to inspect. Each
-            holder must separately authorize export under Apache-2.0.
+            {t(
+              'I approve preparing this exact package for the listed rights holders to inspect. Each holder must separately authorize export under Apache-2.0.',
+            )}
           </label>
           <button className="button" disabled={busy || !consent} onClick={() => void prepare()}>
-            Save proposal for authorization
+            {t('Save proposal for authorization')}
           </button>
         </>
       ) : null}

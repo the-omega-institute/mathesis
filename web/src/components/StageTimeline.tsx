@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Decision, PolicyDocument, Stage, Submission } from '../api/types';
 import { reportedStageState, stageViews } from '../lib/reports';
 import { STAGES, STAGE_STATE_LABELS, stageInfo, type StageState } from '../lib/stages';
@@ -38,7 +39,7 @@ export function StageTimeline({
   const views = stageViews(submission, STAGES);
 
   return (
-    <ol className="timeline" aria-label="Review stages">
+    <ol className="timeline" aria-label={t('Review stages')}>
       {views.map((view) => {
         const info = stageInfo(view.stage, policy);
         const isAwaited = awaiting === view.stage;
@@ -59,8 +60,8 @@ export function StageTimeline({
                 <h3 id={headingId}>
                   <span className="stage-code">{info.code}</span> {info.title}
                 </h3>
-                <Badge tone={STATE_TONES[state]}>{STAGE_STATE_LABELS[state]}</Badge>
-                {isAwaited ? <Badge tone="accent">Awaiting</Badge> : null}
+                <Badge tone={STATE_TONES[state]}>{t(STAGE_STATE_LABELS[state])}</Badge>
+                {isAwaited ? <Badge tone="accent">{t('Awaiting')}</Badge> : null}
               </header>
               <p className="muted small">{info.description}</p>
               {isAwaited && decision?.decision === 'pending' ? (
@@ -76,14 +77,17 @@ export function StageTimeline({
                 />
               ) : state === 'superseded' ? (
                 <p className="muted">
-                  Every report on this stage was filed against an earlier set of statements (current
-                  revision {submission.claims_revision}); the stage is reviewed again.
+                  {t(
+                    'Every report on this stage was filed against an earlier set of statements (current revision ',
+                  )}
+                  {submission.claims_revision}
+                  {t('); the stage is reviewed again.')}
                 </p>
               ) : null}
               {older.length > 0 ? (
                 <details className="history">
                   <summary>
-                    {view.current ? 'Earlier reports' : 'Report history'} ({older.length})
+                    {view.current ? t('Earlier reports') : t('Report history')} ({older.length})
                   </summary>
                   {older.map((h) => (
                     <ReportView

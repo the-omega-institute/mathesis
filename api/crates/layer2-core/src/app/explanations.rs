@@ -78,13 +78,10 @@ impl App {
 fn explanation_eligible(paper: &Submission) -> CoreResult<()> {
     if paper.claims_revision == 0
         || paper.current_version().is_none()
-        || matches!(
-            paper.status,
-            SubmissionStatus::Draft | SubmissionStatus::Withdrawn
-        )
+        || !matches!(paper.status, SubmissionStatus::Accepted { .. })
     {
         return Err(CoreError::conflict(
-            "confirm the manuscript before preparing its explanation",
+            "only accepted manuscripts can have an explanation",
         ));
     }
     Ok(())

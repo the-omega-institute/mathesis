@@ -1,3 +1,4 @@
+import { t } from '../i18n/locale';
 import type { Author } from '../api/types';
 import { Field } from './ui';
 import { orcidHref, safeHttpUrl } from '../lib/links';
@@ -25,16 +26,22 @@ export function suppliedAuthors(
   for (const [index, draft] of drafts.entries()) {
     const number = index + 1;
     const name = draft.name.trim();
-    if (!name) return { ok: false, error: `Give a name for author ${number}.` };
+    if (!name) return { ok: false, error: t('Give a name for author {number}.', { number }) };
     if (draft.orcid.trim() && !orcidHref(draft.orcid.trim())) {
-      return { ok: false, error: `The ORCID for author ${number} is not valid.` };
+      return { ok: false, error: t('The ORCID for author {number} is not valid.', { number }) };
     }
     for (const [label, raw] of [
       ['Google Scholar URL', draft.googleScholar],
       ['Website or other link', draft.website],
     ] as const) {
       if (raw.trim() && !safeHttpUrl(raw.trim())) {
-        return { ok: false, error: `${label} for author ${number} must be an http(s) URL.` };
+        return {
+          ok: false,
+          error: t('{label} for author {number} must be an http(s) URL.', {
+            label: t(label),
+            number,
+          }),
+        };
       }
     }
     value.push({
@@ -64,9 +71,12 @@ export function AuthorFields({
   const patch = (key: keyof AuthorDraft, value: string) => onChange({ ...author, [key]: value });
   return (
     <fieldset className="author-fields">
-      <legend>Author {index + 1}</legend>
+      <legend>
+        {t('Author ')}
+        {index + 1}
+      </legend>
       <div className="form-row">
-        <Field label="Name" htmlFor={`author-${index}-name`}>
+        <Field label={t('Name')} htmlFor={`author-${index}-name`}>
           <input
             id={`author-${index}-name`}
             value={author.name}
@@ -74,18 +84,18 @@ export function AuthorFields({
             autoComplete="name"
           />
         </Field>
-        <Field label="Affiliation" htmlFor={`author-${index}-affiliation`}>
+        <Field label={t('Affiliation')} htmlFor={`author-${index}-affiliation`}>
           <input
             id={`author-${index}-affiliation`}
             value={author.affiliation}
             onChange={(e) => patch('affiliation', e.target.value)}
-            placeholder="University or institute"
+            placeholder={t('University or institute')}
             autoComplete="organization"
           />
         </Field>
       </div>
       <div className="author-profiles">
-        <p className="hint">Academic profiles (optional)</p>
+        <p className="hint">{t('Academic profiles (optional)')}</p>
         <div className="form-row">
           <Field label="ORCID" htmlFor={`author-${index}-orcid`}>
             <input
@@ -96,7 +106,7 @@ export function AuthorFields({
               inputMode="text"
             />
           </Field>
-          <Field label="Google Scholar" htmlFor={`author-${index}-scholar`}>
+          <Field label={t('Google Scholar')} htmlFor={`author-${index}-scholar`}>
             <input
               id={`author-${index}-scholar`}
               type="url"
@@ -106,7 +116,7 @@ export function AuthorFields({
             />
           </Field>
         </div>
-        <Field label="Website or other link" htmlFor={`author-${index}-website`}>
+        <Field label={t('Website or other link')} htmlFor={`author-${index}-website`}>
           <input
             id={`author-${index}-website`}
             type="url"
@@ -118,7 +128,7 @@ export function AuthorFields({
       </div>
       {canRemove ? (
         <button type="button" className="button button-quiet button-small" onClick={onRemove}>
-          Remove author
+          {t('Remove author')}
         </button>
       ) : null}
     </fieldset>
