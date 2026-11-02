@@ -167,6 +167,12 @@ and wait for admitted work rather than cycling new work IDs around the limit.
 
 ## Public display and ownership
 
+Stable problem entries and their many-to-many note relationships are described
+in [Problems, notes and versions](PROBLEMS_AND_NOTES.md). The existing
+`origin.problem_ids` is enough to establish those associations after public
+acceptance. Optional `origin.problems` preserves actual original statements,
+posers and result mappings. It never replaces a source-based settlement audit.
+
 Once accepted and public, the ordinary archive page shows the manuscript authors,
 abstract, accepted mathematical statements, PDF, original publication link,
 problem associations and scoped evidence links. Private reports, internal

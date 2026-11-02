@@ -12,6 +12,8 @@ mod formalization;
 mod knowledge;
 mod lean_statements;
 mod manuscripts;
+mod problem_library;
+pub use problem_library::*;
 mod papers;
 mod preparation;
 pub use manuscripts::ManuscriptReceipt;

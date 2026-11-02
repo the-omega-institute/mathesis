@@ -1,3 +1,4 @@
+import type { ResearchProblem, ResearchProblemSummary } from './types';
 import type {
   FormalizationWork,
   FormalizationControl,
@@ -264,6 +265,16 @@ export function versionBody(source: File, note: string, processingConsent?: stri
 }
 
 export interface ApiClient {
+  listResearchProblems(
+    page?: PageParams,
+    options?: RequestOptions,
+  ): Promise<Listing<ResearchProblemSummary>>;
+  getResearchProblem(
+    id: string,
+    options?: RequestOptions,
+    before?: string,
+  ): Promise<ResearchProblem>;
+
   feedbackObservation(
     id: string,
     key: string,
@@ -676,6 +687,10 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
       }),
     myStatementAttempts: (r, c, o) =>
       request('GET', api(`/papers/${seg(r)}/statements/${seg(c)}/attempts/mine`), undefined, o),
+    listResearchProblems: (p = {}, o) =>
+      request('GET', api(`/research-problems${buildQuery(page(p))}`), undefined, o),
+    getResearchProblem: (id, o, before) =>
+      request('GET', api(`/research-problems/${seg(id)}${buildQuery({ before })}`), undefined, o),
     listConjectures: (p = {}, o) =>
       request(
         'GET',

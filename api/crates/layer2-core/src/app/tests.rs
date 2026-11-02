@@ -3,6 +3,7 @@ use std::{collections::BTreeSet, sync::Arc};
 mod knowledge;
 mod manuscripts;
 mod preparation;
+mod problem_library;
 mod research;
 mod research_graph;
 

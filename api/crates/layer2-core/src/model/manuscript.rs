@@ -12,6 +12,9 @@ pub const MANUSCRIPT_DELIVERY_SCHEMA: &str = "mathesis.manuscript-delivery.v1";
 #[serde(deny_unknown_fields)]
 pub struct ManuscriptOrigin {
     pub problem_ids: Vec<String>,
+    /// Optional descriptions mapped from existing scientific source metadata.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub problems: Vec<ManuscriptProblem>,
     pub source_url: String,
     pub license: String,
     #[serde(default)]
@@ -156,6 +159,7 @@ impl NewManuscriptDelivery {
             }
         }
         validate_source_contributions(&self.origin.contributions)?;
+        validate_manuscript_problems(&self.origin)?;
         if self.origin.evidence.len() > 100 {
             return Err(CoreError::invalid("at most 100 manuscript evidence links"));
         }

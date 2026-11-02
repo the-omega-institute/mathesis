@@ -33,8 +33,8 @@ impl Record {
         &'a self,
         current: &'a super::Submission,
     ) -> Option<&'a super::Submission> {
-        self.publication.as_deref()
-            .or_else(|| current.published_progress.as_ref()?.publication.as_deref())
+        current.published_progress.as_ref().and_then(|p| p.publication.as_deref())
+            .or(self.publication.as_deref())
             .or_else(|| matches!(&current.status, super::SubmissionStatus::Accepted { record } if record == &self.id).then_some(current))
     }
 }

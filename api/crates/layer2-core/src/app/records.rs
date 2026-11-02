@@ -63,6 +63,8 @@ pub struct PublicVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPaper {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub problems: Vec<super::ResearchProblemLink>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bibliography: Option<super::PublicBibliography>,
     /// Identity of the immutable accepted statement set, never a private revision.
@@ -184,7 +186,10 @@ fn summary(record: &Record, submission: &Submission) -> PaperSummary {
         abstract_text: submission.abstract_text.clone(),
         msc: submission.msc.clone(),
         doi: submission.doi.clone(),
-        basis: record.basis,
+        basis: match &submission.decision {
+            Some(crate::policy::Decision::Accept { basis }) => *basis,
+            _ => record.basis,
+        },
         accepted_at: record.accepted_at,
         main_results: submission
             .claims
@@ -200,11 +205,7 @@ impl App {
     pub(crate) async fn accepted(&self, record: &Record) -> CoreResult<Submission> {
         let current = self.load(&record.submission).await?;
         let current_version = current.current_version().map(|v| v.number);
-        if let Some(publication) = record
-            .publication
-            .as_deref()
-            .or_else(|| current.published_progress.as_ref()?.publication.as_deref())
-        {
+        if let Some(publication) = record.publication_input(&current) {
             let mut published = publication.clone();
             published.status = SubmissionStatus::Accepted {
                 record: record.id.clone(),
@@ -558,6 +559,11 @@ impl App {
             })
             .count();
         Ok(PublicPaper {
+            problems: if public {
+                super::problem_library::problem_links(&submission)
+            } else {
+                vec![]
+            },
             bibliography: if public {
                 submission
                     .current_version()

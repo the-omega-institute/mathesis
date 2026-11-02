@@ -14,6 +14,7 @@ export type Route =
       msc?: string;
       work?: 'paper' | 'note' | 'conjecture';
     }
+  | { kind: 'research_problem'; id: string; before?: string }
   | { kind: 'conjectures' }
   | { kind: 'formalizations' }
   | { kind: 'conjecture'; record: string; claim: string }
@@ -158,6 +159,14 @@ export function parseRoute(pathname: string, search = ''): Route {
     switch (first) {
       case 'binding-contributors':
         return { kind: 'binding_profile', person: second };
+      case 'problems':
+        return {
+          kind: 'research_problem',
+          id: second,
+          ...(new URLSearchParams(search).get('before')
+            ? { before: new URLSearchParams(search).get('before')! }
+            : {}),
+        };
       case 'authors':
         return { kind: 'author', name: second };
       case 'entrants':
@@ -206,6 +215,8 @@ export function routePath(route: Route): string {
       return `/entrants/${seg(route.id)}`;
     case 'conjecture':
       return `/conjectures/${seg(route.record)}/${seg(route.claim)}`;
+    case 'research_problem':
+      return `/problems/${seg(route.id)}${route.before ? `?before=${seg(route.before)}` : ''}`;
     case 'conjectures':
       return '/conjectures';
     case 'papers': {

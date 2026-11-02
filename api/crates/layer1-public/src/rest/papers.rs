@@ -71,6 +71,8 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/submissions/{id}/evidence", get(evidence_file))
         .route("/papers", get(list_papers))
         .route("/conjectures", get(list_conjectures))
+        .route("/research-problems", get(list_research_problems))
+        .route("/research-problems/{id}", get(research_problem))
         .route("/papers/{id}", get(paper))
 }
 
@@ -635,5 +637,27 @@ async fn submit_prepared(
     Ok(Json(
         app.submit_prepared(&caller, &SubmissionId(id), request)
             .await?,
+    ))
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResearchProblemQuery {
+    limit: Option<u32>,
+    before: Option<String>,
+}
+async fn list_research_problems(
+    State(app): AppState,
+    Query(q): Query<ResearchProblemQuery>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(app.list_research_problems(q.limit, q.before).await?))
+}
+async fn research_problem(
+    State(app): AppState,
+    Path(id): Path<String>,
+    Query(q): Query<ResearchProblemQuery>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.research_problem_page(&id, q.before.as_deref()).await?,
     ))
 }

@@ -3060,7 +3060,7 @@
           {
             "name": "focus",
             "in": "query",
-            "description": "Node identity returned by the API. paper:WP-\u2026 returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
+            "description": "Node identity returned by the API. paper:WP-… returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
             "required": false,
             "schema": {
               "type": "string"
@@ -3088,7 +3088,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Matching public accepted source records per page, clamped to 1\u201320 (default 10). Matching and live visibility precede pagination.",
+            "description": "Matching public accepted source records per page, clamped to 1–20 (default 10). Matching and live visibility precede pagination.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -3565,6 +3565,103 @@
           }
         }
       }
+    },
+    "/api/v1/research-problems": {
+      "get": {
+        "operationId": "list_research_problems",
+        "summary": "Stable source problems with public accepted research",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing of ResearchProblemSummary; source associations do not establish a settlement or Lean verification.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ResearchProblemSummary"
+                      },
+                      "maxItems": 100
+                    },
+                    "next_before": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_before"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/research-problems/{id}": {
+      "get": {
+        "operationId": "research_problem",
+        "summary": "A source problem, its accepted notes, named results and source contribution credit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Continue the note page with the returned record cursor."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ResearchProblem with separately scoped source attribution, supported settlements and evidence links.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No currently public accepted research for this problem."
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -3977,6 +4074,13 @@
           },
           "bibliography": {
             "$ref": "#/components/schemas/PublicBibliography"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchProblemLink"
+            },
+            "maxItems": 100
           }
         },
         "required": [
@@ -7076,6 +7180,20 @@
             "items": {
               "$ref": "#/components/schemas/ManuscriptEvidence"
             }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptProblem"
+            },
+            "maxItems": 100
+          },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceContribution"
+            },
+            "maxItems": 100
           }
         },
         "required": [
@@ -8269,6 +8387,361 @@
           "errors_found",
           "contributions"
         ]
+      },
+      "ManuscriptProblem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "$ref": "#/components/schemas/Source"
+              }
+            },
+            "required": [
+              "name",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          "statement": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "proposed_by": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "profile_url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 50
+          },
+          "resolutions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "claim_label": {
+                  "type": "string"
+                },
+                "outcome": {
+                  "enum": [
+                    "proved",
+                    "disproved",
+                    "partial"
+                  ]
+                }
+              },
+              "required": [
+                "claim_label",
+                "outcome"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "id",
+          "problem",
+          "statement"
+        ],
+        "additionalProperties": false
+      },
+      "SourceContribution": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "claim_label": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "problem",
+              "mathematical_proof",
+              "exposition",
+              "formalization",
+              "correction"
+            ]
+          },
+          "contributors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "profile_url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 50
+          },
+          "evidence_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "source_revision": {
+            "type": "string"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "id",
+          "claim_label",
+          "role",
+          "contributors",
+          "evidence_url",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchProblemLink": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchProblemSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "related_research",
+              "settled",
+              "partial",
+              "conflicting"
+            ]
+          },
+          "notes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "source_id",
+          "status",
+          "notes",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchProblem": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/ResearchProblemSummary"
+          },
+          "next_before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptProblem"
+            },
+            "maxItems": 25
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemNote"
+            },
+            "maxItems": 25
+          }
+        },
+        "required": [
+          "summary",
+          "next_before",
+          "descriptions",
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "ProblemResult": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "theorem",
+              "proposition",
+              "lemma",
+              "corollary",
+              "claim",
+              "conjecture",
+              "question"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "proved",
+              "disproved",
+              "partial",
+              null
+            ]
+          }
+        },
+        "required": [
+          "claim",
+          "kind",
+          "label",
+          "statement",
+          "outcome"
+        ],
+        "additionalProperties": false
+      },
+      "ProblemNote": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Author"
+            }
+          },
+          "kind": {
+            "enum": [
+              "paper",
+              "note",
+              "conjecture"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "upstream_version": {
+            "type": "string"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "license": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemResult"
+            }
+          },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceContribution"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptEvidence"
+            }
+          }
+        },
+        "required": [
+          "record",
+          "title",
+          "authors",
+          "kind",
+          "version",
+          "upstream_version",
+          "accepted_at",
+          "updated_at",
+          "source_url",
+          "license",
+          "results",
+          "contributions",
+          "evidence"
+        ],
+        "additionalProperties": false
       }
     }
   }

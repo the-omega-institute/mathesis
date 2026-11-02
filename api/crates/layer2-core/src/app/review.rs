@@ -412,6 +412,37 @@ impl App {
         }
         submission.decision = Some(decision);
         if matches!(submission.status, SubmissionStatus::Accepted { .. })
+            && let Some(version) = submission.current_version()
+        {
+            // Advance the public input only at an applied acceptance. A mutable
+            // status, recompiled PDF or a new draft never rewrites that snapshot.
+            let mut snapshot = submission.clone();
+            if let Some(previous) = submission
+                .published_progress
+                .as_ref()
+                .and_then(|p| p.publication.as_deref())
+            {
+                for prior in &previous.versions {
+                    if prior.number < version.number
+                        && let Some(saved) = snapshot
+                            .versions
+                            .iter_mut()
+                            .find(|v| v.number == prior.number)
+                    {
+                        *saved = prior.clone();
+                    }
+                }
+            }
+            snapshot.published_progress = None;
+            submission.published_progress = Some(PublishedProgress {
+                version: version.number,
+                claims_revision: submission.claims_revision,
+                formalization: submission.formalization.clone(),
+                conjectures: submission.conjectures.clone(),
+                publication: Some(Box::new(snapshot)),
+            });
+        }
+        if matches!(submission.status, SubmissionStatus::Accepted { .. })
             && submission.kind != SubmissionKind::Conjecture
             && submission.analysis_visibility == Visibility::Public
         {

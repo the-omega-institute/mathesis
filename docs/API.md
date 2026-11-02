@@ -52,6 +52,19 @@ served from the same origin as the API; there is no private route.
 
 ## The life of a paper
 
+Problem-centred discovery uses two public read routes:
+
+| Method | Route | Result |
+|---|---|---|
+| GET | `/research-problems?limit=25&before=...` | Stable source problem summaries, accepted work count and independently scoped resolution status. |
+| GET | `/research-problems/{id}?before=...` | Original problem descriptions and a page of up to 25 public accepted papers/notes, with named results, source evidence and contribution credit. `next_before` continues the notes. |
+
+Public paper responses optionally include `problems: [{id,title}]` for backlinks.
+Problem IDs persist across note revisions. Private drafts and private reviews do
+not enter this directory. Existing `/conjectures` and proof-attempt routes retain
+their Lean target/verification semantics. See [PROBLEMS_AND_NOTES.md](PROBLEMS_AND_NOTES.md)
+for identity, optional source descriptions, version snapshots and credit.
+
 1. **Upload** (`POST /submissions`): the author sends the LaTeX source (`.tex`,
    `.zip` or `.tar.gz`, at most 30 MB) and metadata. The server reads the title,
    authors, abstract and every theorem-like environment. The paper is a

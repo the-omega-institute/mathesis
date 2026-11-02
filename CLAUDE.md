@@ -820,6 +820,15 @@ funded; local elaboration and proof verification carry no CMA payer.
 
 ## 19. Academic submission interface
 
+- Stable source problems group accepted notes through existing `origin.problem_ids`.
+  Optional `origin.problems` carries actual original statements, posers and claim
+  mappings. Public relationship reads use accepted public snapshots only. An
+  association or source-declared outcome never substitutes for the existing exact
+  source-audited settlement or independent Lean verification. Applying a later
+  acceptance advances a separate snapshot on the submission; the original Record
+  stays immutable. Pending versions and recompilation cannot replace accepted
+  inputs. See `docs/PROBLEMS_AND_NOTES.md`.
+
 - People is an administrator account list, with only an Administrator access switch.
   Legacy roles remain readable for historical access; the interface neither advertises
   nor grants editor, reviewer or endorser roles. The account menu omits editorial labels.
