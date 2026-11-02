@@ -221,6 +221,15 @@
   }
 }
 @media (max-width: 32rem) {
+  .home-cycle-labels {
+    font-size: 28px;
+  }
+  .home-cycle-center {
+    font-size: 24px;
+  }
+  .home-cycle-detail {
+    display: none;
+  }
   .home-subjects ul {
     grid-template-columns: 1fr;
   }

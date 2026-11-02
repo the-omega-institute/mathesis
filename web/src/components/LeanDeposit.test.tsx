@@ -181,11 +181,20 @@ it('deposits a linked Lean source with its revision and separate author credits'
     await user.type(screen.getByLabelText('Link to Lean code'), url);
     await user.click(screen.getByRole('button', { name: 'Import Lean source' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Imported Proof.lean');
+    const adapterText =
+      'import Proof\nimport Target\ntheorem wishpool_solution : wishpool_target_prop := by trivial';
+    const adapter = new File([adapterText], 'Solution.lean');
+    Object.defineProperty(adapter, 'text', { value: async () => adapterText });
+    await user.upload(
+      screen.getByLabelText('Solution.lean / standalone source (up to 1 MB)'),
+      adapter,
+    );
     fireEvent.submit(screen.getByRole('form', { name: 'Submit Lean formalization' }));
     await waitFor(() =>
       expect(submitFormalization).toHaveBeenCalledWith(
         expect.objectContaining({
-          solution: source,
+          solution: adapterText,
+          modules: { Proof: source },
           authors: ['Original mathematician'],
           formalizers: [author.display_name],
           source_revision: revision,

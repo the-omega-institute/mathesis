@@ -12,6 +12,7 @@ describe('linked Lean sources', () => {
       url: link,
       revision,
       filename: 'Example.lean',
+      moduleName: 'Proofs.Example',
       source,
     });
     expect(fetchSource).toHaveBeenCalledWith(

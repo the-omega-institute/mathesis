@@ -2,6 +2,7 @@ export interface LinkedLeanSource {
   url: string;
   revision: string;
   filename: string;
+  moduleName: string;
   source: string;
 }
 
@@ -78,5 +79,11 @@ export async function readLeanSourceLink(
   const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(content);
   if (!source.trim() || source.includes('\0') || /^\s*<!?(?:doctype|html)/i.test(source))
     throw new Error('The link did not return a Lean source file.');
-  return { url: canonical, revision, filename: path.at(-1)!, source };
+  return {
+    url: canonical,
+    revision,
+    filename: path.at(-1)!,
+    moduleName: path.join('.').slice(0, -5),
+    source,
+  };
 }

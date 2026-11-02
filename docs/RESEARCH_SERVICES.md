@@ -299,8 +299,9 @@ links, non-GitHub locations, HTML, empty files and invalid UTF-8. Source bytes,
 revision, declared mathematical authors, formalizers and license then enter the
 ordinary attributed deposit API. No GitHub identity is inferred to be an author.
 
-Multi-file work uses the existing complete-project upload. A linked single file
-can be an adapter alongside supporting project modules. Source reception does
+Multi-file work uses the existing complete-project upload. A linked single file keeps its repository-relative module path. A root
+`Solution.lean` is an adapter; other files remain supporting modules, so attaching
+a Solution adapter preserves the original source for verification. Source reception does
 not imply verification: public target linking, preflight and the independent
 verifier retain their current requirements. Deposits without a public confirmed
 target remain private sources.

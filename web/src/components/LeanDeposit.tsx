@@ -125,7 +125,7 @@ function DepositForm({
     try {
       const source = await readLeanSourceLink(codeUrl);
       setLinkedSource(source);
-      setFile(null);
+      if (source.moduleName === 'Solution') setFile(null);
       setReference(source.url);
       setSourceRevision(source.revision);
     } catch (e) {
@@ -143,6 +143,12 @@ function DepositForm({
       Object.create(null) as Record<string, string>,
       project?.modules,
     );
+    if (linkedSource && linkedSource.moduleName !== 'Solution') {
+      const existing = modules[linkedSource.moduleName];
+      if (existing !== undefined && existing !== linkedSource.source)
+        throw new Error('The linked module differs from the uploaded project. Choose one source.');
+      modules[linkedSource.moduleName] = linkedSource.source;
+    }
     if (supporting.length + Object.keys(modules).length > 512)
       throw new Error('Use at most 512 supporting modules.');
     const existingBytes = Object.values(modules).reduce(
@@ -154,7 +160,11 @@ function DepositForm({
         (size, f) => size + f.size,
         existingBytes +
           (file?.size ??
-            new TextEncoder().encode(linkedSource?.source ?? project?.solution ?? '').length),
+            new TextEncoder().encode(
+              linkedSource?.moduleName === 'Solution'
+                ? linkedSource.source
+                : (project?.solution ?? ''),
+            ).length),
       ) >
       8 * 1048576
     )
@@ -185,7 +195,11 @@ function DepositForm({
       source_reference: { kind: 'url', locator: linkedSource?.url ?? reference },
       toolchain,
       license,
-      solution: file ? await file.text() : (linkedSource?.source ?? project?.solution ?? ''),
+      solution: file
+        ? await file.text()
+        : linkedSource?.moduleName === 'Solution'
+          ? linkedSource.source
+          : (project?.solution ?? ''),
     };
   };
   const check = async () => {
@@ -368,7 +382,10 @@ function DepositForm({
           {linkedSource ? (
             <p role="status">
               Imported <a href={linkedSource.url}>{linkedSource.filename}</a>. The source will be
-              saved with its revision and attribution; verification follows submission.{' '}
+              saved with its revision and attribution.{' '}
+              {linkedSource.moduleName === 'Solution'
+                ? 'This file is the Solution adapter.'
+                : 'Add a Solution.lean adapter below to verify this module against a confirmed statement.'}{' '}
               <button type="button" className="text-button" onClick={() => setLinkedSource(null)}>
                 Remove linked source
               </button>
@@ -453,7 +470,7 @@ function DepositForm({
               required={!project && !linkedSource}
               onChange={(e) => {
                 setPreflight(null);
-                setLinkedSource(null);
+                if (linkedSource?.moduleName === 'Solution') setLinkedSource(null);
                 setFile(e.target.files?.[0] ?? null);
               }}
             />
