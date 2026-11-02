@@ -149,3 +149,64 @@ it('prefills the confirmed statement and binds a multi-file verification request
   );
   expect(await screen.findByRole('status')).toHaveTextContent('Verification queued');
 });
+
+it('deposits a linked Lean source with its revision and separate author credits', async () => {
+  const revision = 'a'.repeat(40);
+  const url = `https://github.com/example/research/blob/${revision}/Proof.lean`;
+  const source = 'import Mathlib\ntheorem example_result : True := True.intro';
+  const fetchSource = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(source));
+  const submitFormalization = vi.fn(async (body: NewLeanDeposit) => ({
+    ...body,
+    modules: {},
+    id: 'linked-source',
+    owner: author.id,
+    source: { id: 'blob', bytes: source.length, sha256: 'digest' },
+    submitted_at: '2026-11-02T00:00:00Z',
+    attempts: [],
+    revision: 0,
+  }));
+  const api = fakeApi({ submitFormalization }, author);
+  try {
+    renderWithApp(<SubmitPage initialIntake="lean" />, api);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByText('Deposit an existing formalization without a linked statement'),
+    );
+    await user.type(screen.getByLabelText('Title', { exact: true }), 'A reusable lemma');
+    await user.clear(screen.getByLabelText('Original authors 1'));
+    await user.type(screen.getByLabelText('Original authors 1'), 'Original mathematician');
+    await user.type(screen.getByLabelText('Mathematical statement'), 'True');
+    await user.type(screen.getByLabelText('Lean / Mathlib version pin'), 'test-toolchain');
+    await user.type(screen.getByLabelText('Source license'), 'Apache-2.0');
+    await user.type(screen.getByLabelText('Link to Lean code'), url);
+    await user.click(screen.getByRole('button', { name: 'Import Lean source' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Imported Proof.lean');
+    const adapterText =
+      'import Proof\nimport Target\ntheorem wishpool_solution : wishpool_target_prop := by trivial';
+    const adapter = new File([adapterText], 'Solution.lean');
+    Object.defineProperty(adapter, 'text', { value: async () => adapterText });
+    await user.upload(
+      screen.getByLabelText('Solution.lean / standalone source (up to 1 MB)'),
+      adapter,
+    );
+    fireEvent.submit(screen.getByRole('form', { name: 'Submit Lean formalization' }));
+    await waitFor(() =>
+      expect(submitFormalization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          solution: adapterText,
+          modules: { Proof: source },
+          authors: ['Original mathematician'],
+          formalizers: [author.display_name],
+          source_revision: revision,
+          source_reference: { kind: 'url', locator: url },
+        }),
+      ),
+    );
+    expect(api.verifyFormalization).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Source received:/)).toHaveTextContent(
+      'Verification has not run yet',
+    );
+  } finally {
+    fetchSource.mockRestore();
+  }
+});

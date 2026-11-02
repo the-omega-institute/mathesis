@@ -37,7 +37,8 @@ describe('ContributePage', () => {
       screen.getByText(/your contribution appears with your name and proof/),
     ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/trureturing/i);
-    expect(await screen.findByText('Sign in to donate model quota.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Invitation access' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Support model access' })).toBeNull();
   });
 
   it('meters the current grant and pauses it', async () => {
@@ -68,6 +69,27 @@ describe('ContributePage', () => {
     renderWithApp(<ContributePage />, api);
     expect(await screen.findByRole('form', { name: 'Donate quota' })).toBeInTheDocument();
     expect(screen.getByLabelText('Monthly cap (tokens)')).toHaveValue('200000');
+  });
+
+  it('hides quota support when the deployment disables it', async () => {
+    const getDonation = vi.fn();
+    renderWithApp(
+      <ContributePage />,
+      fakeApi(
+        {
+          session: vi.fn(async () => ({
+            authenticated: true,
+            person: donor,
+            donations_enabled: false,
+          })),
+          getDonation,
+        },
+        donor,
+      ),
+    );
+    expect(await screen.findByRole('heading', { name: 'Invitation access' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Support model access' })).toBeNull();
+    expect(getDonation).not.toHaveBeenCalled();
   });
 
   it('says when donations are not enabled', async () => {

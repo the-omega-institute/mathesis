@@ -6,12 +6,9 @@
 /* The home page introduces the work before it asks readers to browse it. */
 .home-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(18rem, 1fr);
-  grid-template-areas:
-    'introduction cycle'
-    'search search'
-    'actions actions';
-  column-gap: clamp(2rem, 4vw, 4rem);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-areas: 'introduction cycle';
+  column-gap: clamp(2rem, 4vw, 3rem);
   padding: 1.5rem 0 3rem;
 }
 .home-introduction {
@@ -37,7 +34,7 @@
   grid-area: cycle;
   align-self: center;
   width: 100%;
-  max-width: 25rem;
+  max-width: 40rem;
   margin: 0;
 }
 .home-cycle figcaption {
@@ -64,47 +61,34 @@
 .home-cycle-labels {
   fill: var(--ink);
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 20px;
 }
 .home-cycle-labels .home-cycle-detail {
   fill: var(--muted);
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 13px;
 }
 .home-cycle-center {
   fill: var(--ink-soft);
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 20px;
 }
-.home-search {
-  grid-area: search;
-  width: 100%;
-  min-width: 0;
-  max-width: 54rem;
-  margin: 2.25rem 0 1.5rem;
-}
-.home-search label {
-  display: block;
-  margin-bottom: var(--space-2);
+.home-reading {
+  max-width: 55ch;
   color: var(--ink-soft);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  line-height: 1.7;
 }
 .home-actions {
-  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-5);
+  gap: 0.75rem 1.5rem;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
 }
-
-/* Keep the introduction to the review compact; detailed guidance lives in the policy. */
-.home-overview {
-  padding-block: 1.5rem 2rem;
+.home-participation {
+  padding-block: 1rem 1.5rem;
 }
-.home-overview h2,
+.home-participation h2,
 .home-research h2 {
   margin: 0;
   padding: 0;
@@ -112,23 +96,32 @@
   font-size: 1.5rem;
   font-weight: 400;
 }
-.home-overview dl {
+.home-paths {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem clamp(1.5rem, 4vw, 3.5rem);
-  margin: 1.25rem 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem clamp(2rem, 6vw, 6rem);
+  margin-top: 1.5rem;
 }
-.home-overview dt {
-  margin-bottom: var(--space-2);
-  font-family: var(--font-serif);
-  font-size: 1.1rem;
-  font-weight: 600;
+.home-paths h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 400;
 }
-.home-overview dd {
+.home-paths h3 a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.home-paths p {
   margin: 0;
+  max-width: 58ch;
   color: var(--ink-soft);
   font-size: 0.95rem;
-  line-height: 1.65;
+  line-height: 1.7;
+}
+.home-invitation {
+  margin-top: 1.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 .home-research {
   margin-top: 1.5rem;
@@ -207,12 +200,10 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'introduction'
-      'search'
-      'actions'
       'cycle';
   }
   .home-cycle {
-    max-width: 20rem;
+    max-width: 38rem;
     justify-self: center;
     margin-top: 2rem;
   }
@@ -222,7 +213,7 @@
     padding-top: var(--space-4);
     padding-bottom: 2rem;
   }
-  .home-overview dl {
+  .home-paths {
     grid-template-columns: 1fr;
   }
   .home-subjects ul {
@@ -230,6 +221,9 @@
   }
 }
 @media (max-width: 32rem) {
+  .home-cycle {
+    display: none;
+  }
   .home-subjects ul {
     grid-template-columns: 1fr;
   }

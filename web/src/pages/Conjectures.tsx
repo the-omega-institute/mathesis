@@ -76,7 +76,7 @@ export function ConjecturesPage() {
           return items.length === 0 ? (
             <div className="empty-state">
               <p>No {status} conjectures here yet.</p>
-              <Link className="button" to={{ kind: 'submit' }}>
+              <Link className="button" to={{ kind: 'submit', intake: 'conjecture' }}>
                 Submit a conjecture
               </Link>
             </div>

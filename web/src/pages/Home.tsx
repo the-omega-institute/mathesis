@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { Async, DateText } from '../components/ui';
 import { AuthorLine } from '../components/AuthorLine';
 import { InlineLatex } from '../components/Markdown';
 import { ResearchCycle } from '../components/ResearchCycle';
-import { Link, useRouter } from '../routing/router';
+import { Link } from '../routing/router';
 import '../styles/home.css';
 
 const SUBJECTS = [
@@ -25,8 +25,6 @@ const SUBJECTS = [
 
 export function HomePage() {
   const api = useApi();
-  const { navigate } = useRouter();
-  const [query, setQuery] = useState('');
   const loadPapers = useCallback(
     (signal: AbortSignal) => api.listPapers({ limit: 3 }, { signal }),
     [api],
@@ -36,76 +34,69 @@ export function HomePage() {
     <div className="page home">
       <header className="home-hero">
         <div className="home-introduction">
-          <p className="eyebrow">Mathesis · mathematical research review</p>
+          <p className="eyebrow">Human questions. Shared mathematical knowledge.</p>
           <h1>Mathematics, reviewed and carried forward.</h1>
           <p className="lede">
-            Mathematicians ask the questions and build on one another’s results. Mathesis supports
-            their work with AI review, computation and formal proof. Accepted research becomes part
-            of a shared knowledge base, with credit for its authors and the work it builds on.
+            Bring a paper, a conjecture or a formal proof. Mathesis brings people and AI together to
+            review new mathematics and build a connected body of knowledge, grounded in Lean.
           </p>
+          <p className="home-reading">
+            Papers and written conjectures are compared with existing knowledge. Accepted work
+            receives credit and a path toward formalization; reusable Lean proofs become foundations
+            for what comes next.
+          </p>
+          <nav className="home-actions" aria-label="About Mathesis">
+            <Link to={{ kind: 'research_graph' }}>Explore the knowledge graph</Link>
+            <Link to={{ kind: 'policy' }}>How review works</Link>
+          </nav>
         </div>
         <ResearchCycle />
-        <form
-          className="home-search"
-          role="search"
-          aria-label="Search research"
-          onSubmit={(event) => {
-            event.preventDefault();
-            navigate({ kind: 'papers', q: query.trim() });
-          }}
-        >
-          <label htmlFor="home-query">Search the archive</label>
-          <div className="archive-search-input">
-            <input
-              id="home-query"
-              type="search"
-              maxLength={300}
-              placeholder="Title, author, abstract, DOI or record"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <button type="submit" className="button">
-              Search
-            </button>
-          </div>
-        </form>
-        <nav className="home-actions" aria-label="Research and submission">
-          <Link to={{ kind: 'submit' }} className="button">
-            Submit a manuscript
-          </Link>
-          <Link to={{ kind: 'papers' }} className="text-link">
-            Explore accepted research
-          </Link>
-          <Link to={{ kind: 'formalizations' }} className="text-link">
-            Contribute a formal proof
-          </Link>
-          <Link to={{ kind: 'policy' }} className="text-link">
-            Review policy
-          </Link>
-        </nav>
       </header>
 
-      <section className="home-overview" aria-labelledby="overview-heading">
-        <h2 id="overview-heading">From review to further research</h2>
-        <dl>
-          <div>
-            <dt>A clear decision</dt>
-            <dd>
-              Acceptance or rejection, with reasons. Accepted work can enter the public archive.
-            </dd>
-          </div>
-          <div>
-            <dt>Analysis and next steps</dt>
-            <dd>A review of the arguments and evidence, with suggestions and further questions.</dd>
-          </div>
-          <div>
-            <dt>Formal proof and credit</dt>
-            <dd>
-              Identify what to formalize in Lean and connect results to earlier work, crediting each
-              contribution.
-            </dd>
-          </div>
-        </dl>
+      <section className="home-participation" aria-labelledby="participate-heading">
+        <h2 id="participate-heading">Take part in the research</h2>
+        <div className="home-paths">
+          <article>
+            <h3>
+              <Link to={{ kind: 'submit' }}>Submit a paper or note</Link>
+            </h3>
+            <p>
+              Receive an acceptance decision, analysis and next steps, including results worth
+              formalizing. Accepted work can be published with its authors and sources.
+            </p>
+          </article>
+          <article>
+            <h3>
+              <Link to={{ kind: 'submit', intake: 'conjecture' }}>Propose a conjecture</Link>
+            </h3>
+            <p>
+              State a precise question and its background. Review checks what is already known and
+              what new mathematics a solution would contribute.
+            </p>
+          </article>
+          <article>
+            <h3>
+              <Link to={{ kind: 'conjectures' }}>Work on an open problem</Link>
+            </h3>
+            <p>
+              Build on someone’s question. Submit a written solution for review, or contribute a
+              Lean proof or counterexample to a confirmed statement.
+            </p>
+          </article>
+          <article>
+            <h3>
+              <Link to={{ kind: 'formalizations' }}>Contribute a formalization</Link>
+            </h3>
+            <p>
+              Formalize a result or a useful intermediate lemma. Share Lean sources, including a
+              link to existing code, with credit for the mathematics and its formalization.
+            </p>
+          </article>
+        </div>
+        <p className="home-invitation">
+          Currently welcoming researchers by invitation.{' '}
+          <Link to={{ kind: 'contribute' }}>Participation and access</Link>
+        </p>
       </section>
 
       <section aria-labelledby="recent-heading" className="home-research">

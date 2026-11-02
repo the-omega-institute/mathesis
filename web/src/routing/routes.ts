@@ -24,7 +24,7 @@ export type Route =
   | { kind: 'paper'; record: string }
   | { kind: 'result'; record: string; claim: string }
   | { kind: 'policy' }
-  | { kind: 'submit'; intake?: 'lean' | 'review'; record?: string; claim?: string }
+  | { kind: 'submit'; intake?: 'lean' | 'review' | 'conjecture'; record?: string; claim?: string }
   | { kind: 'submissions' }
   | { kind: 'queue' }
   | { kind: 'submission'; id: string; staff?: boolean }
@@ -106,7 +106,9 @@ export function parseRoute(pathname: string, search = ''): Route {
             ? { intake: 'lean' as const }
             : params.get('type') === 'review'
               ? { intake: 'review' as const }
-              : {}),
+              : params.get('type') === 'conjecture'
+                ? { intake: 'conjecture' as const }
+                : {}),
           ...(params.get('record') && params.get('claim')
             ? {
                 intake: 'lean' as const,
