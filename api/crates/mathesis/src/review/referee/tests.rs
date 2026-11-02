@@ -5979,3 +5979,23 @@ async fn internal_paper_problems_also_use_cma_without_oracle() {
         mathesis_core::model::CmaStepKind::ProblemReferee
     );
 }
+
+#[tokio::test]
+async fn internal_cma_compile_failure_is_saved_without_starting_a_model() {
+    let mut w = World::new(vec![], true).await;
+    enable_internal_account(&mut w).await;
+    w.worker
+        .app
+        .record_compilation(&w.worker.reviewer, &w.paper.id, 1, Err("TeX error".into()))
+        .await
+        .unwrap();
+    w.run_round().await;
+    let file = w.file().await;
+    let round = file.current().unwrap();
+    assert!(round.is_settled());
+    assert!(
+        matches!(&round.referee.state, StepState::Failed { reason, retryable: false, .. } if reason == "the paper did not compile")
+    );
+    assert!(w.advisor.referee_prompts.lock().await.is_empty());
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+}

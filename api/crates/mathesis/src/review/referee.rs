@@ -1265,10 +1265,19 @@ impl Worker {
         let version = submission
             .current_version()
             .ok_or_else(|| Failure::Permanent("the paper has no version".into()))?;
-        if let Some(error) = &version.compile_error {
-            return Err(Failure::Permanent(format!(
-                "the paper did not compile: {error}"
-            )));
+        if version.compile_error.is_some() {
+            let mut step = round.referee.clone();
+            step.state = self.failed("the paper did not compile".into(), None, false);
+            self.ensure_lease(job).await?;
+            self.app
+                .update_referee_round(
+                    &self.referee_account,
+                    &submission.id,
+                    round.number,
+                    RoundUpdate::Referee(step),
+                )
+                .await?;
+            return self.defer_referee(job).await;
         }
         if version.pdf.is_none() {
             return self.defer_referee(job).await;
