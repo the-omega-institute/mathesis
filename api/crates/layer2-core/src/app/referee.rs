@@ -6,9 +6,9 @@ use crate::{
     ids::{ClaimId, SubmissionId},
     model::{
         Caller, Correctness, EscapeAssessment, FeedbackLetter, MAX_LETTER_CHARS, NewLetter,
-        Outcome, PriorRelation, PriorWork, ProofShape, RefereeFile, RefereeRound, RefereeView,
-        ReviewerIdentity, Role, RoundUpdate, Source, SourceKind, Stage, StagePayload, StageReport,
-        Step, StepState, Submission, SubmissionPurpose, SubmissionStatus,
+        Outcome, PriorRelation, PriorWork, ProofShape, RefereeBackend, RefereeFile, RefereeRound,
+        RefereeView, ReviewerIdentity, Role, RoundUpdate, Source, SourceKind, Stage, StagePayload,
+        StageReport, Step, StepState, Submission, SubmissionPurpose, SubmissionStatus,
     },
     ports::JobKind,
 };
@@ -261,6 +261,29 @@ impl App {
                 submission.claims_revision,
             )
             .await
+    }
+
+    /// Resolve a saved backend before starting work; historical rounds keep
+    /// their provider even if the preparation allowlist changes.
+    pub async fn referee_backend(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+    ) -> CoreResult<RefereeBackend> {
+        caller.require(Role::Reviewer)?;
+        let submission = self.submission(caller, id).await?;
+        let (file, _) = self.referee_file(id).await?;
+        if let Some(round) = file.current().filter(|r| {
+            r.version == submission.current_version().map_or(0, |v| v.number)
+                && r.claims_revision == submission.claims_revision
+        }) {
+            return Ok(round.referee_backend);
+        }
+        Ok(if self.is_internal_account(&submission.submitter) {
+            RefereeBackend::Cma
+        } else {
+            RefereeBackend::Oracle
+        })
     }
 
     /// The round for the paper's current version and statement set, started
@@ -1028,6 +1051,11 @@ impl App {
     fn push_round(&self, file: &mut RefereeFile, submission: &Submission, version: u32) {
         let number = file.rounds.last().map_or(1, |r| r.number + 1);
         file.rounds.push(RefereeRound {
+            referee_backend: if self.is_internal_account(&submission.submitter) {
+                RefereeBackend::Cma
+            } else {
+                RefereeBackend::Oracle
+            },
             letter_contract: 3,
             computation_contract: 1,
             computation_receipts: vec![],

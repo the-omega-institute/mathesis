@@ -335,3 +335,80 @@ async fn delivery_credit_is_version_bound_and_must_name_an_extracted_result() {
         Err(CoreError::Invalid(_))
     ));
 }
+
+#[tokio::test]
+async fn internal_preparation_has_no_submission_cap_and_keeps_identity_checks() {
+    let mut w = World::new().await;
+    w.app = App::with_internal_accounts(
+        w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader)),
+        Policy::default(),
+        BTreeSet::from(["admin".into()]),
+        20,
+        BTreeSet::from(["owner".into()]),
+    );
+    let owner = w.person("owner", &[]).await;
+    assert!(!owner.has(Role::Admin));
+    let ordinary_admin = w.person("admin", &[]).await;
+    for i in 0..7 {
+        let mut new = delivery("v1", None);
+        new.work_id = format!("owner-note-{i}");
+        let receipt = w
+            .app
+            .deliver_manuscript(&owner, new, upload(b"source"))
+            .await
+            .unwrap();
+        assert!(receipt.publication.is_none());
+        assert_eq!(receipt.next_action, "confirm_claims");
+    }
+    for i in 0..3 {
+        let mut new = delivery("v1", None);
+        new.work_id = format!("ordinary-note-{i}");
+        w.app
+            .deliver_manuscript(&ordinary_admin, new, upload(b"source"))
+            .await
+            .unwrap();
+    }
+    let mut blocked = delivery("v1", None);
+    blocked.work_id = "fourth-admin-note".into();
+    let result = w
+        .app
+        .deliver_manuscript(&ordinary_admin, blocked, upload(b"source"))
+        .await;
+    assert!(matches!(result, Err(CoreError::Conflict(ref reason)) if reason.contains("at most 3")));
+    let owner_note = w
+        .app
+        .find_manuscript_delivery(
+            &owner,
+            "paper",
+            "owner-note-0",
+            SubmissionPurpose::Publication,
+        )
+        .await
+        .unwrap();
+    let mut paper = w.app.load(&owner_note.submission).await.unwrap();
+    paper.status = SubmissionStatus::NotAccepted;
+    w.app.save(&mut paper).await.unwrap();
+    let revised = w
+        .app
+        .deliver_manuscript(
+            &owner,
+            {
+                let mut new = delivery("v2", Some(1));
+                new.work_id = "owner-note-0".into();
+                new
+            },
+            upload(b"revised source"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(revised.version, 2);
+    assert_eq!(w.stores.active_count(&owner.person).await.unwrap(), 7);
+    assert!(
+        w.app
+            .list_papers(None, None)
+            .await
+            .unwrap()
+            .items
+            .is_empty()
+    );
+}

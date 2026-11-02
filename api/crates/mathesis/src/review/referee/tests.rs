@@ -93,6 +93,9 @@ impl Oracle for FakeOracle {
 
 #[derive(Default)]
 struct FakeAdvisor {
+    referee_prompts: Mutex<Vec<String>>,
+    referee_keys: Mutex<Vec<String>>,
+    referee_failures: AtomicUsize,
     knowledge_inputs: Mutex<Vec<Option<serde_json::Value>>>,
     computation_inputs: Mutex<Vec<Option<serde_json::Value>>>,
     request_more_knowledge: AtomicBool,
@@ -205,6 +208,27 @@ impl Formalizer for FakeFormalizer {
 
 #[async_trait]
 impl Advisor for FakeAdvisor {
+    async fn referee_with_store(
+        &self,
+        prompt: &str,
+        store: &dyn mathesis_review::cma::RunStore,
+    ) -> ReviewResult<String> {
+        self.referee_prompts.lock().await.push(prompt.into());
+        self.referee_keys.lock().await.push(store.key().into());
+        assert!(store.active().await?);
+        if self
+            .referee_failures
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok()
+        {
+            return Err(ReviewError::Transport("temporary CMA interruption".into()));
+        }
+        let OracleStatus::Completed { text, .. } = completed("accept")? else {
+            unreachable!()
+        };
+        Ok(text)
+    }
+
     async fn inspect_with_store(
         &self,
         input: &AdvisorInput,
@@ -5811,4 +5835,169 @@ async fn public_proof_worker_resumes_uncertain_admission_and_stops_empty_malform
             .unwrap()
             .is_empty()
     );
+}
+
+async fn enable_internal_account(w: &mut World) {
+    w.worker.app = App::with_internal_accounts(
+        w.stores.ports(Arc::new(SystemClock), Arc::new(LatexReader)),
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from([w.author.person.clone()]),
+    );
+}
+
+#[tokio::test]
+async fn internal_cma_referee_completes_the_pipeline_without_oracle() {
+    let mut w = World::new(vec![], true).await;
+    enable_internal_account(&mut w).await;
+    w.worker.oracle = None;
+    w.run_round().await;
+    let file = w.file().await;
+    let round = file.current().unwrap();
+    assert!(round.is_settled());
+    assert_eq!(
+        round.referee_backend,
+        mathesis_core::model::RefereeBackend::Cma
+    );
+    assert_eq!(round.referee.attempts, 1);
+    assert!(round.referee.done().is_some() && round.audit.done().is_some());
+    assert_eq!(file.letters.len(), 1);
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+    let prompts = w.advisor.referee_prompts.lock().await;
+    assert_eq!(prompts.len(), 1);
+    assert!(prompts[0].contains("By compactness."));
+    assert!(!prompts[0].contains("Read the attached PDF in full."));
+    assert!(prompts[0].contains("Read the supplied manuscript source"));
+    assert!(prompts[0].contains("knowledge_queries"));
+    assert!(prompts[0].contains("System-executed knowledge queries"));
+    assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        w.worker
+            .app
+            .judgements(&w.worker.referee_account, &w.paper.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn cma_referee_retry_reuses_its_identity_and_does_not_call_oracle() {
+    let mut w = World::new(vec![], true).await;
+    enable_internal_account(&mut w).await;
+    w.advisor.referee_failures.store(1, Ordering::SeqCst);
+    let job = w.job().await;
+    assert!(matches!(
+        w.worker.referee_job(&job).await,
+        Err(Failure::Transient(_))
+    ));
+    let before = w.file().await.current().unwrap().referee.clone();
+    assert!(matches!(before.state, StepState::Running { .. }));
+    // Removing the allowlist never changes the provider of an admitted round.
+    w.worker.app = App::new(
+        w.stores.ports(Arc::new(SystemClock), Arc::new(LatexReader)),
+        Policy::default(),
+        BTreeSet::new(),
+    );
+    w.worker.oracle = None;
+    assert!(w.worker.referee_job(&job).await.unwrap());
+    let after = w.file().await.current().unwrap().referee.clone();
+    assert!(after.done().is_some());
+    assert_eq!(before.input_digest, after.input_digest);
+    assert_eq!(before.client_ref, after.client_ref);
+    assert_eq!(after.attempts, 1);
+    let keys = w.advisor.referee_keys.lock().await;
+    assert_eq!(keys.len(), 2);
+    assert_eq!(keys[0], keys[1]);
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn enabling_internal_mode_preserves_an_admitted_oracle_round() {
+    let mut w = World::new(vec![completed("accept")], true).await;
+    assert!(w.worker.referee_job(&w.job().await).await.unwrap());
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 1);
+    enable_internal_account(&mut w).await;
+    w.run_round().await;
+    let file = w.file().await;
+    let round = file.current().unwrap();
+    assert_eq!(
+        round.referee_backend,
+        mathesis_core::model::RefereeBackend::Oracle
+    );
+    assert!(round.is_settled());
+    assert!(w.advisor.referee_prompts.lock().await.is_empty());
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 1);
+    let mut legacy = serde_json::to_value(round).unwrap();
+    legacy.as_object_mut().unwrap().remove("referee_backend");
+    assert_eq!(
+        serde_json::from_value::<mathesis_core::model::RefereeRound>(legacy)
+            .unwrap()
+            .referee_backend,
+        mathesis_core::model::RefereeBackend::Oracle
+    );
+}
+
+#[tokio::test]
+async fn internal_paper_problems_also_use_cma_without_oracle() {
+    use mathesis_core::ports::ReviewQueue;
+    let mut w = World::new(vec![], true).await;
+    enable_internal_account(&mut w).await;
+    w.worker.oracle = None;
+    w.run_round().await;
+    while let Some(job) = w.jobs.claim().await.unwrap() {
+        w.jobs.complete(&job).await.unwrap();
+    }
+    if let Some(job) = w.jobs.current(&w.paper.id, JobKind::Referee).await {
+        w.jobs.complete(&job).await.unwrap();
+    }
+    ReviewQueue::enqueue(&*w.stores, &w.paper.id, JobKind::OpenProblems)
+        .await
+        .unwrap();
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert_eq!(job.kind, JobKind::OpenProblems);
+    assert!(w.worker.open_problems_job(&job).await.unwrap());
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert!(!w.worker.open_problems_job(&job).await.unwrap());
+    let files = w
+        .worker
+        .app
+        .open_problem_files(&w.worker.reviewer, &w.paper.id)
+        .await
+        .unwrap();
+    assert_eq!(files.len(), 1);
+    assert_eq!(
+        files[0].referee_backend,
+        mathesis_core::model::RefereeBackend::Cma
+    );
+    assert!(files[0].report.is_some() && files[0].audit.is_some());
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+    assert_eq!(w.advisor.referee_prompts.lock().await.len(), 2);
+    let identity = mathesis_core::model::CmaStepIdentity::from_label("problem:C2:r1:referee");
+    assert_eq!(
+        identity.kind,
+        mathesis_core::model::CmaStepKind::ProblemReferee
+    );
+}
+
+#[tokio::test]
+async fn internal_cma_compile_failure_is_saved_without_starting_a_model() {
+    let mut w = World::new(vec![], true).await;
+    enable_internal_account(&mut w).await;
+    w.worker
+        .app
+        .record_compilation(&w.worker.reviewer, &w.paper.id, 1, Err("TeX error".into()))
+        .await
+        .unwrap();
+    w.run_round().await;
+    let file = w.file().await;
+    let round = file.current().unwrap();
+    assert!(round.is_settled());
+    assert!(
+        matches!(&round.referee.state, StepState::Failed { reason, retryable: false, .. } if reason == "the paper did not compile")
+    );
+    assert!(w.advisor.referee_prompts.lock().await.is_empty());
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
 }

@@ -237,6 +237,11 @@ impl App {
             return Ok(file);
         }
         let file = SolveFile {
+            referee_backend: if self.is_internal_account(&s.submitter) {
+                RefereeBackend::Cma
+            } else {
+                RefereeBackend::Oracle
+            },
             authorization: None,
             agent_attempted: Default::default(),
             agent_rounds: Default::default(),
@@ -367,7 +372,9 @@ impl App {
             .get(&file.id)
             .await?
             .ok_or_else(|| CoreError::not_found("problem review", &file.id))?;
-        if stored.review_contract != file.review_contract {
+        if stored.review_contract != file.review_contract
+            || stored.referee_backend != file.referee_backend
+        {
             return Err(CoreError::conflict(
                 "a problem review retains its admitted method contract",
             ));

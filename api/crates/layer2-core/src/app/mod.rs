@@ -56,6 +56,8 @@ pub struct App {
     pub(crate) attempts_per_day: usize,
     /// Subjects granted Admin on sign-in, from deployment configuration.
     pub(crate) bootstrap_admins: BTreeSet<PersonId>,
+    /// Explicit venue preparation accounts; independent of administrative roles.
+    internal_accounts: BTreeSet<PersonId>,
 }
 
 impl App {
@@ -65,6 +67,7 @@ impl App {
             policy,
             attempts_per_day: 20,
             bootstrap_admins,
+            internal_accounts: BTreeSet::new(),
         })
     }
 
@@ -74,12 +77,27 @@ impl App {
         admins: BTreeSet<PersonId>,
         limit: usize,
     ) -> Arc<Self> {
+        Self::with_internal_accounts(ports, policy, admins, limit, BTreeSet::new())
+    }
+
+    pub fn with_internal_accounts(
+        ports: Ports,
+        policy: Policy,
+        admins: BTreeSet<PersonId>,
+        limit: usize,
+        internal_accounts: BTreeSet<PersonId>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             ports,
             policy,
             bootstrap_admins: admins,
             attempts_per_day: limit.max(1),
+            internal_accounts,
         })
+    }
+
+    pub fn is_internal_account(&self, person: &PersonId) -> bool {
+        self.internal_accounts.contains(person)
     }
 
     pub fn policy(&self) -> &Policy {

@@ -99,6 +99,13 @@ pipeline; only their labels differ.
 
 
 
+Venue preparation accounts explicitly configured in `WISHPOOL_INTERNAL_SUBJECTS`
+use CMA for their new initial manuscript and paper-problem readings, followed by
+separate CMA source audits. They have no active-submission count cap. This grants
+no roles, publication waiver or automatic formalization credit. Each round pins its
+backend; absent historical pins remain Oracle, preserving live task identities.
+API and worker use the same allowlist. Ordinary submissions retain the pipeline below.
+
 Review stages:
 
 | Code | Stage | Filed by |

@@ -41,8 +41,8 @@ pub use referee::{
     Effort, Evidence as ImprovementEvidence, Feasibility, FeedbackLetter, FindingResponse,
     FormalAttempt, FormalProbe, FormalProbeView, FormalizationCandidate, Improvement,
     ImprovementKind, LetterDraft, MAX_LETTER_CHARS, NewFindingResponse, NewLetter, ProbeOutcome,
-    ProbeOutcomeView, Recommendation, RefereeAudit, RefereeClaim, RefereeConcern, RefereeFile,
-    RefereeReport, RefereeRound, RefereeRoundView, RefereeView, ResearchSuggestion,
+    ProbeOutcomeView, Recommendation, RefereeAudit, RefereeBackend, RefereeClaim, RefereeConcern,
+    RefereeFile, RefereeReport, RefereeRound, RefereeRoundView, RefereeView, ResearchSuggestion,
     ResponseAssessment, ResponseDisposition, ReviewEvidenceReference, ReviewSummary, RoundProgress,
     RoundUpdate, Severity, StageProgress, Step, StepState,
 };

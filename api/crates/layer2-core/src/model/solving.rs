@@ -96,6 +96,8 @@ pub struct DependencyEdge {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SolveFile {
+    #[serde(default)]
+    pub referee_backend: super::RefereeBackend,
     /// Explicit, target-bound lifetime allowance; never replenished by retry/resume.
     #[serde(default)]
     pub authorization: Option<FormalizationAuthorization>,

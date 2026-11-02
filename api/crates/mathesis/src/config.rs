@@ -141,6 +141,7 @@ pub struct Config {
     pub storage: Storage,
     pub auth: AuthMode,
     pub bootstrap_admins: BTreeSet<PersonId>,
+    pub internal_accounts: BTreeSet<PersonId>,
     /// The machine review model; when absent, model-driven stages wait for humans.
     pub review_model: Option<ReviewModelConfig>,
     /// Subject of the machine reviewer account the worker files reports as.
@@ -275,6 +276,15 @@ impl Config {
         }
 
         let bootstrap_admins = get("WISHPOOL_ADMIN_SUBJECTS")
+            .map(|v| {
+                v.split(',')
+                    .map(|s| PersonId(s.trim().to_owned()))
+                    .filter(|p| !p.0.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let internal_accounts = get("WISHPOOL_INTERNAL_SUBJECTS")
             .map(|v| {
                 v.split(',')
                     .map(|s| PersonId(s.trim().to_owned()))
@@ -596,6 +606,7 @@ impl Config {
             storage,
             auth,
             bootstrap_admins,
+            internal_accounts,
             review_concurrency: {
                 let concurrency = seconds("WISHPOOL_REVIEW_CONCURRENCY", 2)?;
                 if concurrency > 8 {
@@ -666,11 +677,16 @@ mod tests {
             ("CHRONO_NYXID_CLIENT_ID", "id"),
             ("CHRONO_NYXID_CLIENT_SECRET", "secret"),
             ("WISHPOOL_ADMIN_SUBJECTS", "a, b"),
+            ("WISHPOOL_INTERNAL_SUBJECTS", "owner, , second-owner ,"),
         ])
         .unwrap();
         assert!(c.secure_cookies());
         assert_eq!(c.public_origin(), "https://wishpool.example.org");
         assert_eq!(c.bootstrap_admins.len(), 2);
+        assert_eq!(
+            c.internal_accounts,
+            BTreeSet::from(["owner".into(), "second-owner".into()])
+        );
         assert!(!format!("{:?}", c.auth).contains("secret\""));
         assert!(c.review_model.is_none());
     }

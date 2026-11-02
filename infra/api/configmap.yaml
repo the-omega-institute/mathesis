@@ -21,6 +21,9 @@ data:
   CHRONO_NYXID_BASE_URL: "https://nyx.chrono-ai.fun"
   # Comma-separated NyxID subjects granted Admin on sign-in.
   WISHPOOL_ADMIN_SUBJECTS: ""
+  # Venue preparation accounts: CMA-only referee, no active-submission count cap.
+  # This grants no role or publication exemption. Empty keeps ordinary behavior.
+  WISHPOOL_INTERNAL_SUBJECTS: ""
   WISHPOOL_REVIEW_ACCOUNT: "wishpool:review-engine"
   # OpenAI-compatible base URL of the review model; the NyxID LLM gateway.
   WISHPOOL_REVIEW_MODEL_BASE_URL: "https://nyx.chrono-ai.fun/api/v1/llm/gateway/v1"

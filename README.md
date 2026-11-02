@@ -115,6 +115,14 @@ backend deployment.
 
 ## Referee and managed Codex agents
 
+Venue preparation accounts may be listed in `WISHPOOL_INTERNAL_SUBJECTS` (comma-separated
+NyxID subjects, empty by default). Their new initial manuscript and paper-problem
+readings use CMA directly, followed by a separate source audit, advice and letter.
+They have no active-submission count cap. This setting grants no role or acceptance
+exemption; the source confirmation, knowledge comparison and publication rules still
+apply. The backend is saved with each new review, so existing Oracle work resumes
+with its original task. Configure the same allowlist on the API and worker.
+
 GPT Pro referees through the Oracle broker and every Codex step runs on CMA
 through NyxID: audit, advice, letter, conjecture target generation, private
 accepted-paper Lean probes and paper open-problem audits. Configure an existing
@@ -229,6 +237,7 @@ editors/contributors may supply reports.
 | `CHRONO_NYXID_BASE_URL` | `https://nyx.chrono-ai.fun` | NyxID issuer |
 | `CHRONO_NYXID_CLIENT_ID` / `_SECRET` | required for nyxid | secret |
 | `WISHPOOL_ADMIN_SUBJECTS` | empty | comma-separated subjects granted Admin |
+| `WISHPOOL_INTERNAL_SUBJECTS` | empty | venue preparation subjects: CMA-only new referee rounds, no active-submission count cap; no role or acceptance grant |
 | `WISHPOOL_REVIEW_ACCOUNT` | `wishpool:review-engine` | subject the worker files reports and judgements as |
 | `WISHPOOL_REVIEW_MODEL_BASE_URL` / `_TOKEN` | unset | OpenAI-compatible endpoint; token is secret |
 | `WISHPOOL_REVIEW_MODEL` | `claude-opus-5-5` | model name routed by the gateway |

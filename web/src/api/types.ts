@@ -942,6 +942,8 @@ export type CmaAttemptView = {
     | 'audit'
     | 'advice'
     | 'letter'
+    | 'referee'
+    | 'problem_referee'
     | 'lean_probe'
     | 'conjecture_target'
     | 'research_target'

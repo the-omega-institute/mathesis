@@ -52,6 +52,17 @@ pub struct FollowupInput {
 
 #[async_trait]
 pub trait Advisor: Send + Sync {
+    /// A separately stored initial reading, using the same referee contract.
+    async fn referee_with_store(
+        &self,
+        _prompt: &str,
+        _store: &dyn crate::cma::RunStore,
+    ) -> ReviewResult<String> {
+        Err(ReviewError::Output(
+            "a durable CMA referee is required".into(),
+        ))
+    }
+
     async fn inspect_with_store(
         &self,
         _input: &AdvisorInput,

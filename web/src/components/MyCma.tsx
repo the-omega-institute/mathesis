@@ -158,6 +158,8 @@ const ATTEMPT_REASONS: Record<string, string> = {
 };
 
 const STEP_LABELS = {
+  referee: 'Referee report',
+  problem_referee: 'Paper problem review',
   audit: 'Source check',
   advice: 'Improvement suggestions',
   letter: 'Feedback letter',
