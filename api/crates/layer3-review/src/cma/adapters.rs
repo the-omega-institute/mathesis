@@ -15,6 +15,12 @@ pub struct CmaAdvisor {
 }
 #[async_trait]
 impl Advisor for CmaAdvisor {
+    async fn referee_with_store(&self, prompt: &str, store: &dyn RunStore) -> ReviewResult<String> {
+        self.client
+            .answer(store, prompt.to_owned(), self.audit_timeout)
+            .await
+    }
+
     async fn inspect_with_store(
         &self,
         input: &AdvisorInput,

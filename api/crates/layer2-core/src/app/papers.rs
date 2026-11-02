@@ -167,7 +167,9 @@ impl App {
         new.normalise_doi();
         new.validate()?;
         let active = self.ports.submissions.active_count(&caller.person).await?;
-        if active as usize >= self.policy.max_active_per_author {
+        if !self.is_internal_account(&caller.person)
+            && active as usize >= self.policy.max_active_per_author
+        {
             return Err(CoreError::conflict(format!(
                 "you have {active} papers in draft or review; at most {} at once",
                 self.policy.max_active_per_author
@@ -645,7 +647,9 @@ impl App {
                 | SubmissionStatus::Accepted { .. }
         ) {
             let active = self.ports.submissions.active_count(&caller.person).await?;
-            if active as usize >= self.policy.max_active_per_author {
+            if !self.is_internal_account(&caller.person)
+                && active as usize >= self.policy.max_active_per_author
+            {
                 return Err(CoreError::conflict(
                     "too many papers in draft or review to resubmit now",
                 ));

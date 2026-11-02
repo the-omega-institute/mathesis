@@ -20,6 +20,8 @@ pub struct CmaProfile {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CmaStepKind {
+    Referee,
+    ProblemReferee,
     Audit,
     Advice,
     Letter,
@@ -39,7 +41,9 @@ impl CmaStepKind {
     pub fn author_eligible(self) -> bool {
         matches!(
             self,
-            Self::Audit
+            Self::Referee
+                | Self::ProblemReferee
+                | Self::Audit
                 | Self::Advice
                 | Self::Letter
                 | Self::LeanProbe
@@ -64,6 +68,7 @@ impl CmaStepIdentity {
         match parts.as_slice() {
             [round, kind] if round.starts_with('r') => Self {
                 kind: match *kind {
+                    "referee" => CmaStepKind::Referee,
                     "audit" => CmaStepKind::Audit,
                     "advice" => CmaStepKind::Advice,
                     "letter" => CmaStepKind::Letter,
@@ -78,8 +83,12 @@ impl CmaStepIdentity {
                 round: round[1..].parse().ok(),
                 ..Self::default()
             },
-            ["problem", claim, round, "audit"] => Self {
-                kind: CmaStepKind::ProblemAudit,
+            ["problem", claim, round, kind @ ("audit" | "referee")] => Self {
+                kind: if *kind == "referee" {
+                    CmaStepKind::ProblemReferee
+                } else {
+                    CmaStepKind::ProblemAudit
+                },
                 claim: Some((*claim).into()),
                 round: round.strip_prefix('r').and_then(|r| r.parse().ok()),
                 target_generation: None,

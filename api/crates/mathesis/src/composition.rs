@@ -146,11 +146,12 @@ impl Composition {
         if let Some(connection) = &cma_connection {
             ports.cma_setup = Arc::new(crate::cma_connection::CmaSetupAdapter(connection.clone()));
         }
-        let app = App::with_attempt_limit(
+        let app = App::with_internal_accounts(
             ports,
             Policy::default(),
             config.bootstrap_admins.clone(),
             config.attempts_per_day,
+            config.internal_accounts.clone(),
         );
 
         let donations = match &config.hosted {
@@ -233,7 +234,9 @@ impl Composition {
                 }))
             }
             None => {
-                tracing::warn!("no oracle configured; referee rounds are disabled");
+                tracing::warn!(
+                    "no Oracle configured; ordinary referee rounds wait; configured internal accounts use CMA"
+                );
                 None
             }
         };

@@ -3,7 +3,7 @@ use super::{
     LeasedJob, mapping,
     worker::{Failure, Worker},
 };
-use mathesis_core::model::{ClaimRole, SubmissionKind};
+use mathesis_core::model::{ClaimRole, RefereeBackend, SubmissionKind};
 use mathesis_review::{
     Document,
     oracle::{OracleRequest, OracleStatus},
@@ -11,7 +11,7 @@ use mathesis_review::{
 };
 impl Worker {
     pub(super) async fn open_problems_job(&self, job: &LeasedJob) -> Result<bool, Failure> {
-        let (Some(oracle), Some(advisor)) = (&self.oracle, &self.advisor) else {
+        let Some(advisor) = &self.advisor else {
             return Ok(false);
         };
         let paper = self
@@ -33,6 +33,62 @@ impl Worker {
             claim.role = ClaimRole::Main;
             let claims = vec![claim];
             if file.report.is_none() {
+                if file.referee_backend == RefereeBackend::Cma {
+                    let source = self
+                        .app
+                        .paper_file(
+                            Some(&self.referee_account),
+                            &paper.id,
+                            Some(file.version),
+                            false,
+                        )
+                        .await?;
+                    let document = Document {
+                        title: paper.title.clone(),
+                        abstract_text: paper.abstract_text.clone(),
+                        text: Some(
+                            crate::latex::source_text(&source.bytes, &source.filename)
+                                .map_err(Failure::Permanent)?,
+                        ),
+                    };
+                    let prompt = referee_prompts::methodology_referee(
+                        &document,
+                        &mapping::confirmed_statements(&claims),
+                        &serde_json::to_value(&claims).expect("claims serialization"),
+                        true,
+                    );
+                    let text = tokio::time::timeout(
+                        self.audit_budget,
+                        advisor.referee_with_store(
+                            &prompt,
+                            &self.agent_store(
+                                job,
+                                &paper,
+                                &format!("problem:{}:r{}:referee", file.claim, file.review_round),
+                            ),
+                        ),
+                    )
+                    .await
+                    .map_err(|_| {
+                        Failure::Transient("problem CMA referee deadline exceeded".into())
+                    })?
+                    .map_err(super::worker::model_failure)?;
+                    let raw = parse_referee_answer(&text).unwrap_or_else(|error| RefereeOut {
+                        summary: "The problem referee answer could not be parsed.".into(),
+                        limits: vec![error.to_string()],
+                        ..Default::default()
+                    });
+                    file.report = Some(mapping::referee_for_kind(raw, text, &claims, true));
+                    self.ensure_lease(job).await?;
+                    self.app
+                        .record_problem_review(&self.auditor_account, file)
+                        .await?;
+                    self.jobs.defer(job, self.oracle_poll).await?;
+                    return Ok(true);
+                }
+                let Some(oracle) = &self.oracle else {
+                    return Ok(false);
+                };
                 if let Some(task) = &file.task {
                     match oracle
                         .poll(task)

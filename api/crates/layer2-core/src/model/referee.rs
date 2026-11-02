@@ -369,8 +369,19 @@ impl<T> Step<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefereeBackend {
+    #[default]
+    Oracle,
+    Cma,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RefereeRound {
+    /// Persisted at round creation; never switch providers underneath live work.
+    #[serde(default)]
+    pub referee_backend: RefereeBackend,
     /// Final report style pinned independently; legacy admitted prompts stay exact.
     #[serde(default)]
     pub letter_contract: u32,
@@ -549,6 +560,9 @@ impl RefereeFile {
                     return None;
                 }
                 let running = match attempt.identity.kind {
+                    super::CmaStepKind::Referee => {
+                        matches!(round.referee.state, StepState::Running { .. })
+                    }
                     super::CmaStepKind::Audit => {
                         matches!(round.audit.state, StepState::Running { .. })
                     }

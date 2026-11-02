@@ -163,17 +163,13 @@ impl App {
         };
         let saved = match saved {
             Ok(s) => s,
-            Err(CoreError::Conflict(_) | CoreError::StaleRevision { .. }) => {
+            Err(error @ (CoreError::Conflict(_) | CoreError::StaleRevision { .. })) => {
                 let s = self
                     .ports
                     .submissions
                     .manuscript(&key)
                     .await?
-                    .ok_or_else(|| {
-                        CoreError::conflict(
-                            "manuscript delivery changed; retry the identical request",
-                        )
-                    })?;
+                    .ok_or(error)?;
                 if !s.versions.iter().any(|v| {
                     v.delivery.as_ref().is_some_and(|d| {
                         d.version == new.version && d.request_digest == request_digest
