@@ -8,6 +8,25 @@ import { ResultPage } from './Result';
 import { PaperPage, PapersPage } from './Papers';
 
 describe('public paper page', () => {
+  it('shows bilingual exposition before the technical abstract', async () => {
+    renderWithApp(
+      <PaperPage record="WP-2026-0001" />,
+      fakeApi({
+        getPaper: vi.fn(async () => ({
+          ...publicPaper,
+          plain_language: { en: 'Readable mathematical context.', zh: '易懂的数学背景。' },
+        })),
+      }),
+    );
+    const english = await screen.findByText('Readable mathematical context.');
+    expect(
+      english.compareDocumentPosition(screen.getByRole('heading', { name: 'Abstract' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await userEvent.setup().click(screen.getByRole('button', { name: '中文' }));
+    expect(screen.getByText('易懂的数学背景。')).toBeInTheDocument();
+  });
+
   it('prominently identifies confirmed errors on the published version', async () => {
     const api = fakeApi({
       getPaper: vi.fn(async () => ({ ...publicPaper, confirmed_error_reports: 2 })),

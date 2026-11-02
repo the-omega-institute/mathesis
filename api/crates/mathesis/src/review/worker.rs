@@ -179,7 +179,10 @@ impl Worker {
                 // Keep its original job without consuming retry attempts or rerunning review.
                 if matches!(
                     job.kind,
-                    JobKind::Referee | JobKind::ResearchTarget | JobKind::BindingAudit
+                    JobKind::Referee
+                        | JobKind::PaperExplanation
+                        | JobKind::ResearchTarget
+                        | JobKind::BindingAudit
                 ) {
                     match self.cleanup_agents(&job).await {
                         Ok(true) => self.jobs.defer(&job, Duration::from_secs(30)).await,
@@ -235,6 +238,9 @@ impl Worker {
         if job.kind.lane() == JobLane::Review {
             self.cleanup_agents(job).await?;
         }
+        if job.kind == JobKind::PaperExplanation {
+            return self.paper_explanation_job(job).await;
+        }
         if job.kind == JobKind::ErrorReports {
             return self.error_reports_job(job).await;
         }
@@ -262,7 +268,8 @@ impl Worker {
             Err(error) => return Err(error.into()),
         };
         match job.kind {
-            JobKind::ErrorReports
+            JobKind::PaperExplanation
+            | JobKind::ErrorReports
             | JobKind::AgentAttempt
             | JobKind::OpenProblems
             | JobKind::VerifyAttempt

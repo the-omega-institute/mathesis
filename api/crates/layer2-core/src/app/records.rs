@@ -63,6 +63,8 @@ pub struct PublicVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPaper {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plain_language: Option<PlainLanguageText>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub problems: Vec<super::ResearchProblemLink>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -211,6 +213,21 @@ impl App {
                 record: record.id.clone(),
             };
             published.analysis_visibility = current.analysis_visibility;
+            // Exposition may finish after acceptance. Copy only the exact public
+            // source version, even while a later private revision is in progress.
+            if let Some(version) = published.versions.last_mut()
+                && let Some(saved) = current
+                    .versions
+                    .iter()
+                    .find(|v| {
+                        v.number == version.number && v.archive.sha256 == version.archive.sha256
+                    })
+                    .and_then(|v| v.plain_language.as_ref())
+                && saved.claims_revision == published.claims_revision
+                && saved.source_sha256 == version.archive.sha256
+            {
+                version.plain_language = Some(saved.clone());
+            }
             // Later proofs can appear only for this same statement set.
             if current.claims_revision == published.claims_revision
                 && current.current_version().map(|v| v.number)
@@ -559,6 +576,20 @@ impl App {
             })
             .count();
         Ok(PublicPaper {
+            plain_language: if public {
+                submission
+                    .current_version()
+                    .and_then(|v| {
+                        v.plain_language.as_ref().filter(|e| {
+                            e.version == v.number
+                                && e.source_sha256 == v.archive.sha256
+                                && e.claims_revision == submission.claims_revision
+                        })
+                    })
+                    .map(|e| e.text.clone())
+            } else {
+                None
+            },
             problems: if public {
                 super::problem_library::problem_links(&submission)
             } else {

@@ -15,6 +15,19 @@ pub struct CmaAdvisor {
 }
 #[async_trait]
 impl Advisor for CmaAdvisor {
+    async fn explain_with_store(
+        &self,
+        input: &AdvisorInput,
+        store: &dyn RunStore,
+    ) -> ReviewResult<crate::explanation::ExplanationOut> {
+        parse_answer(
+            &self
+                .client
+                .answer(store, crate::explanation::prompt(input), self.timeout)
+                .await?,
+        )
+    }
+
     async fn referee_with_store(&self, prompt: &str, store: &dyn RunStore) -> ReviewResult<String> {
         self.client
             .answer(store, prompt.to_owned(), self.audit_timeout)

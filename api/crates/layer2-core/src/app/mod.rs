@@ -3,6 +3,7 @@
 
 mod cma;
 mod deposits;
+mod explanations;
 mod formalization_directory;
 pub use formalization_directory::{FormalizationOpportunity, FormalizationQuery};
 mod donations;

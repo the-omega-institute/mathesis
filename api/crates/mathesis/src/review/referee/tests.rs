@@ -93,6 +93,7 @@ impl Oracle for FakeOracle {
 
 #[derive(Default)]
 struct FakeAdvisor {
+    explanations: AtomicUsize,
     referee_prompts: Mutex<Vec<String>>,
     referee_keys: Mutex<Vec<String>>,
     referee_failures: AtomicUsize,
@@ -208,6 +209,30 @@ impl Formalizer for FakeFormalizer {
 
 #[async_trait]
 impl Advisor for FakeAdvisor {
+    async fn explain_with_store(
+        &self,
+        input: &AdvisorInput,
+        store: &dyn mathesis_review::cma::RunStore,
+    ) -> ReviewResult<mathesis_review::explanation::ExplanationOut> {
+        assert!(store.active().await?);
+        assert!(input.audit.is_none() && input.decision.is_none());
+        assert!(input.knowledge.is_none() && input.followup.is_none());
+        assert!(
+            !input
+                .text
+                .as_ref()
+                .unwrap()
+                .contains("Author-requested review context")
+        );
+        assert!(!input.text.as_ref().unwrap().contains("Re-review evidence"));
+        assert!(input.text.as_ref().unwrap().contains("Every gap is finite"));
+        self.explanations.fetch_add(1, Ordering::SeqCst);
+        Ok(mathesis_review::explanation::ExplanationOut {
+            en: "The authors study gaps.".into(),
+            zh: "作者研究间隔。".into(),
+        })
+    }
+
     async fn referee_with_store(
         &self,
         prompt: &str,
@@ -6000,4 +6025,35 @@ async fn internal_cma_compile_failure_is_saved_without_starting_a_model() {
     );
     assert!(w.advisor.referee_prompts.lock().await.is_empty());
     assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn bilingual_exposition_runs_once_without_oracle_or_a_review_round() {
+    let w = World::new(vec![], true).await;
+    mathesis_core::ports::ReviewQueue::enqueue(&*w.stores, &w.paper.id, JobKind::PaperExplanation)
+        .await
+        .unwrap();
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert_eq!(job.kind, JobKind::PaperExplanation);
+    assert!(!w.worker.paper_explanation_job(&job).await.unwrap());
+    assert!(!w.worker.paper_explanation_job(&job).await.unwrap());
+    let paper = w
+        .worker
+        .app
+        .submission(&w.author, &w.paper.id)
+        .await
+        .unwrap();
+    let text = &paper
+        .current_version()
+        .unwrap()
+        .plain_language
+        .as_ref()
+        .unwrap()
+        .text;
+    assert_eq!(text.zh, "作者研究间隔。");
+    assert_eq!(w.advisor.explanations.load(Ordering::SeqCst), 1);
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+    assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 0);
+    assert!(w.file().await.rounds.is_empty());
+    assert_eq!(paper.status, w.paper.status);
 }

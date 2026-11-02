@@ -83,3 +83,6 @@ pub use problem::*;
 
 mod bibliography;
 pub use bibliography::*;
+
+mod explanation;
+pub use explanation::*;

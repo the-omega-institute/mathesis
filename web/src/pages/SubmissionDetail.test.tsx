@@ -516,3 +516,34 @@ it('shows one loading shell for the shared review resource on the author page', 
   expect(container.querySelector('.author-details .referee-panel')).toBeNull();
   expect(screen.getByRole('region', { name: 'Review' })).toHaveTextContent('Loading…');
 });
+
+it.each([true, false])(
+  'shows only source-bound exposition on the author page (current: %s)',
+  async (current) => {
+    const currentVersion = submission.versions.at(-1)!;
+    const paper = {
+      ...submission,
+      versions: [
+        {
+          ...currentVersion,
+          plain_language: {
+            version: currentVersion.number,
+            claims_revision: current ? submission.claims_revision : submission.claims_revision + 1,
+            source_sha256: currentVersion.archive.sha256,
+            prepared_at: currentVersion.uploaded_at,
+            text: { en: 'A readable account of this manuscript.', zh: '这篇稿件的通俗解读。' },
+          },
+        },
+      ],
+    };
+    renderWithApp(
+      <SubmissionDetailPage id={paper.id} />,
+      fakeApi({ getSubmission: vi.fn(async () => paper) }, author),
+    );
+    await screen.findByRole('heading', { level: 1, name: paper.title });
+    if (current)
+      expect(screen.getByText('A readable account of this manuscript.')).toBeInTheDocument();
+    else
+      expect(screen.queryByText('A readable account of this manuscript.')).not.toBeInTheDocument();
+  },
+);

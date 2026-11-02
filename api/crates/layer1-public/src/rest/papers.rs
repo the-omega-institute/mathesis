@@ -39,6 +39,11 @@ pub(super) fn routes() -> Router<Arc<App>> {
         )
         .route("/submissions/{id}/submit", post(submit_prepared))
         .route("/submissions/{id}", get(get_submission))
+        .route("/submissions/{id}/plain-language", put(record_explanation))
+        .route(
+            "/submissions/{id}/plain-language/request",
+            post(request_explanation),
+        )
         .route(
             "/manuscript-deliveries",
             get(find_manuscript)
@@ -659,5 +664,28 @@ async fn research_problem(
 ) -> ApiResult<impl IntoResponse> {
     Ok(Json(
         app.research_problem_page(&id, q.before.as_deref()).await?,
+    ))
+}
+
+async fn record_explanation(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Body(input): Body<mathesis_core::model::NewPaperExplanation>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.record_paper_explanation(&caller, &SubmissionId(id), input)
+            .await?,
+    ))
+}
+
+async fn request_explanation(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.request_paper_explanation(&caller, &SubmissionId(id))
+            .await?,
     ))
 }

@@ -2795,3 +2795,33 @@ button.research-map-node.is-connected {
     max-width: 42rem;
   }
 }
+
+.paper-explanation {
+  margin-block: 2rem;
+  line-height: 1.75;
+}
+.paper-explanation-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+}
+.paper-explanation-heading h2 {
+  margin-block: 0 0.5rem;
+}
+.paper-explanation-languages {
+  display: flex;
+  gap: 1rem;
+}
+.paper-explanation-languages button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.paper-explanation-languages button[aria-pressed='true'] {
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+}

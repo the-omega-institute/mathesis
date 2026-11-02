@@ -1164,3 +1164,25 @@ first grant defines its limits. Consumed generations are always preserved.
 Rebinding an allowance after a confirmed target changes also requires
 `change_allowance: true`, retaining consumed generations and saved work under a
 fresh round identity. A resume request cannot authorize a replacement target.
+
+
+## Plain-language paper explanations
+
+Each newly confirmed manuscript independently queues bilingual exposition. The
+current `PaperVersion.plain_language` stores `{version, claims_revision,
+source_sha256, text: {en, zh}, prepared_at}`. Old documents omit it. Public
+`GET /papers/:record` exposes only `plain_language: {en, zh}` for the exact
+accepted version when its mathematical details are public. A private successor
+cannot replace the explanation of a published predecessor.
+
+`POST /submissions/:id/plain-language/request` is admin-only. It backfills or
+retries the explanation using a new durable exposition generation, without
+restarting mathematical review. An already-current explanation is reused.
+
+`PUT /submissions/:id/plain-language` requires Reviewer or Admin. Its body is
+`{version, claims_revision, source_sha256, generation, text: {en, zh}}`. All
+identities must match the confirmed current manuscript. Both languages must be
+nonempty and at most 12,000 characters each. Exact retries are idempotent.
+Only Admin can replace existing exposition, so an older machine result cannot
+overwrite a staff correction. This operation neither decides acceptance nor
+changes visibility, proofs or credit.

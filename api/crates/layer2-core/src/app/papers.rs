@@ -117,6 +117,8 @@ impl App {
             .put(&upload.bytes, "application/octet-stream")
             .await?;
         Ok(PaperVersion {
+            plain_language: None,
+            explanation_generation: 0,
             bibliography: read.bibliography.clone(),
             delivery: None,
             evidence: read.evidence.clone(),
@@ -552,6 +554,10 @@ impl App {
             self.ports.queue.enqueue(id, JobKind::Stage(stage)).await?;
         }
         self.ports.queue.enqueue(id, JobKind::Referee).await?;
+        self.ports
+            .queue
+            .enqueue(id, JobKind::PaperExplanation)
+            .await?;
         if submission.claims_revision != before {
             self.close_tasks(id, "the statements changed").await?;
         }

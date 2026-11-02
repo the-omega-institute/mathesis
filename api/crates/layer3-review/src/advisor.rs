@@ -52,6 +52,16 @@ pub struct FollowupInput {
 
 #[async_trait]
 pub trait Advisor: Send + Sync {
+    async fn explain_with_store(
+        &self,
+        _input: &AdvisorInput,
+        _store: &dyn crate::cma::RunStore,
+    ) -> ReviewResult<crate::explanation::ExplanationOut> {
+        Err(ReviewError::Output(
+            "paper explanation is unavailable".into(),
+        ))
+    }
+
     /// A separately stored initial reading, using the same referee contract.
     async fn referee_with_store(
         &self,
@@ -216,6 +226,15 @@ impl CodexCli {
 
 #[async_trait]
 impl Advisor for CodexCli {
+    async fn explain_with_store(
+        &self,
+        input: &AdvisorInput,
+        _: &dyn crate::cma::RunStore,
+    ) -> ReviewResult<crate::explanation::ExplanationOut> {
+        self.answer(input, crate::explanation::prompt(input), self.timeout)
+            .await
+    }
+
     async fn inspect_with_store(
         &self,
         input: &AdvisorInput,
@@ -258,6 +277,20 @@ impl Advisor for CodexCli {
 
 #[async_trait]
 impl Advisor for ChatModel {
+    async fn explain_with_store(
+        &self,
+        input: &AdvisorInput,
+        _: &dyn crate::cma::RunStore,
+    ) -> ReviewResult<crate::explanation::ExplanationOut> {
+        let (answer, _) = self
+            .complete_metered(
+                "Explain only the supplied manuscript faithfully in both languages.",
+                crate::explanation::prompt(input),
+            )
+            .await?;
+        Ok(answer)
+    }
+
     fn engine(&self) -> &str {
         ReviewModel::engine(self)
     }
