@@ -1282,7 +1282,10 @@ impl Worker {
         if version.pdf.is_none() {
             return self.defer_referee(job).await;
         }
-        let mut prompt = self.referee_prompt(job, submission, round).await?;
+        let mut prompt = self.referee_prompt(job, submission, round).await?.replace(
+            "Read the attached PDF in full.",
+            "Read the supplied manuscript source or extracted PDF text in full. This reading has no PDF attachment; identify any limits of the supplied source or text extraction.",
+        );
         let empty = mapping::referee(RefereeOut::default(), String::new(), &submission.claims);
         let (input, _work, source) = self
             .advisor_input(submission, &empty, round.review_contract)

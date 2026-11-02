@@ -5867,6 +5867,8 @@ async fn internal_cma_referee_completes_the_pipeline_without_oracle() {
     let prompts = w.advisor.referee_prompts.lock().await;
     assert_eq!(prompts.len(), 1);
     assert!(prompts[0].contains("By compactness."));
+    assert!(!prompts[0].contains("Read the attached PDF in full."));
+    assert!(prompts[0].contains("Read the supplied manuscript source"));
     assert!(prompts[0].contains("knowledge_queries"));
     assert!(prompts[0].contains("System-executed knowledge queries"));
     assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 1);
