@@ -329,7 +329,17 @@ export type ClaimConfirmation = {
 };
 
 export type Blob = { id: string; bytes: number; sha256: string };
+export type PlainLanguageText = { en: string; zh: string };
+export type PaperExplanation = {
+  version: number;
+  claims_revision: number;
+  source_sha256: string;
+  text: PlainLanguageText;
+  prepared_at: string;
+};
 export type PaperVersion = {
+  plain_language?: PaperExplanation;
+  explanation_generation?: number;
   evidence?: EvidenceAttachment[];
   number: number;
   archive: Blob;
@@ -692,6 +702,7 @@ export type PublicClaim = {
   lean?: FormalArtifact | null;
 };
 export type PublicPaper = {
+  plain_language?: PlainLanguageText;
   problems?: ResearchProblemLink[];
   bibliography?: PublicBibliography;
   publication?: { version: number; claims_revision: number };
@@ -953,6 +964,7 @@ export type CmaAttemptView = {
     | 'error_report_audit'
     | 'binding_audit'
     | 'venue_attempt'
+    | 'paper_explanation'
     | 'legacy_unknown';
   round?: number | null;
   claim?: string | null;

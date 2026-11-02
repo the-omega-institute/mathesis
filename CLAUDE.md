@@ -61,6 +61,14 @@ pipeline; only their labels differ.
   Correctness labels, comments, rationale, audit summaries, referee reports,
   letters and advice stay private to authors/staff. Private or legacy undecided
   records expose title, authors, kind and record id only.
+- **Readable exposition**: every newly confirmed manuscript queues a separate durable
+  CMA job for one English and one Simplified Chinese plain-language explanation.
+  Both describe the question, result, mechanism, significance and limits from the
+  manuscript only; private review findings are never supplied. Exposition is not an
+  admission or verification receipt. It is bound to the exact source version and
+  confirmed statements. Authors see it privately; public readers see only the
+  explanation of the accepted public version. Staff may backfill, retry or correct
+  exposition without restarting the referee or creating manuscript versions.
 - **After acceptance**: papers/notes receive the existing private post-letter
   Lean probe; publishing proofs still requires author approval. Accepted
   conjectures receive a Lean target and plain-language reading after the letter.

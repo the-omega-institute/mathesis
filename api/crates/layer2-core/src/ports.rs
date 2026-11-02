@@ -160,6 +160,7 @@ pub enum JobKind {
     Stage(Stage),
     Compile,
     Referee,
+    PaperExplanation,
     LeanStatement,
     ResearchTarget,
     BindingAudit,

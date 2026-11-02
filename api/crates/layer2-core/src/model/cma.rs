@@ -21,6 +21,7 @@ pub struct CmaProfile {
 #[serde(rename_all = "snake_case")]
 pub enum CmaStepKind {
     Referee,
+    PaperExplanation,
     ProblemReferee,
     Audit,
     Advice,
@@ -41,7 +42,8 @@ impl CmaStepKind {
     pub fn author_eligible(self) -> bool {
         matches!(
             self,
-            Self::Referee
+            Self::PaperExplanation
+                | Self::Referee
                 | Self::ProblemReferee
                 | Self::Audit
                 | Self::Advice
@@ -66,6 +68,10 @@ impl CmaStepIdentity {
     pub fn from_label(label: &str) -> Self {
         let parts: Vec<_> = label.split(':').collect();
         match parts.as_slice() {
+            ["explanation", _] => Self {
+                kind: CmaStepKind::PaperExplanation,
+                ..Self::default()
+            },
             [round, kind] if round.starts_with('r') => Self {
                 kind: match *kind {
                     "referee" => CmaStepKind::Referee,

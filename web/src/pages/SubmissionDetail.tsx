@@ -1,3 +1,4 @@
+import { PaperExplanation } from '../components/PaperExplanation';
 import { SubmitPage } from './Submit';
 import { FeedbackWorkspace } from '../components/FeedbackWorkspace';
 import { BindingWorkspace } from '../components/BindingWorkspace';
@@ -223,6 +224,15 @@ export function Workspace({
           </div>
         </header>
 
+        <PaperExplanation
+          text={
+            current?.plain_language?.claims_revision === s.claims_revision &&
+            current.plain_language.source_sha256 === current.archive.sha256 &&
+            current.plain_language.version === current.number
+              ? current.plain_language.text
+              : undefined
+          }
+        />
         {!isStaff && s.abstract_text ? (
           <section aria-labelledby="manuscript-abstract-h">
             <h2 id="manuscript-abstract-h">Abstract</h2>

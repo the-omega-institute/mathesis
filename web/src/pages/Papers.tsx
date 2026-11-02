@@ -1,3 +1,4 @@
+import { PaperExplanation } from '../components/PaperExplanation';
 import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
@@ -264,6 +265,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             corrections before relying on its results.
           </p>
         ) : null}
+        <PaperExplanation text={paper.plain_language} />
         {s.abstract_text ? (
           <section aria-labelledby="abstract-h" className="paper-abstract">
             <h2 id="abstract-h">Abstract</h2>
