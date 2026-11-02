@@ -811,6 +811,15 @@ async fn research_service_contract_and_formalization_permissions() {
     let (status, spec, _) = call(&app, "GET", "/openapi.json", None, None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(spec["openapi"], "3.1.0");
+    let (status, problems, _) = call(&app, "GET", "/research-problems", None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(problems["items"], serde_json::json!([]));
+    assert_eq!(
+        call(&app, "GET", "/research-problems/unknown", None, None)
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
     assert_eq!(
         spec["paths"]["/api/v1/papers"]["get"]["operationId"],
         "search_papers"

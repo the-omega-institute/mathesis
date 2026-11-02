@@ -1,3 +1,4 @@
+import { ResearchProblems } from './ResearchProblems';
 import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
@@ -42,23 +43,28 @@ export function ConjectureEntry({ conjecture: c }: { conjecture: ConjectureSumma
 }
 export function ConjecturesPage() {
   const api = useApi();
-  const [status, setStatus] = useState<'open' | 'solved' | 'disproved'>('open');
+  const [status, setStatus] = useState<'research' | 'open' | 'solved' | 'disproved'>('research');
   const fetchPage = useCallback(
     (before: string | null, signal: AbortSignal) =>
-      api.listConjectures({ before, limit: 25, status }, { signal }),
+      api.listConjectures(
+        { before, limit: 25, status: status === 'research' ? 'open' : status },
+        { signal },
+      ),
     [api, status],
   );
-  const paged = usePaged(fetchPage);
+  const paged = usePaged(status === 'research' ? null : fetchPage);
   return (
     <div className="page">
       <header className="page-head">
         <div>
           <h1>Conjectures</h1>
-          <p className="lede">Find an open question. Bring a checked answer.</p>
+          <p className="lede">
+            Follow a problem through new results, readable notes and formal proofs.
+          </p>
         </div>
       </header>
       <div className="filter-row" aria-label="Status">
-        {(['open', 'solved', 'disproved'] as const).map((v) => (
+        {(['research', 'open', 'solved', 'disproved'] as const).map((v) => (
           <button
             key={v}
             type="button"
@@ -66,32 +72,44 @@ export function ConjecturesPage() {
             aria-pressed={status === v}
             onClick={() => setStatus(v)}
           >
-            {v === 'open' ? 'Open' : v === 'solved' ? 'Solved' : 'Disproved'}
+            {v === 'research'
+              ? 'Research record'
+              : v === 'open'
+                ? 'Open questions'
+                : v === 'solved'
+                  ? 'Proved in Lean'
+                  : 'Disproved in Lean'}
           </button>
         ))}
       </div>
-      <Async state={paged.state} onRetry={paged.reload}>
-        {(listing) => {
-          const items = listing.items.filter((c) => (c.status ?? 'open') === status);
-          return items.length === 0 ? (
-            <div className="empty-state">
-              <p>No {status} conjectures here yet.</p>
-              <Link className="button" to={{ kind: 'submit', intake: 'conjecture' }}>
-                Submit a conjecture
-              </Link>
-            </div>
-          ) : (
-            <ul className="entry-list">
-              {items.map((c) => (
-                <li key={`${c.record}:${c.claim}`}>
-                  <ConjectureEntry conjecture={c} />
-                </li>
-              ))}
-            </ul>
-          );
-        }}
-      </Async>
-      <Pager paged={paged} />
+      {status === 'research' ? (
+        <ResearchProblems />
+      ) : (
+        <>
+          <Async state={paged.state} onRetry={paged.reload}>
+            {(listing) => {
+              const items = listing.items.filter((c) => (c.status ?? 'open') === status);
+              return items.length === 0 ? (
+                <div className="empty-state">
+                  <p>No {status} conjectures here yet.</p>
+                  <Link className="button" to={{ kind: 'submit', intake: 'conjecture' }}>
+                    Submit a conjecture
+                  </Link>
+                </div>
+              ) : (
+                <ul className="entry-list">
+                  {items.map((c) => (
+                    <li key={`${c.record}:${c.claim}`}>
+                      <ConjectureEntry conjecture={c} />
+                    </li>
+                  ))}
+                </ul>
+              );
+            }}
+          </Async>
+          <Pager paged={paged} />
+        </>
+      )}
     </div>
   );
 }

@@ -91,6 +91,8 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     submitStatementAttempt: vi.fn(notFound),
     myStatementAttempts: vi.fn(async () => []),
     respondLeanStatement: vi.fn(notFound),
+    listResearchProblems: vi.fn(empty),
+    getResearchProblem: vi.fn(notFound),
     listConjectures: vi.fn(empty),
     formalizationWork: vi.fn(notFound),
     controlFormalization: vi.fn(notFound),

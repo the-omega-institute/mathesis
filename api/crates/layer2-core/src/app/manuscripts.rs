@@ -13,7 +13,14 @@ pub(crate) fn validate_manuscript_evidence(
         .evidence
         .iter()
         .map(|e| &e.claim_label)
-        .chain(delivery.origin.contributions.iter().map(|c| &c.claim_label));
+        .chain(delivery.origin.contributions.iter().map(|c| &c.claim_label))
+        .chain(
+            delivery
+                .origin
+                .problems
+                .iter()
+                .flat_map(|p| p.resolutions.iter().map(|r| &r.claim_label)),
+        );
     for label in labels {
         if !claims.iter().any(|c| {
             c.id.as_str() == label
@@ -282,11 +289,7 @@ impl App {
         };
         let record = self.ports.records.for_submission(id).await?;
         let publication = record.and_then(|r| {
-            let inputs = r
-                .publication
-                .as_deref()
-                .or_else(|| s.published_progress.as_ref()?.publication.as_deref())
-                .unwrap_or(&s);
+            let inputs = r.publication_input(&s).unwrap_or(&s);
             (inputs.current_version().map(|v| v.number) == Some(v.number)).then(|| {
                 ManuscriptPublication {
                     record: r.id.clone(),

@@ -1,3 +1,4 @@
+import { ResearchProblemPage } from './pages/ResearchProblems';
 import { ResearchGraphPage } from './pages/ResearchGraph';
 import { FeedbackPage } from './pages/Feedback';
 import { BindingsPage, BindingPage, BindingProfilePage } from './pages/Bindings';
@@ -52,6 +53,8 @@ function titleFor(route: Route): string {
       return route.record;
     case 'formalizations':
       return 'Formalizations';
+    case 'research_problem':
+      return 'Research problem';
     case 'conjectures':
       return 'Conjectures';
     case 'papers':
@@ -119,6 +122,8 @@ function Page({ route }: { route: Route }) {
       return <EntrantPage id={route.id} />;
     case 'conjecture':
       return <ConjecturePage record={route.record} claim={route.claim} />;
+    case 'research_problem':
+      return <ResearchProblemPage key={routePath(route)} id={route.id} before={route.before} />;
     case 'conjectures':
       return <ConjecturesPage />;
     case 'papers':

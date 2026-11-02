@@ -71,6 +71,11 @@ The next author-report and research-citation experience is specified in
 [Author outcomes, citations and mathematical dependencies](docs/RESEARCH_EXPERIENCE.md),
 including the distinction between bibliography citations and checked proof use.
 
+[Problems, notes and versions](docs/PROBLEMS_AND_NOTES.md) describes the lasting
+problem entries, related accepted notes, original contributor credit and scoped
+formal evidence. New accepted versions advance the same work; an unfinished
+revision keeps the previous accepted version publicly available.
+
 ## Run locally
 
 Requirements: Rust 1.95, Node 22, TeX Live (`pdflatex`), and either MongoDB 8

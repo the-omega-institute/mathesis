@@ -1,3 +1,4 @@
+import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
 import { ManuscriptSources } from '../components/ManuscriptSources';
@@ -334,6 +335,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
         ) : null}
         <Citation paper={s} locator={{ version: paper.publication?.version ?? latest?.number }} />
         <Bibliography paper={paper} />
+        <ProblemLinks links={paper.problems ?? []} />
         {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
         {claims.length ? (
           <PaperResults paper={paper} />

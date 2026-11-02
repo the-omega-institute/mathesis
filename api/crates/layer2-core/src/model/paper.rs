@@ -266,7 +266,7 @@ pub struct PublishedProgress {
     pub claims_revision: u64,
     pub formalization: FormalizationPlan,
     pub conjectures: Vec<ConjectureFollowUp>,
-    /// Legacy records lack pinned inputs; capture them before the first revision.
+    /// Most recently accepted inputs, preserved before a new private revision.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub publication: Option<Box<Submission>>,
 }

@@ -190,8 +190,9 @@ describe('solving pages', () => {
     const user = userEvent.setup();
     const listConjectures = vi.fn(async () => ({ items: [], next_before: null }));
     renderWithApp(<ConjecturesPage />, fakeApi({ listConjectures }));
+    await user.click(screen.getByRole('button', { name: 'Open questions' }));
     await screen.findByText('No open conjectures here yet.');
-    await user.click(screen.getByRole('button', { name: 'Disproved' }));
+    await user.click(screen.getByRole('button', { name: 'Disproved in Lean' }));
     await waitFor(() =>
       expect(listConjectures).toHaveBeenLastCalledWith(
         { before: null, limit: 25, status: 'disproved' },

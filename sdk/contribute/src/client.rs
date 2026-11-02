@@ -202,6 +202,33 @@ impl Client {
     pub fn paper(&self, record: &str) -> ApiResult<Value> {
         self.get(&format!("/papers/{}", segment(record)))
     }
+    pub fn research_problems(&self, args: &Value) -> ApiResult<Value> {
+        let mut query = vec![(
+            "limit",
+            args["limit"]
+                .as_u64()
+                .unwrap_or(25)
+                .clamp(1, 100)
+                .to_string(),
+        )];
+        if let Some(before) = args["before"].as_str() {
+            query.push(("before", before.to_owned()));
+        }
+        self.send(
+            self.http
+                .get(format!("{}/research-problems", self.base))
+                .query(&query),
+        )
+    }
+    pub fn research_problem(&self, id: &str, before: Option<&str>) -> ApiResult<Value> {
+        let request = self
+            .http
+            .get(format!("{}/research-problems/{}", self.base, segment(id)));
+        self.send(match before {
+            Some(cursor) => request.query(&[("before", cursor)]),
+            None => request,
+        })
+    }
     pub fn review(&self, id: &str) -> ApiResult<Value> {
         self.get(&format!("/submissions/{}/review", segment(id)))
     }

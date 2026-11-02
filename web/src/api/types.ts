@@ -692,6 +692,7 @@ export type PublicClaim = {
   lean?: FormalArtifact | null;
 };
 export type PublicPaper = {
+  problems?: ResearchProblemLink[];
   bibliography?: PublicBibliography;
   publication?: { version: number; claims_revision: number };
   origin?: ManuscriptOrigin;
@@ -717,6 +718,7 @@ export type SourceContribution = {
 };
 
 export type ManuscriptOrigin = {
+  problems?: ManuscriptProblem[];
   contributions?: SourceContribution[];
   problem_ids: string[];
   source_url: string;
@@ -1579,4 +1581,45 @@ export type ResultUse = {
   source_attempt: string;
   basis: 'checked_proof_term';
   joint_context: ProofReuse[];
+};
+
+export type ManuscriptProblem = {
+  id: string;
+  problem: { name: string; source: Source };
+  statement: string;
+  proposed_by?: { name: string; profile_url?: string }[];
+  resolutions?: { claim_label: string; outcome: 'proved' | 'disproved' | 'partial' }[];
+};
+export type ResearchProblemLink = { id: string; title: string };
+export type ResearchProblemSummary = ResearchProblemLink & {
+  source_id: string;
+  status: 'related_research' | 'settled' | 'partial' | 'conflicting';
+  notes: number;
+  updated_at: string;
+};
+export type ResearchProblem = {
+  next_before?: string | null;
+  summary: ResearchProblemSummary;
+  descriptions: ManuscriptProblem[];
+  notes: {
+    record: string;
+    title: string;
+    authors: Author[];
+    kind: SubmissionKind;
+    version: number;
+    upstream_version: string;
+    accepted_at: string;
+    updated_at: string;
+    source_url: string;
+    license: string;
+    results: {
+      claim: string;
+      kind: ClaimKind;
+      label: string;
+      statement: string;
+      outcome: 'proved' | 'disproved' | 'partial' | null;
+    }[];
+    contributions: SourceContribution[];
+    evidence: ManuscriptOrigin['evidence'];
+  }[];
 };

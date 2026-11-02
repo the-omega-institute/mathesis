@@ -619,17 +619,7 @@ impl App {
                 .get(record)
                 .await?
                 .ok_or_else(|| CoreError::conflict("the publication record is missing"))?;
-            let publication = record
-                .publication
-                .as_deref()
-                .or_else(|| {
-                    submission
-                        .published_progress
-                        .as_ref()?
-                        .publication
-                        .as_deref()
-                })
-                .unwrap_or(&submission);
+            let publication = record.publication_input(&submission).unwrap_or(&submission);
             if submission.claims_revision == publication.claims_revision
                 && submission.current_version().map(|v| v.number)
                     == publication.current_version().map(|v| v.number)
@@ -640,10 +630,11 @@ impl App {
                     claims_revision: submission.claims_revision,
                     formalization: submission.formalization.clone(),
                     conjectures: submission.conjectures.clone(),
-                    publication: record
-                        .publication
-                        .is_none()
-                        .then(|| Box::new(publication.clone())),
+                    publication: Some(Box::new({
+                        let mut snapshot = publication.clone();
+                        snapshot.published_progress = None;
+                        snapshot
+                    })),
                 });
             }
         }
@@ -971,18 +962,7 @@ impl App {
         };
         let published_inputs = publication
             .as_ref()
-            .and_then(|r| r.publication.as_deref())
-            .or_else(|| {
-                if viewer {
-                    None
-                } else {
-                    submission
-                        .published_progress
-                        .as_ref()?
-                        .publication
-                        .as_deref()
-                }
-            });
+            .and_then(|r| r.publication_input(&submission));
         let public_version = published_inputs
             .and_then(Submission::current_version)
             .map(|v| v.number);
