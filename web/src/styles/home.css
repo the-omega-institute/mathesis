@@ -1,12 +1,16 @@
+main:has(> .page.home) {
+  max-width: 96rem;
+}
+
 .page.home {
-  max-width: 74rem;
+  max-width: 100%;
   margin-inline: auto;
 }
 
 /* The home page introduces the work before it asks readers to browse it. */
 .home-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   grid-template-areas: 'introduction cycle';
   column-gap: clamp(2rem, 4vw, 3rem);
   padding: 1.5rem 0 3rem;
@@ -15,7 +19,7 @@
   grid-area: introduction;
 }
 .home-hero h1 {
-  max-width: 18ch;
+  max-width: none;
   font-size: clamp(2.5rem, 4.6vw, 4.1rem);
   font-weight: 400;
   letter-spacing: -0.045em;
@@ -195,7 +199,7 @@
   list-style: none;
 }
 
-@media (max-width: 58rem) {
+@media (max-width: 64rem) {
   .home-hero {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
