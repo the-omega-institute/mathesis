@@ -76,8 +76,10 @@ actually extracted from that manuscript.
 ```
 
 The example is illustrative. Map only supplied source facts. If descriptive
-metadata is absent, retain the actual original ID as the label; do not invent
-the poser, original statement or outcome from a note's title. Existing
+metadata is absent, a single problem ID with one consistent, exactly named problem
+among confirmed main results may use that name as its title. Multiple IDs or conflicting
+references retain the actual IDs. This title fallback invents no original statement,
+poser, settlement or verification; explicit source descriptions take precedence. Existing
 `origin.contributions` continues to preserve problem, mathematical-proof,
 exposition, formalization and correction credit with exact source identities.
 The note's author list and the original posers are separate attributions.
@@ -112,3 +114,16 @@ Proofs stay bound to their own version and statement revision.
 Receiving a source, confirming its extraction, reviewing it and accepting public
 display are distinct stages. This relationship layer does not submit upstream
 packages, invent confirmations or publish old private test manuscripts.
+
+## Source identity during review
+
+New manuscript review contract 4 supplies the saved delivery origin as untrusted
+context to the initial reading and independent source audit. A note, its earlier
+preprint and its formalized source can be artifacts of the same contribution.
+Reviewers must inspect attribution, version history and scope before making that
+judgment. A URL match alone does not establish it. Independent earlier mathematics
+still counts as prior work; the current work's own theorem must not replace its
+actual prerequisites when assessing the underlying argument. Unknown provenance
+or prior status remains insufficient evidence. No source is automatically accepted,
+removed from query receipts or awarded a Mathesis verification badge. Existing
+rounds retain their admitted inputs; this context applies to new review rounds.

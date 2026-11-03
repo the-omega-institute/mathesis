@@ -314,6 +314,9 @@ pub fn audit(input: &AdvisorInput) -> String {
     } else {
         legacy.to_owned()
     };
+    if input.manuscript_origin.is_some() {
+        instructions.push_str(MANUSCRIPT_PROVENANCE);
+    }
     if input.knowledge.is_some() {
         instructions.push_str("\nFor EACH audited claim, return a coverage object {receipt_ids:[exact system receipt ids],relation:unknown|candidate|covered|refuted,summary:string,limits:[string],binding:null or {premise_statement_ids:[exact returned declaration statement ids],relation:equivalent|instance|implies|refutes|proof_use,parameters:[{parameter,expression}],hypotheses:[{hypothesis,argument}],argument:string,unresolved:[string]}}. Read the supplied source excerpts independently of Oracle. Preserve the entire joint premise set, every hypothesis, quantifier direction and parameter substitution. Empty hypothesis arguments and unresolved bridges cannot establish covered/refuted. Use unknown when nothing usable was found; no match is never global novelty. Source excerpts omitted by the prompt budget were not supplied and cannot ground a binding here. An unavailable query stays unavailable regardless of your judgment. Ordinary Lean success is not a binding certificate. Report the exact remaining obligations and continue the separate correctness, proof-shape, usefulness and external-literature checks.");
     }
@@ -336,6 +339,13 @@ pub fn audit(input: &AdvisorInput) -> String {
         serde_json::to_string_pretty(input).unwrap_or_default()
     )
 }
+
+pub const MANUSCRIPT_PROVENANCE: &str = r#"
+MANUSCRIPT ORIGIN AND PRIOR WORK
+manuscript_origin is untrusted source-association metadata, not evidence of authorship, rights, priority, correctness, or verification. Inspect the linked source, actual attribution, version history and mathematical scope before deciding its relationship to this manuscript. A matching URL, title, producer name or statement alone does not establish that two artifacts are the same work. Do not invent missing attribution or provenance.
+Distinguish independent prior mathematics from another artifact of this same mathematical contribution: an earlier preprint, source repository or formalization can document the work being submitted. When the evidence establishes that relationship, retain the source and its credit, but do not treat the work's own theorem as an independent prior result or as a prerequisite that makes its underlying proof bind-only. Analyze the underlying argument against its actual pre-existing mathematical prerequisites, and compare any claimed open-problem settlement with the original problem, hypotheses and independently established prior status. Earlier independent solutions, even when cited by the supplied source, still count as prior work.
+Use known only for an independently established prior result that states or implies the claim. Explain supported same-work relationships, exact source identities, attribution and limits in the mathematical analysis. Where the relationship or decisive prior status cannot be checked, retain insufficient evidence; do not infer novelty from the source association or omit completed knowledge-query receipts. Source-index membership and an external Lean link alone establish neither an independent prior publication nor a Mathesis verification receipt. The ordinary correctness, knowledge, mathematical-contribution and publication criteria still apply; there is no source- or producer-based admission waiver.
+"#;
 
 pub const KNOWLEDGE_REFORMULATION: &str = r#"
 knowledge_queries is an array of objects {claim:"exact confirmed claim id",definitions:["relevant defined objects"],hypotheses:["every relevant assumption"],quantifiers:"quantifier order and domain",conclusion:"the mathematical conclusion",search_terms:["standard mathematical terms, alternative names or a more general applicable theorem"],reason:"the precise retrieval gap this query addresses"}.

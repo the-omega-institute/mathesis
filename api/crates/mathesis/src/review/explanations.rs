@@ -36,6 +36,7 @@ impl Worker {
             .await?;
         let input = AdvisorInput {
             letter_contract: 0,
+            manuscript_origin: None,
             computations: None,
             knowledge: None,
             review_method: None,

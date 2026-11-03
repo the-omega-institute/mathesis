@@ -61,7 +61,7 @@ pipeline; only their labels differ.
   Correctness labels, comments, rationale, audit summaries, referee reports,
   letters and advice stay private to authors/staff. Private or legacy undecided
   records expose title, authors, kind and record id only.
-- **Readable exposition**: every newly confirmed manuscript queues a separate durable
+- **Readable exposition**: every accepted manuscript queues a separate durable
   CMA job for one English and one Simplified Chinese plain-language explanation.
   Both describe the question, result, mechanism, significance and limits from the
   manuscript only; private review findings are never supplied. Exposition is not an
@@ -146,8 +146,14 @@ Escape rates are reported only as exact readings on an explicitly built finite
 arena. Never compute, estimate or display a percentage for a statement whose
 arena was not built and measured.
 
-New referee and paper-problem rounds pin review contract 3 and method
-`trureturing-content-2026-10-15`. Every audited statement carries a structured
+New manuscript rounds pin review contract 4; paper-problem rounds retain contract 3.
+Both use method `trureturing-content-2026-10-15`. Contract 4 supplies actual version-bound
+manuscript origin to the initial reading and source audit. The metadata is untrusted;
+reviewers must check attribution, source/version identity and scope before distinguishing
+another artifact of the same contribution from independent prior mathematics. The work's
+own theorem is not an independent prerequisite that makes its underlying argument
+bind-only. Uncertain provenance stays insufficient; source declarations confer no
+admission or verification waiver. Earlier rounds keep their original prompt bytes. Every audited statement carries a structured
 prerequisite baseline, actual search scope, binding comparison, mathematical
 delta, live witnesses, independent utility and limits. Proof escape may be
 `undetermined`; missing evidence is not a bind-only finding. Correctness, proof

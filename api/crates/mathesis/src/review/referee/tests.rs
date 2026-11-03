@@ -1457,6 +1457,97 @@ async fn prepare_audit(w: &World) -> LeasedJob {
 }
 
 #[tokio::test]
+async fn delivered_origin_reaches_new_reviews_without_changing_legacy_prompts_or_source() {
+    use mathesis_core::model::{MANUSCRIPT_PROVENANCE_CONTRACT, ManuscriptVersion};
+
+    let w = World::new(vec![completed("accept")], true).await;
+    let report = super::super::error_reports::empty_report();
+    let mut paper = w.paper.clone();
+    let origin = serde_json::from_value(serde_json::json!({
+        "problem_ids": ["original-question"],
+        "source_url": "https://example.test/research/Proof.lean",
+        "license": "CC-BY-4.0",
+        "evidence": []
+    }))
+    .unwrap();
+    paper.versions.last_mut().unwrap().delivery = Some(ManuscriptVersion {
+        version: "published-v1".into(),
+        request_digest: "saved-delivery-request".into(),
+        origin,
+        confirmation: None,
+    });
+    let original_origin = paper
+        .current_version()
+        .unwrap()
+        .delivery
+        .as_ref()
+        .unwrap()
+        .origin
+        .clone();
+    let (original, _original_work, source) =
+        w.worker.advisor_input(&w.paper, &report, 3).await.unwrap();
+    let (legacy, _legacy_work, legacy_source) =
+        w.worker.advisor_input(&paper, &report, 3).await.unwrap();
+    assert_eq!(
+        referee_prompts::audit(&legacy),
+        referee_prompts::audit(&original)
+    );
+    assert!(legacy.manuscript_origin.is_none());
+    assert_eq!(source, legacy_source);
+    let (current, _current_work, current_source) = w
+        .worker
+        .advisor_input(&paper, &report, MANUSCRIPT_PROVENANCE_CONTRACT)
+        .await
+        .unwrap();
+    assert_eq!(
+        current.manuscript_origin,
+        Some(serde_json::to_value(&original_origin).unwrap())
+    );
+    assert_eq!(source, current_source);
+    assert_eq!(
+        paper
+            .current_version()
+            .unwrap()
+            .delivery
+            .as_ref()
+            .unwrap()
+            .origin,
+        original_origin
+    );
+    assert!(referee_prompts::audit(&current).contains(referee_prompts::MANUSCRIPT_PROVENANCE));
+    let job = w.job().await;
+    let file = w
+        .worker
+        .app
+        .begin_referee_round(&w.worker.referee_account, &w.paper.id)
+        .await
+        .unwrap();
+    let round = file.current().unwrap().clone();
+    assert_eq!(round.review_contract, MANUSCRIPT_PROVENANCE_CONTRACT);
+    assert!(
+        w.worker
+            .referee_prompt(&job, &paper, &round)
+            .await
+            .unwrap()
+            .contains(referee_prompts::MANUSCRIPT_PROVENANCE)
+    );
+    let mut old_round = round;
+    old_round.review_contract = 3;
+    let without_origin = w
+        .worker
+        .referee_prompt(&job, &w.paper, &old_round)
+        .await
+        .unwrap();
+    let with_origin = w
+        .worker
+        .referee_prompt(&job, &paper, &old_round)
+        .await
+        .unwrap();
+    assert_eq!(without_origin, with_origin);
+    assert!(!with_origin.contains("MANUSCRIPT ORIGIN AND PRIOR WORK"));
+}
+
+#[tokio::test]
 async fn new_contract_delivers_actual_evidence_to_all_review_prompts_without_changing_legacy() {
     let w = World::new(vec![completed("accept")], true).await;
     // This fixture changes attachments before the review it exercises.

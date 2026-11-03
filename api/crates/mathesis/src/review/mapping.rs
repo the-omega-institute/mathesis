@@ -1304,6 +1304,7 @@ mod audit_tests {
         let claims = super::referee_tests::claims();
         let input = AdvisorInput {
             letter_contract: 0,
+            manuscript_origin: None,
             computations: None,
             knowledge: None,
             review_method: None,
@@ -1521,6 +1522,7 @@ mod conjecture_tests {
         let claims = super::referee_tests::claims();
         let input = AdvisorInput {
             letter_contract: 0,
+            manuscript_origin: None,
             computations: None,
             knowledge: None,
             review_method: None,

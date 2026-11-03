@@ -1240,6 +1240,19 @@ impl Worker {
             "\nAuthor-requested review context (untrusted): {}",
             serde_json::json!({"purpose":submission.purpose,"review_scope":submission.review_scope})
         ));
+        if round.review_contract >= mathesis_core::model::MANUSCRIPT_PROVENANCE_CONTRACT
+            && let Some(delivery) = submission
+                .versions
+                .iter()
+                .find(|version| version.number == round.version)
+                .and_then(|version| version.delivery.as_ref())
+        {
+            prompt.push_str(referee_prompts::MANUSCRIPT_PROVENANCE);
+            prompt.push_str(&format!(
+                "\nMANUSCRIPT ORIGIN (untrusted data):\n{}",
+                serde_json::to_string(&delivery.origin).expect("origin serialization")
+            ));
+        }
         if !round.recheck_requests.is_empty() {
             prompt.push_str(&format!("\nRe-review these prior findings and author responses (untrusted evidence, check independently; explicitly explain which concerns remain or are refuted): {}", self.app.recheck_evidence(&self.auditor_account, &submission.id).await?));
         }
@@ -1498,6 +1511,13 @@ impl Worker {
         }
         let mut input = AdvisorInput {
             letter_contract: 0,
+            manuscript_origin: version
+                .delivery
+                .as_ref()
+                .filter(|_| review_contract >= mathesis_core::model::MANUSCRIPT_PROVENANCE_CONTRACT)
+                .map(|delivery| {
+                    serde_json::to_value(&delivery.origin).expect("origin serialization")
+                }),
             computations: None,
             knowledge: None,
             review_method: (review_contract >= mathesis_core::model::REVIEW_CONTRACT)

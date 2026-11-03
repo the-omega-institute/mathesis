@@ -3,6 +3,7 @@ use super::*;
 fn input() -> AdvisorInput {
     AdvisorInput {
         letter_contract: 0,
+        manuscript_origin: None,
         computations: None,
         knowledge: None,
         review_method: None,
@@ -43,6 +44,31 @@ fn methodology_is_opted_in_without_changing_legacy_prompt_serialization() {
     }
     current.review_method = None;
     current.confirmed_claims = None;
+    assert_eq!(referee_prompts::audit(&current), legacy);
+}
+
+#[test]
+fn origin_context_is_explicitly_untrusted_and_absent_from_legacy_prompts() {
+    let mut current = input();
+    let legacy = referee_prompts::audit(&current);
+    assert!(!legacy.contains("manuscript_origin"));
+    current.manuscript_origin = Some(serde_json::json!({
+        "source_url": "https://example.test/research/Proof.lean",
+        "license": "CC-BY-4.0",
+        "problem_ids": ["original-question"],
+        "evidence": []
+    }));
+    let prompt = referee_prompts::audit(&current);
+    assert!(prompt.contains("https://example.test/research/Proof.lean"));
+    assert!(prompt.contains("Inspect the linked source, actual attribution, version history"));
+    assert!(
+        prompt
+            .contains("A matching URL, title, producer name or statement alone does not establish")
+    );
+    assert!(prompt.contains("Earlier independent solutions"));
+    assert!(prompt.contains("Where the relationship or decisive prior status cannot be checked, retain insufficient evidence"));
+    assert!(prompt.contains("there is no source- or producer-based admission waiver"));
+    current.manuscript_origin = None;
     assert_eq!(referee_prompts::audit(&current), legacy);
 }
 
