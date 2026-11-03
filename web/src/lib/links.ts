@@ -38,6 +38,20 @@ function doiHref(doi: string): string {
   return `https://doi.org/${encodeURI(doi).replace(/[?#]/g, encodeURIComponent)}`;
 }
 
+/** Keep an explicitly recorded source address behind its bibliographic title. */
+function openedNamedSource(locator: string): { label: string; href: string } | null {
+  const match = /^(.+?)\s+\[opened:\s*(.+?)\]\s*$/is.exec(locator.trim());
+  if (!match || /\[opened:/i.test(match[1]!)) return null;
+  const label = match[1]!.trim();
+  const address = match[2]!.trim();
+  const url = safeHttpUrl(address);
+  if (url) return { label, href: url };
+  const doi = /^doi:\s*(10\.\d{4,9}\/\S+)$/i.exec(address);
+  if (doi) return { label, href: doiHref(doi[1]!) };
+  const arxiv = /^arxiv:\s*((?:\d{4}\.\d{4,5}|[a-z.-]+\/\d{7})(?:v\d+)?)$/i.exec(address);
+  return arxiv ? { label, href: `https://arxiv.org/abs/${arxiv[1]}` } : null;
+}
+
 /**
  * Where a deposit or source can be read. `null` when the locator is not
  * resolvable to a public http(s) address (personal communication, an
@@ -69,6 +83,7 @@ export function sourceHref(source: Source): string | null {
     case 'url':
       return safeHttpUrl(locator);
     case 'named_work':
+      return openedNamedSource(locator)?.href ?? null;
     case 'personal':
       return null;
   }
@@ -95,7 +110,7 @@ export function sourceLabel(source: Source): string {
       label = `Hexagon ${locator}`;
       break;
     case 'named_work':
-      label = locator;
+      label = openedNamedSource(locator)?.label ?? locator;
       break;
     case 'personal':
       label = `Personal communication${locator ? `: ${locator}` : ''}`;
@@ -105,6 +120,13 @@ export function sourceLabel(source: Source): string {
       break;
   }
   return source.year === undefined || source.year === null ? label : `${label} (${source.year})`;
+}
+
+/** Citation text for a report, retaining its recorded HTTP, DOI or arXiv destination. */
+export function sourceMarkdown(source: Source): string {
+  const label = sourceLabel(source);
+  const href = sourceHref(source);
+  return href ? `${label} ([source](<${href}>))` : label;
 }
 
 const FORGES = /^https?:\/\/(?:www\.)?(?:github\.com|gitlab\.com|codeberg\.org)\//i;

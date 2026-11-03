@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import type { RefereeFile, Submission } from '../api/types';
 import { authorStanding, awaitingDecision, decisionWaitingMessage } from '../lib/authorStanding';
 import { publicationReason } from '../lib/authorReport';
+import { sourceHref } from '../lib/links';
+import { Markdown } from './Markdown';
 export { publicationReason } from '../lib/authorReport';
 
 export function PaperStanding({
@@ -83,7 +85,15 @@ export function PaperStanding({
       {status.state === 'not_accepted' && submission.decision?.decision === 'not_accepted' ? (
         <ul className="standing-reasons">
           {submission.decision.reasons.map((reason, i) => (
-            <li key={i}>{publicationReason(reason, submission)}</li>
+            <li key={i}>
+              {reason.reason === 'known_result' &&
+              reason.prior.kind === 'named_work' &&
+              sourceHref(reason.prior) ? (
+                <Markdown text={publicationReason(reason, submission, 'markdown')} texDelimiters />
+              ) : (
+                publicationReason(reason, submission)
+              )}
+            </li>
           ))}
         </ul>
       ) : null}

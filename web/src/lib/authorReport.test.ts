@@ -158,7 +158,9 @@ describe('author publication reports', () => {
       assessment: 'accept',
     })!;
     expect(report).toContain('We are sorry');
-    expect(report).toContain('Theorem 1.1 already follows from 1901.00001');
+    expect(report).toContain(
+      'Theorem 1.1 already follows from arXiv:1901.00001 ([source](<https://arxiv.org/abs/1901.00001>))',
+    );
     expect(report).not.toContain('Congratulations');
     expect(publicationReason({ reason: 'unchecked_result', claim: 'C1' }, submission)).toContain(
       'not a demonstrated mathematical error',
