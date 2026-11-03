@@ -322,6 +322,128 @@ fn old_delivery_bytes_are_preserved_and_descriptions_must_match_the_association(
 }
 
 #[tokio::test]
+async fn legacy_public_note_uses_its_confirmed_problem_name_without_inventing_a_settlement() {
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let (record, mut s) = publish(&w, &author, "legacy", 2).await;
+    let origin = &mut s
+        .versions
+        .last_mut()
+        .unwrap()
+        .delivery
+        .as_mut()
+        .unwrap()
+        .origin;
+    origin.problem_ids = vec!["original-problem".into()];
+    origin.problems.clear();
+    let original_origin = origin.clone();
+    s.claims[0].settles = Some(OpenProblemRef {
+        name: "Original Poser's conjecture in OEIS A123456".into(),
+        source: Source {
+            kind: SourceKind::Oeis,
+            locator: "A123456".into(),
+            year: None,
+        },
+    });
+    let mut snapshot = s.clone();
+    snapshot.published_progress = None;
+    s.published_progress = Some(PublishedProgress {
+        version: 1,
+        claims_revision: s.claims_revision,
+        formalization: s.formalization.clone(),
+        conjectures: s.conjectures.clone(),
+        publication: Some(Box::new(snapshot)),
+    });
+    w.app.save(&mut s).await.unwrap();
+    let public = w.app.paper(&record).await.unwrap();
+    assert_eq!(public.origin.unwrap(), original_origin);
+    let link = &public.problems[0];
+    assert_eq!(link.title, "Original Poser's conjecture in OEIS A123456");
+    let page = w.app.list_research_problems(None, None).await.unwrap();
+    assert_eq!(page.items[0].title, link.title);
+    assert_eq!(page.items[0].status, ResearchProblemStatus::RelatedResearch);
+    let detail = w.app.research_problem(&link.id).await.unwrap();
+    assert!(detail.descriptions.is_empty());
+    assert!(detail.notes[0].results.iter().all(|r| r.outcome.is_none()));
+    // An explicit description on another accepted note takes precedence over
+    // the inferred title, even when the legacy note is visited first.
+    publish(&w, &author, "described", 1).await;
+    let described = w.app.research_problem(&link.id).await.unwrap();
+    assert_eq!(described.summary.title, "An original conjecture");
+    assert_eq!(described.summary.notes, 2);
+}
+
+#[tokio::test]
+async fn inferred_legacy_titles_require_an_unambiguous_association_and_preserve_explicit_names() {
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let (_, mut s) = publish(&w, &author, "legacy-names", 1).await;
+    let explicit = s
+        .current_version()
+        .unwrap()
+        .delivery
+        .as_ref()
+        .unwrap()
+        .origin
+        .problems
+        .clone();
+    let problem = explicit[0].problem.clone();
+    s.versions
+        .last_mut()
+        .unwrap()
+        .delivery
+        .as_mut()
+        .unwrap()
+        .origin
+        .problems
+        .clear();
+    s.claims[0].settles = Some(problem.clone());
+    assert_eq!(
+        super::super::problem_library::problem_links(&s)[0].title,
+        "original-problem"
+    );
+    s.versions
+        .last_mut()
+        .unwrap()
+        .delivery
+        .as_mut()
+        .unwrap()
+        .origin
+        .problem_ids
+        .truncate(1);
+    assert_eq!(
+        super::super::problem_library::problem_links(&s)[0].title,
+        problem.name
+    );
+    let mut other = s.claims[0].clone();
+    other.id = "other".into();
+    other.settles.as_mut().unwrap().source.locator = "A654321".into();
+    s.claims.push(other);
+    assert_eq!(
+        super::super::problem_library::problem_links(&s)[0].title,
+        "original-problem"
+    );
+    s.claims.last_mut().unwrap().role = ClaimRole::Supporting;
+    assert_eq!(
+        super::super::problem_library::problem_links(&s)[0].title,
+        problem.name
+    );
+    s.claims.last_mut().unwrap().role = ClaimRole::Main;
+    s.versions
+        .last_mut()
+        .unwrap()
+        .delivery
+        .as_mut()
+        .unwrap()
+        .origin
+        .problems = explicit;
+    assert_eq!(
+        super::super::problem_library::problem_links(&s)[0].title,
+        problem.name
+    );
+}
+
+#[tokio::test]
 async fn many_related_notes_have_a_bounded_complete_public_pagination() {
     let w = World::new().await;
     let author = w.person("author", &[]).await;

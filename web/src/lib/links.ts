@@ -11,6 +11,12 @@ export function safeHttpUrl(value: string): string | null {
   }
 }
 
+/** Describes the linked file format, without claiming the proof was checked. */
+export function isLeanSourceUrl(value: string): boolean {
+  const href = safeHttpUrl(value);
+  return href !== null && new URL(href).pathname.endsWith('.lean');
+}
+
 const DOI_PREFIX = /^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)/i;
 const ARXIV_PREFIX = /^(?:https?:\/\/arxiv\.org\/(?:abs|pdf)\/|arxiv:\s*)/i;
 

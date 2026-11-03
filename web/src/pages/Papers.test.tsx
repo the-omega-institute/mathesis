@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react';
-import { setLocale } from '../i18n/locale';
+import { setLocale, useLocale } from '../i18n/locale';
 import userEvent from '@testing-library/user-event';
 import { screen, within, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -358,4 +358,30 @@ it('provides public PDF access and citation metadata without a private archive l
   await userEvent.selectOptions(screen.getByLabelText('Citation format'), 'bibtex');
   expect(screen.getByText(/@misc\{WP-2026-0001,/)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Download BibTeX' })).toBeVisible();
+});
+
+it('identifies a legacy primary Lean link in both languages without adding verification credit', async () => {
+  const source = `https://github.com/example/research/blob/${SHA}/Proof.lean?plain=1#L12`;
+  function LocalizedPaper() {
+    useLocale();
+    return <PaperPage record={paperSummary.record} />;
+  }
+  renderWithApp(
+    <LocalizedPaper />,
+    fakeApi({
+      getPaper: vi.fn(async () => ({
+        ...publicPaper,
+        origin: {
+          problem_ids: ['original-problem'],
+          source_url: source,
+          license: 'CC-BY-4.0',
+          evidence: [],
+        },
+      })),
+    }),
+  );
+  expect(await screen.findByRole('link', { name: 'Lean source' })).toHaveAttribute('href', source);
+  expect(screen.getAllByText('A verified formal proof is available.')).toHaveLength(1);
+  act(() => setLocale('zh'));
+  expect(screen.getByRole('link', { name: 'Lean 源码' })).toHaveAttribute('href', source);
 });

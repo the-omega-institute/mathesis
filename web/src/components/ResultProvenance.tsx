@@ -1,6 +1,6 @@
 import { t } from '../i18n/locale';
 import type { PublicClaim, PublicPaper, SourceContribution } from '../api/types';
-import { safeHttpUrl } from '../lib/links';
+import { isLeanSourceUrl, safeHttpUrl } from '../lib/links';
 import { ExternalLink } from './ui';
 import { LatexText } from './Markdown';
 
@@ -48,7 +48,9 @@ export function ResultProvenance({ paper, claim }: { paper: PublicPaper; claim: 
     <section className="result-provenance" aria-labelledby="result-provenance-heading">
       <h2 id="result-provenance-heading">{t('Source and contributions')}</h2>
       <p>
-        <EvidenceLink url={origin.source_url}>{t('Original research')}</EvidenceLink>
+        <EvidenceLink url={origin.source_url}>
+          {t(isLeanSourceUrl(origin.source_url) ? 'Lean source' : 'Original research')}
+        </EvidenceLink>
         {' · '}
         {origin.license}
       </p>
