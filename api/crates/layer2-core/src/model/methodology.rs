@@ -4,6 +4,8 @@ use super::{OpenProblemRef, ProofShape, require_text};
 use crate::{CoreError, CoreResult};
 
 pub const REVIEW_CONTRACT: u32 = 3;
+/// Adds manuscript-origin context without changing contract 3 prompt bytes.
+pub const MANUSCRIPT_PROVENANCE_CONTRACT: u32 = 4;
 pub const REVIEW_METHOD: &str = "trureturing-content-2026-10-15";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

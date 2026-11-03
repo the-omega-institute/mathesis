@@ -1060,7 +1060,7 @@ impl App {
             computation_contract: 1,
             computation_receipts: vec![],
             knowledge_contract: 4,
-            review_contract: crate::model::REVIEW_CONTRACT,
+            review_contract: crate::model::MANUSCRIPT_PROVENANCE_CONTRACT,
             source_sha256: submission
                 .current_version()
                 .map(|v| v.archive.sha256.clone())

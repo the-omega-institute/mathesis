@@ -433,7 +433,10 @@ async fn private_review_has_no_publication_and_retains_evidence_through_revision
             .iter()
             .any(|e| e["event"] == "coverage_assessed")
     );
-    assert_eq!(report.review.rounds[0].review_contract, REVIEW_CONTRACT);
+    assert_eq!(
+        report.review.rounds[0].review_contract,
+        MANUSCRIPT_PROVENANCE_CONTRACT
+    );
     assert_eq!(
         report.review.rounds[0].review_method.as_deref(),
         Some(REVIEW_METHOD)
@@ -497,7 +500,10 @@ async fn private_review_has_no_publication_and_retains_evidence_through_revision
             .contains("displayed convention")
     );
     assert!(round2.current().unwrap().audit.done().is_none());
-    assert_eq!(round2.current().unwrap().review_contract, REVIEW_CONTRACT);
+    assert_eq!(
+        round2.current().unwrap().review_contract,
+        MANUSCRIPT_PROVENANCE_CONTRACT
+    );
     w.app
         .update_referee_round(
             &reviewer,

@@ -20,6 +20,8 @@ pub struct AdvisorInput {
     #[serde(skip)]
     pub letter_contract: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub manuscript_origin: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub computations: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub knowledge: Option<serde_json::Value>,

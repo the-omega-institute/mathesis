@@ -38,6 +38,7 @@ fn checked(
 ) -> mathesis_core::model::AuditedClaim {
     let input = AdvisorInput {
         letter_contract: 0,
+        manuscript_origin: None,
         computations: None,
         knowledge: None,
         review_method: current.then(|| mathesis_core::model::REVIEW_METHOD.into()),
