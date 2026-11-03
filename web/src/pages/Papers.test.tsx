@@ -331,7 +331,7 @@ it('shows manuscript evidence as source links without granting another Lean veri
   expect(screen.getAllByText('A verified formal proof is available.')).toHaveLength(1);
 });
 
-it('provides source downloads and bibliographic metadata only for public publication inputs', async () => {
+it('provides public PDF access and citation metadata without a private archive link', async () => {
   renderWithApp(
     <PaperPage record={paperSummary.record} />,
     fakeApi({
@@ -344,10 +344,12 @@ it('provides source downloads and bibliographic metadata only for public publica
       })),
     }),
   );
-  expect(await screen.findByRole('link', { name: 'Download source' })).toHaveAttribute(
+  expect(await screen.findByRole('link', { name: 'View PDF' })).toHaveAttribute(
     'href',
-    '/api/v1/submissions/sub-acc/files/source?version=1',
+    '/api/v1/submissions/sub-acc/files/pdf?version=1',
   );
+  expect(screen.queryByRole('link', { name: 'Download source' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Version 1 source' })).not.toBeInTheDocument();
   expect(document.querySelector('meta[name="citation_pdf_url"]')).toHaveAttribute(
     'content',
     `${window.location.origin}/api/v1/submissions/sub-acc/files/pdf?version=1`,

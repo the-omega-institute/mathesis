@@ -6,7 +6,7 @@ import { InlineLatex } from '../components/Markdown';
 import { ManuscriptSources } from '../components/ManuscriptSources';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
 import { useCallback, useState } from 'react';
-import { pdfHref, sourceFileHref, type PaperQuery } from '../api/client';
+import { pdfHref, type PaperQuery } from '../api/client';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { usePaged } from '../api/usePaged';
@@ -256,11 +256,6 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             {latest?.has_pdf && s.submission ? (
               <a href={pdfHref(s.submission, latest.number)}>{t('View PDF')}</a>
             ) : null}
-            {latest && s.submission && !latest.source_is_pdf ? (
-              <a href={sourceFileHref(s.submission, latest.number)}>
-                {latest.source_is_pdf === false ? t('Download source') : t('Original upload')}
-              </a>
-            ) : null}
             <a
               href="#citation"
               onClick={() => document.getElementById('citation')?.setAttribute('open', '')}
@@ -338,16 +333,6 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                       <a href={pdfHref(s.submission, version.number)}>
                         {t('Version ')}
                         {version.number} {t(' PDF')}
-                      </a>
-                    </>
-                  ) : null}
-                  {s.submission && !version.source_is_pdf ? (
-                    <>
-                      {' '}
-                      ·{' '}
-                      <a href={sourceFileHref(s.submission, version.number)}>
-                        {t('Version ')}
-                        {version.number} {t(' source')}
                       </a>
                     </>
                   ) : null}
