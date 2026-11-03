@@ -1280,6 +1280,99 @@ async fn delete_acknowledgment_keeps_the_handle_until_absence_is_observed() {
     assert_eq!(deletes[0], deletes[1]);
 }
 #[tokio::test]
+async fn failed_agent_cleanup_preserves_failure_until_deletion_is_observed() {
+    let store = Memory::default();
+    let original = RunState {
+        agent_id: Some("agt_failed".into()),
+        input: "original-input-digest".into(),
+        deadline: now() + 60,
+        failure: Some("CMA refusal: CauseUnknown".into()),
+        typed_failure: Some(FailureKind::CauseUnknown),
+        ..Default::default()
+    };
+    store
+        .save(serde_json::to_value(&original).unwrap())
+        .await
+        .unwrap();
+    let stop_refused = || {
+        Err(ReviewError::Provider {
+            status: 409,
+            body: "agent_not_ready".into(),
+        })
+    };
+    let (client, fake) = client(vec![stop_refused(), accepted(), stop_refused(), accepted()]);
+    fake.agent_observations.lock().await.extend([
+        reply(json!({"status":"failed"})),
+        reply(json!({"status":"failed"})),
+        reply(json!({"status":"failed"})),
+        Err(ReviewError::Provider {
+            status: 404,
+            body: "not_found".into(),
+        }),
+    ]);
+    client.cancel(&store).await.unwrap();
+    let first: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(!first.deleted && !first.stopped);
+    assert_eq!(
+        fake.calls
+            .lock()
+            .await
+            .iter()
+            .filter(|c| c.0 == "DELETE")
+            .count(),
+        1
+    );
+    client.cancel(&store).await.unwrap();
+    let last: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(last.deleted && !last.stopped);
+    assert_eq!(last.agent_id, original.agent_id);
+    assert_eq!(last.failure, original.failure);
+    assert_eq!(last.typed_failure, original.typed_failure);
+    assert_eq!(last.input, original.input);
+    assert_eq!(last.deadline, original.deadline);
+    let calls = fake.calls.lock().await.clone();
+    let deletes: Vec<_> = calls.iter().filter(|c| c.0 == "DELETE").collect();
+    assert_eq!(deletes.len(), 2);
+    assert_eq!(deletes[0], deletes[1]);
+    assert!(
+        calls
+            .iter()
+            .all(|c| c.1 == "api/v1/agents/agt_failed" || c.1 == "api/v1/agents/agt_failed/stop")
+    );
+    client.cancel(&store).await.unwrap();
+    assert_eq!(*fake.calls.lock().await, calls);
+}
+
+#[tokio::test]
+async fn refused_stop_never_allows_deletion_of_a_live_agent() {
+    for status in ["starting", "ready", "working"] {
+        let store = Memory::default();
+        store
+            .save(
+                serde_json::to_value(RunState {
+                    agent_id: Some("agt_live".into()),
+                    failure: Some("saved terminal task failure".into()),
+                    ..Default::default()
+                })
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        let (client, fake) = client(vec![Err(ReviewError::Provider {
+            status: 409,
+            body: "agent_not_ready".into(),
+        })]);
+        fake.agent_observations
+            .lock()
+            .await
+            .push_back(reply(json!({"status":status})));
+        client.cancel(&store).await.unwrap();
+        assert!(fake.calls.lock().await.iter().all(|c| c.0 != "DELETE"));
+        assert_eq!(store.load().await.unwrap().unwrap()["deleted"], false);
+    }
+}
+
+#[tokio::test]
 async fn starting_agent_admission_conflict_retries_the_same_turn_key() {
     // Observed on 2026-10-22: a turn posted seconds after creation answers
     // 409 agent_command_admission_conflict ("Retry using the same key").
