@@ -2,6 +2,8 @@ import type { TaskKind } from '../api/types';
 
 export type Route =
   | { kind: 'home' }
+  | { kind: 'projects' }
+  | { kind: 'project_note'; id: string; version?: string }
   | { kind: 'research_graph'; focus?: string; q?: string; before?: string }
   | { kind: 'bindings' }
   | { kind: 'feedback'; id: string; key: string }
@@ -62,8 +64,21 @@ export function parseRoute(pathname: string, search = ''): Route {
   if (segments.some((s) => s === null)) return notFound;
   const [first, second] = segments as string[];
 
+  if (path === '/projects/trureturing') return { kind: 'projects' };
+  if (
+    segments.length === 4 &&
+    first === 'projects' &&
+    second === 'trureturing' &&
+    segments[2] === 'notes'
+  ) {
+    const version = new URLSearchParams(search).get('version');
+    return { kind: 'project_note', id: segments[3] as string, ...(version ? { version } : {}) };
+  }
+
   if (segments.length === 1) {
     switch (first) {
+      case 'projects':
+        return { kind: 'projects' };
       case 'research-graph': {
         const params = new URLSearchParams(search);
         return {
@@ -186,6 +201,10 @@ const seg = encodeURIComponent;
 
 export function routePath(route: Route): string {
   switch (route.kind) {
+    case 'projects':
+      return '/projects/trureturing';
+    case 'project_note':
+      return `/projects/trureturing/notes/${seg(route.id)}${route.version ? `?version=${encodeURIComponent(route.version)}` : ''}`;
     case 'research_graph': {
       const params = new URLSearchParams();
       if (route.focus) params.set('focus', route.focus);

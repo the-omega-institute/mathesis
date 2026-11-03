@@ -51,7 +51,7 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --measure: 42rem;
-  --page: 84rem;
+  --page: 82rem;
   --gutter: 1.25rem;
 }
 
@@ -83,6 +83,6 @@
 
 @media (min-width: 40rem) {
   :root {
-    --gutter: clamp(2rem, 3vw, 4rem);
+    --gutter: clamp(2rem, 4.5vw, 4rem);
   }
 }

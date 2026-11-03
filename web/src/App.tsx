@@ -1,4 +1,6 @@
 import { t, useLocale } from './i18n/locale';
+import { ProjectsPage, ProjectNotePage } from './pages/Projects';
+import './styles/projects.css';
 import { ResearchProblemPage } from './pages/ResearchProblems';
 import { ResearchGraphPage } from './pages/ResearchGraph';
 import { FeedbackPage } from './pages/Feedback';
@@ -30,6 +32,10 @@ import { routePath, type Route } from './routing/routes';
 
 function titleFor(route: Route): string {
   switch (route.kind) {
+    case 'projects':
+      return 'Research collections';
+    case 'project_note':
+      return 'Research note';
     case 'research_graph':
       return 'Research graph';
     case 'feedback':
@@ -94,6 +100,10 @@ function titleFor(route: Route): string {
 
 function Page({ route }: { route: Route }) {
   switch (route.kind) {
+    case 'projects':
+      return <ProjectsPage />;
+    case 'project_note':
+      return <ProjectNotePage key={routePath(route)} id={route.id} version={route.version} />;
     case 'research_graph':
       return (
         <ResearchGraphPage

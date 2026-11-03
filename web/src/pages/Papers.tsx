@@ -1,5 +1,7 @@
 import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
+import { findProjectNotes } from '../lib/projectNotes';
+import { ProjectNoteEntry } from './Projects';
 import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
@@ -78,6 +80,9 @@ export function PapersPage({
     [api, query],
   );
   const paged = usePaged(fetchPage);
+  const imported = findProjectNotes(query);
+  const hasFilters = Boolean(query.q || query.author || query.kind || query.msc);
+  const importedPreview = hasFilters ? imported : imported.slice(0, 3);
   return (
     <div className="page">
       <header className="page-head">
@@ -178,12 +183,29 @@ export function PapersPage({
           {t('Search papers, notes and conjectures by title, author, abstract or identifier.')}
         </p>
       </form>
+      {imported.length ? (
+        <section aria-labelledby="imported-notes-heading">
+          <div className="section-heading">
+            <h2 id="imported-notes-heading">{t('Trureturing collection')}</h2>
+            <Link to={{ kind: 'projects' }}>{t('View collection')}</Link>
+          </div>
+          <ul className="project-notes-list">
+            {importedPreview.map((note) => (
+              <li key={note.id}>
+                <ProjectNoteEntry note={note} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
           listing.items.length === 0 ? (
-            <p className="muted">
-              {t('No papers match this view. Try a broader search or clear the filters.')}
-            </p>
+            imported.length ? null : (
+              <p className="muted">
+                {t('No papers match this view. Try a broader search or clear the filters.')}
+              </p>
+            )
           ) : (
             <ul className="entry-list">
               {listing.items.map((p) => (

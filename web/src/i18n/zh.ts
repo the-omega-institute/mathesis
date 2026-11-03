@@ -1,5 +1,38 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  Projects: '项目',
+  'Original problems and the papers and notes that build on them.':
+    '原始问题，以及在其基础上发展的论文与短文。',
+  'Research collections': '研究项目集',
+  'Research note': '研究短文',
+  'Trureturing collection': 'Trureturing 成果集',
+  'From open mathematical questions to readable proofs and reusable Lean mathematics.':
+    '从开放的数学问题，到可读证明与可复用的 Lean 数学成果。',
+  'Read the original questions, follow the arguments, and build on the formalized results. These notes retain their authors, original sources and review from the Trureturing research workflow.':
+    '阅读原始问题与证明，在已有形式化成果上继续研究。短文保留原作者、参考来源及 Trureturing 研究流程中的审阅记录。',
+  '{count} notes': '{count} 篇短文',
+  '{count} associated problems': '{count} 个关联问题',
+  'Project source': '项目源码',
+  'Version {version}': '第 {version} 版',
+  'Read PDF': '阅读 PDF',
+  'Read this work': '阅读本文',
+  'Included from the Trureturing research workflow, with its upstream manuscript review.':
+    '收录自 Trureturing 研究流程，沿用其上游稿件审阅。',
+  'Original questions and sources': '原始问题与来源',
+  'Formalization and further contributions': '形式化与后续贡献',
+  'The note describes which results its Lean sources cover. Open the pinned source to inspect the exact statements and their mathematical prerequisites.':
+    '短文说明了 Lean 源码覆盖的结果。打开对应版本的源码，可查看精确命题及其数学前提。',
+  'Read the Lean source': '阅读 Lean 源码',
+  'A source link records existing formalization work. Mathesis verification and contribution credit are recorded separately when a proof is checked here.':
+    '源码链接记录已有形式化工作。证明在本站经过核验后，将另行记录 Mathesis 核验结果与贡献。',
+  'Cite this note': '引用本文',
+  'From the Trureturing research collection': '来自 Trureturing 成果集',
+  '{notes} readable notes connecting {problems} mathematical problems to their proofs and Lean sources.':
+    '{notes} 篇可读短文，关联 {problems} 个数学问题及其证明与 Lean 源码。',
+  'View collection': '浏览成果集',
+  'Original questions, readable notes and pinned Lean sources from the project.':
+    '项目中的原始问题、可读短文及对应版本的 Lean 源码。',
+  'Read the project notes': '阅读项目短文',
   'Skip to content': '跳至正文',
   'Mathematical research, review, and verified proofs.': '数学研究、学术审阅与经过核验的证明。',
   Footer: '页脚导航',

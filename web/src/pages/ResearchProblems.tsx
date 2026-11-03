@@ -11,6 +11,7 @@ import { Async, DateText, ExternalLink } from '../components/ui';
 import { safeHttpUrl, sourceHref, sourceLabel } from '../lib/links';
 import { resultLabel } from '../lib/statements';
 import { Link } from '../routing/router';
+import { projectNotes } from '../lib/projectNotes';
 
 const statuses: Record<ResearchProblemSummary['status'], string> = {
   related_research: 'Reviewed research',
@@ -54,7 +55,21 @@ export function ResearchProblems() {
   const paged = usePaged(load);
   return (
     <>
-      <p>{t('Original problems and the accepted papers and notes that build on them.')}</p>
+      <section aria-labelledby="project-problems-heading">
+        <h2 id="project-problems-heading">{t('Trureturing collection')}</h2>
+        <p>{t('Original questions, readable notes and pinned Lean sources from the project.')}</p>
+        <ul className="project-questions">
+          {projectNotes.map((note) => (
+            <li key={note.id}>
+              <Link to={{ kind: 'project_note', id: note.id }}>
+                <InlineLatex source={note.problems[0]?.name ?? note.title} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <Link to={{ kind: 'projects' }}>{t('Read the project notes')}</Link>
+      </section>
+      <p>{t('Original problems and the papers and notes that build on them.')}</p>
       <Async state={paged.state} onRetry={paged.reload}>
         {(page) =>
           page.items.length ? (
@@ -71,13 +86,7 @@ export function ResearchProblems() {
                 </li>
               ))}
             </ul>
-          ) : (
-            <p>
-              {t(
-                'Research records appear here when related papers or notes are accepted for public display.',
-              )}
-            </p>
-          )
+          ) : null
         }
       </Async>
       <Pager paged={paged} />
