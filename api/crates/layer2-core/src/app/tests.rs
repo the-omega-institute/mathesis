@@ -2998,6 +2998,75 @@ async fn cma_fallback_is_a_single_cas_successor_and_projection_is_private() {
     ));
 }
 #[tokio::test]
+async fn model_billing_fallback_preserves_payer_attribution_and_stops_at_operator() {
+    let w = cma_world().await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let paper = w.submit(&author, "t", false).await;
+    let paper = w.review_paper(&author, &paper).await;
+    ready_binding(&w, &author).await;
+    let job = cma_test_job(&paper);
+    w.app
+        .admit_cma_attempt(
+            &reviewer,
+            &job,
+            &TestAgentLease(true),
+            "audit",
+            "r1:audit",
+            "wks_operator",
+        )
+        .await
+        .unwrap();
+    for _ in 0..2 {
+        assert!(
+            w.app
+                .fallback_cma_attempt(
+                    &reviewer,
+                    &job,
+                    &TestAgentLease(true),
+                    "audit",
+                    0,
+                    CmaFailure::Billing,
+                    "wks_operator"
+                )
+                .await
+                .unwrap()
+        );
+    }
+    assert!(
+        !w.app
+            .fallback_cma_attempt(
+                &reviewer,
+                &job,
+                &TestAgentLease(true),
+                "audit",
+                1,
+                CmaFailure::Billing,
+                "wks_operator"
+            )
+            .await
+            .unwrap()
+    );
+    let binding = w.app.cma_binding(&author.person).await.unwrap();
+    assert_eq!(binding.status, CmaStatus::Unusable);
+    assert_eq!(binding.reason, "model_billing_credits_unavailable");
+    let step = w
+        .app
+        .agent_step(&reviewer, &paper.id, "audit")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(step.cma_attempts.len(), 2);
+    assert_eq!(step.cma_attempts[0].payer, CmaPayer::Author);
+    assert_eq!(step.cma_attempts[0].failure, Some(CmaFailure::Billing));
+    assert_eq!(step.cma_attempts[1].payer, CmaPayer::Operator);
+    assert_eq!(step.cma_attempts[1].reason, "billing");
+    let view = serde_json::to_value(w.app.referee(&author, &paper.id).await.unwrap()).unwrap();
+    assert_eq!(view["cma_attempts"][1]["reason"], "billing");
+    assert!(view["cma_attempts"][0].get("workspace").is_none());
+}
+
+#[tokio::test]
 async fn legacy_cma_progress_stays_operator_and_disconnect_fences_consent() {
     let w = cma_world().await;
     let author = w.person("author", &[]).await;

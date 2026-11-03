@@ -1778,6 +1778,9 @@ export const zh: Record<string, string> = {
   'Your workspace setup was unavailable.': '工作区配置暂不可用。',
   'Your model credentials were refused.': '模型凭据未通过验证。',
   'Your model quota was unavailable.': '模型额度暂不可用。',
+  'Your model provider reported insufficient billing credits.': '你的模型服务报告计费余额不足。',
+  'Your model provider reported insufficient billing credits. Check billing in your compute account, then recheck.':
+    '你的模型服务报告计费余额不足。请在算力账户中核对计费情况，再重新检查。',
   'Your agents failed for an unknown reason.': '你的代理未能完成执行，原因尚不明确。',
   'Paper explanation': '白话解读',
   'Paper problem review': '论文问题审阅',

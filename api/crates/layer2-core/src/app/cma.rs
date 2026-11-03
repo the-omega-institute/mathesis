@@ -314,6 +314,7 @@ impl App {
                     CmaFailure::Setup => "workspace_setup_needed",
                     CmaFailure::Credential => "model_credentials_refused",
                     CmaFailure::Quota => "author_quota_refused",
+                    CmaFailure::Billing => "model_billing_credits_unavailable",
                     _ => "workspace_setup_needed",
                 }
                 .into();

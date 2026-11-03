@@ -2,6 +2,180 @@ use super::*;
 use crate::ports::BlobStore;
 
 #[tokio::test]
+async fn staff_can_retry_only_a_settled_failed_recheck_of_a_rejected_submission() {
+    fn skipped<T>() -> Step<T> {
+        Step {
+            state: StepState::Skipped {
+                reason: "No further step in this test round".into(),
+            },
+            ..Step::pending()
+        }
+    }
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let editor = w.person("editor", &[Role::Editor]).await;
+    let draft = w.submit(&author, "t", false).await;
+    let paper = w.review_paper(&author, &draft).await;
+    w.app
+        .begin_referee_round(&reviewer, &paper.id)
+        .await
+        .unwrap();
+    w.app
+        .update_referee_round(
+            &reviewer,
+            &paper.id,
+            1,
+            RoundUpdate::Referee(done_step(referee_report(Some(Recommendation::Reject)))),
+        )
+        .await
+        .unwrap();
+    let mut audit = audit_for(
+        &paper,
+        Recommendation::Reject,
+        Correctness::Correct,
+        ProofShape::BindOnly,
+        Some("Known theorem".into()),
+    );
+    audit.concerns.push(AuditedConcern {
+        evidence: String::new(),
+        basis: "offline".into(),
+        location: "Theorem 1".into(),
+        concern: "Is the cited proof a companion to this contribution?".into(),
+        status: ConcernStatus::NotCheckable,
+        note: "Check the source identity.".into(),
+    });
+    let reviewed = audited(&w, &reviewer, &paper, audit).await;
+    assert_eq!(reviewed.status, SubmissionStatus::NotAccepted);
+    for update in [
+        RoundUpdate::Advice(skipped()),
+        RoundUpdate::Letter(skipped()),
+        RoundUpdate::Formal(skipped()),
+    ] {
+        w.app
+            .update_referee_round(&reviewer, &paper.id, 1, update)
+            .await
+            .unwrap();
+    }
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+    w.app
+        .respond_to_finding(
+            &author,
+            &paper.id,
+            NewFindingResponse {
+                round: 1,
+                concern: 0,
+                version: 1,
+                claims_revision: paper.claims_revision,
+                body: "Please compare the version-bound formal companion and its authorship."
+                    .into(),
+            },
+        )
+        .await
+        .unwrap();
+    let recheck = w
+        .app
+        .begin_referee_round(&reviewer, &paper.id)
+        .await
+        .unwrap();
+    assert_eq!(recheck.current().unwrap().number, 2);
+    w.app
+        .update_referee_round(
+            &reviewer,
+            &paper.id,
+            2,
+            RoundUpdate::Referee(Step {
+                state: StepState::Failed {
+                    reason: "CMA refusal: Billing".into(),
+                    detail: None,
+                    retryable: false,
+                    at: chrono::Utc::now(),
+                },
+                ..Step::pending()
+            }),
+        )
+        .await
+        .unwrap();
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+    for update in [
+        RoundUpdate::Audit(skipped()),
+        RoundUpdate::Advice(skipped()),
+        RoundUpdate::Letter(skipped()),
+        RoundUpdate::Formal(skipped()),
+    ] {
+        w.app
+            .update_referee_round(&reviewer, &paper.id, 2, update)
+            .await
+            .unwrap();
+    }
+    let before = w.app.referee_file(&paper.id).await.unwrap().0;
+    let before_paper = w.app.submission(&author, &paper.id).await.unwrap();
+    for caller in [&author, &reviewer] {
+        assert!(matches!(
+            w.app.restart_referee(caller, &paper.id).await,
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+    let retried = w.app.restart_referee(&editor, &paper.id).await.unwrap();
+    assert_eq!(retried.rounds.len(), 3);
+    assert_eq!(retried.rounds[..2], before.rounds);
+    assert_eq!(retried.finding_responses, before.finding_responses);
+    assert_eq!(retried.letters, before.letters);
+    let latest = retried.current().unwrap();
+    assert_eq!(latest.version, 1);
+    assert_eq!(latest.claims_revision, paper.claims_revision);
+    assert_eq!(
+        latest.source_sha256,
+        before.current().unwrap().source_sha256
+    );
+    assert!(
+        before
+            .recheck_requests
+            .iter()
+            .all(|trigger| latest.recheck_requests.contains(trigger))
+    );
+    assert!(
+        latest
+            .recheck_requests
+            .contains(&"operational-retry:r2".into())
+    );
+    assert_eq!(
+        w.app.submission(&author, &paper.id).await.unwrap(),
+        before_paper
+    );
+    assert_eq!(
+        w.app
+            .begin_referee_round(&reviewer, &paper.id)
+            .await
+            .unwrap(),
+        retried
+    );
+    assert!(
+        w.app
+            .ports
+            .records
+            .for_submission(&paper.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+    for update in [
+        RoundUpdate::Referee(skipped()),
+        RoundUpdate::Audit(skipped()),
+        RoundUpdate::Advice(skipped()),
+        RoundUpdate::Letter(skipped()),
+        RoundUpdate::Formal(skipped()),
+    ] {
+        w.app
+            .update_referee_round(&reviewer, &paper.id, 3, update)
+            .await
+            .unwrap();
+    }
+    assert!(w.app.restart_referee(&editor, &paper.id).await.is_err());
+}
+
+#[tokio::test]
 async fn staff_can_retry_a_settled_failed_private_review_without_rewriting_history() {
     fn failed<T>() -> Step<T> {
         Step {

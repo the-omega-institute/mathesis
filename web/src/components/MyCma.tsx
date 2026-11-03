@@ -26,6 +26,8 @@ const REASONS: Record<string, string> = {
   authorization_refused: 'Reconnect to your compute account.',
   model_credentials_refused: 'Renew your model credentials in your compute account, then recheck.',
   author_quota_refused: 'Restore your model quota in your compute account, then recheck.',
+  model_billing_credits_unavailable:
+    'Your model provider reported insufficient billing credits. Check billing in your compute account, then recheck.',
 };
 
 export function MyCma({ id }: { id?: string }) {
@@ -157,6 +159,7 @@ const ATTEMPT_REASONS: Record<string, string> = {
   setup: 'Your workspace setup was unavailable.',
   credential: 'Your model credentials were refused.',
   quota: 'Your model quota was unavailable.',
+  billing: 'Your model provider reported insufficient billing credits.',
   cause_unknown: 'Your agents failed for an unknown reason.',
 };
 
