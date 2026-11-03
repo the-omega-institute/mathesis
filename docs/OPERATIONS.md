@@ -32,6 +32,12 @@ subscription supplies the model. Model access, resource ownership and usage/quot
 attribution are separate facts. Confirm the company's actual resources and
 quota configuration before claiming the complete review service is available.
 
+CMA cleanup retains each Agent until deletion is observed. A fresh `stopped`
+or `failed` Agent state permits the existing deletion request; a stop acknowledgement
+alone does not. Failed startup Agents can refuse stop with `agent_not_ready` but
+remain eligible for deletion. Cleanup preserves their recorded failure and task
+identity, and never interprets cleanup as a successful review or a new attempt.
+
 ## Readiness and admission
 
 Deploy the API and workers from the same revision when introducing review

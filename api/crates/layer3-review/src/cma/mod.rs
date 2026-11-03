@@ -598,6 +598,9 @@ impl Client {
         .map_err(|_| ReviewError::Transport("CMA cleanup request timed out".into()))?
     }
     async fn cleanup(&self, store: &dyn RunStore, state: &mut RunState) {
+        if state.deleted {
+            return;
+        }
         if state.agent_id.is_none()
             && let Some((path, body)) = &state.create_intent
         {
@@ -682,13 +685,14 @@ impl Client {
                 continue;
             }
             if method == "DELETE" {
-                // A 202 stop receipt is not a stopped agent. In particular, do not
-                // cache an agent_not_stopped refusal under the durable delete key.
+                // A 202 stop receipt is not a terminal Agent. CMA also allows
+                // deleting failed startup Agents, which cannot acknowledge stop.
+                // Read the terminal state before using the durable delete key.
                 match self
                     .cleanup_request("GET", format!("api/v1/agents/{agent}"), None, None)
                     .await
                 {
-                    Ok(v) if v["status"] == "stopped" => {}
+                    Ok(v) if matches!(v["status"].as_str(), Some("stopped" | "failed")) => {}
                     Ok(v) if v["status"] == "deleted" => {
                         *flag = true;
                         continue;
