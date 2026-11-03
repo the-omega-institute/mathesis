@@ -1,15 +1,20 @@
 import type { FeedbackLetter, RefereeRound, RejectReason, Submission } from '../api/types';
 import { formalizationAdvice, formalizationAdviceText } from './formalizationAdvice';
 import { manuscriptReferences, resultLabel } from './statements';
+import { sourceLabel, sourceMarkdown } from './links';
 
-export function publicationReason(reason: RejectReason, submission?: Submission): string {
+export function publicationReason(
+  reason: RejectReason,
+  submission?: Submission,
+  format: 'text' | 'markdown' = 'text',
+): string {
   const claim =
     'claim' in reason ? submission?.claims.find((item) => item.id === reason.claim) : undefined;
   const name = claim ? resultLabel(claim) : 'A main result';
   let text: string;
   switch (reason.reason) {
     case 'known_result':
-      text = `${name} already follows from ${reason.prior.locator}.`;
+      text = `${name} already follows from ${format === 'markdown' ? sourceMarkdown(reason.prior) : reason.prior.kind === 'named_work' ? sourceLabel(reason.prior) : reason.prior.locator}.`;
       break;
     case 'bind_only':
       text =
@@ -106,7 +111,9 @@ export function authorReport(
   const audit = round.audit?.state.state === 'done' ? round.audit.state.result : undefined;
   const reasons =
     s.status.state === 'not_accepted' && s.decision?.decision === 'not_accepted'
-      ? s.decision.reasons.map((reason) => `- ${publicationReason(reason, s)}`).join('\n')
+      ? s.decision.reasons
+          .map((reason) => `- ${publicationReason(reason, s, 'markdown')}`)
+          .join('\n')
       : '';
   const authored = authoredSections(round, letter);
   const analysis = audit?.claims
@@ -119,7 +126,7 @@ export function authorReport(
       )
         return [];
       return [
-        `### ${resultLabel(claim)}\n\n${reading.comment}${reading.known ? `\n\nRelated work: ${reading.known}` : ''}`,
+        `### ${resultLabel(claim)}\n\n${reading.comment}${reading.known ? `\n\nRelated work: ${sourceMarkdown({ kind: 'named_work', locator: reading.known })}` : ''}`,
       ];
     })
     .join('\n\n');
@@ -276,7 +283,9 @@ export function authorReportPreview(
     : 'No formalization is recommended in the available review.';
   const reasons =
     s.status.state === 'not_accepted' && s.decision?.decision === 'not_accepted'
-      ? s.decision.reasons.map((reason) => `- ${publicationReason(reason, s)}`).join('\n\n')
+      ? s.decision.reasons
+          .map((reason) => `- ${publicationReason(reason, s, 'markdown')}`)
+          .join('\n\n')
       : '';
   return manuscriptReferences(
     [
