@@ -57,6 +57,7 @@ pub struct AuditedClaimOut {
     pub comment: String,
     pub shape: Option<String>,
     pub witnesses: Vec<String>,
+    #[serde(deserialize_with = "known_source")]
     pub known: Option<String>,
     #[serde(alias = "agrees_with_referee")]
     pub referee_agreed: bool,
@@ -93,6 +94,7 @@ pub struct ReadingOut {
     #[serde(deserialize_with = "empty_shape_if_null")]
     pub shape: String,
     pub witnesses: Vec<String>,
+    #[serde(deserialize_with = "known_source")]
     pub known: Option<String>,
     pub note: String,
 }
@@ -101,6 +103,36 @@ fn empty_shape_if_null<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<String, D::Error> {
     Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
+}
+
+/// Some model replies use a knownness flag instead of a reported source.
+/// Keep the mathematical reading, but never turn a flag into citation evidence.
+fn known_source<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    struct Source;
+
+    impl serde::de::Visitor<'_> for Source {
+        type Value = Option<String>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("a source string, a boolean flag or null")
+        }
+
+        fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+            Ok(Some(value.to_owned()))
+        }
+
+        fn visit_bool<E: serde::de::Error>(self, _value: bool) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(Source)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -523,6 +555,86 @@ Thanks."#;
         for invalid in ["true", "1", "[]", "{}"] {
             let text = format!(r#"{{"claims":[{{"claim":"C1","shape":{invalid}}}]}}"#);
             assert!(parse_answer::<RefereeOut>(&text).is_err());
+        }
+    }
+
+    #[test]
+    fn boolean_known_flags_preserve_referee_readings_and_search_proposals() {
+        let answer = r#"```json
+        {"recommendation":"reject","summary":"The main result follows from the stated prerequisite.",
+         "claims":[
+            {"claim":"C1","shape":"bind_only","known":true,"note":"Apply the prerequisite with n = 2."},
+            {"claim":"C2","shape":"content","known":false,"witnesses":["A strict bound"]},
+            {"claim":"C3","known":"Prior theorem [opened: DOI:10.1234/example]"},
+            {"claim":"C4","known":null},
+            {"claim":"C5"}
+         ],
+         "knowledge_queries":[{"claim":"C1","conclusion":"The bound holds for n = 2."}],
+         "concerns":[{"claim":"C1","severity":"major","issue":"Explain the precise attribution."}],
+         "limits":["Only the supplied prerequisite was checked."]}
+        ```"#;
+        let out = parse_referee_answer(answer).unwrap();
+        assert_eq!(out.recommendation, "reject");
+        assert!(out.summary.contains("stated prerequisite"));
+        assert_eq!(out.claims.len(), 5);
+        assert_eq!(out.claims[0].shape, "bind_only");
+        assert_eq!(out.claims[0].note, "Apply the prerequisite with n = 2.");
+        assert_eq!(out.claims[1].witnesses, ["A strict bound"]);
+        for index in [0, 1, 3, 4] {
+            assert!(out.claims[index].known.is_none());
+        }
+        assert_eq!(
+            out.claims[2].known.as_deref(),
+            Some("Prior theorem [opened: DOI:10.1234/example]")
+        );
+        assert_eq!(
+            out.knowledge_queries,
+            [serde_json::json!({"claim":"C1","conclusion":"The bound holds for n = 2."})]
+        );
+        assert_eq!(out.concerns[0].issue, "Explain the precise attribution.");
+        assert_eq!(out.limits, ["Only the supplied prerequisite was checked."]);
+    }
+
+    #[test]
+    fn audit_known_flags_are_not_sources_and_other_evidence_survives() {
+        let out: AuditOut = parse_answer(
+            r#"{"verdict":"reject","claims":[
+                {"claim":"C1","correctness":"correct","shape":"bind_only","known":true,
+                 "methodology":{"delta":"An instance of the stated prerequisite"},
+                 "coverage":{"relation":"covered","receipt_ids":["receipt-1"]}},
+                {"claim":"C2","known":false},
+                {"claim":"C3","known":"Prior theorem [opened: DOI:10.1234/example]"},
+                {"claim":"C4","known":null},
+                {"claim":"C5"}
+            ]}"#,
+        )
+        .unwrap();
+        assert_eq!(out.verdict, "reject");
+        assert_eq!(out.claims[0].correctness, "correct");
+        assert_eq!(out.claims[0].shape.as_deref(), Some("bind_only"));
+        assert_eq!(
+            out.claims[0].coverage.as_ref().unwrap()["relation"],
+            "covered"
+        );
+        assert_eq!(
+            out.claims[0].methodology.as_ref().unwrap()["delta"],
+            "An instance of the stated prerequisite"
+        );
+        for index in [0, 1, 3, 4] {
+            assert!(out.claims[index].known.is_none());
+        }
+        assert_eq!(
+            out.claims[2].known.as_deref(),
+            Some("Prior theorem [opened: DOI:10.1234/example]")
+        );
+    }
+
+    #[test]
+    fn malformed_known_sources_still_reject_the_reply() {
+        for invalid in ["1", "[]", "{}"] {
+            let text = format!(r#"{{"claims":[{{"claim":"C1","known":{invalid}}}]}}"#);
+            assert!(parse_referee_answer(&text).is_err());
+            assert!(parse_answer::<AuditOut>(&text).is_err());
         }
     }
 
