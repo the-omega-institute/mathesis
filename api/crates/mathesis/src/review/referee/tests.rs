@@ -4656,6 +4656,98 @@ async fn contract_one_replays_original_source_query_prompt_without_semantic_work
 }
 
 #[tokio::test]
+async fn recovered_referee_queries_preserve_an_already_admitted_audit() {
+    for admitted in [false, true] {
+        let OracleStatus::Completed { text, model } = completed("accept").unwrap() else {
+            panic!()
+        };
+        let mut raw: serde_json::Value = serde_json::from_str(&text).unwrap();
+        raw["claims"][0]["known"] = serde_json::json!(true);
+        let original = raw.to_string();
+        let w = World::new(
+            vec![Ok(OracleStatus::Completed {
+                text: original.clone(),
+                model,
+            })],
+            true,
+        )
+        .await;
+        let mut job = w.job().await;
+        for _ in 0..10 {
+            assert!(w.worker.referee_job(&job).await.unwrap());
+            job = w.claim_referee().await;
+            if w.file().await.current().unwrap().referee.done().is_some() {
+                break;
+            }
+        }
+        let mut file = w.file().await;
+        let StepState::Done { result, .. } = &mut file.rounds[0].referee.state else {
+            panic!("initial answer was not saved")
+        };
+        // Reproduce a settled fallback saved by the previous strict parser.
+        *result = mapping::referee(
+            RefereeOut {
+                summary: "The referee answer could not be parsed as a structured report.".into(),
+                limits: vec!["invalid type: boolean, expected a string".into()],
+                ..Default::default()
+            },
+            original.clone(),
+            &w.paper.claims,
+        );
+        let report = result.clone();
+        let (mut input, _work, source) = w
+            .worker
+            .advisor_input(&w.paper, &report, file.rounds[0].review_contract)
+            .await
+            .unwrap();
+        input.knowledge = w.worker.knowledge_context(&w.paper, 1).await.unwrap();
+        input.computations = w.worker.computation_context(&w.paper, 1).await.unwrap();
+        let digest = input_digest(&referee_prompts::audit(&input), &source);
+        if admitted {
+            file.rounds[0].audit.input_digest = Some(digest.clone());
+            file.rounds[0].audit.state = StepState::Running {
+                task: None,
+                queue_position: None,
+                since: chrono::Utc::now(),
+            };
+        }
+        let before_events = file.knowledge_events.len();
+        mathesis_core::ports::RefereeStore::replace(w.stores.as_ref(), &file, file.revision)
+            .await
+            .unwrap();
+        w.advisor.audit_failures.store(1, Ordering::SeqCst);
+        let result = w.worker.referee_job(&job).await;
+        let after = w.file().await;
+        if admitted {
+            assert!(matches!(result, Err(Failure::Transient(_))));
+            assert_eq!(after.knowledge_events.len(), before_events);
+            assert_eq!(after.current().unwrap().audit.input_digest, Some(digest));
+            assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 1);
+        } else {
+            assert!(result.unwrap());
+            assert!(after.knowledge_events.len() > before_events);
+            assert!(after.current().unwrap().audit.input_digest.is_none());
+            assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 0);
+        }
+        assert_eq!(
+            after.current().unwrap().referee.done().unwrap().text,
+            original
+        );
+        assert!(
+            after
+                .current()
+                .unwrap()
+                .referee
+                .done()
+                .unwrap()
+                .claims
+                .is_empty()
+        );
+        assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
 async fn missing_or_unusable_oracle_semantic_queries_cannot_be_replaced_by_raw_searches() {
     use mathesis_core::model::{KnowledgeEvent, KnowledgeQueryState};
     for proposals in [
