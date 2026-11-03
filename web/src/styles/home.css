@@ -1,7 +1,3 @@
-#root:has(> main > .page.home) {
-  --page: 96rem;
-}
-
 .page.home {
   max-width: 100%;
   margin-inline: auto;

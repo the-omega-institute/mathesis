@@ -1,0 +1,475 @@
+{
+  "schema": "mathesis.project-notes.v1",
+  "works": [
+    {
+      "id": "b164660-chebfloor",
+      "revision": "1",
+      "title": "OEIS A164660, final FORMULA (29 May 2016): Chebyshev numerators and floor products",
+      "abstract": "We prove Anthony Browne's conjecture in OEIS A164660, final FORMULA (29 May 2016): for every positive integer n, the reduced numerator of the integral from 0 to 1 of T_(n+1)(x) equals the stated floor product and (-1)^(n/rad(n)). Both sides are +1 exactly when 4 divides n. The same calculation proves the preceding rational-integral conjecture and gives its denominator sequence A164661. More generally, replacing the exponent n in the product by any integer r >= 2, and translating its interval by any integer, leaves the product unchanged. We give the exact root count for every r >= 1 and correct two coefficient-table discrepancies in the linked sources.",
+      "summary": "A self-contained proof of the complete A164660 floor-product identity, with the integral and denominator formulas, the sharp general-exponent root count, translated-interval sign invariance, precise Lean coverage, and coefficient-source corrections. Earlier root-count formulas and Fried's proof of the A000188 square-indicator identity are credited.",
+      "authors": [
+        {
+          "name": "Haobo Ma",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Wenlin Zhang",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["b164660-chebfloor"],
+      "problems": [
+        {
+          "name": "Anthony Browne's final FORMULA conjecture in OEIS A164660 (29 May 2016)",
+          "source": {
+            "kind": "oeis",
+            "locator": "A164660"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/122c987d276498783de7d873378a28b27ced8761/D5/S3/ArithSums/BrowneA164660ChebyshevFloorProduct.lean",
+        "revision": "122c987d276498783de7d873378a28b27ced8761"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/b164660-chebfloor/v1/note-v1.pdf",
+        "sha256": "cb6925ab5fbb293057703a6f10abb8171b5fcfcfea3c13baa75fc6ff15ab454f"
+      },
+      "source": {
+        "url": "/collections/trureturing/b164660-chebfloor/v1/source-v1.zip",
+        "sha256": "b330f3067e11838d06d009d798130be5e471e606927578ba408ea77e0c20070d"
+      }
+    },
+    {
+      "id": "bu-gu-jaffe-2025-mixed-state-inverse-sumset",
+      "revision": "2",
+      "title": "A counterexample to Bu--Gu--Jaffe's expected mixed-state inverse sumset estimate",
+      "abstract": "We refute the mixed-state inverse sumset estimate expected in Remark 45, equation (58), of Bu, Gu and Jaffe, Quantum Ruzsa Divergence to Quantify Magic (arXiv:2401.14385v3). A computationally diagonal equal mixture of two basis states in dimension seven has quantum-doubling constant sqrt(2) and relative entropy log(7/2) from its mean state, while the proposed bound is at most (1/2)log(7). The contradiction uses exact inequalities and persists for every tensor power. For the same family, we verify that the weaker estimate (59) has a positive denominator and holds strictly, and give the equality case of the companion entropy-growth statement for computationally diagonal states.",
+      "summary": "An exact diagonal seven-dimensional counterexample to the expected mixed-state inverse sumset bound, with tensor-power counterexamples and direct verification of the weaker companion estimate on the same family.",
+      "authors": [
+        {
+          "name": "Ma, Haobo",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Zhang, Wenlin",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["bu-gu-jaffe-2025-mixed-state-inverse-sumset"],
+      "problems": [
+        {
+          "name": "Bu, Gu and Jaffe's mixed-state inverse sumset estimate, Remark 45, equation (58)",
+          "source": {
+            "kind": "arxiv",
+            "locator": "2401.14385v3"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/57b811cedb64c8065c6afac0da57d0fe2c8aa5ab/D5/S3/Quantum/Magic/MixedStateInverseSumsetRefutation.lean",
+        "revision": "57b811cedb64c8065c6afac0da57d0fe2c8aa5ab"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/bu-gu-jaffe-2025-mixed-state-inverse-sumset/v2/note-v2.pdf",
+        "sha256": "b4b28d1bd7cda426d37481e91318edf131c5b41a7afe818234a85d20ff4a38b1"
+      },
+      "source": {
+        "url": "/collections/trureturing/bu-gu-jaffe-2025-mixed-state-inverse-sumset/v2/source-v2.zip",
+        "sha256": "80a80ddb1885b50e1da525787c20ee0f8bf4f2517806abcedbac96de8c4131ac"
+      }
+    },
+    {
+      "id": "denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance",
+      "revision": "4",
+      "title": "Refuting the trace-distance case of axiom (T4) of Denis, Lacaille, Martin and Serrano-Ensástiga",
+      "abstract": "We refute the trace-distance case of axiom (T4) of Denis, Lacaille, Martin and Serrano-Ensástiga (arXiv:2605.29436v1, Section III.A.2, Eq. (22) with p=1; (T4) in Section II.B, Eqs. (7)–(8)), where “a proof is left open.” An explicit SU(2)-covariant channel decreases the order-seven anticoherence of a mixed spin-four state by exactly 95/90552, disproving the universal validity suggested by their reported numerical evidence. The channel is a normalized sum of quadrupole Kraus operations; its covariance and trace preservation follow from Cartesian tensor identities. Both reduced states are diagonal, so the strict inequality reduces to rational arithmetic. We reconstruct an existing spin-four witness and give a self-contained exact counterexample within the full mixed-state domain of the proposed axiom.",
+      "summary": "A complete proof reconstructs the attributed mixed-spin trace-distance counterexample. Certified sibling calculations show fidelity anticoherence increases for the same witness at all t=1,...,8; trace anticoherence increases at t=1,...,6,8. Proposition 6 cannot apply generally to trace distance because its total-measure hypothesis fails. Universal fidelity monotonicity, mixed inputs restricted to t<=N/2, pure-input behavior, and minimum spin/order are not settled.",
+      "authors": [
+        {
+          "name": "Ma, Haobo",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Zhang, Wenlin",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance"],
+      "problems": [
+        {
+          "name": "Denis, Lacaille, Martin and Serrano-Ensastiga's trace-distance case of axiom (T4)",
+          "source": {
+            "kind": "arxiv",
+            "locator": "2605.29436v1"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/d1876cfbbef8c13023311126691b180eefa69569/D5/S3/Quantum/Measurement/AnticoherenceTraceDistanceRefutation.lean",
+        "revision": "d1876cfbbef8c13023311126691b180eefa69569"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance/v4/note-v4.pdf",
+        "sha256": "3d7598ee5a99a29ff963e4e4cbb6588a4709258edd552feb4707deb731027c42"
+      },
+      "source": {
+        "url": "/collections/trureturing/denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance/v4/source-v4.zip",
+        "sha256": "3348000be59f47cf185efbb70419f585656f0bd3a2a9746f7fa173b0a4f4cc52"
+      }
+    },
+    {
+      "id": "huang-kosugi-nishi-matsushita-2024-reflection-diagonal-cnot-lower-bound",
+      "revision": "4",
+      "title": "Reflection-symmetric diagonal synthesis: resolving a conjecture of Huang, Kosugi, Nishi and Matsushita",
+      "abstract": "Combined with the upper bound of Huang, Kosugi, Nishi and Matsushita [J. Phys. Soc. Jpn. 93, 054002 (2024); arXiv:2310.06676v2], this resolves their Section 6 conjecture that 2^(2n-1)+2n-2 CNOTs are optimal in the worst case for exact ancilla-free CNOT/R_z synthesis of reflection-symmetric diagonal unitaries on 2n qubits. The explicit hard instance has phase pi/2 at the all-zero and all-one strings. Multiplicative characters force every nonzero even parity; birth-span dimension and return conservation give the linear term. The same substitution gives the unrestricted 2dn-wire count, but not depth optimality or radial-potential optimality.",
+      "summary": "Self-contained exposition of the pinned upstream lower-bound proof resolving the Section 6 conjecture of Huang, Kosugi, Nishi and Matsushita when combined with their matching synthesis algorithm. Includes exact finite checks and a precise distinction between the unrestricted higher-dimensional count and the remaining depth and radial-potential questions.",
+      "authors": [
+        {
+          "name": "Haobo Ma",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Wenlin Zhang",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["huang-kosugi-nishi-matsushita-2024-reflection-diagonal-cnot-lower-bound"],
+      "problems": [
+        {
+          "name": "Huang, Kosugi, Nishi and Matsushita's worst-case CNOT count conjecture in Section 6",
+          "source": {
+            "kind": "arxiv",
+            "locator": "2310.06676v2"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/02c695f8c17e35965f80603427074b1dd434eed9/D5/S3/Quantum/Magic/ReflectionDiagonalCNOTLowerBound.lean",
+        "revision": "02c695f8c17e35965f80603427074b1dd434eed9"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/huang-kosugi-nishi-matsushita-2024-reflection-diagonal-cnot-lower-bound/v4/note-v4.pdf",
+        "sha256": "8d00a9ce0fa2f9d5840c5fbb52ea033260f6f69ba59f27138c8d4671c760f6b1"
+      },
+      "source": {
+        "url": "/collections/trureturing/huang-kosugi-nishi-matsushita-2024-reflection-diagonal-cnot-lower-bound/v4/source-v4.zip",
+        "sha256": "76b2a0c39560d94ce4fb33706f03cf4c151e935661119862df985e05bf29e7a1"
+      }
+    },
+    {
+      "id": "kang-jager-2026-universal-permutative-lift-refutation",
+      "revision": "2",
+      "title": "A negative answer to Kang–Jäger's Question 1.10 on permutative lifts",
+      "abstract": "We answer Kang–Jäger's Question 1.10 (arXiv:2609.01140v1) negatively, including its strictly ergodic and Toeplitz versions. We construct one aperiodic regular Toeplitz subshift over the binary alphabet such that, for every permutative block code of every length ell >= 2, the entire inverse image is conjugate over the base to the product with the identity on 2^(ell-1) points. Each lift therefore has exactly 2^(ell-1) clopen strictly ergodic components. The construction uses recognizable equal-length words with factorial repetition counts: these annihilate every finite permutation action, while the proportion of columns on which the two words differ is exactly 3^(-n).",
+      "summary": "One fixed binary regular Toeplitz strictly ergodic base has nonminimal complete inverse images for every bipermutative sliding block code of every length at least two; the exact component count is 2^(ell-1).",
+      "authors": [
+        {
+          "name": "Ma, Haobo",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Zhang, Wenlin",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["kang-jager-2026-universal-permutative-lift-refutation"],
+      "problems": [
+        {
+          "name": "Kang and Jaeger's Question 1.10 on permutative lifts",
+          "source": {
+            "kind": "arxiv",
+            "locator": "2609.01140v1"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/fd1633144086085a16f35c8171e2f4b6186a6fbb/D5/S1/Dynamics/Symbolic/PermutativeLifts/BalancedRegularRefutation.lean",
+        "revision": "fd1633144086085a16f35c8171e2f4b6186a6fbb"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/kang-jager-2026-universal-permutative-lift-refutation/v2/note-v2.pdf",
+        "sha256": "56b0a4b828fbdc8ce42852041a899a988f7f063fcdb4f0f4e6b2476d9fe4359a"
+      },
+      "source": {
+        "url": "/collections/trureturing/kang-jager-2026-universal-permutative-lift-refutation/v2/source-v2.zip",
+        "sha256": "d72a96ff874e970cc96ada12c1d20bd30a456dfa7105c8b31e1e65da9b790266"
+      }
+    },
+    {
+      "id": "mathar-a027182-closed-form",
+      "revision": "4",
+      "title": "Proof of Mathar's conjecture on OEIS A027182: a closed form and the six-term recurrence",
+      "abstract": "We prove the recurrence for A027182 stated as a conjecture by R. J. Mathar (OEIS A027182, FORMULA section, 6 May 2026) for all n >= 6, by evaluating the middle coefficient of the square of each A027170 row polynomial. Row symmetry reduces the convolution to five binomial sums, and a shifted second-order recurrence gives the six-term recurrence. The same central-binomial identity proves Mathar's conjectured recurrences for A027171, A027174 and A027175; a parity decomposition also proves his seven-term recurrence for the half-row sums A027179.",
+      "summary": "A complete elementary proof of the A027182 conjecture, with corollaries proving the A027171, A027174, A027175 and A027179 conjectures from central-binomial identities and row symmetry.",
+      "authors": [
+        {
+          "name": "Ma, Haobo",
+          "affiliation": "ChronoAI Pte Ltd, Singapore",
+          "orcid": "0009-0008-4944-977X"
+        },
+        {
+          "name": "Zhang, Wenlin",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore",
+          "orcid": "0009-0005-2414-7968"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": [
+        "mathar-a027182",
+        "mathar-a027171",
+        "mathar-a027174",
+        "mathar-a027175",
+        "mathar-a027179"
+      ],
+      "problems": [
+        {
+          "name": "R. J. Mathar's recurrence conjecture for OEIS A027182 (6 May 2026)",
+          "source": {
+            "kind": "oeis",
+            "locator": "A027182"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/494f471b70d9470db92b4dbc07a309d78ca59ec7/D5/S1/Recurrence/MatharA027182SelfConvolution.lean",
+        "revision": "494f471b70d9470db92b4dbc07a309d78ca59ec7"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/mathar-a027182-closed-form/v4/note-v4.pdf",
+        "sha256": "452af97384302ff222fac940759d321ec76bf44e80ddd4e1eca8e78b8bfcab38"
+      },
+      "source": {
+        "url": "/collections/trureturing/mathar-a027182-closed-form/v4/source-v4.zip",
+        "sha256": "a36826a45523cdafc39b1f2055e51130f9e6af99908175fa1fb01569ec53e0cf"
+      }
+    },
+    {
+      "id": "oeis-a391810-alternating-jacobsthal",
+      "revision": "4",
+      "title": "OEIS A391810: formula (5), COMMENTS (C.1)--(C.10), and prime-index vanishing",
+      "abstract": "We prove formula (5), COMMENTS (C.1)--(C.10), and the zero clause of COMMENT (C.11) of Paul D. Hanna's OEIS entry A391810, revision 39. For n>=1, the original bilateral Laurent coefficients form a finite row polynomial P_n(y)=-1+sum(h=1..n)y^h(1-y^h)^(n-h). Evaluating it at -1 gives the negative alternating row sum 2 round(2^n/3)=2J_n. The same polynomial proves formulas (2), (3), (4), and (6). Its divisor-sum coefficient expression proves the ten individual-term formulas and T(n,q)=0 for every prime q>n. The further first-zero assertion of (C.11) remains open in this note.",
+      "summary": "Complete written proofs of A391810 formulas (2)--(6), COMMENTS (C.1)--(C.10), and prime-index vanishing, with a divisor formula, exact source-item coverage, and finite checks through row 79. The first-zero assertion in (C.11) remains open here.",
+      "authors": [
+        {
+          "name": "Ma, Haobo",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Zhang, Wenlin",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": [
+        "oeis-a391810-alternating-jacobsthal",
+        "oeis-a391810-full-laurent-row-sums",
+        "oeis-a391810-laurent-first-moment",
+        "oeis-a391810-second-moment"
+      ],
+      "problems": [
+        {
+          "name": "Paul D. Hanna's alternating-sum formula (5) in OEIS A391810, revision 39",
+          "source": {
+            "kind": "oeis",
+            "locator": "A391810"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/1239bd2a0ed6e9d54aabb5a42af94234e9eb61ae/D5/S3/ArithSums/HannaLaurentAlternatingJacobsthal.lean#L103",
+        "revision": "1239bd2a0ed6e9d54aabb5a42af94234e9eb61ae"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/oeis-a391810-alternating-jacobsthal/v4/note-v4.pdf",
+        "sha256": "1d955b6c585d70d30ee880a6ebf447c5dba8446708a8fa2c198969881ddef8e6"
+      },
+      "source": {
+        "url": "/collections/trureturing/oeis-a391810-alternating-jacobsthal/v4/source-v4.zip",
+        "sha256": "13c6d95622b8342b1e2e9746c205c0474ee36017695bb33402b481f0c8362726"
+      }
+    },
+    {
+      "id": "oeis-a396659-edge-collision-ratio",
+      "revision": "4",
+      "title": "Proof of Arkadeep Dutta's edge-collision ratio conjecture (OEIS A396659)",
+      "abstract": "We prove the conjecture in Arkadeep Dutta's OEIS A396659, revision 16, FORMULA, third statement: T(n,n^2)/T(n,n^2+1)=(2n-1)/n for every n>=2. Here T(n,k) counts length-k walks from a fixed vertex of the complete looped directed graph on n labeled vertices, visiting every vertex and repeating an edge for the first time at step k. An omitted-edge classification and marked loop insertion prove the ratio. We also establish the entry's two companion formulas, T(n,n+1)=n! and T(n,n^2+1)=(n!)^n, with the linear-walk normalization explicit.",
+      "summary": "A self-contained proof of Dutta's edge-collision ratio conjecture, together with complete proofs of both companion formulas in the same OEIS entry and exact finite checks of the counting bijections.",
+      "authors": [
+        {
+          "name": "Haobo Ma",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Wenlin Zhang",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["oeis-a396659-edge-collision-ratio"],
+      "problems": [
+        {
+          "name": "Arkadeep Dutta's edge-collision ratio conjecture in OEIS A396659, revision 16, FORMULA, third statement",
+          "source": {
+            "kind": "oeis",
+            "locator": "A396659"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/d1876cfbbef8c13023311126691b180eefa69569/D5/S3/Combinatorics/Graph/Walks/CollisionPrefix.lean",
+        "revision": "d1876cfbbef8c13023311126691b180eefa69569"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/oeis-a396659-edge-collision-ratio/v4/note-v4.pdf",
+        "sha256": "d0b0257c8b72b82a0c9331362bfd6f28fee6cd9685b33aec28b3f176cb925d52"
+      },
+      "source": {
+        "url": "/collections/trureturing/oeis-a396659-edge-collision-ratio/v4/source-v4.zip",
+        "sha256": "d74e5e49909c55c1e46eb9639136c83beef7283b09d81537e79ec0c3b730e054"
+      }
+    },
+    {
+      "id": "user3-2026-orthogonal-absolute-product-minimum",
+      "revision": "2",
+      "title": "Resolving User3's orthogonal absolute-product question: minimum and minimizers",
+      "abstract": "We resolve User3's question (question 515549, revision 1, September 25, 2026): for every nonsingular real square matrix of positive size, the orthogonal minimum of rho(|PQ||Q^T P^{-1}|) is attained and equals one. Thus the proposed strict uniform lower bound cannot hold for any such matrix. We give a self-contained exposition of the triangularization proof in the pinned formal source, then characterize every minimizer by independent row and column permutations to triangular form. For fixed P, the set of minimizers is finite and has an explicit description using row-permuted QR factorizations. The same minimum holds over the special orthogonal group. Finally, the companion absolute-row-sum balancing question follows from the Yamabe-Yujobo theorem.",
+      "summary": "The triangularization proof settles both questions in MathOverflow 515549. Complete equality-case and finite-minimizer descriptions strengthen that result; the Yamabe-Yujobo sphere theorem settles the same author's companion question 515547. The pinned Lean declaration result states the universal lower bound and orthogonal attainment. Equality cases, the special-orthogonal refinement and balancing have written proofs; exact rational controls cover the enumerated finite cases.",
+      "authors": [
+        {
+          "name": "Ma, Haobo",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Zhang, Wenlin",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["user3-2026-orthogonal-absolute-product-minimum", "mathoverflow-515547"],
+      "problems": [
+        {
+          "name": "User3's orthogonal absolute-product minimum question, MathOverflow 515549",
+          "source": {
+            "kind": "url",
+            "locator": "https://mathoverflow.net/questions/515549"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/fd1633144086085a16f35c8171e2f4b6186a6fbb/D5/S1/Eigenstructure/OrthogonalAbsoluteProductMinimum.lean",
+        "revision": "fd1633144086085a16f35c8171e2f4b6186a6fbb"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/user3-2026-orthogonal-absolute-product-minimum/v2/note-v2.pdf",
+        "sha256": "805cf769eb415c69e5fad5bc5a595cdb7d17a484ece2c18e649165213d1a3a26"
+      },
+      "source": {
+        "url": "/collections/trureturing/user3-2026-orthogonal-absolute-product-minimum/v2/source-v2.zip",
+        "sha256": "864a589fac81968f5d9ac782ccee5a312deeed7e1c5fcddb3df23c1048a808fb"
+      }
+    },
+    {
+      "id": "wang-conjecture326",
+      "revision": "2",
+      "title": "Counterexamples to Wang's Conjectures 3.26 and 5.3 on semigroup algebras",
+      "abstract": "We refute Conjectures 3.26 and 5.3 of Wang's Semigroup rings and algebraically independent sequences with respect to idempotents in commutative semigroups (arXiv:2509.18724v1, pp. 23 and 27). The commutative periodic monoid of finite subsets of the natural numbers, paired with levels zero, one and two under union and capped addition, has algebraic Davenport constant one over every nonzero commutative unitary ring. Its nongroup relative Davenport constants are unbounded. The finite submonoids with supports contained in {1,...,m}, m>=1, have the same algebraic constant, whereas the expression conjectured to equal it grows without bound as m increases.",
+      "summary": "One fixed infinite periodic monoid refutes Conjecture 3.26. Its finite submonoids refute Conjecture 5.3, already with six elements; all relative constants are computed exactly.",
+      "authors": [
+        {
+          "name": "Haobo Ma",
+          "affiliation": "ChronoAI Pte Ltd, Singapore"
+        },
+        {
+          "name": "Wenlin Zhang",
+          "affiliation": "National University of Singapore; ChronoAI Pte Ltd, Singapore"
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "published_on": "2026-11-04",
+      "problem_ids": ["wang-conjecture326", "wang-conjecture53"],
+      "problems": [
+        {
+          "name": "Wang's Conjecture 3.26 on semigroup rings and relative Davenport constants",
+          "source": {
+            "kind": "arxiv",
+            "locator": "2509.18724v1"
+          }
+        },
+        {
+          "name": "Wang's Conjecture 5.3 on finite semigroup rings",
+          "source": {
+            "kind": "arxiv",
+            "locator": "2509.18724v1"
+          }
+        }
+      ],
+      "lean": {
+        "url": "https://github.com/the-omega-institute/trureturing/blob/d1876cfbbef8c13023311126691b180eefa69569/D5/S0/Certificates/Algebra/WangConjecture326Refutation.lean",
+        "revision": "d1876cfbbef8c13023311126691b180eefa69569"
+      },
+      "review": {
+        "basis": "upstream_manuscript_review",
+        "source": "Trureturing research workflow"
+      },
+      "pdf": {
+        "url": "/collections/trureturing/wang-conjecture326/v2/note-v2.pdf",
+        "sha256": "408baf09236d7181e06fe9963d1e8aa693313b47d15ef8e370a8d38f7b0128e1"
+      },
+      "source": {
+        "url": "/collections/trureturing/wang-conjecture326/v2/source-v2.zip",
+        "sha256": "28de06013c852de15802885af7e42d7a3e729b8f7617449758071b262b5a2fb6"
+      }
+    }
+  ]
+}
