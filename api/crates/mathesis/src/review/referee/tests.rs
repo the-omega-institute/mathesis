@@ -4754,6 +4754,7 @@ async fn recovered_referee_queries_preserve_an_already_admitted_audit() {
         };
         let mut raw: serde_json::Value = serde_json::from_str(&text).unwrap();
         raw["claims"][0]["known"] = serde_json::json!(true);
+        raw["concerns"] = serde_json::json!(["Check the source identity."]);
         let original = raw.to_string();
         let w = World::new(
             vec![Ok(OracleStatus::Completed {
@@ -4779,7 +4780,7 @@ async fn recovered_referee_queries_preserve_an_already_admitted_audit() {
         *result = mapping::referee(
             RefereeOut {
                 summary: "The referee answer could not be parsed as a structured report.".into(),
-                limits: vec!["invalid type: boolean, expected a string".into()],
+                limits: vec!["invalid type: string, expected struct ConcernOut".into()],
                 ..Default::default()
             },
             original.clone(),

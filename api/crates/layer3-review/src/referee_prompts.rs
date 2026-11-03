@@ -14,6 +14,7 @@ pub struct RefereeOut {
     pub recommendation: String,
     pub summary: String,
     pub strengths: Vec<String>,
+    #[serde(deserialize_with = "referee_concerns")]
     pub concerns: Vec<ConcernOut>,
     pub claims: Vec<ReadingOut>,
     pub limits: Vec<String>,
@@ -82,6 +83,28 @@ pub struct ConcernOut {
     pub claim: Option<String>,
     pub severity: String,
     pub issue: String,
+}
+
+/// Plain prose must not discard the report's other readings or query proposals.
+/// Leave its claim and severity unspecified for the existing conservative mapper.
+fn referee_concerns<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<ConcernOut>, D::Error> {
+    Vec::<serde_json::Value>::deserialize(deserializer)?
+        .into_iter()
+        .map(|concern| match concern {
+            serde_json::Value::Object(_) => {
+                serde_json::from_value(concern).map_err(serde::de::Error::custom)
+            }
+            serde_json::Value::String(issue) => Ok(ConcernOut {
+                issue,
+                ..Default::default()
+            }),
+            _ => Err(serde::de::Error::custom(
+                "expected a concern object or text",
+            )),
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -565,6 +588,36 @@ Thanks."#;
         for invalid in ["true", "1", "[]", "{}"] {
             let text = format!(r#"{{"claims":[{{"claim":"C1","shape":{invalid}}}]}}"#);
             assert!(parse_answer::<RefereeOut>(&text).is_err());
+        }
+    }
+
+    #[test]
+    fn prose_concerns_preserve_readings_and_queries_without_inventing_classification() {
+        let out = parse_referee_answer(
+            r#"{"summary":"A source comparison is needed.","recommendation":"reject",
+                "concerns":["Check the source identity.",
+                    {"claim":"C1","severity":"major","issue":"Check the hypothesis."}],
+                "claims":[{"claim":"C1","shape":"bind_only","known":false}],
+                "knowledge_queries":[{"claim":"C1","reason":"Compare the hypothesis."}]}"#,
+        )
+        .unwrap();
+        assert_eq!(out.recommendation, "reject");
+        assert_eq!(out.concerns[0].issue, "Check the source identity.");
+        assert!(out.concerns[0].claim.is_none());
+        assert!(out.concerns[0].severity.is_empty());
+        assert_eq!(out.concerns[1].claim.as_deref(), Some("C1"));
+        assert_eq!(out.concerns[1].severity, "major");
+        assert_eq!(out.claims[0].claim, "C1");
+        assert_eq!(out.claims[0].shape, "bind_only");
+        assert!(out.claims[0].known.is_none());
+        assert_eq!(out.knowledge_queries.len(), 1);
+        assert_eq!(
+            serde_json::from_value::<RefereeOut>(serde_json::to_value(&out).unwrap()).unwrap(),
+            out
+        );
+        for invalid in ["true", "1", "[]", "null"] {
+            let text = format!(r#"{{"summary":"s","concerns":[{invalid}]}}"#);
+            assert!(parse_referee_answer(&text).is_err());
         }
     }
 
