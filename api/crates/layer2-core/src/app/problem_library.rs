@@ -76,6 +76,28 @@ fn key(s: &Submission, source_id: &str) -> Option<String> {
     ))
 }
 
+fn problem_title<'a>(s: &'a Submission, origin: &'a ManuscriptOrigin, id: &'a str) -> &'a str {
+    if let Some(description) = origin.problems.iter().find(|p| p.id == id) {
+        return &description.problem.name;
+    }
+    // Older deliveries supplied source IDs without descriptions. A single
+    // association and one consistently named main problem give a usable title;
+    // they do not establish its statement, resolution, or verification status.
+    if origin.problem_ids.len() == 1 {
+        let mut problems = s
+            .claims
+            .iter()
+            .filter(|claim| claim.is_main_result())
+            .filter_map(|claim| claim.settles.as_ref());
+        if let Some(problem) = problems.next()
+            && problems.all(|other| other == problem)
+        {
+            return &problem.name;
+        }
+    }
+    id
+}
+
 pub(crate) fn problem_links(s: &Submission) -> Vec<ResearchProblemLink> {
     let Some(delivery) = s.current_version().and_then(|v| v.delivery.as_ref()) else {
         return vec![];
@@ -87,12 +109,7 @@ pub(crate) fn problem_links(s: &Submission) -> Vec<ResearchProblemLink> {
         .filter_map(|id| {
             Some(ResearchProblemLink {
                 id: key(s, id)?,
-                title: delivery
-                    .origin
-                    .problems
-                    .iter()
-                    .find(|p| &p.id == id)
-                    .map_or_else(|| id.clone(), |p| p.problem.name.clone()),
+                title: problem_title(s, &delivery.origin, id).to_owned(),
             })
         })
         .collect()
@@ -162,7 +179,7 @@ impl App {
         focus: Option<&str>,
         before: Option<&str>,
     ) -> CoreResult<BTreeMap<String, ResearchProblem>> {
-        let mut items: BTreeMap<String, (ResearchProblem, Vec<ConjectureOutcome>)> =
+        let mut items: BTreeMap<String, (ResearchProblem, Vec<ConjectureOutcome>, bool)> =
             BTreeMap::new();
         let mut cursor = None;
         loop {
@@ -192,35 +209,40 @@ impl App {
                         continue;
                     }
                     let description = delivery.origin.problems.iter().find(|p| &p.id == source_id);
+                    let title = problem_title(&s, &delivery.origin, source_id);
                     let updated = v.uploaded_at;
-                    let (item, outcomes) = items.entry(id.clone()).or_insert_with(|| {
-                        (
-                            ResearchProblem {
-                                next_before: None,
-                                summary: ResearchProblemSummary {
-                                    id,
-                                    title: source_id.clone(),
-                                    source_id: source_id.clone(),
-                                    status: ResearchProblemStatus::RelatedResearch,
-                                    notes: 0,
-                                    updated_at: updated,
+                    let (item, outcomes, has_description_title) =
+                        items.entry(id.clone()).or_insert_with(|| {
+                            (
+                                ResearchProblem {
+                                    next_before: None,
+                                    summary: ResearchProblemSummary {
+                                        id,
+                                        title: title.to_owned(),
+                                        source_id: source_id.clone(),
+                                        status: ResearchProblemStatus::RelatedResearch,
+                                        notes: 0,
+                                        updated_at: updated,
+                                    },
+                                    descriptions: vec![],
+                                    notes: vec![],
                                 },
-                                descriptions: vec![],
-                                notes: vec![],
-                            },
-                            vec![],
-                        )
-                    });
-                    if let Some(description) = description {
-                        if item.summary.title == *source_id {
-                            item.summary.title = description.problem.name.clone();
-                        }
-                        if focus.is_some()
-                            && item.descriptions.len() < 25
-                            && !item.descriptions.contains(description)
-                        {
-                            item.descriptions.push(description.clone());
-                        }
+                                vec![],
+                                description.is_some(),
+                            )
+                        });
+                    if (description.is_some() && !*has_description_title)
+                        || item.summary.title == *source_id
+                    {
+                        item.summary.title = title.to_owned();
+                    }
+                    *has_description_title |= description.is_some();
+                    if let Some(description) = description
+                        && focus.is_some()
+                        && item.descriptions.len() < 25
+                        && !item.descriptions.contains(description)
+                    {
+                        item.descriptions.push(description.clone());
                     }
                     item.summary.notes += 1;
                     for outcome in s
@@ -267,7 +289,7 @@ impl App {
         }
         Ok(items
             .into_iter()
-            .map(|(id, (mut item, outcomes))| {
+            .map(|(id, (mut item, outcomes, _))| {
                 item.summary.status = status(&outcomes);
                 // Record order is stable across note revisions; it is also the note-page cursor.
                 item.notes

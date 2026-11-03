@@ -2,7 +2,7 @@ import { t } from '../i18n/locale';
 import type { ManuscriptOrigin } from '../api/types';
 import { LatexText } from './Markdown';
 import { ExternalLink } from './ui';
-import { safeHttpUrl } from '../lib/links';
+import { isLeanSourceUrl, safeHttpUrl } from '../lib/links';
 
 const labels = {
   written_proof: 'Written proof',
@@ -17,7 +17,9 @@ export function ManuscriptSources({ origin }: { origin: ManuscriptOrigin }) {
       <h2 id="manuscript-sources-h">{t('Original source')}</h2>
       <p>
         {source ? (
-          <ExternalLink href={source}>{t('Original manuscript and sources')}</ExternalLink>
+          <ExternalLink href={source}>
+            {t(isLeanSourceUrl(source) ? 'Lean source' : 'Original manuscript and sources')}
+          </ExternalLink>
         ) : null}
         {source && origin.license ? ' · ' : null}
         {origin.license ? origin.license : null}
@@ -35,7 +37,11 @@ export function ManuscriptSources({ origin }: { origin: ManuscriptOrigin }) {
               <li key={`${e.claim_label}-${i}`}>
                 <strong>{e.claim_label}</strong>
                 {' · '}
-                {url ? <ExternalLink href={url}>{labels[e.kind]}</ExternalLink> : labels[e.kind]}
+                {url ? (
+                  <ExternalLink href={url}>{t(labels[e.kind])}</ExternalLink>
+                ) : (
+                  t(labels[e.kind])
+                )}
                 <LatexText source={e.scope} />
               </li>
             );
