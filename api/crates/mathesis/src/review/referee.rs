@@ -447,7 +447,12 @@ impl Worker {
             if self.resume_query_plan(job, submission, number).await? {
                 return self.defer_referee(job).await;
             }
-            if let Some(report) = round.referee.done() {
+            // Initial retrieval is sealed once an audit input is admitted.
+            // A parser upgrade may recover previously unreadable proposals;
+            // admitting them now would change a live CMA prompt on replay.
+            if round.audit.input_digest.is_none()
+                && let Some(report) = round.referee.done()
+            {
                 let proposals = parse_answer::<RefereeOut>(&report.text)
                     .map(|raw| raw.knowledge_queries)
                     .unwrap_or_default();
