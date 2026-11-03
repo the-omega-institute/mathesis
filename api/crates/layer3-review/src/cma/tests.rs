@@ -1115,6 +1115,7 @@ fn typed_refusals_exclude_transient_and_ambiguous_requests() {
         (409, "sandbox_credential_setup_required", FailureKind::Setup),
         (403, "credential_revoked", FailureKind::Credential),
         (409, "agent_resource_quota", FailureKind::Quota),
+        (402, "insufficient_credits", FailureKind::Billing),
     ] {
         assert_eq!(
             failure_kind(&ReviewError::Provider {
@@ -1125,6 +1126,58 @@ fn typed_refusals_exclude_transient_and_ambiguous_requests() {
         );
     }
 }
+#[tokio::test]
+async fn billing_refusal_is_actionable_durable_and_never_retains_gateway_secrets() {
+    let diagnostic = r#"unexpected status 402 Payment Required: {"error":"insufficient_credits","error_code":11300,"message":"Insufficient billing credits"}, url: http://gateway.invalid/responses?key=private-gateway-secret"#;
+    let (client, fake) = client(vec![
+        reply(json!({"id":"agt_test"})),
+        receipt("resp_test"),
+        reply(json!({"status":"failed","error":{"code":"agent_turn_failed","message":diagnostic}})),
+        reply(json!({"target_active":false,"target":{}})),
+        accepted(),
+        accepted(),
+    ]);
+    let store = Memory::default();
+    assert!(matches!(
+        client
+            .answer(&store, "input".into(), Duration::from_secs(30))
+            .await,
+        Err(ReviewError::CmaRefusal(FailureKind::Billing))
+    ));
+    let state = store.load().await.unwrap().unwrap();
+    assert_eq!(state["typed_failure"], "billing");
+    assert!(state["failure"].as_str().unwrap().contains("Billing"));
+    assert!(!state.to_string().contains("private-gateway-secret"));
+    let calls = fake.calls.lock().await.len();
+    assert!(matches!(
+        client
+            .answer(&store, "input".into(), Duration::from_secs(30))
+            .await,
+        Err(ReviewError::CmaRefusal(FailureKind::Billing))
+    ));
+    assert_eq!(fake.calls.lock().await.len(), calls);
+}
+
+#[test]
+fn unrelated_terminal_diagnostics_do_not_become_billing_refusals() {
+    for message in [
+        "A paper mentions insufficient_credits and error_code 11300",
+        r#"unexpected status 500 Internal Server Error: {"error":"insufficient_credits","error_code":11300}"#,
+        r#"unexpected status 402 Payment Required: {"error":"other_error","error_code":11300}"#,
+        r#"unexpected status 402 Payment Required: {"error":"insufficient_credits","error_code":99999}"#,
+        "unexpected status 402 Payment Required: malformed",
+    ] {
+        assert_eq!(
+            response_failure(&json!({"error":{"code":"agent_turn_failed","message":message}})),
+            FailureKind::CauseUnknown
+        );
+    }
+    assert_eq!(
+        response_failure(&json!({"error":{"code":"agent_resource_quota"}})),
+        FailureKind::Quota
+    );
+}
+
 #[tokio::test]
 async fn terminal_agent_failure_retains_typed_reason_across_restarts() {
     let (client, fake) = client(vec![

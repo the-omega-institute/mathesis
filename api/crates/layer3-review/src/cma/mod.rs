@@ -42,6 +42,7 @@ pub enum FailureKind {
     Setup,
     Credential,
     Quota,
+    Billing,
     CauseUnknown,
     Output,
     Cancelled,
@@ -71,11 +72,35 @@ pub fn failure_kind(error: &ReviewError) -> Option<FailureKind> {
             | "agent_resource_quota"
             | "quota_exceeded"
             | "insufficient_quota" => Some(FailureKind::Quota),
+            "insufficient_credits" => Some(FailureKind::Billing),
             "account_disabled" | "account_unavailable" => Some(FailureKind::Account),
             _ => None,
         },
         _ => None,
     }
+}
+
+/// Use only a recognized terminal gateway diagnostic. Never retain its raw
+/// message, which can include private request details or credentials.
+fn response_failure(response: &Value) -> FailureKind {
+    let error = &response["error"];
+    let code = error["code"].as_str().unwrap_or("cause_unknown");
+    if code == "agent_turn_failed"
+        && let Some(message) = error["message"].as_str().filter(|text| text.len() <= 4096)
+        && let Some(detail) = message.strip_prefix("unexpected status 402 Payment Required: ")
+        && let Some(Ok(diagnostic)) = serde_json::Deserializer::from_str(detail)
+            .into_iter::<Value>()
+            .next()
+        && diagnostic["error"] == "insufficient_credits"
+        && diagnostic["error_code"] == 11300
+    {
+        return FailureKind::Billing;
+    }
+    failure_kind(&ReviewError::Provider {
+        status: 400,
+        body: code.into(),
+    })
+    .unwrap_or(FailureKind::CauseUnknown)
 }
 pub struct Execution {
     pub client: Arc<Client>,
@@ -499,13 +524,7 @@ impl Client {
                         Self::save(store, state).await?;
                         return Ok(false);
                     }
-                    let error = ReviewError::Provider {
-                        status: 400,
-                        body: code.into(),
-                    };
-                    return Err(ReviewError::CmaRefusal(
-                        failure_kind(&error).unwrap_or(FailureKind::CauseUnknown),
-                    ));
+                    return Err(ReviewError::CmaRefusal(response_failure(&v)));
                 }
                 Some("cancelled" | "incomplete") => {
                     return Err(ReviewError::CmaRefusal(FailureKind::Cancelled));

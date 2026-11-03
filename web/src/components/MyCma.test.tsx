@@ -126,38 +126,45 @@ describe('Use your own agents (optional)', () => {
     expect(await screen.findByText('Not connected')).toBeInTheDocument();
     expect(screen.queryByLabelText('Compute workspace ID')).toBeNull();
   });
-  it('rechecks an unusable connection using the saved workspace and current revision', async () => {
-    const unavailable: MyCmaStatus = {
-      ...binding,
-      binding: {
-        ...binding.binding,
-        status: 'unusable',
-        reason: 'author_quota_refused',
+  it.each([
+    ['author_quota_refused', 'Restore your model quota in your compute account, then recheck.'],
+    [
+      'model_billing_credits_unavailable',
+      'Your model provider reported insufficient billing credits. Check billing in your compute account, then recheck.',
+    ],
+  ])(
+    'rechecks a %s connection using the saved workspace and current revision',
+    async (reason, message) => {
+      const unavailable: MyCmaStatus = {
+        ...binding,
+        binding: {
+          ...binding.binding,
+          status: 'unusable',
+          reason,
+          workspace_id: 'wks_existing',
+          revision: 5,
+        },
+      };
+      const setCmaWorkspace = vi.fn(async () => ({
+        ...unavailable,
+        binding: { ...unavailable.binding, status: 'ready' as const, reason: 'author_connected' },
+      }));
+      renderWithApp(
+        <MyCma />,
+        fakeApi({ getCma: vi.fn(async () => unavailable), setCmaWorkspace }, donor),
+      );
+      expect(await screen.findByText('Connection unavailable')).toBeInTheDocument();
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.getByRole('form', { name: 'Compute workspace' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Save / recheck workspace' }));
+      expect(setCmaWorkspace).toHaveBeenCalledWith({
         workspace_id: 'wks_existing',
-        revision: 5,
-      },
-    };
-    const setCmaWorkspace = vi.fn(async () => ({
-      ...unavailable,
-      binding: { ...unavailable.binding, status: 'ready' as const, reason: 'author_connected' },
-    }));
-    renderWithApp(
-      <MyCma />,
-      fakeApi({ getCma: vi.fn(async () => unavailable), setCmaWorkspace }, donor),
-    );
-    expect(await screen.findByText('Connection unavailable')).toBeInTheDocument();
-    expect(
-      screen.getByText('Restore your model quota in your compute account, then recheck.'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('form', { name: 'Compute workspace' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Save / recheck workspace' }));
-    expect(setCmaWorkspace).toHaveBeenCalledWith({
-      workspace_id: 'wks_existing',
-      expected_revision: 5,
-    });
-    expect(await screen.findByText('Connected')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Compute workspace ID')).toBeNull();
-  });
+        expected_revision: 5,
+      });
+      expect(await screen.findByText('Connected')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Compute workspace ID')).toBeNull();
+    },
+  );
 });
 
 const attempt: CmaAttemptView = {
@@ -208,7 +215,7 @@ describe('Execution records', () => {
     expect(document.body).not.toHaveTextContent('workspace');
   });
 
-  it.each(['account', 'auth', 'setup', 'credential', 'quota', 'cause_unknown'])(
+  it.each(['account', 'auth', 'setup', 'credential', 'quota', 'billing', 'cause_unknown'])(
     'explains a %s fallback',
     (reason) => {
       renderWithApp(<CmaHistory attempts={[{ ...attempt, reason }]} />, fakeApi());

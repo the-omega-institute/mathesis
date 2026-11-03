@@ -365,21 +365,25 @@ impl App {
         let submission = self.submission(caller, id).await?;
         let failed_private_review = submission.purpose == SubmissionPurpose::ReviewOnly
             && submission.status == SubmissionStatus::ReviewComplete;
-        if !submission.is_open() && !failed_private_review {
+        let (mut file, stored) = self.referee_file(id).await?;
+        let failed_recheck = submission.status == SubmissionStatus::NotAccepted
+            && file
+                .current()
+                .is_some_and(|round| !round.recheck_requests.is_empty());
+        if !submission.is_open() && !failed_private_review && !failed_recheck {
             return Err(CoreError::conflict(format!(
                 "the paper is {}",
                 submission.status.name()
             )));
         }
         let version = Self::version_number(&submission)?;
-        let (mut file, stored) = self.referee_file(id).await?;
         if file.current().is_some_and(|r| !r.is_settled()) {
             return Err(CoreError::conflict("the current round is still running"));
         }
-        if failed_private_review {
+        if failed_private_review || failed_recheck {
             let previous = file
                 .current()
-                .ok_or_else(|| CoreError::conflict("no private review to retry"))?;
+                .ok_or_else(|| CoreError::conflict("no review to retry"))?;
             let failed = matches!(previous.referee.state, StepState::Failed { .. })
                 || matches!(previous.audit.state, StepState::Failed { .. })
                 || matches!(previous.advice.state, StepState::Failed { .. })
@@ -388,13 +392,11 @@ impl App {
                 || previous.version != version
                 || previous.claims_revision != submission.claims_revision
             {
-                return Err(CoreError::conflict(
-                    "no failed current private review to retry",
-                ));
+                return Err(CoreError::conflict("no failed current review to retry"));
             }
-            // Use the existing re-review path for completed private submissions.
+            // Recover a failed private review or an already-authorized recheck.
             // Persist its intent and the fresh round atomically; previous
-            // readings, letters, source and publication state remain intact.
+            // readings, letters, source and publication decision remain intact.
             let trigger = format!("operational-retry:r{}", previous.number);
             if !file.recheck_requests.contains(&trigger) {
                 file.recheck_requests.push(trigger);

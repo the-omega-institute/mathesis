@@ -212,6 +212,7 @@ pub enum CmaFailure {
     Setup,
     Credential,
     Quota,
+    Billing,
     CauseUnknown,
     Output,
     Cancelled,
