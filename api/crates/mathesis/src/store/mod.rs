@@ -8,6 +8,7 @@
 mod auth;
 mod blobs;
 mod cma;
+mod collected;
 mod domain;
 mod jobs;
 pub(crate) mod knowledge;
@@ -84,6 +85,13 @@ impl MongoStore {
                 )
                 .build()
         };
+        self.raw(collected::COLLECTION)
+            .create_indexes([
+                unique(doc! {"id": 1}),
+                unique(doc! {"delivery.work_id": 1, "delivery.version": 1}),
+                unique(doc! {"delivery.work_id": 1, "delivery.previous_version": 1}),
+            ])
+            .await?;
         self.raw(PEOPLE)
             .create_index(unique(doc! { "id": 1 }))
             .await?;

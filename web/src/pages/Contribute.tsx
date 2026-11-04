@@ -176,10 +176,10 @@ export function ContributePage() {
       </details>
 
       <section aria-labelledby="access-h">
-        <h2 id="access-h">{t('Invitation access')}</h2>
+        <h2 id="access-h">{t('Researcher access')}</h2>
         <p>
           {t(
-            'Mathesis is currently welcoming researchers by invitation. Review and assisted formalization use model access provided by the service.',
+            'Mathesis is currently open to signed-in researchers. Review and assisted formalization use model access provided by the service.',
           )}
         </p>
       </section>

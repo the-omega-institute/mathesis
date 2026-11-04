@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { ResearchCycle } from '../components/ResearchCycle';
-import { projectNotes } from '../lib/projectNotes';
+import { collectedPaperNote, projectNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
 import { homeSubjects } from '../lib/subjects';
 import { PublishedNoteEntry } from './PublishedNote';
@@ -19,7 +19,16 @@ export function HomePage() {
     [api],
   );
   const papers = useAsync(loadPapers);
-  const recent = researchEntries(papers.value?.items ?? [], projectNotes).slice(0, 3);
+  const collected = useAsync(
+    useCallback((signal: AbortSignal) => api.listCollectedPapers({ limit: 25 }, { signal }), [api]),
+  );
+  const collectedNotes = (collected.value?.items ?? [])
+    .map(collectedPaperNote)
+    .filter((note) => !projectNotes.some((existing) => existing.id === note.id));
+  const recent = researchEntries(papers.value?.items ?? [], [
+    ...projectNotes,
+    ...collectedNotes,
+  ]).slice(0, 3);
   return (
     <div className="page home">
       <header className="home-hero">
@@ -89,7 +98,7 @@ export function HomePage() {
           </article>
         </div>
         <p className="home-invitation">
-          {t('Currently welcoming researchers by invitation.')}{' '}
+          {t('Researcher access is currently open.')}{' '}
           <Link to={{ kind: 'contribute' }}>{t('Participation and access')}</Link>
         </p>
       </section>

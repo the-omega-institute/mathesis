@@ -144,3 +144,6 @@ mod feedback;
 
 mod research_graph;
 pub use research_graph::*;
+
+mod collected;
+pub use collected::{CollectionReceipt, PublicCollectedPaper};

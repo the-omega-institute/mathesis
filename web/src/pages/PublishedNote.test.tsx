@@ -16,7 +16,7 @@ describe('published manuscripts', () => {
   it('ships the exact reviewed PDF and source bytes for every version', () => {
     expect(projectNotes).toHaveLength(10);
     for (const note of projectNoteVersions) {
-      expect(note.lean.url).toMatch(/\/blob\/[a-f0-9]{40}\/.+\.lean(?:#L\d+)?$/);
+      expect(note.lean!.url).toMatch(/\/blob\/[a-f0-9]{40}\/.+\.lean(?:#L\d+)?$/);
       expect(note.review.basis).toBe('upstream_manuscript_review');
       for (const asset of [note.pdf, note.source]) {
         expect(asset.url).toMatch(
@@ -52,24 +52,23 @@ describe('published manuscripts', () => {
       'href',
       note.source.url,
     );
-    const questions = screen
-      .getByRole('heading', { name: 'Original questions and sources' })
-      .closest('section')!;
-    expect(within(questions).getAllByRole('link', { name: 'arXiv:2509.18724v1' })).toHaveLength(2);
+    const questions = screen.getByText('Sources and related questions').closest('details')!;
+    expect(
+      within(questions).getAllByRole('link', { name: 'arXiv:2509.18724v1', hidden: true }),
+    ).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Lean source' })).toHaveAttribute(
       'href',
-      note.lean.url,
+      note.lean!.url,
     );
     expect(container.querySelector('.badge')).toBeNull();
-    expect(screen.queryByText(/Lean verified|Mathesis accepted|In plain language/)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'In plain language' })).toBeInTheDocument();
   });
 
   it('pins version navigation and rejects unknown versions', () => {
     renderWithApp(<PublishedNotePage id="wang-conjecture326" />, fakeApi());
-    expect(screen.getByRole('link', { name: 'Version 2' })).toHaveAttribute(
-      'href',
-      '/papers/wang-conjecture326?version=2',
-    );
+    expect(
+      document.querySelector('a[href="/papers/wang-conjecture326?version=2"]'),
+    ).toHaveAttribute('href', '/papers/wang-conjecture326?version=2');
   });
 
   it('does not fall back to a newer version when the requested version is absent', () => {

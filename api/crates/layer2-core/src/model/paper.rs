@@ -422,39 +422,7 @@ impl NewPaper {
             &self.ai_disclosure.statement,
             5_000,
         )?;
-        for author in &self.authors {
-            require_text("author name", &author.name, 200)?;
-            if let Some(value) = &author.affiliation
-                && value.chars().count() > 300
-            {
-                return Err(CoreError::invalid(
-                    "author affiliation exceeds 300 characters",
-                ));
-            }
-            if let Some(value) = author.orcid.as_deref()
-                && (value.chars().count() > 2_000 || !valid_orcid(value) || value.trim().is_empty())
-            {
-                return Err(CoreError::invalid("author ORCID is not valid"));
-            }
-            for (field, value) in [
-                (
-                    "author Google Scholar URL",
-                    author.google_scholar.as_deref(),
-                ),
-                ("author website", author.website.as_deref()),
-            ] {
-                if let Some(value) = value
-                    && (!crate::model::common::is_web_url(value) || value.chars().count() > 2_000)
-                {
-                    return Err(CoreError::invalid(format!(
-                        "{field} is not a valid web URL"
-                    )));
-                }
-            }
-        }
-        if self.authors.len() > 50 {
-            return Err(CoreError::invalid("at most 50 authors"));
-        }
+        validate_authors(&self.authors)?;
         if let Some(value) = &self.doi {
             let id = normalise_doi(value);
             if !id.is_empty() && !is_doi(&id) {
@@ -700,4 +668,42 @@ pub struct SubmitPrepared {
     pub claims_revision: u64,
     pub metadata: NewPaper,
     pub claims: Vec<super::ClaimConfirmation>,
+}
+
+/// Shared validation for submitted and collected scholarly metadata.
+pub(crate) fn validate_authors(authors: &[Author]) -> CoreResult<()> {
+    for author in authors {
+        require_text("author name", &author.name, 200)?;
+        if let Some(value) = &author.affiliation
+            && value.chars().count() > 300
+        {
+            return Err(CoreError::invalid(
+                "author affiliation exceeds 300 characters",
+            ));
+        }
+        if let Some(value) = author.orcid.as_deref()
+            && (value.chars().count() > 2_000 || !valid_orcid(value) || value.trim().is_empty())
+        {
+            return Err(CoreError::invalid("author ORCID is not valid"));
+        }
+        for (field, value) in [
+            (
+                "author Google Scholar URL",
+                author.google_scholar.as_deref(),
+            ),
+            ("author website", author.website.as_deref()),
+        ] {
+            if let Some(value) = value
+                && (!crate::model::common::is_web_url(value) || value.chars().count() > 2_000)
+            {
+                return Err(CoreError::invalid(format!(
+                    "{field} is not a valid web URL"
+                )));
+            }
+        }
+    }
+    if authors.len() > 50 {
+        return Err(CoreError::invalid("at most 50 authors"));
+    }
+    Ok(())
 }

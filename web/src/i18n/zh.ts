@@ -62,7 +62,8 @@ export const zh: Record<string, string> = {
   'Contribute a formalization': '贡献形式化证明',
   'Formalize a result or a useful intermediate lemma. Share Lean sources, including a link to existing code, with credit for the mathematics and its formalization.':
     '形式化一个结果或有用的中间引理。提交 Lean 源码或已有代码的链接，同时记录原数学成果与形式化工作的贡献。',
-  'Currently welcoming researchers by invitation.': '目前通过邀请开放给研究者使用。',
+  'Researcher access is currently open.': '目前已向研究者开放。',
+  'Researcher access': '研究者访问',
   'Participation and access': '参与方式与访问权限',
   'Latest research': '最新研究',
   'All research': '全部研究',
@@ -1210,8 +1211,8 @@ export const zh: Record<string, string> = {
   'Minor revision': '小修',
   'Markdown with LaTeX; sent to the author.': '支持 Markdown 与 LaTeX；提供给作者。',
   'Mathematical value': '数学价值',
-  'Mathesis is currently welcoming researchers by invitation. Review and assisted formalization use model access provided by the service.':
-    'Mathesis 目前通过邀请开放给研究者。审稿与辅助形式化使用服务提供的模型访问权限。',
+  'Mathesis is currently open to signed-in researchers. Review and assisted formalization use model access provided by the service.':
+    'Mathesis 目前向已登录的研究者开放。审稿与辅助形式化使用服务提供的模型访问权限。',
   'Mathlib notions': 'Mathlib 概念',
   'Maximum proof attempts': '最多证明尝试次数',
   'Metered tokens were measured by NyxID on donated quota. Self-reported tokens are what contributors’ own agents reported. The two are kept apart and never added together.':

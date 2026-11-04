@@ -423,7 +423,7 @@ async fn file(
     Ok(file_response(file, pdf))
 }
 
-fn file_response(file: PaperFile, inline: bool) -> Response {
+pub(super) fn file_response(file: PaperFile, inline: bool) -> Response {
     let filename: String = file
         .filename
         .chars()

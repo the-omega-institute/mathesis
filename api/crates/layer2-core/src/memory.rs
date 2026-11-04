@@ -66,6 +66,7 @@ pub fn display_name(identity: &VerifiedIdentity) -> String {
 #[derive(Default)]
 pub struct MemoryStores {
     binding_admissions: Mutex<BTreeMap<PersonId, Vec<crate::model::BindingAdmission>>>,
+    collected: Mutex<BTreeMap<String, CollectedVersion>>,
     deposits: Mutex<BTreeMap<String, LeanDeposit>>,
     cma_bindings: Mutex<BTreeMap<PersonId, CmaBinding>>,
     error_reports: Mutex<BTreeMap<String, ErrorReportFile>>,
@@ -88,6 +89,7 @@ pub struct MemoryStores {
 impl MemoryStores {
     pub fn ports(self: &Arc<Self>, clock: Arc<dyn Clock>, reader: Arc<dyn PaperReader>) -> Ports {
         Ports {
+            collected: self.clone(),
             deposits: self.clone(),
             cma_bindings: self.clone(),
             cma_setup: Arc::new(UnavailableCmaSetup),
@@ -864,5 +866,54 @@ impl LeanDepositStore for MemoryStores {
         Ok(page(&*self.deposits.lock().await, limit, before, |d| {
             &d.owner == owner
         }))
+    }
+}
+
+#[async_trait]
+impl CollectedPaperStore for MemoryStores {
+    async fn get(&self, work: &str, version: Option<u32>) -> CoreResult<Option<CollectedVersion>> {
+        Ok(self
+            .collected
+            .lock()
+            .await
+            .values()
+            .filter(|v| {
+                v.delivery.work_id == work && version.is_none_or(|n| n == v.delivery.version)
+            })
+            .max_by_key(|v| v.delivery.version)
+            .cloned())
+    }
+    async fn insert(&self, v: &CollectedVersion) -> CoreResult<()> {
+        let mut versions = self.collected.lock().await;
+        if versions.values().any(|c| {
+            c.delivery.work_id == v.delivery.work_id
+                && (c.delivery.version == v.delivery.version
+                    || c.delivery.previous_version == v.delivery.previous_version)
+        }) {
+            return Err(CoreError::conflict(
+                "published work/version or predecessor already exists",
+            ));
+        }
+        versions.insert(v.id.clone(), v.clone());
+        Ok(())
+    }
+    async fn list(
+        &self,
+        search: &PaperSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<CollectedVersion>> {
+        let versions = self.collected.lock().await;
+        let mut latest: BTreeMap<String, CollectedVersion> = BTreeMap::new();
+        for v in versions.values() {
+            let entry = latest
+                .entry(v.delivery.work_id.clone())
+                .or_insert_with(|| v.clone());
+            if entry.delivery.version < v.delivery.version {
+                *entry = v.clone();
+            }
+        }
+        let by_id = latest.into_values().map(|v| (v.id.clone(), v)).collect();
+        Ok(page(&by_id, limit, before, |v| v.matches(search)))
     }
 }

@@ -336,6 +336,7 @@ pub trait GrantStore: Send + Sync {
 
 /// Everything Layer 2 needs, bundled for composition.
 pub struct Ports {
+    pub collected: Arc<dyn CollectedPaperStore>,
     pub deposits: Arc<dyn LeanDepositStore>,
     pub cma_bindings: Arc<dyn CmaBindingStore>,
     pub cma_setup: Arc<dyn CmaSetup>,
@@ -446,4 +447,22 @@ pub trait LeanDepositStore: Send + Sync {
         limit: u32,
         before: Option<String>,
     ) -> CoreResult<Listing<crate::model::LeanDeposit>>;
+}
+
+/// Immutable reviewed publication versions. Implementations enforce unique work/version
+/// and work/predecessor pairs atomically; list filters only the latest version.
+#[async_trait]
+pub trait CollectedPaperStore: Send + Sync {
+    async fn get(
+        &self,
+        work: &str,
+        version: Option<u32>,
+    ) -> CoreResult<Option<crate::model::CollectedVersion>>;
+    async fn insert(&self, version: &crate::model::CollectedVersion) -> CoreResult<()>;
+    async fn list(
+        &self,
+        search: &crate::model::PaperSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<crate::model::CollectedVersion>>;
 }

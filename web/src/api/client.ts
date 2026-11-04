@@ -67,6 +67,7 @@ import type {
   SubmitPrepared,
   PaperAnalysis,
   PaperSummary,
+  CollectedPaper,
   Person,
   PolicyDocument,
   Problem,
@@ -479,6 +480,15 @@ export interface ApiClient {
   // Public papers.
   listPapers(page?: PaperQuery, options?: RequestOptions): Promise<Listing<PaperSummary>>;
   getPaper(record: string, options?: RequestOptions): Promise<PublicPaper>;
+  listCollectedPapers(
+    page?: PaperQuery,
+    options?: RequestOptions,
+  ): Promise<Listing<CollectedPaper>>;
+  getCollectedPaper(
+    record: string,
+    version?: string,
+    options?: RequestOptions,
+  ): Promise<CollectedPaper>;
   researchGraph(
     query?: { focus?: string; q?: string; before?: string; limit?: number },
     options?: RequestOptions,
@@ -730,6 +740,22 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     researchGraph: (query, o) =>
       request('GET', api(`/research-graph${buildQuery(query ?? {})}`), undefined, o),
     getPaper: (record, o) => request('GET', api(`/papers/${seg(record)}`), undefined, o),
+    listCollectedPapers: (p = {}, o) =>
+      request(
+        'GET',
+        api(
+          `/collected-papers${buildQuery({ ...page(p), q: p.q, author: p.author, msc: p.msc, kind: p.kind })}`,
+        ),
+        undefined,
+        o,
+      ),
+    getCollectedPaper: (record, version, o) =>
+      request(
+        'GET',
+        api(`/collected-papers/${seg(record)}${buildQuery({ version })}`),
+        undefined,
+        o,
+      ),
 
     listTasks: (q = {}, o) =>
       request(

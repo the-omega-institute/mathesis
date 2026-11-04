@@ -1,5 +1,6 @@
 import { t } from '../i18n/locale';
 import { AuthorLine } from '../components/AuthorLine';
+import { PaperExplanation } from '../components/PaperExplanation';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { DateText, ExternalLink } from '../components/ui';
 import { sourceHref, sourceLabel } from '../lib/links';
@@ -25,7 +26,7 @@ export function PublishedNoteEntry({ note }: { note: ProjectNote }) {
       <p className="entry-meta research-entry-links">
         <a href={note.pdf.url}>{t('Read PDF')}</a>
         <a href={note.source.url}>{t('Source files')}</a>
-        <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink>
+        {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
         <span>{t('Version {version}', { version: note.revision })}</span>
         <DateText iso={note.published_on} />
       </p>
@@ -33,11 +34,19 @@ export function PublishedNoteEntry({ note }: { note: ProjectNote }) {
   );
 }
 
-export function PublishedNotePage({ id, version }: { id: string; version?: string }) {
-  const versions = projectNoteVersions.filter((note) => note.id === id);
+export function PublishedNotePage({
+  id,
+  version,
+  note: supplied,
+}: {
+  id: string;
+  version?: string;
+  note?: ProjectNote;
+}) {
+  const versions = supplied ? [supplied] : projectNoteVersions.filter((note) => note.id === id);
   const note = version
     ? versions.find((note) => note.revision === version)
-    : projectNotes.find((note) => note.id === id);
+    : (supplied ?? projectNotes.find((note) => note.id === id));
   if (!note) return <NotFoundPage path={`/papers/${id}`} />;
   return (
     <article className="page published-note">
@@ -59,15 +68,16 @@ export function PublishedNotePage({ id, version }: { id: string; version?: strin
         <a href={note.source.url} download>
           {t('Download source')}
         </a>
-        <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink>
+        {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
       </nav>
       <section>
         <h2>{t('Abstract')}</h2>
         <LatexText source={note.abstract} />
       </section>
+      <PaperExplanation text={note.plain_language} />
       {note.problems.length ? (
-        <section>
-          <h2>{t('Original questions and sources')}</h2>
+        <details className="paper-details">
+          <summary>{t('Sources and related questions')}</summary>
           <ul className="paper-questions">
             {note.problems.map((problem, index) => {
               const href = sourceHref(problem.source);
@@ -75,46 +85,36 @@ export function PublishedNotePage({ id, version }: { id: string; version?: strin
                 <li key={index}>
                   <InlineLatex source={problem.name} />
                   {href ? (
-                    <p>
-                      <ExternalLink href={href}>{sourceLabel(problem.source)}</ExternalLink>
-                    </p>
+                    <span>
+                      {' '}
+                      · <ExternalLink href={href}>{sourceLabel(problem.source)}</ExternalLink>
+                    </span>
                   ) : null}
                 </li>
               );
             })}
           </ul>
-        </section>
+        </details>
       ) : null}
-      <section>
-        <h2>{t('Formalization and further contributions')}</h2>
-        <p>{t('See the Lean source for the formalized statements and their assumptions.')}</p>
-        <p>
-          <ExternalLink href={note.lean.url}>{t('Read the Lean source')}</ExternalLink>
-        </p>
-        <p>
-          <Link to={{ kind: 'formalizations' }}>{t('Contribute a formalization')}</Link>
-        </p>
-      </section>
-      <details className="paper-citation">
-        <summary>{t('Cite this note')}</summary>
+      <details className="paper-details paper-citation">
+        <summary>{t('Citation and versions')}</summary>
         <p>{projectCitation(note)}</p>
+        {versions.length ? (
+          <ul>
+            {versions.map((item) => (
+              <li key={item.revision}>
+                <Link to={{ kind: 'paper', record: id, version: item.revision }}>
+                  {t('Version {version}', { version: item.revision })}
+                </Link>
+                {' · '}
+                <a href={item.pdf.url}>PDF</a>
+                {' · '}
+                <a href={item.source.url}>{t('Source files')}</a>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </details>
-      <section>
-        <h2>{t('Versions')}</h2>
-        <ul>
-          {versions.map((item) => (
-            <li key={item.revision}>
-              <Link to={{ kind: 'paper', record: id, version: item.revision }}>
-                {t('Version {version}', { version: item.revision })}
-              </Link>
-              {' · '}
-              <a href={item.pdf.url}>PDF</a>
-              {' · '}
-              <a href={item.source.url}>{t('Source files')}</a>
-            </li>
-          ))}
-        </ul>
-      </section>
     </article>
   );
 }
