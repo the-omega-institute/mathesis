@@ -269,12 +269,28 @@ describe('solving pages', () => {
           items: [
             {
               ...paperSummary,
+              accepted_at: '2026-12-01T00:00:00Z',
               abstract_text: 'An abstract to read on the paper page.',
               new_results: 1,
             },
-            { ...paperSummary, record: 'WP-2026-0002', title: 'Second paper' },
-            { ...paperSummary, record: 'WP-2026-0003', title: 'Third paper' },
-            { ...paperSummary, record: 'WP-2026-0004', title: 'Fourth paper' },
+            {
+              ...paperSummary,
+              accepted_at: '2026-12-01T00:00:00Z',
+              record: 'WP-2026-0002',
+              title: 'Second paper',
+            },
+            {
+              ...paperSummary,
+              accepted_at: '2026-12-01T00:00:00Z',
+              record: 'WP-2026-0003',
+              title: 'Third paper',
+            },
+            {
+              ...paperSummary,
+              accepted_at: '2026-12-01T00:00:00Z',
+              record: 'WP-2026-0004',
+              title: 'Fourth paper',
+            },
           ],
           next_before: null,
         })),
@@ -341,7 +357,7 @@ describe('solving pages', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Papers', 'Conjectures', 'Formalizations', 'Projects', 'Submit', 'My work']);
+    ).toEqual(['Papers', 'Conjectures', 'Formalizations', 'Submit', 'My work']);
     expect(within(nav).queryByRole('link', { name: 'Policy' })).not.toBeInTheDocument();
     for (const name of ['Leaderboard', 'Contribute']) {
       expect(within(nav).queryByRole('link', { name })).not.toBeInTheDocument();

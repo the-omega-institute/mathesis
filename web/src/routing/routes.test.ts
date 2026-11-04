@@ -3,9 +3,7 @@ import { parseRoute, routePath, type Route } from './routes';
 
 const ROUTES: Route[] = [
   { kind: 'home' },
-  { kind: 'projects' },
-  { kind: 'project_note', id: 'a-note' },
-  { kind: 'project_note', id: 'a-note', version: '2' },
+  { kind: 'paper', record: 'a-note', version: '2' },
   { kind: 'papers' },
   { kind: 'papers', q: 'Ada Example' },
   { kind: 'submission', id: 'sub-1', staff: true },
@@ -71,4 +69,12 @@ it('round-trips a shareable academic search and a permanent result link', () => 
   expect(parseRoute(url.pathname, url.search)).toEqual(route);
   const result = { kind: 'result' as const, record: 'WP-2026-0001', claim: 'C1' };
   expect(parseRoute(routePath(result))).toEqual(result);
+});
+
+it('keeps shared collection URLs readable without a separate project page', () => {
+  expect(parseRoute('/projects')).toEqual({ kind: 'papers' });
+  expect(parseRoute('/projects/trureturing')).toEqual({ kind: 'papers' });
+  const paper = parseRoute('/projects/trureturing/notes/a-note', '?version=2');
+  expect(paper).toEqual({ kind: 'paper', record: 'a-note', version: '2' });
+  expect(routePath(paper)).toBe('/papers/a-note?version=2');
 });

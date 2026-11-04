@@ -1,7 +1,8 @@
 import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
-import { findProjectNotes } from '../lib/projectNotes';
-import { ProjectNoteEntry } from './Projects';
+import { findProjectNotes, projectNotes } from '../lib/projectNotes';
+import { researchEntries } from '../lib/researchEntries';
+import { PublishedNoteEntry, PublishedNotePage } from './PublishedNote';
 import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
@@ -19,46 +20,26 @@ import { PaperMetadata } from '../components/PaperMetadata';
 import { PaperResults } from '../components/PaperResults';
 import { LatexText, MacrosProvider } from '../components/Markdown';
 import { Pager } from '../components/Pager';
-import { Async, Badge, DateText, ExternalLink, MscList } from '../components/ui';
-import { SUBMISSION_KIND_LABELS, newResults } from '../lib/labels';
+import { Async, DateText, ExternalLink, MscList } from '../components/ui';
+import { SUBMISSION_KIND_LABELS } from '../lib/labels';
 import { safeHttpUrl, sourceHref } from '../lib/links';
 import { Link, useRouter } from '../routing/router';
 
 export function PaperEntry({ paper }: { paper: PaperSummary }) {
   return (
-    <article className="paper-entry">
-      <p className="entry-title">
+    <article className="paper-entry research-entry">
+      <h3>
         <Link to={{ kind: 'paper', record: paper.record }}>
           <InlineLatex source={paper.title} />
         </Link>
-      </p>
+      </h3>
+      <AuthorLine authors={paper.authors.map(({ name }) => ({ name }))} />
       <div className="entry-meta">
-        <AuthorLine authors={paper.authors} />
-        <p>
-          · <code>{paper.record}</code> · {t(SUBMISSION_KIND_LABELS[paper.kind])}
-        </p>
-        <p>
-          {paper.accepted_at ? (
-            <>
-              {t('· accepted ')}
-              <DateText iso={paper.accepted_at} />
-            </>
-          ) : null}
-        </p>
-      </div>
-      {paper.abstract_text ? (
-        <LatexText source={paper.abstract_text} className="abstract-excerpt" />
-      ) : null}
-      <p className="entry-meta">
-        {paper.new_results ? <span>{newResults(paper.new_results)}</span> : null}
-        {paper.lean_verified ? (
-          <Badge tone="good">
-            {t('Lean ✓ ')}
-            {paper.lean_verified}
-          </Badge>
-        ) : null}
+        <span>{paper.record}</span>
+        <span>{t(SUBMISSION_KIND_LABELS[paper.kind])}</span>
+        {paper.accepted_at ? <DateText iso={paper.accepted_at} /> : null}
         <MscList codes={paper.msc ?? []} />
-      </p>
+      </div>
     </article>
   );
 }
@@ -80,18 +61,17 @@ export function PapersPage({
     [api, query],
   );
   const paged = usePaged(fetchPage);
-  const imported = findProjectNotes(query);
-  const hasFilters = Boolean(query.q || query.author || query.kind || query.msc);
-  const importedPreview = hasFilters ? imported : imported.slice(0, 3);
+  // A locally published manuscript appears once, on the first archive page.
+  // Following the API cursor must not repeat it on every subsequent page.
+  const notes = paged.page === 1 ? findProjectNotes(query) : [];
+  const entries = researchEntries(paged.value?.items ?? [], notes);
   return (
-    <div className="page">
+    <div className="page research-archive">
       <header className="page-head">
         <div>
           <h1>{t('Research archive')}</h1>
           <p className="lede">
-            {t(
-              'Papers and notes with new mathematical content, and conjectures accepted for display.',
-            )}{' '}
+            {t('Papers, short notes and conjectures, with their sources and formal proofs.')}{' '}
             <Link to={{ kind: 'policy' }}>{t('Review policy')}</Link>
           </p>
         </div>
@@ -183,38 +163,28 @@ export function PapersPage({
           {t('Search papers, notes and conjectures by title, author, abstract or identifier.')}
         </p>
       </form>
-      {imported.length ? (
-        <section aria-labelledby="imported-notes-heading">
-          <div className="section-heading">
-            <h2 id="imported-notes-heading">{t('Trureturing collection')}</h2>
-            <Link to={{ kind: 'projects' }}>{t('View collection')}</Link>
-          </div>
-          <ul className="project-notes-list">
-            {importedPreview.map((note) => (
-              <li key={note.id}>
-                <ProjectNoteEntry note={note} />
+      {entries.length ? (
+        <ol className="entry-list research-archive-list">
+          {entries.map((entry) =>
+            entry.kind === 'note' ? (
+              <li key={`note:${entry.note.id}`}>
+                <PublishedNoteEntry note={entry.note} />
               </li>
-            ))}
-          </ul>
-        </section>
+            ) : (
+              <li key={`paper:${entry.paper.record}`}>
+                <PaperEntry paper={entry.paper} />
+              </li>
+            ),
+          )}
+        </ol>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
-          listing.items.length === 0 ? (
-            imported.length ? null : (
-              <p className="muted">
-                {t('No papers match this view. Try a broader search or clear the filters.')}
-              </p>
-            )
-          ) : (
-            <ul className="entry-list">
-              {listing.items.map((p) => (
-                <li key={p.record}>
-                  <PaperEntry paper={p} />
-                </li>
-              ))}
-            </ul>
-          )
+          listing.items.length === 0 && notes.length === 0 ? (
+            <p className="muted">
+              {t('No papers match this view. Try a broader search or clear the filters.')}
+            </p>
+          ) : null
         }
       </Async>
       <Pager paged={paged} />
@@ -222,7 +192,14 @@ export function PapersPage({
   );
 }
 
-export function PaperPage({ record }: { record: string }) {
+export function PaperPage({ record, version }: { record: string; version?: string }) {
+  if (projectNotes.some((note) => note.id === record)) {
+    return <PublishedNotePage id={record} version={version} />;
+  }
+  return <ReviewedPaperPage record={record} />;
+}
+
+function ReviewedPaperPage({ record }: { record: string }) {
   const api = useApi();
   const load = useCallback(
     (signal: AbortSignal) => api.getPaper(record, { signal }),

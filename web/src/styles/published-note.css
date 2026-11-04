@@ -1,0 +1,22 @@
+.published-note {
+  max-width: 70rem;
+  margin-inline: auto;
+}
+.published-note > section,
+.published-note > details {
+  max-width: 88ch;
+}
+.published-note > details {
+  margin-block: 1.5rem;
+}
+.paper-questions li + li {
+  margin-top: 1rem;
+}
+.paper-citation p {
+  margin-top: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.paper-questions {
+  list-style: none;
+  padding: 0;
+}

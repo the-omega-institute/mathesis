@@ -2376,11 +2376,15 @@ input[type='file']::file-selector-button {
 }
 
 /* Archive discovery: one clear search, with secondary metadata filters. */
+.research-archive .page-head {
+  padding-bottom: 0;
+  margin-bottom: 1rem;
+  border: 0;
+}
 .archive-search {
   padding: var(--space-4) 0;
   margin: 0 0 2rem;
   border: 0;
-  border-top: 1px solid var(--rule);
   border-radius: 0;
   background: transparent;
 }
@@ -2799,4 +2803,57 @@ button.research-map-node.is-connected {
 .paper-explanation {
   margin-block: 2rem;
   line-height: 1.75;
+}
+
+/* Compact bibliographic entries; full abstracts belong on work pages. */
+.research-archive-list {
+  display: grid;
+  gap: 1.1rem;
+  margin-block: 1.25rem;
+  padding-inline-start: 2.25rem;
+  list-style: decimal;
+}
+.research-archive-list > li {
+  padding: 0;
+  border: 0;
+}
+.research-archive-list > li::marker {
+  content: '[' counter(list-item) '] ';
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.research-entry h3,
+.home-papers .research-entry h3 {
+  margin: 0;
+  max-width: none;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.research-entry h3 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+.research-entry h3 a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.research-entry .author-line {
+  margin: 0.2rem 0;
+  gap: 0 0.35rem;
+}
+.research-entry .author-line > li:not(:last-child)::after {
+  content: ',';
+}
+.research-entry .author-name {
+  font-size: 1rem;
+}
+.research-entry .entry-meta {
+  gap: 0.15rem 0.85rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.research-entry-links a {
+  white-space: nowrap;
 }
