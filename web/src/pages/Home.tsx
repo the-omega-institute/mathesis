@@ -2,12 +2,11 @@ import { t } from '../i18n/locale';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
-import { DateText } from '../components/ui';
-import { AuthorLine } from '../components/AuthorLine';
-import { InlineLatex } from '../components/Markdown';
 import { ResearchCycle } from '../components/ResearchCycle';
-import { projectNotes, projectProblemCount } from '../lib/projectNotes';
-import { ProjectNoteEntry } from './Projects';
+import { projectNotes } from '../lib/projectNotes';
+import { researchEntries } from '../lib/researchEntries';
+import { PublishedNoteEntry } from './PublishedNote';
+import { PaperEntry } from './Papers';
 import { Link } from '../routing/router';
 import '../styles/home.css';
 
@@ -33,6 +32,7 @@ export function HomePage() {
     [api],
   );
   const papers = useAsync(loadPapers);
+  const recent = researchEntries(papers.value?.items ?? [], projectNotes).slice(0, 3);
   return (
     <div className="page home">
       <header className="home-hero">
@@ -112,47 +112,19 @@ export function HomePage() {
           <h2 id="recent-heading">{t('Latest research')}</h2>
           <Link to={{ kind: 'papers' }}>{t('All research')}</Link>
         </div>
-        {papers.value?.items.length ? (
-          <ul className="home-papers">
-            {papers.value.items.slice(0, 3).map((paper) => (
-              <li key={paper.record}>
-                <article>
-                  <h3>
-                    <Link to={{ kind: 'paper', record: paper.record }}>
-                      <InlineLatex source={paper.title} />
-                    </Link>
-                  </h3>
-                  <div className="entry-meta">
-                    <AuthorLine authors={paper.authors.map(({ name }) => ({ name }))} />
-                    {paper.accepted_at ? <DateText iso={paper.accepted_at} /> : null}
-                  </div>
-                </article>
+        <ul className="home-papers">
+          {recent.map((entry) =>
+            entry.kind === 'note' ? (
+              <li key={`note:${entry.note.id}`}>
+                <PublishedNoteEntry note={entry.note} />
               </li>
-            ))}
-          </ul>
-        ) : (
-          <>
-            <p className="small muted">{t('From the Trureturing research collection')}</p>
-            <ul className="home-papers">
-              {projectNotes.slice(0, 3).map((note) => (
-                <li key={note.id}>
-                  <ProjectNoteEntry note={note} compact />
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
-      <section className="collection-entry" aria-labelledby="collection-heading">
-        <h2 id="collection-heading">
-          <Link to={{ kind: 'projects' }}>{t('Trureturing collection')}</Link>
-        </h2>
-        <p>
-          {t(
-            '{notes} readable notes connecting {problems} mathematical problems to their proofs and Lean sources.',
-            { notes: projectNotes.length, problems: projectProblemCount },
+            ) : (
+              <li key={`paper:${entry.paper.record}`}>
+                <PaperEntry paper={entry.paper} />
+              </li>
+            ),
           )}
-        </p>
+        </ul>
       </section>
       <nav className="home-browse" aria-label={t('More research')}>
         <Link to={{ kind: 'conjectures' }}>{t('Open problems')}</Link>

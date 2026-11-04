@@ -1,9 +1,19 @@
-# Versioned research collections
+# Published manuscript intake
 
-Mathesis can display explicitly selected project publications using their existing
-upstream manuscript review. This collection is separate from independent Mathesis
-admission: collection entries do not receive a Mathesis acceptance, verification
-badge, public review report, or accepted-only generated explanation.
+Mathesis can collect explicitly selected published manuscripts using their existing
+manuscript review. They appear as ordinary papers in the shared research archive
+and homepage, without producer branding, project navigation, collection sections
+or workflow provenance in the public page or citation. Internal intake evidence
+remains separate from scientific metadata. Inclusion does not invent an independent
+Mathesis acceptance, verification badge, public report or generated explanation.
+
+Collection inclusion does not submit a manuscript for independent Mathesis review
+or enqueue Oracle/CMA work. Upstream-reviewed published notes are collected after
+checking their published files, provenance, rights and version identity. Do not
+re-review the full project as a prerequisite for showing its publications.
+Independent Mathesis review is a separate, explicitly requested submission.
+Previously saved private review attempts are retained; importing or updating a
+collection neither restarts those attempts nor changes their decisions.
 
 The first collection contains ten Trureturing short notes. Public pages retain
 the authors in their original order, original questions and source citations,
@@ -15,7 +25,7 @@ has been solved. In particular, the A391810 note does not settle its original
 first-zero clause. A linked Lean file is evidence to inspect, not a claim of a
 completed independent Mathesis audit.
 
-## Updating the collection
+## Updating the published manuscripts
 
 Use the existing coordinator selections and reviewed published artifacts. No new
 upstream schema or release workflow is required. The adapter accepts
@@ -58,9 +68,19 @@ not a background sync of all upstream problems. Private Mathesis submissions and
 their independent decisions continue through the existing review workflow.
 
 Global archive search includes these notes by title, author, abstract, problem and
-source identifier. It does not infer MSC categories. Home and unfiltered archive
-pages show three notes with a link to the complete collection. All public assets
-are checked by SHA-256 in the frontend tests and must be checked after deployment.
+source identifier. It does not infer MSC categories. The archive lists all selected
+manuscripts alongside API papers in one dated bibliography. Local publications
+appear on the first page only; following an API cursor does not repeat them. The
+homepage shows the three most recent publications across both intake paths. All
+public assets are checked by SHA-256 in the frontend tests and after deployment.
+
+Archive lists use compact bibliographic entries: title, author names, date, version
+and reading/source links. Abstracts, original mathematical source citations and
+formalization details remain on the paper page. New links and version citations
+use `/papers/<work-id>?version=N`. Previously shared `/projects/trureturing` and
+`/projects/trureturing/notes/<work-id>?version=N` routes open the same archive or
+paper; no separate project page remains. Previously published asset URLs stay
+available so existing PDF and source references continue to resolve.
 
 The shared page width is 82rem including responsive gutters. Home, navigation,
 content and footer use that same centered width; mobile gutters stay at 1.25rem.

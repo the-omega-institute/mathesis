@@ -171,7 +171,9 @@ describe('public paper page', () => {
       'href',
       '/papers/WP-2026-0001',
     );
-    expect(screen.getByText('Lean ✓ 1')).toBeInTheDocument();
+    const entry = screen.getByRole('link', { name: 'On sums of integers' }).closest('article')!;
+    expect(entry).toHaveTextContent(paperSummary.authors[0]!.name);
+    expect(entry.querySelector('.badge')).toBeNull();
   });
 });
 
@@ -197,7 +199,7 @@ it('searches the complete archive through the API and resets pagination when fil
   );
 });
 
-it('shows an abstract excerpt on listing cards and the complete public version history', async () => {
+it('shows the complete public version history', async () => {
   const api = fakeApi({
     getPaper: vi.fn(async () => ({
       ...publicPaper,
@@ -224,7 +226,7 @@ it('shows an abstract excerpt on listing cards and the complete public version h
   expect(history.querySelectorAll('time')).toHaveLength(3);
 });
 
-it('keeps a searchable listing useful with abstract excerpts and preserves minimal legacy cards', async () => {
+it('keeps archive entries bibliographic and puts abstracts on the work page', async () => {
   const abstract = 'We prove a useful estimate for sums of integers. '.repeat(20);
   renderWithApp(
     <PapersPage />,
@@ -245,8 +247,8 @@ it('keeps a searchable listing useful with abstract excerpts and preserves minim
   );
   const title = await screen.findByRole('link', { name: paperSummary.title });
   const card = title.closest('article')!;
-  expect(card.querySelector('.abstract-excerpt')).toHaveTextContent(/^We prove a useful estimate/);
-  expect(card.querySelector('.abstract-excerpt')).toHaveTextContent(abstract.trim());
+  expect(card).not.toHaveTextContent(abstract.trim());
+  expect(card.querySelector('.abstract-excerpt')).toBeNull();
   expect(card.querySelector('time')).not.toBeNull();
   expect(
     screen
@@ -256,22 +258,21 @@ it('keeps a searchable listing useful with abstract excerpts and preserves minim
   ).toBeNull();
 });
 
-it('renders complete math across the former 400-character excerpt boundary', async () => {
+it('renders the complete mathematical abstract on the work page', async () => {
   const formula = String.raw`\frac{n(n+1)}{2} = \sum_{k=1}^{n} k`;
   const abstract = `${'A useful estimate. '.repeat(20)}$${formula}$ holds for all n. ${'More context. '.repeat(30)}`;
   expect(abstract.indexOf('$')).toBeLessThan(400);
   expect(abstract.indexOf('$', abstract.indexOf('$') + 1)).toBeGreaterThan(400);
   renderWithApp(
-    <PapersPage />,
+    <PaperPage record={paperSummary.record} />,
     fakeApi({
-      listPapers: vi.fn(async () => ({
-        items: [{ ...paperSummary, abstract_text: abstract }],
-        next_before: null,
+      getPaper: vi.fn(async () => ({
+        ...publicPaper,
+        summary: { ...paperSummary, abstract_text: abstract },
       })),
     }),
   );
-  const card = (await screen.findByRole('link', { name: paperSummary.title })).closest('article')!;
-  const excerpt = card.querySelector('.abstract-excerpt')!;
+  const excerpt = (await screen.findByRole('heading', { name: 'Abstract' })).closest('section')!;
   expect(excerpt.querySelector('.katex')).not.toBeNull();
   expect(excerpt.querySelector('annotation[encoding="application/x-tex"]')).toHaveTextContent(
     formula,
