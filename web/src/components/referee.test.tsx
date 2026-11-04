@@ -208,9 +208,11 @@ describe('referee workspace', () => {
     workspace();
     const panel = await staffPanel();
     await userEvent.click(
-      within(panel).getByText('Suggestions · 2 improvements, 1 statements that could go to Lean'),
+      within(panel).getByText(
+        'Research progress · 2 improvements, 1 statements that could go to Lean',
+      ),
     );
-    const table = within(panel).getByRole('table', { name: 'Suggested improvements' });
+    const table = within(panel).getByRole('table', { name: 'Research progress and next steps' });
     expect(within(table).getByText('Checked', { selector: '.badge' })).toHaveClass('badge-good');
     expect(within(table).getByText('Proposed', { selector: '.badge' })).toHaveClass('badge-warn');
     expect(within(table).getByText('For n = 1 both sides equal 1.')).toBeInTheDocument();
@@ -582,7 +584,9 @@ describe('referee workspace', () => {
     workspace({ proposeFormalization }, editor, accepted);
     const panel = await staffPanel();
     await userEvent.click(
-      within(panel).getByText('Suggestions · 2 improvements, 1 statements that could go to Lean'),
+      within(panel).getByText(
+        'Research progress · 2 improvements, 1 statements that could go to Lean',
+      ),
     );
     await userEvent.click(within(panel).getByRole('button', { name: 'Propose formalization' }));
     expect(proposeFormalization).toHaveBeenCalledExactlyOnceWith(
@@ -599,7 +603,9 @@ describe('referee workspace', () => {
     const view = workspace({}, reviewer, accepted);
     let panel = await staffPanel();
     await userEvent.click(
-      within(panel).getByText('Suggestions · 2 improvements, 1 statements that could go to Lean'),
+      within(panel).getByText(
+        'Research progress · 2 improvements, 1 statements that could go to Lean',
+      ),
     );
     expect(within(panel).queryByRole('button', { name: 'Propose formalization' })).toBeNull();
     view.unmount();
@@ -618,7 +624,9 @@ describe('referee workspace', () => {
     workspace({ referee: vi.fn(async () => refereeFile({ rounds: [round] })) }, editor, accepted);
     panel = await staffPanel();
     await userEvent.click(
-      within(panel).getByText('Suggestions · 2 improvements, 3 statements that could go to Lean'),
+      within(panel).getByText(
+        'Research progress · 2 improvements, 3 statements that could go to Lean',
+      ),
     );
     expect(within(panel).queryByRole('button', { name: 'Propose formalization' })).toBeNull();
   });
@@ -634,7 +642,7 @@ describe('referee workspace', () => {
     for (const summary of [
       'Preview',
       'Referee report · minor revision',
-      'Suggestions · 2 improvements, 1 statements that could go to Lean',
+      'Research progress · 2 improvements, 1 statements that could go to Lean',
       'Lean check · 1 of 1 proved',
     ]) {
       expect(

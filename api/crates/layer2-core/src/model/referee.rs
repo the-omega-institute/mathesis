@@ -191,7 +191,7 @@ pub struct Improvement {
     pub claim: Option<ClaimId>,
     pub kind: ImprovementKind,
     pub suggestion: String,
-    /// What contributors could do for the author on this point.
+    /// What Mathesis already checked, derived, computed or found to be blocked.
     #[serde(default)]
     pub how_we_help: String,
     #[serde(default)]
@@ -726,6 +726,9 @@ pub struct ResearchSuggestion {
     pub claim: Option<ClaimId>,
     pub kind: ImprovementKind,
     pub suggestion: String,
+    /// The bounded mathematical progress Mathesis made before naming the next step.
+    pub progress: String,
+    pub status: Evidence,
     pub excerpt: bool,
 }
 
@@ -742,6 +745,8 @@ impl RefereeRound {
                     claim: item.claim.clone(),
                     kind: item.kind,
                     suggestion: item.suggestion.chars().take(6_000).collect(),
+                    progress: item.how_we_help.chars().take(6_000).collect(),
+                    status: item.status,
                     excerpt: item.suggestion.chars().count() > 6_000,
                 })
                 .collect(),

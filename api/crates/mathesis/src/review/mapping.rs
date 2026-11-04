@@ -835,7 +835,11 @@ pub(crate) fn advice(
             continue;
         };
         let status = match item.status.as_str() {
-            "checked" if !item.evidence.trim().is_empty() => Evidence::Checked,
+            "checked"
+                if !item.evidence.trim().is_empty() && !item.how_we_help.trim().is_empty() =>
+            {
+                Evidence::Checked
+            }
             "proposed" => Evidence::Proposed,
             _ => {
                 dropped += 1;
@@ -1176,6 +1180,7 @@ mod referee_tests {
                     kind: "strengthen".into(),
                     effort: "medium".into(),
                     status: "checked".into(),
+                    how_we_help: "Derived the finite boundary case before identifying the remaining general step.".into(),
                     evidence: "The full argument: ...".into(),
                     ..Default::default()
                 },

@@ -153,6 +153,8 @@ export type RefereeRound = {
     claim?: string;
     kind: ImprovementKind;
     suggestion: string;
+    progress?: string;
+    status?: ImprovementEvidence;
     excerpt: boolean;
   }[];
   computation_contract?: number;

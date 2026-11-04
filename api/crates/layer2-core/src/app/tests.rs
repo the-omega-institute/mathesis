@@ -1394,16 +1394,10 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
         research["suggestion"],
         "Study the same bound without the finiteness assumption."
     );
+    assert_eq!(research["progress"], "private contributor plan");
+    assert_eq!(research["status"], "proposed");
     assert_eq!(research["excerpt"], false);
-    for field in [
-        "summary",
-        "how_we_help",
-        "evidence",
-        "status",
-        "effort",
-        "engine",
-        "model",
-    ] {
+    for field in ["summary", "evidence", "effort", "engine", "model"] {
         assert!(research.get(field).is_none());
     }
     assert!(
