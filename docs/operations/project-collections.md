@@ -82,5 +82,5 @@ use `/papers/<work-id>?version=N`. Previously shared `/projects/trureturing` and
 paper; no separate project page remains. Previously published asset URLs stay
 available so existing PDF and source references continue to resolve.
 
-The shared page width is 82rem including responsive gutters. Home, navigation,
+The shared page width is 89rem including responsive gutters. Home, navigation,
 content and footer use that same centered width; mobile gutters stay at 1.25rem.
