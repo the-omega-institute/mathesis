@@ -1,6 +1,6 @@
 import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
-import { findProjectNotes, projectNotes } from '../lib/projectNotes';
+import { collectedPaperNote, findProjectNotes, projectNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
 import type { Subject } from '../lib/subjects';
 import { PublishedNoteEntry, PublishedNotePage } from './PublishedNote';
@@ -67,9 +67,23 @@ export function PapersPage({
     [api, query],
   );
   const paged = usePaged(fetchPage);
+  const collected = useAsync(
+    useCallback(
+      (signal: AbortSignal) => api.listCollectedPapers({ ...query, limit: 100 }, { signal }),
+      [api, query],
+    ),
+  );
   // A locally published manuscript appears once, on the first archive page.
   // Following the API cursor must not repeat it on every subsequent page.
-  const notes = paged.page === 1 ? findProjectNotes(query) : [];
+  const notes =
+    paged.page === 1
+      ? [
+          ...findProjectNotes(query),
+          ...(collected.value?.items ?? [])
+            .map(collectedPaperNote)
+            .filter((note) => !projectNotes.some((existing) => existing.id === note.id)),
+        ]
+      : [];
   const entries = researchEntries(paged.value?.items ?? [], notes);
   return (
     <div className="page research-archive">
@@ -223,7 +237,30 @@ export function PaperPage({ record, version }: { record: string; version?: strin
   if (projectNotes.some((note) => note.id === record)) {
     return <PublishedNotePage id={record} version={version} />;
   }
-  return <ReviewedPaperPage record={record} />;
+  return record.startsWith('WP-') ? (
+    <ReviewedPaperPage record={record} />
+  ) : (
+    <CollectedPaperPage record={record} version={version} />
+  );
+}
+
+function CollectedPaperPage({ record, version }: { record: string; version?: string }) {
+  const api = useApi();
+  const load = useCallback(
+    (signal: AbortSignal) => api.getCollectedPaper(record, version, { signal }),
+    [api, record, version],
+  );
+  const paper = useAsync(load);
+  return (
+    <div className="page">
+      <Async state={paper.state} onRetry={paper.reload}>
+        {(p) => {
+          const note = collectedPaperNote(p);
+          return <PublishedNotePage id={note.id} version={note.revision} note={note} />;
+        }}
+      </Async>
+    </div>
+  );
 }
 
 function ReviewedPaperPage({ record }: { record: string }) {

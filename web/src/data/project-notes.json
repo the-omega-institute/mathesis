@@ -44,6 +44,10 @@
       "source": {
         "url": "/collections/trureturing/b164660-chebfloor/v1/source-v1.zip",
         "sha256": "b330f3067e11838d06d009d798130be5e471e606927578ba408ea77e0c20070d"
+      },
+      "plain_language": {
+        "en": "A self-contained proof of the complete A164660 floor-product identity, with the integral and denominator formulas, the sharp general-exponent root count, translated-interval sign invariance, precise Lean coverage, and coefficient-source corrections. Earlier root-count formulas and Fried's proof of the A000188 square-indicator identity are credited.",
+        "zh": "我们给出了 A164660 地板函数乘积恒等式的完整自包含证明，同时说明积分和分母公式、一般指数下的根数、平移区间后的符号不变性，并标明 Lean 已覆盖的范围；还修正了系数来源。"
       }
     },
     {
@@ -89,6 +93,10 @@
       "source": {
         "url": "/collections/trureturing/bu-gu-jaffe-2025-mixed-state-inverse-sumset/v2/source-v2.zip",
         "sha256": "80a80ddb1885b50e1da525787c20ee0f8bf4f2517806abcedbac96de8c4131ac"
+      },
+      "plain_language": {
+        "en": "An exact diagonal seven-dimensional counterexample to the expected mixed-state inverse sumset bound, with tensor-power counterexamples and direct verification of the weaker companion estimate on the same family.",
+        "zh": "我们构造了一个精确的七维对角反例，说明预期的混态逆和集界不成立；同一族例子还给出张量幂反例，并直接验证较弱的伴随估计。"
       }
     },
     {
@@ -134,6 +142,10 @@
       "source": {
         "url": "/collections/trureturing/denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance/v4/source-v4.zip",
         "sha256": "3348000be59f47cf185efbb70419f585656f0bd3a2a9746f7fa173b0a4f4cc52"
+      },
+      "plain_language": {
+        "en": "A complete proof reconstructs the attributed mixed-spin trace-distance counterexample. Certified sibling calculations show fidelity anticoherence increases for the same witness at all t=1,...,8; trace anticoherence increases at t=1,...,6,8. Proposition 6 cannot apply generally to trace distance because its total-measure hypothesis fails. Universal fidelity monotonicity, mixed inputs restricted to t<=N/2, pure-input behavior, and minimum spin/order are not settled.",
+        "zh": "我们完整重建了已归属的混合自旋迹距离反例。对同一见证的计算表明保真度反相干性在给定参数范围内增加，迹反相干性也在列出的参数中增加；关于一般单调性、输入范围和最小自旋阶数的问题仍未解决。"
       }
     },
     {
@@ -179,6 +191,10 @@
       "source": {
         "url": "/collections/trureturing/huang-kosugi-nishi-matsushita-2024-reflection-diagonal-cnot-lower-bound/v4/source-v4.zip",
         "sha256": "76b2a0c39560d94ce4fb33706f03cf4c151e935661119862df985e05bf29e7a1"
+      },
+      "plain_language": {
+        "en": "Self-contained exposition of the pinned upstream lower-bound proof resolving the Section 6 conjecture of Huang, Kosugi, Nishi and Matsushita when combined with their matching synthesis algorithm. Includes exact finite checks and a precise distinction between the unrestricted higher-dimensional count and the remaining depth and radial-potential questions.",
+        "zh": "我们整理并自包含地说明了已固定的下界证明；结合原作者的综合算法，它解决了第 6 节猜想。文章也明确区分了高维计数结论与深度、径向势等仍待研究的问题。"
       }
     },
     {
@@ -224,6 +240,10 @@
       "source": {
         "url": "/collections/trureturing/kang-jager-2026-universal-permutative-lift-refutation/v2/source-v2.zip",
         "sha256": "d72a96ff874e970cc96ada12c1d20bd30a456dfa7105c8b31e1e65da9b790266"
+      },
+      "plain_language": {
+        "en": "One fixed binary regular Toeplitz strictly ergodic base has nonminimal complete inverse images for every bipermutative sliding block code of every length at least two; the exact component count is 2^(ell-1).",
+        "zh": "我们给出一个固定的二进正规 Toeplitz 严格遍历基例子：对所有长度至少为二的双置换滑动块码，完全逆像都不是最小的；精确的连通分支数为 2 的 ell 减 1 次方。"
       }
     },
     {
@@ -277,6 +297,10 @@
       "source": {
         "url": "/collections/trureturing/mathar-a027182-closed-form/v4/source-v4.zip",
         "sha256": "a36826a45523cdafc39b1f2055e51130f9e6af99908175fa1fb01569ec53e0cf"
+      },
+      "plain_language": {
+        "en": "A complete elementary proof of the A027182 conjecture, with corollaries proving the A027171, A027174, A027175 and A027179 conjectures from central-binomial identities and row symmetry.",
+        "zh": "我们用初等方法完整证明 A027182 猜想，并利用中心二项式恒等式和行对称性，推出 A027171、A027174、A027175 和 A027179 的结果。"
       }
     },
     {
@@ -327,6 +351,10 @@
       "source": {
         "url": "/collections/trureturing/oeis-a391810-alternating-jacobsthal/v4/source-v4.zip",
         "sha256": "13c6d95622b8342b1e2e9746c205c0474ee36017695bb33402b481f0c8362726"
+      },
+      "plain_language": {
+        "en": "Complete written proofs of A391810 formulas (2)--(6), COMMENTS (C.1)--(C.10), and prime-index vanishing, with a divisor formula, exact source-item coverage, and finite checks through row 79. The first-zero assertion in (C.11) remains open here.",
+        "zh": "我们证明了 A391810 的公式 (2)–(6)、注释中的 (C.1)–(C.10) 以及素数指标消失，并给出除数公式和截至第 79 行的精确有限检查。注释 (C.11) 中关于第一个零点的断言仍未解决。"
       }
     },
     {
@@ -372,6 +400,10 @@
       "source": {
         "url": "/collections/trureturing/oeis-a396659-edge-collision-ratio/v4/source-v4.zip",
         "sha256": "d74e5e49909c55c1e46eb9639136c83beef7283b09d81537e79ec0c3b730e054"
+      },
+      "plain_language": {
+        "en": "A self-contained proof of Dutta's edge-collision ratio conjecture, together with complete proofs of both companion formulas in the same OEIS entry and exact finite checks of the counting bijections.",
+        "zh": "我们自包含地证明了 Dutta 的边碰撞比猜想，也证明同一 OEIS 条目中的两个伴随公式，并对计数双射进行了精确有限检查。"
       }
     },
     {
@@ -417,6 +449,10 @@
       "source": {
         "url": "/collections/trureturing/user3-2026-orthogonal-absolute-product-minimum/v2/source-v2.zip",
         "sha256": "864a589fac81968f5d9ac782ccee5a312deeed7e1c5fcddb3df23c1048a808fb"
+      },
+      "plain_language": {
+        "en": "The triangularization proof settles both questions in MathOverflow 515549. Complete equality-case and finite-minimizer descriptions strengthen that result; the Yamabe-Yujobo sphere theorem settles the same author's companion question 515547. The pinned Lean declaration result states the universal lower bound and orthogonal attainment. Equality cases, the special-orthogonal refinement and balancing have written proofs; exact rational controls cover the enumerated finite cases.",
+        "zh": "三角化证明解决了 MathOverflow 515549 的两个问题，并进一步描述等号情形和有限维最小元；同一作者关于 515547 的伴随问题由 Yamabe–Yujobo 球面定理解决。Lean 声明覆盖了普遍下界和正交取等，有限枚举则有精确有理数控制。"
       }
     },
     {
@@ -469,6 +505,10 @@
       "source": {
         "url": "/collections/trureturing/wang-conjecture326/v2/source-v2.zip",
         "sha256": "28de06013c852de15802885af7e42d7a3e729b8f7617449758071b262b5a2fb6"
+      },
+      "plain_language": {
+        "en": "One fixed infinite periodic monoid refutes Conjecture 3.26. Its finite submonoids refute Conjecture 5.3, already with six elements; all relative constants are computed exactly.",
+        "zh": "一个固定的无限周期幺半群反驳了猜想 3.26；它的有限子幺半群（六个元素即可）反驳猜想 5.3，所有相对常数都被精确算出。"
       }
     }
   ]

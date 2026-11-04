@@ -37,7 +37,7 @@ describe('ContributePage', () => {
       screen.getByText(/your contribution appears with your name and proof/),
     ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/trureturing/i);
-    expect(screen.getByRole('heading', { name: 'Invitation access' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Researcher access' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Support model access' })).toBeNull();
   });
 
@@ -87,7 +87,7 @@ describe('ContributePage', () => {
         donor,
       ),
     );
-    expect(await screen.findByRole('heading', { name: 'Invitation access' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Researcher access' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Support model access' })).toBeNull();
     expect(getDonation).not.toHaveBeenCalled();
   });

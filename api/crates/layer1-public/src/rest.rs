@@ -20,6 +20,7 @@ use crate::{auth::AuthenticatedCaller, problems::Problem};
 
 mod bindings;
 mod cma;
+mod collected;
 mod deposits;
 mod feedback;
 mod network;
@@ -47,6 +48,7 @@ pub(crate) fn routes() -> Router<Arc<App>> {
     Router::new()
         .merge(solving::routes())
         .merge(papers::routes())
+        .merge(collected::routes())
         .merge(review::routes())
         .merge(research::routes())
         .merge(bindings::routes())

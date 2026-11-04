@@ -399,6 +399,7 @@ async fn paper_flow_against_mongo() {
     };
     let shared = Arc::new(db.store.clone());
     let ports = Ports {
+        collected: Arc::new(db.store.clone()),
         deposits: Arc::new(db.store.clone()),
         cma_bindings: shared.clone(),
         cma_setup: Arc::new(mathesis_core::ports::UnavailableCmaSetup),

@@ -84,3 +84,12 @@ available so existing PDF and source references continue to resolve.
 
 The shared page width is 89rem including responsive gutters. Home, navigation,
 content and footer use that same centered width; mobile gutters stay at 1.25rem.
+
+## Automatic pre-reviewed intake
+
+New upstream short notes should use the trusted collection endpoint described in
+[`docs/PRE_REVIEWED_COLLECTION.md`](../PRE_REVIEWED_COLLECTION.md). The static
+importer remains for historical backfills and artifact recovery; it is not the
+normal path for a new published note. A successful collection receipt is already
+public and does not start an independent Mathesis review. Do not copy its private
+review record into `project-notes.json` or into the reader page.

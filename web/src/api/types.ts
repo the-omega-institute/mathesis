@@ -689,6 +689,22 @@ export type PaperSummary = {
   new_results?: number;
   lean_verified?: number;
 };
+export type CollectedPaper = {
+  id: string;
+  revision: string;
+  previous_version?: string;
+  title: string;
+  abstract: string;
+  authors: Author[];
+  license: string;
+  msc: string[];
+  problems: Settles[];
+  published_on: string;
+  plain_language?: PlainLanguageText;
+  lean?: { url: string; revision: string };
+  pdf: { url: string };
+  source: { url: string };
+};
 export type PublicClaim = {
   latex_label?: string;
   verified?: VerifiedAttempt | null;
