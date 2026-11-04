@@ -245,10 +245,18 @@ export function authorReportPreview(
   const suggestions = (improvements.length ? improvements.map((item) => item.suggestion) : concerns)
     .filter(concise)
     .slice(0, 3);
-  const directions = (round.research_suggestions ?? [])
+  const proposedDirections = (round.research_suggestions ?? [])
     .filter((item) => ['strengthen', 'generalize'].includes(item.kind) && concise(item.suggestion))
     .slice(0, 2)
     .map((item) => item.suggestion);
+  const checkedProgress = (round.research_suggestions ?? [])
+    .filter((item) => item.status === 'checked' && item.progress && concise(item.suggestion))
+    .slice(0, 3)
+    .map((item) => {
+      const progress = item.progress!.trim();
+      return `Mathesis checked: ${progress} Next: ${item.suggestion}`;
+    });
+  const directions = [...checkedProgress, ...proposedDirections].slice(0, 4);
   const authored = authoredSections(round, letter);
   const shortSection = (index: number) =>
     authored?.[index] && authored[index]!.split(/\s+/).length <= (index === 1 ? 160 : 130)
@@ -294,7 +302,7 @@ export function authorReportPreview(
       overview(s, round, letter),
       improvementText ? `## Suggestions\n\n${improvementText}` : '',
       directionText
-        ? `## Further directions\n\nThese are proposed extensions, not established results.\n\n${directionText}`
+        ? `## Further directions\n\nChecked progress is stated as work already done; proposed extensions are labelled as such.\n\n${directionText}`
         : '',
       `## Formalization\n\n${formal}`,
     ]

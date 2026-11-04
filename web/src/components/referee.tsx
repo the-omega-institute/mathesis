@@ -387,7 +387,7 @@ function RoundView({
       {round.advice?.state.state === 'done' ? (
         <details className="history">
           <summary>
-            {t('Suggestions · ')}
+            {t('Research progress · ')}
             {round.advice.state.result.improvements.length} {t(' improvements,')}{' '}
             {round.advice.state.result.formalization.length}{' '}
             {t(' statements that could go to Lean')}
@@ -623,20 +623,22 @@ function AdviceView({
 } & Pick<WorkspaceProps, 'submission' | 'isEditor' | 'onChange'>) {
   return (
     <div className="report">
-      <h3>{t('Contributor advice')}</h3>
+      <h3>{t('Research progress')}</h3>
       <Markdown text={advice.summary} />
       <p className="small muted">
-        {t('Checked items include the adviser’s evidence. Proposed items still need checking.')}
+        {t(
+          'Each checked item records a bounded mathematical advance or a precise obstruction. Proposed items are directions for the next step.',
+        )}
       </p>
       {advice.improvements.length > 0 ? (
         <table className="data-table referee-table">
-          <caption className="visually-hidden">{t('Suggested improvements')}</caption>
+          <caption className="visually-hidden">{t('Research progress and next steps')}</caption>
           <thead>
             <tr>
               <th>{t('Kind')}</th>
               <th>{t('Statement')}</th>
-              <th>{t('Suggestion')}</th>
-              <th>{t('How we help')}</th>
+              <th>{t('Next mathematical step')}</th>
+              <th>{t('What Mathesis checked')}</th>
               <th>{t('Effort')}</th>
               <th>{t('Status and evidence')}</th>
             </tr>
@@ -648,10 +650,10 @@ function AdviceView({
                 <td data-label="Statement">
                   <StatementRef id={item.claim} submission={submission} />
                 </td>
-                <td data-label="Suggestion">
+                <td data-label="Next mathematical step">
                   <Markdown text={item.suggestion} />
                 </td>
-                <td data-label="How we help">
+                <td data-label="What Mathesis checked">
                   <Markdown text={item.how_we_help} />
                 </td>
                 <td data-label="Effort">{t(EFFORT_LABELS[item.effort])}</td>

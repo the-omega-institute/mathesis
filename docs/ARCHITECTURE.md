@@ -349,16 +349,25 @@ at 3,600 seconds; CMA's total outer budget is also capped at 3,600 seconds.
 Environment discovery commands each have a 30-second
 deadline; each Lean check is limited to 120 seconds.
 
+The advisor is a research partner, not a suggestion generator. Its advice step
+must make a bounded mathematical attempt on the paper's open problems, gaps or
+strongest useful extensions, and record the progress or precise obstruction
+before naming the next action. A checked improvement carries its written
+argument or reproducible computation; a proposed item is explicitly untried.
+The English letter reports this checked progress and the remaining research
+directions separately from ordinary exposition or attribution requests.
 The advisor writes an English letter after the applied decision, with a short
 body and optional mathematical note. Layer 2 prepends the authoritative decision
 and atomically stores the done letter and its sent message (auditor sender,
 audited assessment, round, `edited=false`). Confirmed concerns become requested
 changes; unavailable facts become "please check"; refuted concerns are omitted
-as requests. Advice supplies improvement suggestions; Lean has not run yet.
+as requests. Advice supplies research progress and next actions; formalization
+remains a separate bounded Lean path and a model's written argument never
+becomes a verification receipt.
 Editors may still send additional letters. Delivery is in-app; no email transport
 is used. Staff see full history; authors and linked co-authors get the report,
-audit and projected probe outcomes, with no advice, drafts, provider metadata or
-Lean files. Strangers get `not_found`. CLI backends use operator credentials and
+audit, checked research progress and projected probe outcomes, with no drafts,
+provider metadata or Lean files. Strangers get `not_found`. CLI backends use operator credentials and
 are refused on non-loopback binds. Referee rounds are disabled unless an Oracle
 backend is configured, with one startup log message.
 

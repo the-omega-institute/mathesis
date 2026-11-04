@@ -2,8 +2,11 @@
 
 Authors submit a manuscript, check its PDF and confirm bibliographic metadata.
 The ordinary review page presents a final outcome, mathematical analysis,
-suggestions and formalization opportunities. Review-only submissions remain
-private and receive feedback without a publication decision.
+research progress and formalization opportunities. Mathesis attempts a bounded
+nontrivial advance on the paper's open problems or strongest useful extensions;
+it reports what was checked, what remains blocked and the next mathematical
+action. Review-only submissions remain private and receive research feedback
+without a publication decision.
 
 ## What authors and readers see
 
@@ -11,7 +14,7 @@ private and receive feedback without a publication decision.
 | --- | --- | --- |
 | Draft | PDF, editable title/abstract, authors and links | None |
 | Review underway | Current status; saved work and any temporary service delay | None |
-| Final report | Applied publication decision or private-review completion; analysis, improvements and further directions | Accepted public manuscript only; private reports stay private |
+| Final report | Applied publication decision or private-review completion; analysis, checked research progress and further directions | Accepted public manuscript only; private reports stay private |
 | Formalization recommended | The particular result and the proposed mathematical work | No verified-proof claim |
 | Author approves a public result | Preparation of an exact Lean statement, independently compared with the manuscript, for the author's confirmation | A participation target becomes available after confirmation |
 | Proof work underway | Saved target, attempt progress and available next-step information | Current confirmed target; unsuccessful attempts remain private |

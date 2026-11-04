@@ -1076,6 +1076,10 @@ export const zh: Record<string, string> = {
   'Contribute a joint binding': '贡献联合知识关联',
   'Contribution by': '贡献者',
   'Contributor advice': '贡献者建议',
+  'Research progress': '研究推进',
+  'Research progress and next steps': '研究推进与下一步',
+  'Each checked item records a bounded mathematical advance or a precise obstruction. Proposed items are directions for the next step.':
+    '每个已核验项目都记录了有限范围内的数学推进或明确障碍；拟议项目是下一步研究方向。',
   'Contributor tasks': '贡献任务',
   'Current binding credit': '当前知识关联贡献记录',
   'Current public work, with one credit per independently supported joint binding. Historical decisions remain on each discussion.':
@@ -1145,6 +1149,8 @@ export const zh: Record<string, string> = {
   'How this goal addresses the audited gap': '此目标如何解决核查发现的缺口',
   'How to contribute': '如何参与',
   'How we help': '我们提供什么',
+  'What Mathesis checked': 'Mathesis 已核验的内容',
+  'Next mathematical step': '下一项数学工作',
   'Hypothesis discharge (one hypothesis => argument per line)': '假设的证明（每行“假设 => 论证”）',
   'I approve preparing this exact package for the listed rights holders to inspect. Each holder must separately authorize export under Apache-2.0.':
     '我同意准备此精确材料包供列出的权利人检查。每位权利人需单独授权以 Apache-2.0 导出。',
