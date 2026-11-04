@@ -2,6 +2,7 @@ import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
 import { findProjectNotes, projectNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
+import type { Subject } from '../lib/subjects';
 import { PublishedNoteEntry, PublishedNotePage } from './PublishedNote';
 import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
@@ -47,7 +48,12 @@ export function PaperEntry({ paper }: { paper: PaperSummary }) {
 export function PapersPage({
   initialQuery = '',
   initialFilters = {},
-}: { initialQuery?: string; initialFilters?: Pick<PaperQuery, 'author' | 'msc' | 'kind'> } = {}) {
+  subject,
+}: {
+  initialQuery?: string;
+  initialFilters?: Pick<PaperQuery, 'author' | 'msc' | 'kind'>;
+  subject?: Subject;
+} = {}) {
   const api = useApi();
   const { navigate } = useRouter();
   const [query, setQuery] = useState<PaperQuery>({
@@ -67,102 +73,119 @@ export function PapersPage({
   const entries = researchEntries(paged.value?.items ?? [], notes);
   return (
     <div className="page research-archive">
+      {subject ? (
+        <nav className="subject-navigation" aria-label={t('Research navigation')}>
+          <Link to={{ kind: 'papers' }}>{t('Research archive')}</Link>
+          <Link to={{ kind: 'subjects' }}>{t('All subjects')}</Link>
+        </nav>
+      ) : null}
       <header className="page-head">
         <div>
-          <h1>{t('Research archive')}</h1>
-          <p className="lede">
-            {t('Papers, short notes and conjectures, with their sources and formal proofs.')}{' '}
-            <Link to={{ kind: 'policy' }}>{t('Review policy')}</Link>
-          </p>
+          <h1>{t(subject?.title ?? 'Research archive')}</h1>
+          {subject ? (
+            <p className="muted">
+              {t('Recent publications')} · MSC {subject.code}
+            </p>
+          ) : (
+            <p className="lede">
+              {t('Papers, short notes and conjectures, with their sources and formal proofs.')}{' '}
+              <Link to={{ kind: 'policy' }}>{t('Review policy')}</Link>
+            </p>
+          )}
         </div>
       </header>
-      <form
-        className="archive-search"
-        role="search"
-        aria-label={t('Search papers')}
-        onSubmit={(event) => {
-          event.preventDefault();
-          setQuery({ ...draft });
-          navigate({
-            kind: 'papers',
-            q: draft.q?.trim(),
-            author: draft.author?.trim(),
-            msc: draft.msc?.trim(),
-            work: draft.kind || undefined,
-          });
-        }}
-      >
-        <div className="archive-search-main">
-          <label htmlFor="paper-query">{t('Find research')}</label>
-          <div className="archive-search-input">
-            <input
-              id="paper-query"
-              type="search"
-              maxLength={300}
-              placeholder={t('Title, author, abstract, DOI or record…')}
-              value={draft.q ?? ''}
-              onChange={(e) => setDraft({ ...draft, q: e.target.value })}
-            />
-            <button className="button" type="submit">
-              {t('Search')}
-            </button>
-          </div>
-        </div>
-        <details
-          className="archive-search-advanced"
-          open={
-            Boolean(initialFilters.author || initialFilters.msc || initialFilters.kind) || undefined
-          }
+      {subject ? null : (
+        <form
+          className="archive-search"
+          role="search"
+          aria-label={t('Search papers')}
+          onSubmit={(event) => {
+            event.preventDefault();
+            setQuery({ ...draft });
+            navigate({
+              kind: 'papers',
+              q: draft.q?.trim(),
+              author: draft.author?.trim(),
+              msc: draft.msc?.trim(),
+              work: draft.kind || undefined,
+            });
+          }}
         >
-          <summary>{t('Advanced search')}</summary>
-          <div className="archive-search-filters">
-            <label>
-              {t('Author')}
+          <div className="archive-search-main">
+            <label htmlFor="paper-query">{t('Find research')}</label>
+            <div className="archive-search-input">
               <input
-                maxLength={160}
-                placeholder={t('Author name')}
-                value={draft.author ?? ''}
-                onChange={(e) => setDraft({ ...draft, author: e.target.value })}
+                id="paper-query"
+                type="search"
+                maxLength={300}
+                placeholder={t('Title, author, abstract, DOI or record…')}
+                value={draft.q ?? ''}
+                onChange={(e) => setDraft({ ...draft, q: e.target.value })}
               />
-            </label>
-            <label>
-              {t('Subject (MSC)')}
-              <input
-                maxLength={5}
-                placeholder={t('e.g. 11 or 11A')}
-                value={draft.msc ?? ''}
-                onChange={(e) => setDraft({ ...draft, msc: e.target.value })}
-              />
-            </label>
-            <label>
-              {t('Type')}
-              <select
-                value={draft.kind ?? ''}
-                onChange={(e) => setDraft({ ...draft, kind: e.target.value as PaperQuery['kind'] })}
-              >
-                <option value="">{t('All research')}</option>
-                <option value="paper">{t('Papers')}</option>
-                <option value="note">{t('Short notes')}</option>
-                <option value="conjecture">{t('Conjectures')}</option>
-              </select>
-            </label>
-            <button
-              className="button button-quiet"
-              type="button"
-              onClick={() => {
-                setDraft({});
-                setQuery({});
-                navigate({ kind: 'papers' });
-              }}
-            >
-              {t('Clear filters')}
-            </button>
+              <button className="button" type="submit">
+                {t('Search')}
+              </button>
+            </div>
           </div>
-        </details>
-        <p className="hint">
-          {t('Search papers, notes and conjectures by title, author, abstract or identifier.')}
-        </p>
-      </form>
+          <details
+            className="archive-search-advanced"
+            open={
+              Boolean(initialFilters.author || initialFilters.msc || initialFilters.kind) ||
+              undefined
+            }
+          >
+            <summary>{t('Advanced search')}</summary>
+            <div className="archive-search-filters">
+              <label>
+                {t('Author')}
+                <input
+                  maxLength={160}
+                  placeholder={t('Author name')}
+                  value={draft.author ?? ''}
+                  onChange={(e) => setDraft({ ...draft, author: e.target.value })}
+                />
+              </label>
+              <label>
+                {t('Subject (MSC)')}
+                <input
+                  maxLength={5}
+                  placeholder={t('e.g. 11 or 11A')}
+                  value={draft.msc ?? ''}
+                  onChange={(e) => setDraft({ ...draft, msc: e.target.value })}
+                />
+              </label>
+              <label>
+                {t('Type')}
+                <select
+                  value={draft.kind ?? ''}
+                  onChange={(e) =>
+                    setDraft({ ...draft, kind: e.target.value as PaperQuery['kind'] })
+                  }
+                >
+                  <option value="">{t('All research')}</option>
+                  <option value="paper">{t('Papers')}</option>
+                  <option value="note">{t('Short notes')}</option>
+                  <option value="conjecture">{t('Conjectures')}</option>
+                </select>
+              </label>
+              <button
+                className="button button-quiet"
+                type="button"
+                onClick={() => {
+                  setDraft({});
+                  setQuery({});
+                  navigate({ kind: 'papers' });
+                }}
+              >
+                {t('Clear filters')}
+              </button>
+            </div>
+          </details>
+          <p className="hint">
+            {t('Search papers, notes and conjectures by title, author, abstract or identifier.')}
+          </p>
+        </form>
+      )}
       {entries.length ? (
         <ol className="entry-list research-archive-list">
           {entries.map((entry) =>
@@ -182,7 +205,11 @@ export function PapersPage({
         {(listing) =>
           listing.items.length === 0 && notes.length === 0 ? (
             <p className="muted">
-              {t('No papers match this view. Try a broader search or clear the filters.')}
+              {t(
+                subject
+                  ? 'No papers have been listed in this subject yet.'
+                  : 'No papers match this view. Try a broader search or clear the filters.',
+              )}
             </p>
           ) : null
         }

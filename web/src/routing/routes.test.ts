@@ -3,6 +3,8 @@ import { parseRoute, routePath, type Route } from './routes';
 
 const ROUTES: Route[] = [
   { kind: 'home' },
+  { kind: 'subjects' },
+  { kind: 'subject', msc: '11' },
   { kind: 'paper', record: 'a-note', version: '2' },
   { kind: 'papers' },
   { kind: 'papers', q: 'Ada Example' },
@@ -46,6 +48,8 @@ describe('routes', () => {
 
   it.each([
     '/nope',
+    '/subjects/99',
+    '/subjects/Number%20theory',
     '/papers/a/b',
     '/papers/%',
     '/submissions/..',

@@ -5,25 +5,12 @@ import { useAsync } from '../api/useAsync';
 import { ResearchCycle } from '../components/ResearchCycle';
 import { projectNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
+import { homeSubjects } from '../lib/subjects';
 import { PublishedNoteEntry } from './PublishedNote';
 import { PaperEntry } from './Papers';
 import { Link } from '../routing/router';
 import '../styles/home.css';
-
-const SUBJECTS = [
-  ['03', 'Logic and foundations'],
-  ['05', 'Combinatorics'],
-  ['11', 'Number theory'],
-  ['14', 'Algebraic geometry'],
-  ['20', 'Group theory'],
-  ['35', 'Partial differential equations'],
-  ['46', 'Functional analysis'],
-  ['51', 'Geometry'],
-  ['54', 'Topology'],
-  ['60', 'Probability'],
-  ['68', 'Computer science'],
-  ['81', 'Quantum theory'],
-] as const;
+import '../styles/subjects.css';
 
 export function HomePage() {
   const api = useApi();
@@ -126,19 +113,19 @@ export function HomePage() {
           )}
         </ul>
       </section>
-      <nav className="home-browse" aria-label={t('More research')}>
-        <Link to={{ kind: 'conjectures' }}>{t('Open problems')}</Link>
-        <details className="home-subjects">
-          <summary>{t('Browse by subject')}</summary>
-          <ul>
-            {SUBJECTS.map(([msc, title]) => (
-              <li key={msc}>
-                <Link to={{ kind: 'papers', msc }}>{t(title)}</Link>
-              </li>
-            ))}
-          </ul>
-        </details>
-      </nav>
+      <section className="home-subjects" aria-labelledby="subjects-heading">
+        <div className="section-heading">
+          <h2 id="subjects-heading">{t('Browse by subject')}</h2>
+          <Link to={{ kind: 'subjects' }}>{t('All subjects')}</Link>
+        </div>
+        <ul className="subject-links">
+          {homeSubjects.map((subject) => (
+            <li key={subject.code}>
+              <Link to={{ kind: 'subject', msc: subject.code }}>{t(subject.title)}</Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

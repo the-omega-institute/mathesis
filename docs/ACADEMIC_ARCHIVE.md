@@ -10,11 +10,20 @@ files and bibliographic metadata before final submission.
 
 ## Delivered behavior
 
-- The home page opens with archive search, subject links and recent work in a
-  readable document layout. There are no promotional cards or decorative panels.
+- The home page introduces review and participation, followed by recent work and
+  a short, visible subject directory. It has no subject accordion or search form.
   Existing upload-first tabs remain Upload, Check PDF, Details, Authors, Submit.
-- Archive queries retain text, author, MSC and type in the URL. Subject and
-  author-name links use this same search; external academic profiles remain
+- `/subjects` lists the 63 two-digit MSC 2020 classes. `/subjects/:msc` opens a
+  named subject's recent publications directly, with ordinary bibliography entries
+  and pagination. It does not open the archive search form. Invalid classes have
+  a not-found page; empty classes say that no papers have been listed yet.
+- Both publication paths participate in subject browsing. Published notes without
+  supplied MSC metadata use Mathesis's broad, title-and-abstract-based indexing in
+  `web/src/lib/projectNoteSubjects.ts`. Supplied version metadata takes precedence;
+  an unclassified future note remains in the full archive. Indexing does not create
+  a review, acceptance decision, or formal-verification claim.
+- Archive queries retain text, author, MSC and type in the URL. Author-name links
+  use this search; existing MSC search URLs still work. External academic profiles remain
   separate. Name search does not claim a unique researcher identity.
 - The public abstract page places files with the title and authors. Abstract,
   subjects, DOI/arXiv, versions and a folded citation follow. Source and PDF links

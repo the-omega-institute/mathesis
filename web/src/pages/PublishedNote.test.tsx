@@ -85,7 +85,8 @@ describe('published manuscripts', () => {
       0,
     );
     expect(findProjectNotes({ q: 'not-a-matching-scientific-query' })).toEqual([]);
-    expect(findProjectNotes({ msc: '11' })).toEqual([]);
+    expect(findProjectNotes({ msc: '11' }).map((note) => note.id)).toContain('b164660-chebfloor');
+    expect(findProjectNotes({ msc: '81', q: 'A164660' })).toEqual([]);
     renderWithApp(<PapersPage initialQuery="2509.18724v1" />, fakeApi());
     expect(await screen.findByRole('link', { name: matches[0]!.title })).toHaveAttribute(
       'href',

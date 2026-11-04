@@ -2,6 +2,7 @@ import snapshot from '../data/project-notes.json';
 import type { Author, Settles } from '../api/types';
 import type { PaperQuery } from '../api/client';
 import { routePath } from '../routing/routes';
+import { noteSubjects } from './projectNoteSubjects';
 
 export type ProjectNote = {
   id: string;
@@ -18,6 +19,7 @@ export type ProjectNote = {
   pdf: { url: string; sha256: string };
   source: { url: string; sha256: string };
   review: { basis: string; source: string };
+  msc?: string[];
 };
 
 export const projectNoteVersions: readonly ProjectNote[] = snapshot.works as ProjectNote[];
@@ -28,10 +30,13 @@ export const projectNotes = [...new Set(projectNoteVersions.map((note) => note.i
 );
 
 export function findProjectNotes(query: PaperQuery): ProjectNote[] {
-  if (query.msc || (query.kind && query.kind !== 'note')) return [];
+  if (query.kind && query.kind !== 'note') return [];
+  const msc = query.msc?.trim().toUpperCase();
   const terms = (query.q ?? '').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const author = (query.author ?? '').trim().toLocaleLowerCase();
   return projectNotes.filter((note) => {
+    const codes = note.msc ?? noteSubjects[note.id] ?? [];
+    if (msc && !codes.some((code) => code.startsWith(msc))) return false;
     const authors = note.authors
       .map((a) => a.name)
       .join(' ')
