@@ -24,7 +24,7 @@ export function PublishedNoteEntry({ note }: { note: ProjectNote }) {
       <AuthorLine authors={note.authors.map(({ name }) => ({ name }))} />
       <p className="entry-meta research-entry-links">
         <a href={note.pdf.url}>{t('Read PDF')}</a>
-        <a href={note.source.url}>{t('Source')}</a>
+        <a href={note.source.url}>{t('Source files')}</a>
         <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink>
         <span>{t('Version {version}', { version: note.revision })}</span>
         <DateText iso={note.published_on} />
@@ -110,7 +110,7 @@ export function PublishedNotePage({ id, version }: { id: string; version?: strin
               {' · '}
               <a href={item.pdf.url}>PDF</a>
               {' · '}
-              <a href={item.source.url}>{t('Source')}</a>
+              <a href={item.source.url}>{t('Source files')}</a>
             </li>
           ))}
         </ul>

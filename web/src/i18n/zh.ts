@@ -6,6 +6,7 @@ export const zh: Record<string, string> = {
     '原始问题，以及在其基础上发展的论文与短文。',
   'Version {version}': '第 {version} 版',
   'Read PDF': '阅读 PDF',
+  'Source files': '稿件源码',
   'Read this work': '阅读本文',
   'Original questions and sources': '原始问题与来源',
   'Formalization and further contributions': '形式化与后续贡献',

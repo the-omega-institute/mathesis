@@ -112,7 +112,7 @@ describe('published manuscripts', () => {
     const { container } = renderWithApp(<PapersPage />, fakeApi());
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
     expect(screen.getAllByRole('link', { name: 'Read PDF' })).toHaveLength(10);
-    expect(screen.getAllByRole('link', { name: 'Source' })).toHaveLength(10);
+    expect(screen.getAllByRole('link', { name: 'Source files' })).toHaveLength(10);
     expect(screen.getAllByRole('link', { name: 'Lean source' })).toHaveLength(10);
     expect(container.querySelector('.research-archive-list')?.tagName).toBe('OL');
     for (const [index, note] of projectNotes.entries()) {
