@@ -2177,7 +2177,9 @@ impl mathesis_review::cma::Transport for ManagedTransport {
                 json!({"verdict":"accept","summary":"The compactness argument supplies new content.","claims":[{"claim":"C1","correctness":"correct","comment":"A compactness lemma supplies the proof.","shape":"content","witnesses":["A compactness lemma"],"referee_agreed":true},{"claim":"C2","correctness":"not_checked","comment":"An open question.","conjecture":{"well_posed":true,"well_posed_reason":"All quantities are defined","status":"open","status_reason":"No prior settlement found","escape":"content","escape_reason":"A new uniform bound is needed"}}]})
             } else if text.contains("Compare the original statement") {
                 json!({"verdict":"faithful","reason":"The exact statement is preserved.","mismatch":""})
-            } else if text.contains("You are advising") {
+            } else if text.contains("You are advising")
+                || text.contains("You are Mathesis's research partner")
+            {
                 json!({"summary":"Clarify the notation.","improvements":[],"formalization":[{"claim":"C1","plan":"A compactness proof","feasibility":"ready","effort":"small","mathlib":[],"lean_sketch":""}]})
             } else {
                 json!({"subject":"Decision","body":"Dear A. Author,\n\nThe compactness argument is useful.","note":""})
