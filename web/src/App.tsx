@@ -18,6 +18,8 @@ import { HomePage } from './pages/Home';
 import { NotFoundPage } from './pages/NotFound';
 import { ResultPage } from './pages/Result';
 import { PaperPage, PapersPage } from './pages/Papers';
+import { SubjectPage, SubjectsPage } from './pages/Subjects';
+import { findSubject } from './lib/subjects';
 import { PeoplePage } from './pages/People';
 import { AuthorPage } from './pages/Author';
 import { PolicyPage } from './pages/Policy';
@@ -30,6 +32,10 @@ import { routePath, type Route } from './routing/routes';
 
 function titleFor(route: Route): string {
   switch (route.kind) {
+    case 'subjects':
+      return 'Browse by subject';
+    case 'subject':
+      return findSubject(route.msc)?.title ?? 'Not found';
     case 'research_graph':
       return 'Research graph';
     case 'feedback':
@@ -94,6 +100,10 @@ function titleFor(route: Route): string {
 
 function Page({ route }: { route: Route }) {
   switch (route.kind) {
+    case 'subjects':
+      return <SubjectsPage />;
+    case 'subject':
+      return <SubjectPage key={route.msc} msc={route.msc} />;
     case 'research_graph':
       return (
         <ResearchGraphPage

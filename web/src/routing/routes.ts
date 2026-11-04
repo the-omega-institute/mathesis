@@ -1,7 +1,10 @@
 import type { TaskKind } from '../api/types';
+import { findSubject } from '../lib/subjects';
 
 export type Route =
   | { kind: 'home' }
+  | { kind: 'subjects' }
+  | { kind: 'subject'; msc: string }
   | { kind: 'research_graph'; focus?: string; q?: string; before?: string }
   | { kind: 'bindings' }
   | { kind: 'feedback'; id: string; key: string }
@@ -76,6 +79,8 @@ export function parseRoute(pathname: string, search = ''): Route {
 
   if (segments.length === 1) {
     switch (first) {
+      case 'subjects':
+        return { kind: 'subjects' };
       case 'projects':
         return { kind: 'papers' };
       case 'research-graph': {
@@ -171,6 +176,8 @@ export function parseRoute(pathname: string, search = ''): Route {
     return { kind: 'conjecture', record: second as string, claim: segments[2] as string };
   if (segments.length === 2 && second !== undefined) {
     switch (first) {
+      case 'subjects':
+        return findSubject(second) ? { kind: 'subject', msc: second } : notFound;
       case 'binding-contributors':
         return { kind: 'binding_profile', person: second };
       case 'problems':
@@ -202,6 +209,10 @@ const seg = encodeURIComponent;
 
 export function routePath(route: Route): string {
   switch (route.kind) {
+    case 'subjects':
+      return '/subjects';
+    case 'subject':
+      return `/subjects/${seg(route.msc)}`;
     case 'research_graph': {
       const params = new URLSearchParams();
       if (route.focus) params.set('focus', route.focus);

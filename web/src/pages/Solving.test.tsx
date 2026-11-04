@@ -257,8 +257,7 @@ describe('solving pages', () => {
     expect(document.body.textContent).not.toContain(receipt.target_digest);
   });
 
-  it('keeps the homepage brief with research, collapsed subjects and clear submission actions', async () => {
-    const user = userEvent.setup();
+  it('keeps the homepage brief with research, subject browsing and clear submission actions', async () => {
     const leaderboard = vi.fn(async () => []);
     const listConjectures = vi.fn(async () => ({ items: [detail.summary], next_before: null }));
     renderWithApp(
@@ -324,20 +323,14 @@ describe('solving pages', () => {
       'href',
       '/conjectures',
     );
-    const subjects = screen.getByText('Browse by subject').closest('details')!;
-    expect(subjects).not.toHaveAttribute('open');
-    await user.click(screen.getByText('Browse by subject'));
-    expect(subjects).toHaveAttribute('open');
+    const subjects = screen.getByRole('region', { name: 'Browse by subject' });
     expect(within(subjects).getByRole('link', { name: 'Number theory' })).toHaveAttribute(
       'href',
-      '/papers?msc=11',
+      '/subjects/11',
     );
     expect(screen.getByRole('heading', { name: 'Latest research' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'All research' })).toHaveAttribute('href', '/papers');
-    expect(screen.getByRole('link', { name: 'Open problems' })).toHaveAttribute(
-      'href',
-      '/conjectures',
-    );
+    expect(screen.getByRole('link', { name: 'All subjects' })).toHaveAttribute('href', '/subjects');
     expect(listConjectures).not.toHaveBeenCalled();
     expect(screen.queryByRole('heading', { name: 'Leaderboard' })).not.toBeInTheDocument();
     expect(leaderboard).not.toHaveBeenCalled();
