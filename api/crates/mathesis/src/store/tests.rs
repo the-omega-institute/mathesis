@@ -2689,6 +2689,58 @@ async fn collected_exposition_cas_upgrades_legacy_records_without_touching_deliv
         .unwrap()
         .unwrap();
     assert_eq!(saved.explanation, value);
+    let index = CollectedSourceIndex {
+        revision: 1,
+        source_sha256: saved.source.sha256.clone(),
+        bibliography: Some(Bibliography {
+            method: "source_test".into(),
+            references: vec![BibliographicReference {
+                key: "prior".into(),
+                title: Some("An old result".into()),
+                authors: vec!["Earlier mathematician".into()],
+                year: None,
+                doi: Some("10.1234/old".into()),
+                arxiv: None,
+                url: None,
+                source_location: "main.tex".into(),
+                raw: "An old result".into(),
+                raw_truncated: false,
+            }],
+            limitations: vec![],
+        }),
+        limitations: vec![],
+    };
+    db.store
+        .save_source_index("a-note", 1, &index, 0)
+        .await
+        .unwrap();
+    assert!(matches!(
+        db.store.save_source_index("a-note", 1, &index, 0).await,
+        Err(CoreError::StaleRevision { .. })
+    ));
+    let mut changed = index.clone();
+    changed.revision = 2;
+    changed.source_sha256 = "c".repeat(64);
+    assert!(matches!(
+        db.store.save_source_index("a-note", 1, &changed, 1).await,
+        Err(CoreError::StaleRevision { .. })
+    ));
+    let matches = CollectedPaperStore::search_research(
+        &db.store,
+        &ResearchSearch::Identity("doi:10.1234/old".into()),
+        1,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(matches.items.len(), 1);
+    assert_eq!(matches.items[0].delivery.work_id, "a-note");
+    saved = CollectedPaperStore::get(&db.store, "a-note", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.source_index.as_ref(), Some(&index));
+    saved.source_index = None;
     saved.explanation = CollectedExplanation::default();
     assert_eq!(saved, version);
     db.drop().await;

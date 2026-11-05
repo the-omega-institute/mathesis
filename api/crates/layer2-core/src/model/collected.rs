@@ -162,6 +162,52 @@ pub struct CollectedVersion {
     /// Independently generated reading guide; never changes the reviewed delivery.
     #[serde(default)]
     pub explanation: CollectedExplanation,
+    /// Deterministic source observations, independent of delivery and review.
+    #[serde(default)]
+    pub source_index: Option<CollectedSourceIndex>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedSourceIndex {
+    pub revision: u64,
+    pub source_sha256: String,
+    pub bibliography: Option<super::Bibliography>,
+    pub limitations: Vec<String>,
+}
+
+impl CollectedVersion {
+    pub fn graph_record(&self) -> crate::ids::RecordId {
+        self.delivery.work_id.clone().into()
+    }
+
+    pub fn matches_research_paper(&self, search: &super::ResearchSearch) -> bool {
+        match search {
+            super::ResearchSearch::All => true,
+            super::ResearchSearch::Identity(id) => {
+                id == &format!("paper:{}", self.delivery.work_id)
+            }
+            super::ResearchSearch::Text(q) => std::iter::once(self.delivery.work_id.as_str())
+                .chain([self.delivery.paper.title.as_str()])
+                .chain(self.delivery.paper.authors.iter().map(|a| a.name.as_str()))
+                .any(|v| v.to_lowercase().contains(q)),
+        }
+    }
+
+    pub fn indexed_bibliography(&self) -> Option<&super::Bibliography> {
+        self.source_index
+            .as_ref()
+            .filter(|index| index.source_sha256 == self.source.sha256)
+            .and_then(|index| index.bibliography.as_ref())
+    }
+
+    pub fn matches_research(&self, search: &super::ResearchSearch) -> bool {
+        self.matches_research_paper(search)
+            || self.indexed_bibliography().is_some_and(|b| {
+                b.references.iter().any(|r| {
+                    search.matches_reference(&self.graph_record(), self.delivery.version, r)
+                })
+            })
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -252,6 +298,7 @@ mod tests {
     fn collection_search_matches_title_author_and_source() {
         let d = delivery();
         let v = CollectedVersion {
+            source_index: None,
             explanation: CollectedExplanation::default(),
             id: "id".into(),
             owner: PersonId::from("operator"),

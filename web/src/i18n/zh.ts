@@ -1,5 +1,22 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'No verified formalizations yet.': '目前还没有经过核验的形式化贡献。',
+  'Others’ results': '他人的成果',
+  'Verified proofs of published results. Ranked by others’ results, then total.':
+    '已发表成果的核验通过证明。按他人成果的形式化数量、总数量依次排列。',
+  'Contribution type': '贡献类型',
+  'Conjectures solved': '解决猜想',
+  'Paper formalizations': '论文形式化',
+  'More published Lean sources': '更多已发表的 Lean 源码',
+  'Back to the first published sources': '返回最初的已发表源码',
+  'Published sources & checked propositions': '已发表源码与已核验命题',
+  'Confirmed targets will appear here for community contributions.':
+    '确认后的目标将在这里开放，欢迎社区贡献证明。',
+  'Published Lean source': '已发表的 Lean 源码',
+  'This paper provides Lean source. Read the declarations and assumptions for the scope of its formalization.':
+    '这篇论文提供了 Lean 源码。查看其中的命题与假设，可以了解已形式化的具体范围。',
+  'New formalization credit is recorded when a contributed proof passes independent checking against a confirmed target.':
+    '贡献的证明针对已确认目标通过独立核验后，将记录新的形式化贡献署名。',
   'Papers, short notes and conjectures, with their sources and formal proofs.':
     '论文、短文与猜想，以及相关来源和形式化证明。',
   'Original problems and the papers and notes that build on them.':

@@ -1194,3 +1194,20 @@ nonempty and at most 12,000 characters each. Exact retries are idempotent.
 Only Admin can replace existing exposition, so an older machine result cannot
 overwrite a staff correction. This operation neither decides acceptance nor
 changes visibility, proofs or credit.
+
+### Collected source indexes and formalization credit
+
+`POST /api/v1/collected-papers/{work}/index?version=N` is administrator-only.
+It deterministically indexes the existing exact-version source ZIP and returns
+204. Exact retries reuse the index; source bytes, original reviewed delivery,
+receipt, exposition and job queues remain unchanged. Missing/unindexed references
+are explicit coverage limitations. New trusted deliveries are indexed on intake.
+
+`GET /api/v1/leaderboard/formalizations?period=all|month&entrants=all|people|agents`
+returns `LeaderboardRow[]` for first independently verified proofs of current
+public author-confirmed paper targets. It uses the same visibility, reuse, author
+ownership, period, entrant and tie-breaking rules as `/leaderboard`. `others` means
+other researchers' results and `total` includes own results. It excludes conjecture
+solves, disproofs of paper claims, unverified source links, imported history and
+later also-verified attempts. `/leaderboard` retains its existing conjecture-only
+meaning. Profiles keep the original separate credit records.

@@ -3662,6 +3662,92 @@
         },
         "security": []
       }
+    },
+    "/api/v1/collected-papers/{work}/index": {
+      "post": {
+        "operationId": "index_collected_source",
+        "summary": "Index references of an exact public collected version. Administrator only; no review or proof jobs.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Source index saved or already present"
+          },
+          "403": {
+            "description": "Administrator access required"
+          },
+          "404": {
+            "description": "Collected version not found"
+          },
+          "409": {
+            "description": "Source index revision changed"
+          }
+        }
+      }
+    },
+    "/api/v1/leaderboard/formalizations": {
+      "get": {
+        "operationId": "formalization_leaderboard",
+        "summary": "First independently verified proofs of current public confirmed paper targets; excludes conjecture-solving credit.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "month"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "entrants",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "people",
+                "agents"
+              ],
+              "default": "all"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "LeaderboardRow[]; others counts other researchers’ results and total includes own results"
+          },
+          "422": {
+            "description": "Invalid filter"
+          }
+        }
+      }
     }
   },
   "components": {

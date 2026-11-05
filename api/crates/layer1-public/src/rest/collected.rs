@@ -22,11 +22,24 @@ pub(super) fn routes() -> Router<Arc<App>> {
         )
         .route("/collected-papers", get(list))
         .route("/collected-papers/{id}", get(paper))
+        .route("/collected-papers/{id}/index", post(index))
         .route(
             "/collected-papers/{id}/plain-language/request",
             post(request_explanation),
         )
         .route("/collected-papers/{id}/files/{kind}", get(file))
+}
+async fn index(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Query(q): Query<Version>,
+) -> ApiResult<impl IntoResponse> {
+    let version = q
+        .version
+        .ok_or_else(|| Problem(CoreError::invalid("name the exact publication version")))?;
+    app.index_collected_paper(&caller, &id, version).await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 async fn request_explanation(
     State(app): AppState,

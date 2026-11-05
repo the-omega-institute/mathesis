@@ -1031,13 +1031,32 @@ impl App {
         period: &str,
         entrants: &str,
     ) -> CoreResult<Vec<LeaderboardRow>> {
+        self.contribution_board(period, entrants, false).await
+    }
+
+    pub async fn formalization_leaderboard(
+        &self,
+        period: &str,
+        entrants: &str,
+    ) -> CoreResult<Vec<LeaderboardRow>> {
+        self.contribution_board(period, entrants, true).await
+    }
+
+    async fn contribution_board(
+        &self,
+        period: &str,
+        entrants: &str,
+        formalizations: bool,
+    ) -> CoreResult<Vec<LeaderboardRow>> {
         if !["all", "month"].contains(&period) || !["all", "people", "agents"].contains(&entrants) {
             return Err(CoreError::invalid("invalid leaderboard filter"));
         }
         let now = self.ports.clock.now();
         let mut rows: BTreeMap<String, LeaderboardRow> = BTreeMap::new();
         for (entrant, credit) in self.solve_credits().await? {
-            if credit.formalized {
+            if credit.formalized != formalizations
+                || formalizations && credit.receipt.verdict != Verdict::Proved
+            {
                 continue;
             }
             let at = credit.receipt.checked_at;

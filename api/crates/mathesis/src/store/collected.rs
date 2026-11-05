@@ -10,6 +10,96 @@ use mongodb::bson::doc;
 pub(super) const COLLECTION: &str = "collected_papers";
 #[async_trait]
 impl CollectedPaperStore for MongoStore {
+    async fn save_source_index(
+        &self,
+        work: &str,
+        version: u32,
+        index: &mathesis_core::model::CollectedSourceIndex,
+        expected: u64,
+    ) -> CoreResult<()> {
+        if index.revision != expected + 1 {
+            return Err(mathesis_core::CoreError::invalid(
+                "invalid source index revision",
+            ));
+        }
+        let mut filter = doc! {"delivery.work_id":work, "delivery.version":i64::from(version), "source.sha256": &index.source_sha256};
+        if expected == 0 {
+            filter.insert(
+                "$or",
+                vec![
+                    doc! {"source_index":mongodb::bson::Bson::Null},
+                    doc! {"source_index.revision":0},
+                    doc! {"source_index":{"$exists":false}},
+                ],
+            );
+        } else {
+            filter.insert("source_index.revision", expected as i64);
+        }
+        let result = self
+            .raw(COLLECTION)
+            .update_one(
+                filter,
+                doc! {"$set":{"source_index": super::to_document(index)?}},
+            )
+            .await
+            .map_err(unavailable)?;
+        if result.matched_count != 1 {
+            return Err(mathesis_core::CoreError::StaleRevision {
+                kind: "collected source index",
+                id: work.into(),
+            });
+        }
+        Ok(())
+    }
+    async fn search_research(
+        &self,
+        search: &mathesis_core::model::ResearchSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<CollectedVersion>> {
+        let limit = limit.clamp(1, 20) as usize;
+        let mut pipeline = vec![
+            doc! {"$sort":{"delivery.work_id":1,"delivery.version":-1}},
+            doc! {"$group":{"_id":"$delivery.work_id","latest":{"$first":"$$ROOT"}}},
+            doc! {"$replaceRoot":{"newRoot":"$latest"}},
+        ];
+        if let Some(before) = before {
+            pipeline.push(doc! {"$match":{"id":{"$lt":before}}});
+        }
+        pipeline.push(doc! {"$sort":{"id":-1}});
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            let mut cursor = self
+                .raw(COLLECTION)
+                .aggregate(pipeline)
+                .max_time(std::time::Duration::from_secs(10))
+                .batch_size(20)
+                .await
+                .map_err(unavailable)?;
+            let mut items: Vec<CollectedVersion> = vec![];
+            while let Some(doc) = cursor.try_next().await.map_err(unavailable)? {
+                let v: CollectedVersion = from_document(doc)?;
+                if v.matches_research(search) {
+                    items.push(v);
+                }
+                if items.len() > limit {
+                    break;
+                }
+            }
+            let next_before = if items.len() > limit {
+                items.pop();
+                items.last().map(|v| v.id.clone())
+            } else {
+                None
+            };
+            Ok(Listing { items, next_before })
+        })
+        .await
+        .map_err(|_| {
+            mathesis_core::CoreError::Unavailable(
+                "collected research graph query exceeded its 10-second deadline".into(),
+            )
+        })?
+    }
     async fn save_explanation(
         &self,
         work: &str,

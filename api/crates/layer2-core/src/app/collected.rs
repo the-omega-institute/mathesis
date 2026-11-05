@@ -70,6 +70,71 @@ fn receipt(v: &CollectedVersion) -> CollectionReceipt {
     }
 }
 impl App {
+    fn read_collected_index(
+        &self,
+        bytes: &[u8],
+        sha256: &str,
+        revision: u64,
+    ) -> CollectedSourceIndex {
+        let mut index = CollectedSourceIndex {
+            revision,
+            source_sha256: sha256.into(),
+            bibliography: None,
+            limitations: vec![],
+        };
+        match self.ports.reader.read(bytes, "source.zip") {
+            Ok(read) => {
+                index.limitations = read
+                    .warnings
+                    .into_iter()
+                    .take(10)
+                    .map(|s| s.chars().take(1_000).collect())
+                    .collect();
+                if let Some(bibliography) = read.bibliography {
+                    if bibliography.validate().is_ok() {
+                        index.bibliography = Some(bibliography);
+                    } else {
+                        index.limitations.push("Source references exceeded the indexing bounds; consult the original paper.".into());
+                    }
+                }
+            }
+            Err(_) => index.limitations.push(
+                "This source could not be indexed; consult the original paper's references.".into(),
+            ),
+        }
+        index
+    }
+
+    /// Read already public source bytes only. No compile, model, review or proof job.
+    pub async fn index_collected_paper(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+    ) -> CoreResult<()> {
+        caller.require(Role::Admin)?;
+        let saved = self
+            .ports
+            .collected
+            .get(work, Some(version))
+            .await?
+            .ok_or_else(|| CoreError::not_found("collected paper", work))?;
+        if saved
+            .source_index
+            .as_ref()
+            .is_some_and(|index| index.source_sha256 == saved.source.sha256)
+        {
+            return Ok(());
+        }
+        let bytes = self.collected_file(work, version, "source").await?.bytes;
+        let expected = saved.source_index.as_ref().map_or(0, |i| i.revision);
+        let index = self.read_collected_index(&bytes, &saved.source.sha256, expected + 1);
+        self.ports
+            .collected
+            .save_source_index(work, version, &index, expected)
+            .await
+    }
+
     /// This explicit publication permission does not bypass ordinary submission policy.
     pub async fn collect_pre_reviewed(
         &self,
@@ -155,6 +220,7 @@ impl App {
             }
         };
         let version = CollectedVersion {
+            source_index: Some(self.read_collected_index(&source.bytes, &source_ref.sha256, 1)),
             explanation: CollectedExplanation::default(),
             id: uuid::Uuid::now_v7().to_string(),
             owner: caller.person.clone(),

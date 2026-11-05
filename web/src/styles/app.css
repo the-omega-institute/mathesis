@@ -2636,6 +2636,14 @@ input[type='file']::file-selector-button {
   height: 100%;
   pointer-events: none;
 }
+.research-map-waiting {
+  position: absolute;
+  left: 63%;
+  top: 3.5rem;
+  width: 32%;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 .research-map-column {
   position: absolute;
   top: 1rem;

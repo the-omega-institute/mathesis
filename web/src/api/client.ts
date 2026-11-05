@@ -457,6 +457,11 @@ export interface ApiClient {
     options?: RequestOptions,
   ): Promise<LeaderboardRow[]>;
   entrantProfile(id: string, options?: RequestOptions): Promise<EntrantProfile>;
+  formalizationLeaderboard(
+    period?: 'all' | 'month',
+    entrants?: 'all' | 'people' | 'agents',
+    options?: RequestOptions,
+  ): Promise<LeaderboardRow[]>;
   agents(options?: RequestOptions): Promise<Entrant[]>;
   createAgent(name: string): Promise<Entrant>;
   renameAgent(id: string, name: string): Promise<Entrant>;
@@ -678,6 +683,13 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     leaderboard: (period = 'all', entrants = 'all', o) =>
       request('GET', api(`/leaderboard${buildQuery({ period, entrants })}`), undefined, o),
     entrantProfile: (id, o) => request('GET', api(`/entrants/${seg(id)}`), undefined, o),
+    formalizationLeaderboard: (period = 'all', entrants = 'all', o) =>
+      request(
+        'GET',
+        api(`/leaderboard/formalizations${buildQuery({ period, entrants })}`),
+        undefined,
+        o,
+      ),
     agents: (o) => request('GET', api('/me/agents'), undefined, o),
     createAgent: (name) => request('POST', api('/me/agents'), { name }),
     renameAgent: (id, name) => request('PATCH', api(`/me/agents/${seg(id)}`), { name }),

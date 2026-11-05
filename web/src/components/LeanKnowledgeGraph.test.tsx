@@ -150,3 +150,48 @@ it('loads a bounded page through public proof services and follows its cursor', 
   await screen.findByRole('button', { name: 'Back to the first results' });
   expect(listing).toHaveBeenLastCalledWith({ limit: 8, before: 'next-target' }, expect.anything());
 });
+
+it('shows collected Lean sources with original authors and no invented checked-use edges', () => {
+  renderWithApp(
+    <LeanGraphView
+      items={[]}
+      uses={[]}
+      checked={[]}
+      sources={[
+        {
+          id: 'a-note',
+          revision: '2',
+          title: 'A collected theorem',
+          abstract: 'A result',
+          authors: [{ name: 'Original mathematician' }],
+          license: 'CC-BY-4.0',
+          msc: [],
+          problems: [],
+          published_on: '2026-11-05T00:00:00Z',
+          lean: {
+            url: `https://github.com/example/proofs/blob/${'a'.repeat(40)}/Proof.lean`,
+            revision: 'a'.repeat(40),
+          },
+          pdf: { url: '/paper.pdf' },
+          source: { url: '/source.zip' },
+        },
+      ]}
+    />,
+    fakeApi(),
+  );
+  expect(screen.getByText('Published Lean source')).toBeVisible();
+  const panel = screen.getByRole('region', { name: 'Selected Lean result' });
+  expect(within(panel).getByText('Original mathematician')).toBeVisible();
+  expect(
+    within(panel).getByRole('link', { name: 'Read the mathematics and contribution history' }),
+  ).toHaveAttribute('href', '/papers/a-note?version=2');
+  expect(within(panel).getByRole('link', { name: 'Read the Lean source' })).toHaveAttribute(
+    'href',
+    expect.stringContaining('/Proof.lean'),
+  );
+  expect(document.querySelectorAll('.research-map-edge')).toHaveLength(0);
+  expect(screen.queryByText('Lean checked')).not.toBeInTheDocument();
+  expect(
+    screen.getByText('Confirmed targets will appear here for community contributions.'),
+  ).toBeVisible();
+});

@@ -223,6 +223,24 @@ describe('solving pages', () => {
     expect(screen.getByRole('button', { name: 'Agents' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('keeps formalization credit on its own board and retains period and contributor filters', async () => {
+    const user = userEvent.setup();
+    const formalizationLeaderboard = vi.fn(async () => [row]);
+    renderWithApp(<LeaderboardPage />, fakeApi({ formalizationLeaderboard }));
+    await user.click(screen.getByRole('button', { name: 'Paper formalizations' }));
+    await screen.findByRole('link', { name: agent.name });
+    expect(screen.getByRole('columnheader', { name: 'Others’ results' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'This month' }));
+    await user.click(screen.getByRole('button', { name: 'Agents' }));
+    await waitFor(() =>
+      expect(formalizationLeaderboard).toHaveBeenLastCalledWith(
+        'month',
+        'agents',
+        expect.anything(),
+      ),
+    );
+  });
+
   it('links a profile’s verified answer to its conjecture and exposes the receipt', async () => {
     renderWithApp(
       <EntrantPage id={agent.id} />,

@@ -871,6 +871,51 @@ impl LeanDepositStore for MemoryStores {
 
 #[async_trait]
 impl CollectedPaperStore for MemoryStores {
+    async fn save_source_index(
+        &self,
+        work: &str,
+        version: u32,
+        index: &CollectedSourceIndex,
+        expected: u64,
+    ) -> CoreResult<()> {
+        let mut values = self.collected.lock().await;
+        let saved = values
+            .values_mut()
+            .find(|v| v.delivery.work_id == work && v.delivery.version == version)
+            .ok_or_else(|| CoreError::not_found("collected paper", work))?;
+        if saved.source_index.as_ref().map_or(0, |v| v.revision) != expected
+            || index.revision != expected + 1
+            || index.source_sha256 != saved.source.sha256
+        {
+            return Err(CoreError::StaleRevision {
+                kind: "collected source index",
+                id: work.into(),
+            });
+        }
+        saved.source_index = Some(index.clone());
+        Ok(())
+    }
+    async fn search_research(
+        &self,
+        search: &ResearchSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<CollectedVersion>> {
+        let versions = self.collected.lock().await;
+        let mut latest: BTreeMap<String, CollectedVersion> = BTreeMap::new();
+        for v in versions.values() {
+            let entry = latest
+                .entry(v.delivery.work_id.clone())
+                .or_insert_with(|| v.clone());
+            if entry.delivery.version < v.delivery.version {
+                *entry = v.clone();
+            }
+        }
+        let by_id = latest.into_values().map(|v| (v.id.clone(), v)).collect();
+        Ok(page(&by_id, limit.clamp(1, 20), before, |v| {
+            v.matches_research(search)
+        }))
+    }
     async fn save_explanation(
         &self,
         work: &str,

@@ -345,7 +345,9 @@ function WorkDetails({
           {t('Explore these connections')}
         </Link>
         {node.record ? (
-          <Link to={{ kind: 'paper', record: node.record }}>{t('Read paper and results')}</Link>
+          <Link to={{ kind: 'paper', record: node.record, version: node.version?.toString() }}>
+            {t('Read paper and results')}
+          </Link>
         ) : null}
         {href ? (
           <a href={href} target="_blank" rel="noreferrer">
