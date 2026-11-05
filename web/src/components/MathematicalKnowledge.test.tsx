@@ -182,4 +182,20 @@ describe('mathematical knowledge', () => {
     expect(within(map).getAllByRole('button', { name: 'Lemma: The local bound' })).toHaveLength(1);
     expect(map.querySelectorAll('[data-relation="manuscript_reference"]')).toHaveLength(2);
   });
+  it('ends collection navigation when there are no ordinary publications', async () => {
+    const api = fakeApi({
+      listCollectedPapers: async () => ({ items: [paper], next_before: null }),
+      collectedKnowledge: async () => ({
+        work: 'gap-note',
+        version: 2,
+        statements: reading.statements,
+        connections: [],
+        macros: {},
+        limitations: [],
+      }),
+    });
+    renderWithApp(<MathematicalKnowledge />, api);
+    await screen.findByRole('heading', { name: 'Bounds on gaps' });
+    expect(screen.queryByRole('button', { name: 'More papers' })).toBeNull();
+  });
 });

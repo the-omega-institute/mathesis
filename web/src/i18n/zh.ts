@@ -1952,6 +1952,7 @@ export const zh: Record<string, string> = {
   'Astronomy and astrophysics': '天文学与天体物理',
   Geophysics: '地球物理学',
   'Mathematical biology': '数学生物学',
+  'Explore mathematical results': '探索数学结果',
   'Read a result': '阅读一个结果',
   'Selected result': '当前结果',
   'Declared prerequisite': '作者声明的前提',

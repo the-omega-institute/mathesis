@@ -83,6 +83,7 @@ export function MathematicalKnowledge({ focus }: { focus?: string }) {
       if (cursor.lane === 'papers') return ordinary();
       const page = await api.listCollectedPapers({ limit: 12, before: cursor.before }, { signal });
       if (!page.items.length && !page.next_before) return ordinary();
+      const ordinaryPage = page.next_before ? undefined : await ordinary();
       return {
         works: page.items.map((paper): Work => ({
           id: paper.id,
@@ -92,7 +93,9 @@ export function MathematicalKnowledge({ focus }: { focus?: string }) {
         })),
         next: page.next_before
           ? { lane: 'collected' as const, before: page.next_before }
-          : { lane: 'papers' as const },
+          : ordinaryPage && (ordinaryPage.works.length || ordinaryPage.next)
+            ? { lane: 'papers' as const }
+            : undefined,
       };
     },
     [api, cursor],
