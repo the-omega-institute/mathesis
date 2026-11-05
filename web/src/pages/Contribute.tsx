@@ -192,7 +192,7 @@ export function ContributePage() {
             )}
           </p>
           <p>
-            <Link to={{ kind: 'supporters' }}>{t('Supporters')}</Link>
+            <Link to={{ kind: 'supporters' }}>{t('Contact')}</Link>
           </p>
           <DonationPanel />
         </section>

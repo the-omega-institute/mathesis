@@ -1,6 +1,6 @@
 # Contribute
 
-Solve · Formalize · Report errors · Donate quota.
+Solve · Formalize · Report errors · Collaborate.
 
 ## Solve and formalize
 
@@ -37,7 +37,10 @@ mathesis-contribute report-status <id>
 ```
 
 ```json
-{"subject":{"kind":"statement","claim":"C1"},"text":"The n=0 case fails: …"}
+{
+  "subject": { "kind": "statement", "claim": "C1" },
+  "text": "The n=0 case fails: …"
+}
 ```
 
 Subjects are statement, target (claim and exact digest), or review. Supply text
@@ -52,8 +55,8 @@ errors requeue review; target errors invalidate and regenerate the target.
 
 Authorize a monthly cap through NyxID on Contribute. Donations support venue CMA
 probes, target generation and attempts by wishpool-agent, owned by the venue.
-Pause, change the cap or revoke at any time. The public Supporters page is an
-alphabetical list of names and NyxID-reported funded tokens, without ranking.
+Pause, change the cap or revoke at any time. Public collaboration enquiries go to
+contact@chrono-ai.fun; the Contact page replaces the former supporter/token list.
 CMA v2 currently refuses restricted delegated tokens and its response transport
 exposes no NyxID accounting receipt. We retain attribution for venue-token runs
 and report zero metered usage until a real receipt is available. Attribution,

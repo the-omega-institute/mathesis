@@ -47,7 +47,7 @@ function titleFor(route: Route): string {
     case 'binding':
       return 'Binding discussion';
     case 'supporters':
-      return 'Supporters';
+      return 'Contact';
     case 'statement':
       return route.record;
     case 'home':
@@ -228,7 +228,7 @@ export function App() {
             <Link to={{ kind: 'contribute' }}>{t('Contribute')}</Link>
             <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
             <Link to={{ kind: 'policy' }}>{t('Policy')}</Link>
-            <Link to={{ kind: 'supporters' }}>{t('Supporters')}</Link>
+            <Link to={{ kind: 'supporters' }}>{t('Contact')}</Link>
           </nav>
           <span className="footer-note">
             {t('Read research. Share results. Publish questions.')}
