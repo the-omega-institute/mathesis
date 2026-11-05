@@ -494,6 +494,11 @@ export interface ApiClient {
     version?: string,
     options?: RequestOptions,
   ): Promise<CollectedPaper>;
+  collectedKnowledge(
+    record: string,
+    version: string,
+    options?: RequestOptions,
+  ): Promise<import('./types').CollectedKnowledge>;
   researchGraph(
     query?: { focus?: string; q?: string; before?: string; limit?: number },
     options?: RequestOptions,
@@ -752,6 +757,13 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     researchGraph: (query, o) =>
       request('GET', api(`/research-graph${buildQuery(query ?? {})}`), undefined, o),
     getPaper: (record, o) => request('GET', api(`/papers/${seg(record)}`), undefined, o),
+    collectedKnowledge: (record, version, o) =>
+      request(
+        'GET',
+        api(`/collected-papers/${seg(record)}/knowledge${buildQuery({ version })}`),
+        undefined,
+        o,
+      ),
     listCollectedPapers: (p = {}, o) =>
       request(
         'GET',

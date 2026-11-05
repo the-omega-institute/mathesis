@@ -1,6 +1,7 @@
 import { t } from '../i18n/locale';
 import { useCallback, useId, useState } from 'react';
 import { LeanKnowledgeGraph } from '../components/LeanKnowledgeGraph';
+import { MathematicalKnowledge } from '../components/MathematicalKnowledge';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import type { ResearchGraph, ResearchNode } from '../api/types';
@@ -18,13 +19,14 @@ export function ResearchGraphPage({
   q?: string;
   before?: string;
 }) {
-  const [layer, setLayer] = useState<'lean' | 'citations'>(
-    focus || q || before ? 'citations' : 'lean',
+  const [layer, setLayer] = useState<'results' | 'lean' | 'citations'>(
+    focus?.startsWith('statement:') ? 'results' : focus || q || before ? 'citations' : 'results',
   );
   const api = useApi();
+  const citationFocus = focus?.startsWith('statement:') ? `paper:${focus.split(':')[1]}` : focus;
   const load = useCallback(
-    (signal: AbortSignal) => api.researchGraph({ focus, q, before }, { signal }),
-    [api, focus, q, before],
+    (signal: AbortSignal) => api.researchGraph({ focus: citationFocus, q, before }, { signal }),
+    [api, citationFocus, q, before],
   );
   const graph = useAsync(layer === 'citations' ? load : null);
   return (
@@ -32,17 +34,25 @@ export function ResearchGraphPage({
       <h1>{t('Knowledge graph')}</h1>
       <p>
         {t(
-          'Follow reviewed results, confirmed Lean targets and verified contributions as they become reusable mathematics.',
+          'Explore mathematical results, understand how they connect, and find the next proof to contribute.',
         )}
       </p>
       <div className="filter-row" role="group" aria-label={t('Knowledge graph layer')}>
         <button
           type="button"
           className="text-button"
+          aria-pressed={layer === 'results'}
+          onClick={() => setLayer('results')}
+        >
+          {t('Mathematical results')}
+        </button>
+        <button
+          type="button"
+          className="text-button"
           aria-pressed={layer === 'lean'}
           onClick={() => setLayer('lean')}
         >
-          {t('Lean results')}
+          {t('Verified proof connections')}
         </button>
         <button
           type="button"
@@ -53,6 +63,7 @@ export function ResearchGraphPage({
           {t('Papers and sources')}
         </button>
       </div>
+      {layer === 'results' ? <MathematicalKnowledge focus={focus} /> : null}
       {layer === 'lean' ? <LeanKnowledgeGraph /> : null}
       {focus || q || before ? (
         <p>
@@ -65,7 +76,7 @@ export function ResearchGraphPage({
             <GraphView
               key={`${focus ?? ''}:${q ?? ''}:${before ?? ''}`}
               graph={value}
-              focus={focus}
+              focus={citationFocus}
               q={q}
             />
           )}

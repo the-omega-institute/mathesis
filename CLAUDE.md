@@ -956,3 +956,18 @@ proof submission. Paper formalizations have a separate leaderboard: first verifi
 proofs count, with authorship, visibility and target validity enforced by the same
 rules as existing contribution profiles. Importing a paper or Lean link awards no
 new Mathesis proof credit.
+
+
+## Result-centered knowledge reading
+
+Collected source indexes optionally retain complete mathematical statements and
+literal local references alongside bibliography. The public exact-version
+`/collected-papers/{work}/knowledge?version=N` projection is source-bound and exposes
+no review or digest. Legacy indexes upgrade once through admin `/index`. Indexing
+changes no scientific delivery, review queue, target approval or credit. Preserve
+original names/sections: source-order identities are not printed theorem numbers.
+Only unambiguous exact labels create manuscript-reference edges; these are not
+checked proof dependencies. The default knowledge reader centers selected results,
+with original authorship, statement text and exact target/verification scope.
+Paper-level Lean links cannot verify each theorem. Details and bounds are in
+`docs/RESEARCH_GRAPH.md`.

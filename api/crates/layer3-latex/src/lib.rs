@@ -93,6 +93,10 @@ pub struct Statement {
     pub has_proof: bool,
     /// The section the statement appears in.
     pub section: Option<String>,
+    /// Literal local references in the statement and an attached proof.
+    /// This is manuscript syntax, not independently checked proof use.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

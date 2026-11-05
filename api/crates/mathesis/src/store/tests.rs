@@ -2690,6 +2690,18 @@ async fn collected_exposition_cas_upgrades_legacy_records_without_touching_deliv
         .unwrap();
     assert_eq!(saved.explanation, value);
     let index = CollectedSourceIndex {
+        results: Some(CollectedResults {
+            statements: vec![CollectedStatement {
+                id: "s1".into(),
+                kind: ClaimKind::Theorem,
+                name: "Theorem".into(),
+                title: Some("A bound".into()),
+                statement: "For every $n$, $g(n) \u{2264} 2$.".into(),
+                section: Some("Main result".into()),
+            }],
+            connections: vec![],
+            macros: [("\\gap".into(), "g".into())].into(),
+        }),
         revision: 1,
         source_sha256: saved.source.sha256.clone(),
         bibliography: Some(Bibliography {

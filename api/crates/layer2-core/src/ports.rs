@@ -115,6 +115,7 @@ pub trait BlobStore: Send + Sync {
 /// One statement environment read from the source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReadStatement {
+    pub references: Vec<String>,
     pub kind: ClaimKind,
     pub display_name: String,
     pub title: Option<String>,

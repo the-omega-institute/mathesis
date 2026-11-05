@@ -173,6 +173,39 @@ pub struct CollectedSourceIndex {
     pub source_sha256: String,
     pub bibliography: Option<super::Bibliography>,
     pub limitations: Vec<String>,
+    #[serde(default)]
+    pub results: Option<CollectedResults>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedResults {
+    pub statements: Vec<CollectedStatement>,
+    pub connections: Vec<CollectedConnection>,
+    pub macros: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedStatement {
+    /// Source-order identity within this exact source version, never a printed theorem number.
+    pub id: String,
+    pub kind: super::ClaimKind,
+    pub name: String,
+    pub title: Option<String>,
+    pub statement: String,
+    pub section: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedConnection {
+    pub from: String,
+    pub to: String,
+    pub relation: CollectedRelation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectedRelation {
+    ReferencesInManuscript,
 }
 
 impl CollectedVersion {

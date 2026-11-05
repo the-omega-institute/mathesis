@@ -1203,6 +1203,17 @@ It deterministically indexes the existing exact-version source ZIP and returns
 receipt, exposition and job queues remain unchanged. Missing/unindexed references
 are explicit coverage limitations. New trusted deliveries are indexed on intake.
 
+`GET /api/v1/collected-papers/{work}/knowledge?version=N` is public and requires
+an exact collected version. It returns `{work, version, statements, connections,
+macros, limitations}`. Statements contain source-order `id`, `kind`, original
+`name`, optional manuscript `title`/`section`, and complete `statement` text.
+Connections contain `from`, `to`, and `relation: references_in_manuscript`; these
+are literal local source references, not checked proof dependencies. Missing or
+stale source indexes return empty observations with limitations. Source hashes,
+private review, target confirmations and verifier/credit claims are excluded.
+Legacy bibliography-only indexes upgrade once via the existing admin index route.
+See `docs/RESEARCH_GRAPH.md` for bounds and interpretation.
+
 `GET /api/v1/leaderboard/formalizations?period=all|month&entrants=all|people|agents`
 returns `LeaderboardRow[]` for first independently verified proofs of current
 public author-confirmed paper targets. It uses the same visibility, reuse, author

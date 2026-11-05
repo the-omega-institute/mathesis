@@ -86,7 +86,7 @@ fn command(s: &str, from: usize) -> Option<(usize, &str, usize)> {
 }
 // Remove literal/comment-like regions and macro definitions. This is a bounded
 // syntax reader, not a TeX interpreter; conditionals and custom macros stay unsupported.
-fn reading_text(s: &str, omit_bibliography: bool) -> String {
+pub(crate) fn reading_text(s: &str, omit_bibliography: bool) -> String {
     let s = strip_comments(s);
     let mut out = String::new();
     let mut from = 0;

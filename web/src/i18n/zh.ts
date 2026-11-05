@@ -1,5 +1,55 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'Explore mathematical results, understand how they connect, and find the next proof to contribute.':
+    '探索数学结果及其联系，找到下一项值得参与的证明。',
+  'Mathematical results': '数学结果',
+  'Verified proof connections': '已核验的证明关系',
+  'Explore a paper': '选择论文',
+  'More papers': '更多论文',
+  'First papers': '返回首组论文',
+  'Mathematics to build on': '可以继续推进的数学',
+  'Published results and their connections will appear here. Share a paper or contribute a formal proof to help the library grow.':
+    '这里将呈现已发表的数学结果及其联系。欢迎分享论文、贡献形式化证明，共同建设知识库。',
+  '{count} mathematical statements': '{count} 条数学命题',
+  'Connections follow references in the manuscript': '连线来自稿件中的命题引用',
+  'Connections follow author-declared dependencies': '连线来自作者声明的依赖关系',
+  'Mathematical results and connections': '数学结果及其联系',
+  'Scrollable result map': '可滚动的数学结果图',
+  'Select a result to read its statement and see what it connects to.':
+    '选择一个结果，阅读完整命题并查看相关结果。',
+  'Open for a formal proof': '欢迎贡献形式化证明',
+  'Previous results': '上一组结果',
+  'More results': '更多结果',
+  '{page} of {pages}': '第 {page} / {pages} 组',
+  'Selected mathematical statement': '选中的数学命题',
+  'Result in the manuscript': '稿件中的数学结果',
+  'Open question in the manuscript': '稿件中的开放问题',
+  'Connected results': '相关结果',
+  'Referenced by': '被引用于',
+  'A confirmed Lean target is not yet available for this statement.':
+    '这条命题尚无已确认的 Lean 目标。',
+  'An independently checked Lean proof is available for this result.':
+    '这项结果已有经过独立核验的 Lean 证明。',
+  'The exact Lean statement is confirmed. You can contribute a proof.':
+    '这条命题的 Lean 表述已经确认，欢迎提交证明。',
+  'Lean source accompanying the paper': '论文附带的 Lean 源码',
+  'Its coverage has not yet been mapped to each statement here.':
+    '源码的覆盖范围尚未与这里的每条命题逐一对应。',
+  'See community contributions': '查看社区贡献',
+  'Read the paper and plain-language explanation': '阅读论文及白话解读',
+  'Link to this result': '此结果的链接',
+  'Read the result and contribution history': '阅读结果及贡献记录',
+  'Explore the cited literature': '查看引用文献',
+  'The statements of this paper are being connected. You can read the full paper in the meantime.':
+    '这篇论文的命题尚在整理中，可以先阅读论文全文。',
+  'About these connections': '关于这些联系',
+  'Manuscript references show how the written argument is organized. Independently checked Lean proof use is shown separately under Verified proof connections.':
+    '稿件引用呈现书面论证的组织方式。经过独立核验的 Lean 证明使用关系在“已核验的证明关系”中单独展示。',
+  'Connections are literal references in statements and attached proofs. They are not independently checked proof dependencies; unlabelled, indirect and deferred references may be missing.':
+    '连线来自命题及附带证明中的显式引用，尚未经独立核验；无标签、间接及延后的引用可能未被收录。',
+  'The mathematical statements of this source version have not been indexed.':
+    '这个版本的数学命题尚未整理。',
+
   'No verified formalizations yet.': '目前还没有经过核验的形式化贡献。',
   'Others’ results': '他人的成果',
   'Verified proofs of published results. Ranked by others’ results, then total.':
@@ -1902,4 +1952,10 @@ export const zh: Record<string, string> = {
   'Astronomy and astrophysics': '天文学与天体物理',
   Geophysics: '地球物理学',
   'Mathematical biology': '数学生物学',
+  'Read a result': '阅读一个结果',
+  'Selected result': '当前结果',
+  'Declared prerequisite': '作者声明的前提',
+  'Used by': '用于',
+  'Select a connected result to follow the argument.': '选择相关结果，沿着论证继续阅读。',
+  'No explicit connections are recorded for this result.': '尚未记录此结果与其他命题的明确关联。',
 };

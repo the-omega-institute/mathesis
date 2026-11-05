@@ -55,6 +55,15 @@ pub struct CollectionReceipt {
     pub pdf_sha256: String,
     pub source_sha256: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CollectedKnowledge {
+    pub work: String,
+    pub version: u32,
+    #[serde(flatten)]
+    pub results: CollectedResults,
+    pub limitations: Vec<String>,
+}
 fn receipt(v: &CollectedVersion) -> CollectionReceipt {
     CollectionReceipt {
         schema: "mathesis.pre-reviewed-receipt.v1",
@@ -77,6 +86,7 @@ impl App {
         revision: u64,
     ) -> CollectedSourceIndex {
         let mut index = CollectedSourceIndex {
+            results: Some(CollectedResults::default()),
             revision,
             source_sha256: sha256.into(),
             bibliography: None,
@@ -90,6 +100,70 @@ impl App {
                     .take(10)
                     .map(|s| s.chars().take(1_000).collect())
                     .collect();
+                let mut result = CollectedResults::default();
+                let mut labels = std::collections::BTreeMap::<String, Vec<String>>::new();
+                // Ambiguity anywhere in the source invalidates a label, even if its
+                // other occurrence is omitted by the public reading bounds.
+                for (position, statement) in read.statements.iter().enumerate() {
+                    if let Some(label) = &statement.latex_label {
+                        labels
+                            .entry(label.clone())
+                            .or_default()
+                            .push(format!("s{}", position + 1));
+                    }
+                }
+                let mut references = vec![];
+                let mut bytes_used = 0;
+                for (position, statement) in read.statements.into_iter().enumerate() {
+                    // Omit unsupported oversized entries; never truncate a mathematical statement.
+                    if position >= 100
+                        || statement.body.len() > 30_000
+                        || statement.display_name.len() > 1_000
+                        || statement.title.as_ref().is_some_and(|s| s.len() > 4_000)
+                        || statement.section.as_ref().is_some_and(|s| s.len() > 4_000)
+                        || bytes_used + statement.body.len() > 512 * 1024
+                    {
+                        index.limitations.push(
+                            "Some statements exceeded the reading bounds; consult the manuscript."
+                                .into(),
+                        );
+                        continue;
+                    }
+                    bytes_used += statement.body.len();
+                    let id = format!("s{}", position + 1);
+                    references.push((id.clone(), statement.references));
+                    result.statements.push(CollectedStatement {
+                        id,
+                        kind: statement.kind,
+                        name: statement.display_name,
+                        title: statement.title,
+                        statement: statement.body,
+                        section: statement.section,
+                    });
+                }
+                let admitted: std::collections::BTreeSet<_> =
+                    result.statements.iter().map(|s| s.id.clone()).collect();
+                for (from, targets) in references {
+                    for target in targets {
+                        if let Some(ids) = labels.get(&target)
+                            && ids.len() == 1
+                            && ids[0] != from
+                            && admitted.contains(&ids[0])
+                        {
+                            result.connections.push(CollectedConnection {
+                                from: from.clone(),
+                                to: ids[0].clone(),
+                                relation: CollectedRelation::ReferencesInManuscript,
+                            });
+                        }
+                    }
+                }
+                if serde_json::to_vec(&read.macros).is_ok_and(|v| v.len() <= 64 * 1024) {
+                    result.macros = read.macros;
+                }
+                index.results = Some(result);
+                index.limitations.sort();
+                index.limitations.dedup();
                 if let Some(bibliography) = read.bibliography {
                     if bibliography.validate().is_ok() {
                         index.bibliography = Some(bibliography);
@@ -119,11 +193,9 @@ impl App {
             .get(work, Some(version))
             .await?
             .ok_or_else(|| CoreError::not_found("collected paper", work))?;
-        if saved
-            .source_index
-            .as_ref()
-            .is_some_and(|index| index.source_sha256 == saved.source.sha256)
-        {
+        if saved.source_index.as_ref().is_some_and(|index| {
+            index.source_sha256 == saved.source.sha256 && index.results.is_some()
+        }) {
             return Ok(());
         }
         let bytes = self.collected_file(work, version, "source").await?.bytes;
@@ -133,6 +205,38 @@ impl App {
             .collected
             .save_source_index(work, version, &index, expected)
             .await
+    }
+
+    /// Public mathematical syntax from one immutable collected source, not a target approval.
+    pub async fn collected_knowledge(
+        &self,
+        work: &str,
+        version: u32,
+    ) -> CoreResult<CollectedKnowledge> {
+        let saved = self
+            .ports
+            .collected
+            .get(work, Some(version))
+            .await?
+            .ok_or_else(|| CoreError::not_found("collected paper", work))?;
+        let index = saved
+            .source_index
+            .as_ref()
+            .filter(|i| i.source_sha256 == saved.source.sha256);
+        let results = index.and_then(|i| i.results.clone()).unwrap_or_default();
+        let mut limitations = index.map_or_else(Vec::new, |i| i.limitations.clone());
+        if index.is_none_or(|i| i.results.is_none()) {
+            limitations.push(
+                "The mathematical statements of this source version have not been indexed.".into(),
+            );
+        }
+        limitations.push("Connections are literal references in statements and attached proofs. They are not independently checked proof dependencies; unlabelled, indirect and deferred references may be missing.".into());
+        Ok(CollectedKnowledge {
+            work: work.into(),
+            version,
+            results,
+            limitations,
+        })
     }
 
     /// This explicit publication permission does not bypass ordinary submission policy.

@@ -3666,7 +3666,7 @@
     "/api/v1/collected-papers/{work}/index": {
       "post": {
         "operationId": "index_collected_source",
-        "summary": "Index references of an exact public collected version. Administrator only; no review or proof jobs.",
+        "summary": "Index bibliography and mathematical statements of an exact public collected version. Administrator only; no review or proof jobs.",
         "security": [
           {
             "nyxid": []
@@ -3745,6 +3745,141 @@
           },
           "422": {
             "description": "Invalid filter"
+          }
+        }
+      }
+    },
+    "/api/v1/collected-papers/{work}/knowledge": {
+      "get": {
+        "operationId": "collected_mathematical_knowledge",
+        "summary": "Read full mathematical statements and literal local source references of an exact public collected version. No verification or credit claim.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-bound source observations; missing coverage is explicit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "work",
+                    "version",
+                    "statements",
+                    "connections",
+                    "macros",
+                    "limitations"
+                  ],
+                  "properties": {
+                    "work": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "statements": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "statement"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Source order identity, not printed theorem number"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "section": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "statement": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "connections": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "from",
+                          "to",
+                          "relation"
+                        ],
+                        "properties": {
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          },
+                          "relation": {
+                            "const": "references_in_manuscript"
+                          }
+                        }
+                      }
+                    },
+                    "macros": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "limitations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Exact version required"
+          },
+          "404": {
+            "description": "No public collected source version"
           }
         }
       }
