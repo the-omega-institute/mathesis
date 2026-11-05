@@ -975,9 +975,10 @@ Paper-level Lean links cannot verify each theorem. Details and bounds are in
 
 ## Established theory library
 
-The public knowledge entry is a theory library: mathematical fields → existing
-Mathlib theory → related public research → questions/formalization. Exact result
-and citation links retain their local graphs. The catalogue is the complete Lean
+The public knowledge entry is a dependency graph of exact public results, with
+a readable selected-result neighborhood and a pannable expanded graph. Fields
+filter the graph; the Mathlib theory directory is an auxiliary reading resource.
+Exact result and citation links retain their local views. The catalogue is the complete Lean
 source-path inventory at the verifier's exact Mathlib pin; every path belongs to
 one reading area. Counts describe source files including tools, not theorems or
 new verification receipts. Editorial reading topics and related fields are not
@@ -985,3 +986,20 @@ proof dependencies. Source links preserve Mathlib authorship and licence.
 Paper placement uses supplied MSC first and explicit editorial placement for
 current collected works. Unknown work stays unclassified. Do not change scientific
 metadata, review queues or credit for presentation. See docs/RESEARCH_GRAPH.md.
+
+
+## Dependency graph as the knowledge entry
+
+`/research-graph` opens the actual result graph, never just a theory directory.
+The view composes existing Rust-owned public research, exact collected knowledge,
+accepted publication and checked-proof-use projections. Versioned paper/result
+identities prevent mixing source snapshots. More research re-reads the prior pages
+so revoked public work is not carried forward by a client cache. Only public
+publication snapshots supply ordinary claims; mismatched versions expose no claims.
+Distinguish literal manuscript references, author-stated dependencies, inspected
+Lean proof use, bibliography and paper membership. Only proof-term inspection adds
+checked-use arrows; paper Lean links, subject placement and Mathlib paths cannot.
+Source references may cycle; condense cycles for layout without claiming they form
+a proof DAG. Retain original mathematical authorship and formalizer credit separately.
+This interface queues no review or proof jobs. Mathlib declaration dependencies and
+the collected-statement-to-confirmed-target bridge remain separate unfinished work.

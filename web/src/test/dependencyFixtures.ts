@@ -1,0 +1,130 @@
+import type { CollectedKnowledge, CollectedPaper, ResearchGraph, ResultUse } from '../api/types';
+
+export const dependencySource: ResearchGraph = {
+  nodes: [
+    {
+      id: 'paper:gap-note',
+      kind: 'manuscript',
+      title: 'Bounds on gaps',
+      authors: ['Original Author'],
+      record: 'gap-note',
+      version: 2,
+      url: null,
+    },
+    {
+      id: 'doi:10.1234/old',
+      kind: 'literature',
+      title: 'Earlier mathematics',
+      authors: ['Earlier Author'],
+      record: null,
+      url: 'https://doi.org/10.1234/old',
+    },
+  ],
+  edges: [
+    {
+      from: 'paper:gap-note',
+      to: 'doi:10.1234/old',
+      relation: 'cites',
+      record: 'gap-note',
+      version: 2,
+      reference_key: 'old',
+      source_location: 'refs.bib',
+      title: 'Earlier mathematics',
+      authors: ['Earlier Author'],
+      year: '1901',
+      raw: 'Original reference.',
+      raw_truncated: false,
+    },
+  ],
+  coverage: [],
+  next_before: null,
+  scope: 'Literal source references',
+};
+export const dependencyPaper: CollectedPaper = {
+  id: 'gap-note',
+  revision: '2',
+  title: 'Bounds on gaps',
+  abstract: 'A bound.',
+  authors: [{ name: 'Original Author' }],
+  license: 'CC-BY-4.0',
+  msc: ['11B83'],
+  problems: [],
+  published_on: '2026-11-05T10:00:00Z',
+  lean: {
+    url: 'https://github.com/example/project/blob/0123456789012345678901234567890123456789/Gap.lean',
+    revision: '0123456789012345678901234567890123456789',
+  },
+  pdf: { url: '/pdf' },
+  source: { url: '/source' },
+};
+export const dependencyKnowledge: CollectedKnowledge = {
+  work: 'gap-note',
+  version: 2,
+  macros: {},
+  limitations: [],
+  statements: [
+    {
+      id: 's1',
+      kind: 'lemma',
+      name: 'Lemma',
+      title: 'The local bound',
+      statement: 'Every gap is at most $2$.',
+    },
+    {
+      id: 's2',
+      kind: 'theorem',
+      name: 'Theorem',
+      title: 'The uniform bound',
+      statement: 'For every $n$, the gap is at most $2$.',
+    },
+    {
+      id: 's3',
+      kind: 'corollary',
+      name: 'Corollary',
+      title: 'A bounded sequence',
+      statement: 'The sequence has bounded gaps.',
+    },
+  ],
+  connections: [
+    { from: 's2', to: 's1', relation: 'references_in_manuscript' },
+    { from: 's3', to: 's2', relation: 'references_in_manuscript' },
+  ],
+};
+export const dependencyUse: ResultUse = {
+  result: {
+    record: 'gap-note',
+    version: 2,
+    claim: 's2',
+    claims_revision: 1,
+    title: 'The uniform bound',
+    label: 'Theorem',
+    authors: [{ name: 'Original Author' }],
+  },
+  used_result: {
+    record: 'WP-2026-0002',
+    version: 1,
+    claim: 'C1',
+    claims_revision: 1,
+    title: 'A source problem',
+    label: 'Conjecture',
+    authors: [{ name: 'Earlier mathematician' }],
+  },
+  contribution: {
+    name: 'Research.bound',
+    title: 'A checked intermediate bound',
+    proposition: 'True',
+    license: 'CC-BY-4.0',
+  },
+  contributor: {
+    id: 'formalizer',
+    name: 'Formalizer',
+    kind: 'person',
+    retired: false,
+    revision: 0,
+  },
+  attribution: null,
+  attempt: 'later-proof',
+  source_attempt: 'helper-proof',
+  basis: 'checked_proof_term',
+  joint_context: [],
+};

@@ -10,6 +10,10 @@ import { InlineLatex } from '../components/Markdown';
 import { safeHttpUrl } from '../lib/links';
 import { Link } from '../routing/router';
 
+const DependencyGraph = lazy(() =>
+  import('../components/DependencyGraph').then((module) => ({ default: module.DependencyGraph })),
+);
+
 const TheoryLibrary = lazy(() =>
   import('../components/TheoryLibrary').then((module) => ({ default: module.TheoryLibrary })),
 );
@@ -23,14 +27,16 @@ export function ResearchGraphPage({
   q?: string;
   before?: string;
 }) {
-  const [layer, setLayer] = useState<'library' | 'results' | 'lean' | 'citations'>(
-    focus?.startsWith('theory:')
+  const [layer, setLayer] = useState<'graph' | 'library' | 'results' | 'lean' | 'citations'>(
+    focus?.startsWith('library:')
       ? 'library'
-      : focus?.startsWith('statement:')
-        ? 'results'
-        : focus || q || before
-          ? 'citations'
-          : 'library',
+      : focus?.startsWith('theory:')
+        ? 'graph'
+        : focus?.startsWith('statement:')
+          ? 'results'
+          : focus || q || before
+            ? 'citations'
+            : 'graph',
   );
   const api = useApi();
   const citationFocus = focus?.startsWith('statement:') ? `paper:${focus.split(':')[1]}` : focus;
@@ -43,19 +49,21 @@ export function ResearchGraphPage({
     <div className="page research-graph">
       <h1>
         {t(
-          layer === 'library'
-            ? 'Knowledge library'
-            : layer === 'results'
-              ? 'Mathematical results'
-              : layer === 'lean'
-                ? 'Verified proof connections'
-                : 'Papers and sources',
+          layer === 'graph'
+            ? 'Dependency graph'
+            : layer === 'library'
+              ? 'Theory resources'
+              : layer === 'results'
+                ? 'Mathematical results'
+                : layer === 'lean'
+                  ? 'Verified proof connections'
+                  : 'Papers and sources',
         )}
       </h1>
-      {layer !== 'library' ? (
+      {layer !== 'library' && layer !== 'graph' ? (
         <>
           <p>
-            <Link to={{ kind: 'research_graph' }}>{t('Back to the knowledge library')}</Link>
+            <Link to={{ kind: 'research_graph' }}>{t('Back to the dependency graph')}</Link>
           </p>
           <div className="filter-row" role="group" aria-label={t('Knowledge graph layer')}>
             {(
@@ -78,12 +86,26 @@ export function ResearchGraphPage({
           </div>
         </>
       ) : null}
+      {layer === 'graph' ? (
+        <Suspense fallback={<p>{t('Loading…')}</p>}>
+          <DependencyGraph area={focus?.startsWith('theory:') ? focus.slice(7) : undefined} />
+        </Suspense>
+      ) : null}
       {layer === 'library' ? (
         <>
           <Suspense fallback={<p>{t('Loading…')}</p>}>
-            <TheoryLibrary focus={focus} />
+            <p>
+              <Link to={{ kind: 'research_graph' }}>{t('Back to the dependency graph')}</Link>
+            </p>
+            <TheoryLibrary
+              focus={
+                focus?.startsWith('library:') && focus !== 'library:all'
+                  ? 'theory:' + focus.slice(8)
+                  : undefined
+              }
+            />
           </Suspense>
-          {!focus ? (
+          {layer === 'library' ? (
             <p className="small">
               <button type="button" className="text-button" onClick={() => setLayer('lean')}>
                 {t('Explore independently checked proof connections')}

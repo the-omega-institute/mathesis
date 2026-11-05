@@ -27,7 +27,7 @@ describe('theory library reading', () => {
     renderWithApp(<TheoryLibrary />, api);
     expect(screen.getByRole('link', { name: 'Algebra' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=theory%3Aalgebra',
+      '/research-graph?focus=library%3Aalgebra',
     );
     expect(screen.getByRole('link', { name: 'Topology' })).toBeVisible();
     expect(screen.queryByRole('combobox')).toBeNull();

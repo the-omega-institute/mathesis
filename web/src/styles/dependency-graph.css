@@ -1,0 +1,354 @@
+.dependency-reading {
+  display: grid;
+  grid-template-columns: 12.5rem minmax(0, 1fr);
+  gap: 2.75rem;
+  margin-top: 1.5rem;
+}
+.dependency-fields {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding-top: 0.15rem;
+}
+.dependency-fields button {
+  text-align: left;
+  color: var(--muted);
+  text-decoration: none;
+}
+.dependency-fields button[aria-current] {
+  color: var(--accent);
+  font-weight: 600;
+}
+.dependency-fields .dependency-theory-index {
+  margin-top: 1rem;
+}
+.dependency-field-select {
+  display: none;
+}
+.dependency-content {
+  min-width: 0;
+}
+.dependency-intro {
+  margin: 0 0 1.5rem;
+  max-width: 47rem;
+  color: var(--ink-soft);
+}
+.dependency-toolbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.5rem;
+}
+.dependency-toolbar p {
+  margin: 0;
+}
+.dependency-toolbar p span {
+  color: var(--muted);
+}
+.dependency-toolbar [role='group'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+.dependency-toolbar button {
+  font-size: 0.8rem;
+}
+.dependency-figure {
+  margin: 0;
+}
+.dependency-viewport {
+  height: 600px;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.dependency-viewport:active {
+  cursor: grabbing;
+}
+.dependency-viewport:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+.dependency-canvas {
+  position: absolute;
+  transform-origin: 0 0;
+}
+.dependency-canvas > svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.dependency-node {
+  position: absolute;
+  width: 240px;
+  min-height: 65px;
+  padding: 0.4rem 0 0.4rem 1.3rem;
+  border: none;
+  border-radius: 0;
+  background: var(--bg);
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  box-shadow: none;
+}
+.dependency-dot {
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--bg);
+}
+.dependency-node.is-selected .dependency-dot {
+  background: var(--accent);
+  width: 9px;
+  height: 9px;
+  left: -1px;
+}
+.dependency-node.is-verified .dependency-dot {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+.dependency-node.is-paper .dependency-dot {
+  border-radius: 0;
+  border-color: var(--muted);
+}
+.dependency-node.is-literature .dependency-dot {
+  border-color: var(--muted);
+}
+.dependency-node-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.dependency-node.is-selected .dependency-node-label {
+  color: var(--accent);
+}
+.dependency-node-authors {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
+.dependency-node:hover .dependency-node-label {
+  text-decoration: underline;
+}
+.dependency-node:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 4px;
+}
+.dependency-canvas.is-distant .dependency-node-label,
+.dependency-canvas.is-distant .dependency-node-authors {
+  visibility: hidden;
+}
+.dependency-canvas.is-distant .dependency-node.is-paper .dependency-node-label,
+.dependency-canvas.is-distant .dependency-node.is-selected .dependency-node-label {
+  visibility: visible;
+}
+.dependency-edge {
+  fill: none;
+  stroke: var(--muted);
+  opacity: 0.35;
+  stroke-width: 1.2;
+}
+.dependency-edge.is-checked_use {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  opacity: 0.9;
+}
+.dependency-edge.is-declared_dependency {
+  stroke: var(--accent);
+  stroke-width: 1.2;
+  opacity: 0.8;
+}
+.dependency-edge.is-manuscript_reference {
+  stroke: var(--accent);
+  stroke-dasharray: 7 5;
+  opacity: 0.65;
+}
+.dependency-edge.is-cites {
+  stroke-dasharray: 2 5;
+}
+.dependency-edge.is-contains {
+  stroke-dasharray: 1 5;
+  opacity: 0.2;
+}
+.dependency-edge.is-active {
+  opacity: 1;
+}
+.dependency-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.5rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  padding: 1rem 0 1.5rem;
+}
+.dependency-legend span:not(.dependency-map-help)::before {
+  content: '';
+  display: inline-block;
+  width: 1.8rem;
+  border-top: 1px solid var(--accent);
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+.dependency-legend .is-checked_use::before {
+  border-top-width: 2.5px;
+}
+.dependency-legend .is-manuscript_reference::before {
+  border-top-style: dashed;
+}
+.dependency-legend .is-contains::before,
+.dependency-legend .is-cites::before {
+  border-top-style: dotted;
+  border-top-color: var(--muted);
+}
+.dependency-detail {
+  max-width: 64rem;
+  margin-top: 1rem;
+}
+.dependency-detail h2 {
+  border: none;
+  padding: 0;
+  margin: 0.3rem 0 0.6rem;
+  font-size: 1.6rem;
+  font-weight: 400;
+}
+.dependency-kicker {
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin: 0;
+}
+.dependency-credit {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0 0 1.25rem;
+}
+.dependency-detail .prose {
+  margin: 1rem 0;
+  font-size: 1rem;
+}
+.dependency-detail-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem 1.5rem;
+  font-size: 0.85rem;
+  margin-top: 1.5rem;
+}
+.dependency-reading-links {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+.dependency-reading-links li {
+  margin: 0.65rem 0;
+}
+.dependency-reading-links li span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+}
+.dependency-pagination,
+.dependency-result-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  font-size: 0.85rem;
+  margin: 1rem 0;
+}
+.dependency-evidence-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  max-width: 60rem;
+  margin-top: 2rem;
+}
+.dependency-more {
+  margin-left: 15.25rem;
+  font-size: 0.9rem;
+}
+@media (max-width: 960px) {
+  .dependency-reading {
+    grid-template-columns: 10rem minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .dependency-more {
+    margin-left: 11.5rem;
+  }
+}
+@media (max-width: 640px) {
+  .dependency-reading {
+    display: block;
+  }
+  .dependency-fields {
+    margin-bottom: 1.5rem;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .dependency-fields > button {
+    display: none;
+  }
+  .dependency-fields .dependency-theory-index {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+  .dependency-field-select {
+    display: block;
+    max-width: 60%;
+  }
+  .dependency-content {
+    display: flex;
+    flex-direction: column;
+  }
+  .dependency-intro {
+    order: 0;
+  }
+  .dependency-toolbar {
+    order: 1;
+  }
+  .dependency-detail {
+    order: 4;
+  }
+  .dependency-figure {
+    order: 2;
+    margin-top: 1rem;
+  }
+  .dependency-viewport {
+    height: 480px;
+  }
+  .dependency-pagination {
+    order: 3;
+  }
+  .dependency-result-navigation {
+    order: 5;
+  }
+  .dependency-evidence-note {
+    order: 6;
+  }
+  .dependency-more {
+    margin-left: 0;
+  }
+  .dependency-detail h2 {
+    font-size: 1.4rem;
+  }
+}
