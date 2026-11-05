@@ -11,6 +11,51 @@ import { paperSummary } from '../test/fixtures';
 import userEvent from '@testing-library/user-event';
 import { PaperPage, PapersPage } from './Papers';
 import { HomePage } from './Home';
+import type { CollectedPaper } from '../api/types';
+
+function liveVersion(note = projectNotes[0]!): CollectedPaper {
+  return {
+    ...note,
+    revision: String(Number(note.revision) + 1),
+    title: 'The updated published result',
+    msc: [],
+    pdf: { url: '/api/v1/collected-papers/updated/files/pdf?version=5' },
+    source: { url: '/api/v1/collected-papers/updated/files/source?version=5' },
+  };
+}
+
+it('shows the live successor of a migrated manuscript once in the archive and on its paper page', async () => {
+  const old = projectNotes[0]!;
+  const live = liveVersion(old);
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: [live], next_before: null })),
+    getCollectedPaper: vi.fn(async () => live),
+  });
+  const archive = renderWithApp(<PapersPage />, api);
+  await screen.findByRole('link', { name: live.title });
+  expect(screen.queryByRole('link', { name: old.title })).toBeNull();
+  expect(screen.getAllByRole('link', { name: 'Read PDF' })).toHaveLength(10);
+  archive.unmount();
+  renderWithApp(<PaperPage record={old.id} />, api);
+  await screen.findByRole('heading', { name: live.title });
+  expect(screen.getByRole('link', { name: 'Read PDF' })).toHaveAttribute('href', live.pdf.url);
+  expect(api.getPaper).not.toHaveBeenCalled();
+});
+
+it('shows a live successor on the home page while a pinned historical URL keeps its version', async () => {
+  const old = projectNotes[0]!;
+  const live = { ...liveVersion(old), published_on: '2026-12-01T00:00:00Z' };
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: [live], next_before: null })),
+  });
+  const home = renderWithApp(<HomePage />, api);
+  await screen.findByRole('link', { name: live.title });
+  expect(screen.queryByRole('link', { name: old.title })).toBeNull();
+  home.unmount();
+  renderWithApp(<PaperPage record={old.id} version={old.revision} />, api);
+  await waitFor(() => expect(api.getCollectedPaper).toHaveBeenCalled());
+  expect(screen.getByRole('link', { name: 'Read PDF' })).toHaveAttribute('href', old.pdf.url);
+});
 
 describe('published manuscripts', () => {
   it('ships the exact reviewed PDF and source bytes for every version', () => {

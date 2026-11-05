@@ -1,6 +1,11 @@
 import { t } from '../i18n/locale';
 import { PaperExplanation } from '../components/PaperExplanation';
-import { collectedPaperNote, findProjectNotes, projectNotes } from '../lib/projectNotes';
+import {
+  collectedPaperNote,
+  findProjectNotes,
+  mergeCollectedNotes,
+  projectNoteVersions,
+} from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
 import type { Subject } from '../lib/subjects';
 import { PublishedNoteEntry, PublishedNotePage } from './PublishedNote';
@@ -77,12 +82,7 @@ export function PapersPage({
   // Following the API cursor must not repeat it on every subsequent page.
   const notes =
     paged.page === 1
-      ? [
-          ...findProjectNotes(query),
-          ...(collected.value?.items ?? [])
-            .map(collectedPaperNote)
-            .filter((note) => !projectNotes.some((existing) => existing.id === note.id)),
-        ]
+      ? mergeCollectedNotes(collected.value?.items ?? [], findProjectNotes(query))
       : [];
   const entries = researchEntries(paged.value?.items ?? [], notes);
   return (
@@ -234,9 +234,6 @@ export function PapersPage({
 }
 
 export function PaperPage({ record, version }: { record: string; version?: string }) {
-  if (projectNotes.some((note) => note.id === record)) {
-    return <PublishedNotePage id={record} version={version} />;
-  }
   return record.startsWith('WP-') ? (
     <ReviewedPaperPage record={record} />
   ) : (
@@ -251,6 +248,12 @@ function CollectedPaperPage({ record, version }: { record: string; version?: str
     [api, record, version],
   );
   const paper = useAsync(load);
+  const fallback = projectNoteVersions.find(
+    (note) => note.id === record && (!version || note.revision === version),
+  );
+  if (paper.state.status !== 'ok' && fallback) {
+    return <PublishedNotePage id={record} version={version} />;
+  }
   return (
     <div className="page">
       <Async state={paper.state} onRetry={paper.reload}>

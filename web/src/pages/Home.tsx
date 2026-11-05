@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { ResearchCycle } from '../components/ResearchCycle';
-import { collectedPaperNote, projectNotes } from '../lib/projectNotes';
+import { mergeCollectedNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
 import { homeSubjects } from '../lib/subjects';
 import { PublishedNoteEntry } from './PublishedNote';
@@ -22,13 +22,10 @@ export function HomePage() {
   const collected = useAsync(
     useCallback((signal: AbortSignal) => api.listCollectedPapers({ limit: 25 }, { signal }), [api]),
   );
-  const collectedNotes = (collected.value?.items ?? [])
-    .map(collectedPaperNote)
-    .filter((note) => !projectNotes.some((existing) => existing.id === note.id));
-  const recent = researchEntries(papers.value?.items ?? [], [
-    ...projectNotes,
-    ...collectedNotes,
-  ]).slice(0, 3);
+  const recent = researchEntries(
+    papers.value?.items ?? [],
+    mergeCollectedNotes(collected.value?.items ?? []),
+  ).slice(0, 3);
   return (
     <div className="page home">
       <header className="home-hero">
