@@ -323,3 +323,48 @@ On small screens the statement appears before the connections, without a cropped
 horizontal graph. Existing paper-level Lean links do not mark every statement
 verified. Only confirmed exact targets offer proof submission; independent
 verifier results retain their existing meaning and credit rules.
+
+## Theory library as the public entry
+
+The default `/research-graph` entry now opens a field-based knowledge library,
+not a paper selector or a graph wall. `focus=theory:<area>` opens a reading page:
+established mathematical resources, related public research, then questions and
+formalization participation. Existing exact statement, citation and query URLs
+retain their original meanings. Local graphs remain inside result/citation reading.
+The navigation label is Knowledge library; its compatibility URL is unchanged.
+
+`web/src/data/mathlib-catalog.json` lists every `.lean` blob beneath `Mathlib/`
+from the exact Git tree pinned in `infra/verifier/lakefile.toml`. The current
+catalogue has 8,311 paths at `db584cd6d46c92f209a44c0f1c829460d327499d`, including
+supporting tools. It contains paths and source identity, not a copy of proof
+contents. Fourteen reading areas partition every root exactly once. Forty-two
+bilingual reading entries link to inspected source modules and explain their
+mathematical topic. `theory-areas.json` supplies that editorial outline; it is not
+a theorem declaration registry or an asserted dependency order. Complete branches
+expand lazily down to pinned source links, including paths which are both files
+and directory prefixes. Original Mathlib authorship stays in those source files;
+the library and Apache-2.0 licence receive explicit attribution.
+
+This is complete coverage of that pinned Mathlib source tree, not all human
+mathematics, all Lean libraries, every theorem declaration or a freshly checked
+proof receipt. Resource placement, related-field navigation and paper subject
+placement cannot supply proof-dependency edges or new contribution credit.
+
+Research pages combine the existing public collection/accepted-paper services in
+one reading list, preserving independent source pagination without exposing
+separate intake channels to readers.
+Supplied MSC metadata takes precedence. The current 38 collected works without
+MSC have explicit editorial placement based on their published title/abstract;
+unknown new works without subject metadata remain unclassified. No scientific
+metadata or reviewed deliveries are rewritten. Research listings retain server
+pagination, show four entries initially, and permit expansion. They preserve exact
+collected versions when entering the result reader. Formalization links reuse the
+existing confirmed-target and independent-verifier services; this page creates no
+review, proof, credit or model jobs.
+
+To refresh the catalogue after an authorized verifier pin change, run
+`python3 docs/operations/update_theory_catalog.py --tree /path/to/github-tree.json`
+with a complete recursive GitHub tree response for that exact commit. The script
+checks source identity, path validity and exhaustive area coverage before writing.
+Tests reject a stale verifier pin, missing/duplicated resource roots, missing
+reading entries, unsound path construction and broken source/result navigation.

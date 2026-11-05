@@ -1959,4 +1959,50 @@ export const zh: Record<string, string> = {
   'Used by': '用于',
   'Select a connected result to follow the argument.': '选择相关结果，沿着论证继续阅读。',
   'No explicit connections are recorded for this result.': '尚未记录此结果与其他命题的明确关联。',
+  'Knowledge library': '知识库',
+  'Back to the knowledge library': '返回知识库',
+  'Start with a field of mathematics. Follow its established theory, read the research that extends it, and find work to contribute.':
+    '从一个数学领域出发，了解已有理论、阅读相关研究，找到可以参与推进的工作。',
+  'Foundations and language': '数学基础与语言',
+  'Algebra and discrete structures': '代数与离散结构',
+  'Spaces, limits and change': '空间、极限与变化',
+  'Probability and formal methods': '概率与形式化方法',
+  'Research and participation': '研究与参与',
+  'Research papers': '研究论文',
+  'Open conjectures': '开放猜想',
+  'Fields of mathematics': '数学领域',
+  'All fields': '全部领域',
+  'In this field': '本领域内容',
+  'Established theory': '已有理论',
+  'Research in this field': '本领域研究',
+  'Questions and formalization': '问题与形式化',
+  'Definitions and results in Mathlib, maintained by the Lean mathematical community.':
+    'Lean 数学社区在 Mathlib 中维护的定义与结果。',
+  'Browse the full formal library in this field': '浏览本领域完整形式化目录',
+  'Open a branch to reach its definitions and theorems. Source files retain their original authorship.':
+    '展开理论分支，查看具体定义与定理。源码保留原作者署名。',
+  'A paper can add a theorem, settle a conjecture, or reveal a question worth pursuing. Formal proofs connect precise results to the existing library and preserve each contribution.':
+    '论文可以增加一个定理、解决一个猜想，也可以提出值得继续研究的问题。形式化证明将精确结果接入已有数学库，并保留每一步贡献。',
+  'Explore open conjectures': '探索开放猜想',
+  'Find a confirmed proof target': '寻找已确认的证明目标',
+  'A published Lean source and an independently checked proof are shown separately. Target-specific contributions open after the exact statement is confirmed.':
+    '已公开的 Lean 源码与经过独立核验的证明分别呈现。命题准确确认后，开放对应的证明贡献。',
+  'Related fields': '相关领域',
+  'Read the definitions and results': '阅读定义与结果',
+  'No papers from this field appear on this page. The established theory above remains available.':
+    '本页暂未列出本领域论文；仍可阅读上方已有理论。',
+  'Read the results and their connections': '阅读结果及其关系',
+  'Show fewer papers': '收起论文',
+  'Show all {count} papers on this page': '展开本页全部 {count} 篇论文',
+  'Submit research in this field': '提交本领域研究',
+  'Papers are placed by subject. This does not assert that a paper uses every result listed above.':
+    '论文按研究主题归类；不代表它使用了上方列出的每一项结果。',
+  'About this library': '关于本知识库',
+  'The formal foundation is Mathlib, the community-built Lean mathematical library. This directory covers all {count} Lean source files at the version used by our proof checker, including supporting tools. It is a guide to that library, not a claim to contain all human mathematics.':
+    '形式化基础来自 Lean 社区共同建设的 Mathlib。本目录覆盖证明核验环境所用版本的全部 {count} 个 Lean 源文件，包含辅助工具；它提供这一数学库的阅读架构，尚未覆盖全部人类数学知识。',
+  'Mathlib source and contributors': 'Mathlib 源码与贡献者',
+  'Apache 2.0 license': 'Apache 2.0 许可',
+  'The theory outline groups resources for reading. Manuscript references and independently checked proof dependencies retain their separate meanings.':
+    '理论目录按阅读需要组织资源。稿件引用与经过独立核验的证明依赖各自保留原有含义。',
+  'Explore independently checked proof connections': '查看经过独立核验的证明关系',
 };

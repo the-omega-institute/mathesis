@@ -1,0 +1,707 @@
+[
+  {
+    "id": "foundations",
+    "title": {
+      "en": "Logic and foundations",
+      "zh": "逻辑与基础"
+    },
+    "description": {
+      "en": "Propositions, sets, cardinality and mathematical structures.",
+      "zh": "命题、集合、基数及数学结构。"
+    },
+    "roots": ["Logic", "SetTheory", "ModelTheory"],
+    "msc": ["03"],
+    "related": ["data", "order", "categories"],
+    "topics": [
+      {
+        "title": {
+          "en": "Logic and quantifiers",
+          "zh": "逻辑与量词"
+        },
+        "description": {
+          "en": "Logical connectives, implications and quantified propositions.",
+          "zh": "逻辑联结、蕴含与量化命题。"
+        },
+        "module": "Mathlib.Logic.Basic"
+      },
+      {
+        "title": {
+          "en": "Cardinality",
+          "zh": "基数"
+        },
+        "description": {
+          "en": "Compare the sizes of sets and reason about infinite collections.",
+          "zh": "比较集合的大小，研究无限集合。"
+        },
+        "module": "Mathlib.SetTheory.Cardinal.Basic"
+      },
+      {
+        "title": {
+          "en": "First-order structures",
+          "zh": "一阶结构"
+        },
+        "description": {
+          "en": "Languages, structures and their interpretations.",
+          "zh": "语言、结构及其解释。"
+        },
+        "module": "Mathlib.ModelTheory.Basic"
+      }
+    ]
+  },
+  {
+    "id": "data",
+    "title": {
+      "en": "Numbers, sets and finiteness",
+      "zh": "数、集合与有限性"
+    },
+    "description": {
+      "en": "The basic objects used throughout the library: numbers, finite sets and functions.",
+      "zh": "贯穿数学库的基本对象：数、有限集合与函数。"
+    },
+    "roots": ["Data", "Init"],
+    "msc": ["00"],
+    "related": ["foundations", "number-theory", "combinatorics"],
+    "topics": [
+      {
+        "title": {
+          "en": "Natural numbers",
+          "zh": "自然数"
+        },
+        "description": {
+          "en": "Arithmetic and elementary properties of natural numbers.",
+          "zh": "自然数运算及基本性质。"
+        },
+        "module": "Mathlib.Data.Nat.Basic"
+      },
+      {
+        "title": {
+          "en": "Finite sets",
+          "zh": "有限集合"
+        },
+        "description": {
+          "en": "Finite collections, membership and operations.",
+          "zh": "有限集合、成员关系及集合运算。"
+        },
+        "module": "Mathlib.Data.Finset.Basic"
+      },
+      {
+        "title": {
+          "en": "Real numbers",
+          "zh": "实数"
+        },
+        "description": {
+          "en": "The real number system and its ordered field structure.",
+          "zh": "实数系统及其有序域结构。"
+        },
+        "module": "Mathlib.Data.Real.Basic"
+      }
+    ]
+  },
+  {
+    "id": "order",
+    "title": {
+      "en": "Order and lattices",
+      "zh": "序与格"
+    },
+    "description": {
+      "en": "Ordered objects, lattices, filters and maximality principles.",
+      "zh": "有序对象、格、滤子与极大性原理。"
+    },
+    "roots": ["Order"],
+    "msc": ["06"],
+    "related": ["foundations", "algebra", "analysis"],
+    "topics": [
+      {
+        "title": {
+          "en": "Lattices",
+          "zh": "格"
+        },
+        "description": {
+          "en": "Meets, joins and the algebra of ordered structures.",
+          "zh": "交、并及有序结构的代数。"
+        },
+        "module": "Mathlib.Order.Lattice"
+      },
+      {
+        "title": {
+          "en": "Filters",
+          "zh": "滤子"
+        },
+        "description": {
+          "en": "A shared language for limits and eventual behavior.",
+          "zh": "研究极限与最终行为的通用语言。"
+        },
+        "module": "Mathlib.Order.Filter.Basic"
+      },
+      {
+        "title": {
+          "en": "Zorn’s lemma",
+          "zh": "佐恩引理"
+        },
+        "description": {
+          "en": "Maximal elements under chain upper-bound hypotheses.",
+          "zh": "在链具有上界的条件下研究极大元。"
+        },
+        "module": "Mathlib.Order.Zorn"
+      }
+    ]
+  },
+  {
+    "id": "categories",
+    "title": {
+      "en": "Categories and universal constructions",
+      "zh": "范畴与泛性质"
+    },
+    "description": {
+      "en": "Objects, morphisms, functors and constructions shared across mathematical fields.",
+      "zh": "跨数学领域的对象、态射、函子与通用构造。"
+    },
+    "roots": ["CategoryTheory"],
+    "msc": ["18", "19"],
+    "related": ["foundations", "algebra", "topology"],
+    "topics": [
+      {
+        "title": {
+          "en": "Categories",
+          "zh": "范畴"
+        },
+        "description": {
+          "en": "Objects and composition of morphisms.",
+          "zh": "对象与态射的复合。"
+        },
+        "module": "Mathlib.CategoryTheory.Category.Basic"
+      },
+      {
+        "title": {
+          "en": "Functors",
+          "zh": "函子"
+        },
+        "description": {
+          "en": "Maps between categories that preserve their structure.",
+          "zh": "保持结构的范畴之间的映射。"
+        },
+        "module": "Mathlib.CategoryTheory.Functor.Basic"
+      },
+      {
+        "title": {
+          "en": "The Yoneda embedding",
+          "zh": "米田嵌入"
+        },
+        "description": {
+          "en": "Represent objects through the morphisms into and out of them.",
+          "zh": "借助相关态射来表示对象。"
+        },
+        "module": "Mathlib.CategoryTheory.Yoneda"
+      }
+    ]
+  },
+  {
+    "id": "algebra",
+    "title": {
+      "en": "Algebra",
+      "zh": "代数"
+    },
+    "description": {
+      "en": "Groups, rings, fields, ideals and representations.",
+      "zh": "群、环、域、理想与表示。"
+    },
+    "roots": ["Algebra", "GroupTheory", "RingTheory", "FieldTheory", "RepresentationTheory"],
+    "msc": ["08", "12", "13", "16", "17", "20", "22"],
+    "related": ["data", "order", "linear-algebra", "categories"],
+    "topics": [
+      {
+        "title": {
+          "en": "Sylow theory",
+          "zh": "西罗理论"
+        },
+        "description": {
+          "en": "Sylow subgroups and the structure of finite groups.",
+          "zh": "西罗子群与有限群的结构。"
+        },
+        "module": "Mathlib.GroupTheory.Sylow"
+      },
+      {
+        "title": {
+          "en": "Ideals",
+          "zh": "理想"
+        },
+        "description": {
+          "en": "Ideals and their operations in rings.",
+          "zh": "环中的理想及其运算。"
+        },
+        "module": "Mathlib.RingTheory.Ideal.Basic"
+      },
+      {
+        "title": {
+          "en": "Galois theory",
+          "zh": "伽罗瓦理论"
+        },
+        "description": {
+          "en": "Field extensions and their automorphisms.",
+          "zh": "域扩张及其自同构。"
+        },
+        "module": "Mathlib.FieldTheory.Galois.Basic"
+      }
+    ]
+  },
+  {
+    "id": "linear-algebra",
+    "title": {
+      "en": "Linear algebra",
+      "zh": "线性代数"
+    },
+    "description": {
+      "en": "Vector spaces, matrices, eigenvalues and multilinear constructions.",
+      "zh": "向量空间、矩阵、特征值与多重线性构造。"
+    },
+    "roots": ["LinearAlgebra"],
+    "msc": ["15"],
+    "related": ["algebra", "analysis", "probability"],
+    "topics": [
+      {
+        "title": {
+          "en": "Bases and coordinates",
+          "zh": "基与坐标"
+        },
+        "description": {
+          "en": "Represent vectors and linear maps with respect to a basis.",
+          "zh": "借助基表示向量与线性映射。"
+        },
+        "module": "Mathlib.LinearAlgebra.Basis.Basic"
+      },
+      {
+        "title": {
+          "en": "Eigenvalues and eigenspaces",
+          "zh": "特征值与特征空间"
+        },
+        "description": {
+          "en": "Eigenspaces of linear maps and their algebraic properties.",
+          "zh": "线性映射的特征空间及其代数性质。"
+        },
+        "module": "Mathlib.LinearAlgebra.Eigenspace.Basic"
+      },
+      {
+        "title": {
+          "en": "Determinants",
+          "zh": "行列式"
+        },
+        "description": {
+          "en": "Determinants and identities for square matrices.",
+          "zh": "方阵的行列式及其恒等式。"
+        },
+        "module": "Mathlib.LinearAlgebra.Matrix.Determinant.Basic"
+      }
+    ]
+  },
+  {
+    "id": "number-theory",
+    "title": {
+      "en": "Number theory",
+      "zh": "数论"
+    },
+    "description": {
+      "en": "Divisibility, primes, arithmetic functions and local fields.",
+      "zh": "整除、素数、算术函数与局部域。"
+    },
+    "roots": ["NumberTheory"],
+    "msc": ["11"],
+    "related": ["data", "algebra", "combinatorics"],
+    "topics": [
+      {
+        "title": {
+          "en": "Prime counting",
+          "zh": "素数计数"
+        },
+        "description": {
+          "en": "The prime-counting function and elementary bounds.",
+          "zh": "素数计数函数与基本估计。"
+        },
+        "module": "Mathlib.NumberTheory.PrimeCounting"
+      },
+      {
+        "title": {
+          "en": "Arithmetic functions",
+          "zh": "算术函数"
+        },
+        "description": {
+          "en": "Functions on natural numbers and Dirichlet convolution.",
+          "zh": "自然数上的函数与狄利克雷卷积。"
+        },
+        "module": "Mathlib.NumberTheory.ArithmeticFunction.Defs"
+      },
+      {
+        "title": {
+          "en": "Hensel’s lemma",
+          "zh": "亨泽尔引理"
+        },
+        "description": {
+          "en": "Lifting roots in the p-adic setting.",
+          "zh": "在 p 进情形下提升根。"
+        },
+        "module": "Mathlib.NumberTheory.Padics.Hensel"
+      }
+    ]
+  },
+  {
+    "id": "combinatorics",
+    "title": {
+      "en": "Combinatorics and graphs",
+      "zh": "组合与图论"
+    },
+    "description": {
+      "en": "Finite configurations, counting, matchings and graph structure.",
+      "zh": "有限构型、计数、匹配与图结构。"
+    },
+    "roots": ["Combinatorics"],
+    "msc": ["05"],
+    "related": ["data", "number-theory", "linear-algebra"],
+    "topics": [
+      {
+        "title": {
+          "en": "Simple graphs",
+          "zh": "简单图"
+        },
+        "description": {
+          "en": "Vertices, adjacency and basic graph constructions.",
+          "zh": "顶点、邻接关系及基本图构造。"
+        },
+        "module": "Mathlib.Combinatorics.SimpleGraph.Basic"
+      },
+      {
+        "title": {
+          "en": "Hall’s marriage theorem",
+          "zh": "霍尔婚配定理"
+        },
+        "description": {
+          "en": "Matching criteria for finite families.",
+          "zh": "有限族的匹配判据。"
+        },
+        "module": "Mathlib.Combinatorics.Hall.Basic"
+      },
+      {
+        "title": {
+          "en": "Catalan numbers",
+          "zh": "卡特兰数"
+        },
+        "description": {
+          "en": "A recurring counting sequence and its identities.",
+          "zh": "常见的组合计数序列及其恒等式。"
+        },
+        "module": "Mathlib.Combinatorics.Enumerative.Catalan.Basic"
+      }
+    ]
+  },
+  {
+    "id": "analysis",
+    "title": {
+      "en": "Analysis and measure",
+      "zh": "分析与测度"
+    },
+    "description": {
+      "en": "Limits, differentiation, integration and special functions.",
+      "zh": "极限、微分、积分与特殊函数。"
+    },
+    "roots": ["Analysis", "MeasureTheory"],
+    "msc": [
+      "26",
+      "28",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46",
+      "47",
+      "49"
+    ],
+    "related": ["order", "topology", "linear-algebra"],
+    "topics": [
+      {
+        "title": {
+          "en": "Derivatives",
+          "zh": "导数"
+        },
+        "description": {
+          "en": "Differentiation of functions in one variable.",
+          "zh": "单变量函数的微分。"
+        },
+        "module": "Mathlib.Analysis.Calculus.Deriv.Basic"
+      },
+      {
+        "title": {
+          "en": "The exponential function",
+          "zh": "指数函数"
+        },
+        "description": {
+          "en": "Real and complex exponentials and their basic identities.",
+          "zh": "实与复指数函数及其基本恒等式。"
+        },
+        "module": "Mathlib.Analysis.SpecialFunctions.Exp"
+      },
+      {
+        "title": {
+          "en": "Bochner integration",
+          "zh": "博赫纳积分"
+        },
+        "description": {
+          "en": "Integration of functions taking values in normed spaces.",
+          "zh": "赋范空间值函数的积分。"
+        },
+        "module": "Mathlib.MeasureTheory.Integral.Bochner.Basic"
+      }
+    ]
+  },
+  {
+    "id": "topology",
+    "title": {
+      "en": "Topology",
+      "zh": "拓扑"
+    },
+    "description": {
+      "en": "Continuity, compactness and the shape of spaces.",
+      "zh": "连续性、紧性与空间的形状。"
+    },
+    "roots": ["Topology", "AlgebraicTopology", "Condensed"],
+    "msc": ["54", "55", "57", "58"],
+    "related": ["foundations", "order", "categories", "geometry"],
+    "topics": [
+      {
+        "title": {
+          "en": "Topological spaces",
+          "zh": "拓扑空间"
+        },
+        "description": {
+          "en": "Open sets, neighborhoods and continuity.",
+          "zh": "开集、邻域与连续性。"
+        },
+        "module": "Mathlib.Topology.Basic"
+      },
+      {
+        "title": {
+          "en": "Compactness",
+          "zh": "紧性"
+        },
+        "description": {
+          "en": "Compact sets and compact spaces.",
+          "zh": "紧集与紧空间。"
+        },
+        "module": "Mathlib.Topology.Compactness.Compact"
+      },
+      {
+        "title": {
+          "en": "Fundamental groups",
+          "zh": "基本群"
+        },
+        "description": {
+          "en": "Loops and the fundamental group of a space.",
+          "zh": "回路与空间的基本群。"
+        },
+        "module": "Mathlib.AlgebraicTopology.FundamentalGroupoid.FundamentalGroup"
+      }
+    ]
+  },
+  {
+    "id": "geometry",
+    "title": {
+      "en": "Geometry",
+      "zh": "几何"
+    },
+    "description": {
+      "en": "Euclidean spaces, manifolds and algebraic geometry.",
+      "zh": "欧氏空间、流形与代数几何。"
+    },
+    "roots": ["Geometry", "AlgebraicGeometry"],
+    "msc": ["14", "51", "52", "53"],
+    "related": ["topology", "algebra", "analysis"],
+    "topics": [
+      {
+        "title": {
+          "en": "Euclidean geometry",
+          "zh": "欧氏几何"
+        },
+        "description": {
+          "en": "Euclidean spaces and their geometric structure.",
+          "zh": "欧氏空间及其几何结构。"
+        },
+        "module": "Mathlib.Geometry.Euclidean.Basic"
+      },
+      {
+        "title": {
+          "en": "Charted spaces",
+          "zh": "带图册的空间"
+        },
+        "description": {
+          "en": "Local coordinates and compatible charts.",
+          "zh": "局部坐标与相容图册。"
+        },
+        "module": "Mathlib.Geometry.Manifold.ChartedSpace"
+      },
+      {
+        "title": {
+          "en": "Schemes",
+          "zh": "概形"
+        },
+        "description": {
+          "en": "The scheme construction in algebraic geometry.",
+          "zh": "代数几何中的概形构造。"
+        },
+        "module": "Mathlib.AlgebraicGeometry.Scheme"
+      }
+    ]
+  },
+  {
+    "id": "dynamics",
+    "title": {
+      "en": "Dynamical systems",
+      "zh": "动力系统"
+    },
+    "description": {
+      "en": "Iteration, fixed points and invariant measures.",
+      "zh": "迭代、不动点与不变测度。"
+    },
+    "roots": ["Dynamics"],
+    "msc": ["37"],
+    "related": ["topology", "analysis", "probability"],
+    "topics": [
+      {
+        "title": {
+          "en": "Fixed points",
+          "zh": "不动点"
+        },
+        "description": {
+          "en": "Points left unchanged by a map and their iterates.",
+          "zh": "映射及其迭代下保持不变的点。"
+        },
+        "module": "Mathlib.Dynamics.FixedPoints.Basic"
+      },
+      {
+        "title": {
+          "en": "Measure-preserving maps",
+          "zh": "保测映射"
+        },
+        "description": {
+          "en": "Dynamics compatible with a measure.",
+          "zh": "与测度相容的动力过程。"
+        },
+        "module": "Mathlib.Dynamics.Ergodic.MeasurePreserving"
+      },
+      {
+        "title": {
+          "en": "Ergodicity",
+          "zh": "遍历性"
+        },
+        "description": {
+          "en": "Invariant sets and ergodic measure-preserving systems.",
+          "zh": "不变集与遍历保测系统。"
+        },
+        "module": "Mathlib.Dynamics.Ergodic.Ergodic"
+      }
+    ]
+  },
+  {
+    "id": "probability",
+    "title": {
+      "en": "Probability and information",
+      "zh": "概率与信息"
+    },
+    "description": {
+      "en": "Probability laws, moments and information-theoretic inequalities.",
+      "zh": "概率分布、矩与信息论不等式。"
+    },
+    "roots": ["Probability", "InformationTheory"],
+    "msc": ["60", "62", "81", "82", "94"],
+    "related": ["analysis", "linear-algebra", "combinatorics"],
+    "topics": [
+      {
+        "title": {
+          "en": "Gaussian distributions",
+          "zh": "高斯分布"
+        },
+        "description": {
+          "en": "The Gaussian probability distribution on the real line.",
+          "zh": "实数直线上的高斯概率分布。"
+        },
+        "module": "Mathlib.Probability.Distributions.Gaussian.Real"
+      },
+      {
+        "title": {
+          "en": "Variance",
+          "zh": "方差"
+        },
+        "description": {
+          "en": "Variance and its properties for random variables.",
+          "zh": "随机变量的方差及其性质。"
+        },
+        "module": "Mathlib.Probability.Moments.Variance"
+      },
+      {
+        "title": {
+          "en": "Relative entropy",
+          "zh": "相对熵"
+        },
+        "description": {
+          "en": "Kullback–Leibler divergence for measures.",
+          "zh": "测度之间的 Kullback–Leibler 散度。"
+        },
+        "module": "Mathlib.InformationTheory.KullbackLeibler.Basic"
+      }
+    ]
+  },
+  {
+    "id": "formal-methods",
+    "title": {
+      "en": "Computation and proof methods",
+      "zh": "计算与证明方法"
+    },
+    "description": {
+      "en": "Computability and the tools used to construct formal proofs.",
+      "zh": "可计算性与构造形式化证明所需的工具。"
+    },
+    "roots": ["Computability", "Lean", "Tactic", "Util", "Testing", "Deprecated", "Control"],
+    "msc": ["68", "65", "90", "91", "93"],
+    "related": ["foundations", "data", "algebra"],
+    "topics": [
+      {
+        "title": {
+          "en": "Turing machines",
+          "zh": "图灵机"
+        },
+        "description": {
+          "en": "A formal model of computation.",
+          "zh": "计算的形式模型。"
+        },
+        "module": "Mathlib.Computability.TuringMachine"
+      },
+      {
+        "title": {
+          "en": "Polynomial identities",
+          "zh": "多项式恒等式"
+        },
+        "description": {
+          "en": "The ring tactic for algebraic normalization.",
+          "zh": "用于代数正规化的 ring 证明策略。"
+        },
+        "module": "Mathlib.Tactic.Ring"
+      },
+      {
+        "title": {
+          "en": "Linear arithmetic",
+          "zh": "线性算术"
+        },
+        "description": {
+          "en": "The linarith tactic for linear arithmetic reasoning.",
+          "zh": "用于线性算术推理的 linarith 证明策略。"
+        },
+        "module": "Mathlib.Tactic.Linarith"
+      }
+    ]
+  }
+]
