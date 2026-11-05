@@ -83,6 +83,18 @@ describe('shared research graph', () => {
       expect.anything(),
     );
   });
+  it('keeps theory resources reachable through the auxiliary directory', async () => {
+    renderWithApp(<ResearchGraphPage focus="library:all" />, fakeApi());
+    expect(screen.getByRole('heading', { name: 'Theory resources' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Algebra' })).toHaveAttribute(
+      'href',
+      '/research-graph?focus=library%3Aalgebra',
+    );
+    expect(screen.getByRole('link', { name: 'Back to the dependency graph' })).toHaveAttribute(
+      'href',
+      '/research-graph',
+    );
+  });
   it('opens the source paper citations when switching from an exact statement link', async () => {
     const api = fakeApi({ researchGraph: vi.fn(async () => graph) });
     renderWithApp(<ResearchGraphPage focus="statement:gap-note:2:s1" />, api);

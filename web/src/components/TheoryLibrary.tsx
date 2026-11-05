@@ -45,7 +45,7 @@ export function TheoryLibrary({ focus }: { focus?: string }) {
                 return (
                   <li key={id}>
                     <h3>
-                      <Link to={{ kind: 'research_graph', focus: `theory:${id}` }}>
+                      <Link to={{ kind: 'research_graph', focus: `library:${id}` }}>
                         {localize(item.title, locale)}
                       </Link>
                     </h3>
@@ -73,14 +73,14 @@ function TheoryAreaReading({ area }: { area: TheoryArea }) {
   return (
     <div className="theory-library-layout">
       <nav className="theory-library-outline" aria-label={t('Fields of mathematics')}>
-        <Link className="theory-library-home" to={{ kind: 'research_graph' }}>
+        <Link className="theory-library-home" to={{ kind: 'research_graph', focus: 'library:all' }}>
           {t('All fields')}
         </Link>
         <ul>
           {theoryAreas.map((item) => (
             <li key={item.id}>
               <Link
-                to={{ kind: 'research_graph', focus: `theory:${item.id}` }}
+                to={{ kind: 'research_graph', focus: `library:${item.id}` }}
                 aria-current={item.id === area.id ? 'page' : undefined}
               >
                 {localize(item.title, locale)}
@@ -161,7 +161,7 @@ function TheoryAreaReading({ area }: { area: TheoryArea }) {
             {area.related.map((id) => {
               const related = findTheoryArea(id)!;
               return (
-                <Link key={id} to={{ kind: 'research_graph', focus: `theory:${id}` }}>
+                <Link key={id} to={{ kind: 'research_graph', focus: `library:${id}` }}>
                   {localize(related.title, locale)}
                 </Link>
               );
