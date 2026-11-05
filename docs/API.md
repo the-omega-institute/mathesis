@@ -142,6 +142,9 @@ treated as a proof.
 | POST | `/submissions/{id}/tasks` | editors; the author opted in | → `{ created, existing }` |
 | GET | `/papers` | anyone | → `Listing<PaperSummary>` |
 | GET | `/papers/{record}` | anyone | → `PublicPaper` |
+| GET | `/papers/{record}/landing.html` | anyone | Stable HTML landing page with Scholar citation metadata and abstract |
+| GET | `/papers/{record}/pdf` | anyone | Stable latest public PDF URL for the record |
+| GET | `/sitemap.xml` | anyone | XML sitemap containing public paper landing pages |
 | GET | `/conjectures?limit=&before=&status=open\|solved\|disproved` | anyone | → `Listing<ConjectureSummary>`; submitted conjectures and audited paper problems, newest record/claim first |
 | GET | `/tasks?kind=&status=&submission=&holder=` | signed in | → `Listing<Task>` |
 | GET | `/tasks/{id}` | staff; contributors while the author keeps the paper open | → `TaskContext` |

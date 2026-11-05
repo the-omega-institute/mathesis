@@ -353,7 +353,7 @@ it('provides public PDF access and citation metadata without a private archive l
   expect(screen.queryByRole('link', { name: 'Version 1 source' })).not.toBeInTheDocument();
   expect(document.querySelector('meta[name="citation_pdf_url"]')).toHaveAttribute(
     'content',
-    `${window.location.origin}/api/v1/submissions/sub-acc/files/pdf?version=1`,
+    `${window.location.origin}/papers/WP-2026-0001/pdf`,
   );
   await userEvent.click(screen.getByText('Cite this paper'));
   await userEvent.selectOptions(screen.getByLabelText('Citation format'), 'bibtex');
