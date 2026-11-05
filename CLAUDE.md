@@ -937,5 +937,5 @@ explanation sidecar uses optimistic revision fencing and owns the same durable
 CMA conversation through cleanup/restart. Public projections expose only bilingual
 text; private review evidence and execution state never enter the explanation
 prompt. New reading guides explain the problem, definitions, result, proof idea
-and limitations in five to seven connected paragraphs. Already admitted legacy
+and limitations in five to eight connected paragraphs. Already admitted legacy
 explanation conversations retain their original prompt bytes.

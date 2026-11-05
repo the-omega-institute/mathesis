@@ -33,7 +33,6 @@ upstream result, and ordinary external submissions continue through
 `/manuscript-deliveries` and the independent Mathesis review pipeline. The first
 real upstream delivery is still pending until the producer calls this endpoint.
 
-
 ## Independent reading guide
 
 A successful collection saves its reviewed scientific files immediately and queues
@@ -42,7 +41,7 @@ exposition, not another review or publication decision. The task reads the pinne
 source ZIP and public manuscript metadata; private producer review evidence is
 never part of the prompt or public response. It explains the question, definitions,
 main result, proof mechanism, prior attribution and exact remaining scope in five
-to seven English and Chinese paragraphs (normally 450–750 English words and
+to eight English and Chinese paragraphs (normally 450–800 English words and
 900–1600 Chinese characters). It cannot award verification or formalization credit.
 
 A generated explanation lives in a separately revision-fenced sidecar. The

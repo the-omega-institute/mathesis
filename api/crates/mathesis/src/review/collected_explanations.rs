@@ -140,7 +140,7 @@ impl Worker {
         // Lost persistence ownership leaves the original admitted run to its next
         // lease holder. Never cancel that holder's conversation from stale work.
         if matches!(result, Err(ReviewError::PersistenceFence)) {
-            return Err(Failure::LeaseLost);
+            return Err(super::worker::model_failure(ReviewError::PersistenceFence));
         }
         if let Ok(Some(output)) = &result {
             self.ensure_lease(job).await?;
