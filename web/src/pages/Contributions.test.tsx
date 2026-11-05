@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -90,29 +89,16 @@ describe('phase D contributions', () => {
       as_agent: undefined,
     });
   });
-  it('shows unranked receipt-metered supporters at 390px with wrapping controls', async () => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
-    renderWithApp(
-      <SupportersPage />,
-      fakeApi({
-        supporters: vi.fn(async () => [
-          { name: 'A'.repeat(180), tokens: 0 },
-          { name: 'Zoe', tokens: 125 },
-        ]),
-      }),
+  it('keeps collaboration contact available without a usage service', () => {
+    const supporters = vi.fn(async () => {
+      throw new Error('unavailable');
+    });
+    renderWithApp(<SupportersPage />, fakeApi({ supporters }));
+    expect(screen.getByRole('link', { name: 'contact@chrono-ai.fun' })).toHaveAttribute(
+      'href',
+      'mailto:contact@chrono-ai.fun',
     );
-    expect(await screen.findByText('0 metered tokens')).toBeInTheDocument();
-    expect(screen.getByText('125 metered tokens')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(document.querySelector('.supporter-list')?.tagName).toBe('UL');
-    const css = readFileSync('src/styles/app.css', 'utf8');
-    expect(css).toMatch(
-      /\.supporter-list,\s*\.report-text\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere/s,
-    );
-    expect(css).toMatch(/\.supporter-list > li\s*\{[^}]*flex-wrap:\s*wrap/s);
-    expect(css).toMatch(
-      /@media \(max-width: 480px\)[\s\S]*\.error-report textarea\s*\{[^}]*max-width:\s*100%;[^}]*min-width:\s*0/s,
-    );
+    expect(supporters).not.toHaveBeenCalled();
   });
   it('credits a verified paper statement and describes the exact confirmed target', async () => {
     const proof: VerifiedAttempt = {

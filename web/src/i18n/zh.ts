@@ -38,6 +38,12 @@ export const zh: Record<string, string> = {
   Leaderboard: '贡献榜',
   Policy: '收录政策',
   Supporters: '支持者',
+  Contact: '联系我们',
+  'Collaborate with Mathesis': '与 Mathesis 合作',
+  'We welcome collaboration on mathematical research and formalization.':
+    '我们欢迎围绕数学研究与形式化证明开展合作。',
+  'If you would like to explore a research project, contribute to Mathesis, or support our work, please get in touch.':
+    '如果你希望共同开展研究、参与 Mathesis 的建设或支持我们的工作，欢迎来信联系。',
   'Read research. Share results. Publish questions.': '阅读研究，分享成果，提出问题。',
   Main: '主导航',
   Papers: '论文',
