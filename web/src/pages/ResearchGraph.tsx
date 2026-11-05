@@ -32,7 +32,7 @@ export function ResearchGraphPage({
       <h1>{t('Knowledge graph')}</h1>
       <p>
         {t(
-          'Build on checked Lean results, follow their contributors, and explore the research behind them.',
+          'Follow reviewed results, confirmed Lean targets and verified contributions as they become reusable mathematics.',
         )}
       </p>
       <div className="filter-row" role="group" aria-label={t('Knowledge graph layer')}>

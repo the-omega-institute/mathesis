@@ -152,10 +152,14 @@ export function LeanGraphView({
         <h2>{t('No public Lean results yet')}</h2>
         <p>
           {t(
-            'Author-confirmed statements, checked propositions and their proof connections will appear here as research becomes public.',
+            'Review recommendations become contribution opportunities once their exact Lean targets are confirmed. Checked proofs then appear with their contributors and reuse connections.',
           )}
         </p>
-        <Link to={{ kind: 'submit', intake: 'lean' }}>{t('Contribute Lean work')}</Link>
+        <p className="research-map-links">
+          <Link to={{ kind: 'papers' }}>{t('Research archive')}</Link>
+          <Link to={{ kind: 'formalizations' }}>{t('Formalizations')}</Link>
+          <Link to={{ kind: 'submit', intake: 'lean' }}>{t('Contribute Lean work')}</Link>
+        </p>
       </div>
     );
   const neighbors = [...edges.values()].filter(

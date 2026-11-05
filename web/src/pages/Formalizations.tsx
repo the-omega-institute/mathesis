@@ -62,6 +62,9 @@ export function FormalizationsPage() {
           <span>{t('Verified proofs appear with their source research.')}</span>
         </p>
       </div>
+      <p>
+        <Link to={{ kind: 'research_graph' }}>{t('Explore the knowledge graph')}</Link>
+      </p>
       <div className="filter-row" role="group" aria-label={t('Formalization status')}>
         {[
           ['open', 'Ready to formalize'],
