@@ -2045,4 +2045,10 @@ export const zh: Record<string, string> = {
   'How to read the connections': '如何理解这些关系',
   'Solid arrows distinguish author-stated dependencies from uses inspected in a checked Lean proof. Dashed arrows record references in the manuscript; dotted connections to literature show citations. Paper membership and subject placement do not assert proof dependencies. A published Lean source is separate from a checked proof of this exact result.':
     '实线箭头区分作者注明的依赖与经 Lean 证明核验的实际使用。虚线表示稿件中的原文引用；连接旧文献的点线表示文献引用。论文归属与学科分类不表示证明依赖。公开 Lean 源码也不等同于此条精确命题已经通过核验。',
+  'Other mathematics': '其他数学领域',
+  '{count} results': '{count} 条结果',
+  'Explore the results and connections across mathematical fields. Select a field or a result to read further.':
+    '浏览各数学领域的结果及其联系，点选领域或具体结果继续阅读。',
+  'Each point is a result. Select a field or a point to explore its connections.':
+    '每个点代表一条数学结果。点选领域或节点，进一步探索它们的关系。',
 };

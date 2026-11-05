@@ -23,6 +23,7 @@ it('starts with a real graph and follows prerequisite and subsequent results wit
   renderWithApp(<DependencyGraph />, api);
   const map = await screen.findByRole('figure', { name: 'Mathematical dependency graph' });
   expect(map.querySelectorAll('[data-relation="manuscript_reference"]')).toHaveLength(2);
+  await userEvent.click(within(map).getByRole('button', { name: /Theorem: The uniform bound/ }));
   const detail = within(
     screen.getByRole('region', { name: 'Selected result and its dependencies' }),
   );
@@ -50,19 +51,23 @@ it('starts with a real graph and follows prerequisite and subsequent results wit
 it('loads another page after rechecking current public visibility, without retaining removed old statements', async () => {
   const api = makeApi();
   let expanded = false;
-  api.researchGraph = vi.fn(async ({ before } = {}) =>
-    before
-      ? { ...dependencySource, next_before: null }
-      : expanded
-        ? { ...dependencySource, nodes: [], edges: [], next_before: 'next' }
-        : { ...dependencySource, next_before: 'next' },
-  );
+  api.researchGraph = vi.fn(async ({ before } = {}) => {
+    if (!before)
+      return {
+        ...dependencySource,
+        nodes: expanded ? [] : dependencySource.nodes,
+        edges: expanded ? [] : dependencySource.edges,
+        next_before: 'two',
+      };
+    if (before === 'two') return { ...dependencySource, next_before: 'three' };
+    return { ...dependencySource, next_before: null };
+  });
   renderWithApp(<DependencyGraph />, api);
   await screen.findByRole('figure');
   expanded = true;
   await userEvent.click(screen.getByRole('button', { name: 'Load more research into the graph' }));
   await screen.findByRole('figure');
-  expect(api.researchGraph).toHaveBeenCalledTimes(3);
+  expect(api.researchGraph).toHaveBeenCalledTimes(5);
   expect(screen.getByText(/3 results loaded/)).toBeVisible();
 });
 it('keeps a selected checked intermediate proposition visible with its contributor and exact source result', async () => {
@@ -96,5 +101,40 @@ it('keeps the graph as the primary view in Chinese and treats the theory outline
     'href',
     '/research-graph?focus=library%3Aall',
   );
+  expect(screen.queryByRole('region', { name: '所选结果及其依赖' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: /Theorem: The uniform bound/ }));
   expect(screen.getByRole('heading', { name: 'The uniform bound' })).toBeVisible();
+});
+
+it('shows results from every loaded field first and restores the whole overview after reading one result', async () => {
+  const api = makeApi();
+  const base = await loadDependencyGraph(api, undefined, new AbortController().signal);
+  const earlier = base.nodes.find((node) => node.id === 'statement:gap-note:2:s1')!;
+  const algebra = {
+    ...earlier,
+    id: 'statement:algebra-note:1:s1',
+    title: 'An algebraic consequence',
+    areas: ['algebra'],
+  };
+  const graph = {
+    ...base,
+    nodes: [...base.nodes, algebra],
+    edges: [
+      ...base.edges,
+      { from: earlier.id, to: algebra.id, relation: 'declared_dependency' as const },
+    ],
+  };
+  renderWithApp(<DependencyGraphView graph={graph} />, api);
+  let map = screen.getByRole('figure');
+  expect(within(map).getByRole('button', { name: /Algebra\s*1 results/ })).toBeVisible();
+  expect(within(map).getByRole('button', { name: /Number theory\s*3 results/ })).toBeVisible();
+  expect(map.querySelectorAll('.dependency-node')).toHaveLength(4);
+  expect(map.querySelectorAll('[data-relation="declared_dependency"]')).toHaveLength(1);
+  expect(screen.queryByRole('region', { name: 'Selected result and its dependencies' })).toBeNull();
+  await userEvent.click(within(map).getByRole('button', { name: /An algebraic consequence/ }));
+  expect(screen.getByRole('heading', { name: 'An algebraic consequence' })).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'All fields' }));
+  map = screen.getByRole('figure');
+  expect(map.querySelectorAll('.dependency-node')).toHaveLength(4);
+  expect(within(map).getByRole('button', { name: /Number theory\s*3 results/ })).toBeVisible();
 });

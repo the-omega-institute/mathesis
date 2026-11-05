@@ -352,3 +352,51 @@
     font-size: 1.4rem;
   }
 }
+
+.dependency-atlas-field {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+.dependency-atlas-field small {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  margin-top: 0.3rem;
+}
+.dependency-atlas-field:hover > span {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.dependency-canvas.is-atlas .dependency-node {
+  width: 14px;
+  min-height: 14px;
+  padding: 0;
+  background: transparent;
+}
+.dependency-canvas.is-atlas .dependency-dot {
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  background: var(--bg);
+}
+.dependency-canvas.is-atlas .dependency-node-label,
+.dependency-canvas.is-atlas .dependency-node-authors {
+  display: none;
+}
+.dependency-canvas.is-atlas .dependency-edge {
+  stroke-width: 1;
+  opacity: 0.55;
+}
+.dependency-figure.is-atlas .dependency-viewport {
+  touch-action: pan-y;
+}

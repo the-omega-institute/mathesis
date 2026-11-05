@@ -976,8 +976,8 @@ Paper-level Lean links cannot verify each theorem. Details and bounds are in
 ## Established theory library
 
 The public knowledge entry is a dependency graph of exact public results, with
-a readable selected-result neighborhood and a pannable expanded graph. Fields
-filter the graph; the Mathlib theory directory is an auxiliary reading resource.
+an overview across populated mathematical fields, then a field graph and a
+readable selected-result neighborhood. Fields filter the graph; the Mathlib theory directory is an auxiliary reading resource.
 Exact result and citation links retain their local views. The catalogue is the complete Lean
 source-path inventory at the verifier's exact Mathlib pin; every path belongs to
 one reading area. Counts describe source files including tools, not theorems or
@@ -991,6 +991,11 @@ metadata, review queues or credit for presentation. See docs/RESEARCH_GRAPH.md.
 ## Dependency graph as the knowledge entry
 
 `/research-graph` opens the actual result graph, never just a theory directory.
+All fields opens a field overview of every loaded exact result, never an arbitrarily
+selected local neighborhood. Field grouping creates no proof-dependency edges.
+The initial read includes two bounded source pages (up to forty works); further
+expansion rechecks the prior pages. Selecting a field opens its graph, selecting
+a result opens its precise neighborhood, and All fields restores the overview.
 The view composes existing Rust-owned public research, exact collected knowledge,
 accepted publication and checked-proof-use projections. Versioned paper/result
 identities prevent mixing source snapshots. More research re-reads the prior pages

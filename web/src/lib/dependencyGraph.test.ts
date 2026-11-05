@@ -11,6 +11,7 @@ import {
   addCheckedUses,
   cleanSnapshot,
   dependencyLayout,
+  dependencyAtlasLayout,
   loadDependencyGraph,
 } from './dependencyGraph';
 const signal = () => new AbortController().signal;
@@ -166,4 +167,17 @@ describe('public dependency projection', () => {
     expect(layout.height).toBeLessThan(1500);
     expect(dependencyLayout(graph)).toEqual(layout);
   });
+});
+
+it('keeps every exact result visible once in the field overview and adds no subject dependency edges', async () => {
+  const graph = await loadDependencyGraph(collectedApi(), undefined, signal());
+  const base = graph.nodes.find((node) => node.kind === 'result')!;
+  graph.nodes.push({ ...base, id: 'other-result', areas: ['algebra', 'number-theory'] });
+  const layout = dependencyAtlasLayout(graph, 1050);
+  expect(layout.points.size).toBe(4);
+  expect(layout.fields.map((field) => field.id)).toEqual(['algebra', 'number-theory']);
+  expect(layout.fields.reduce((count, field) => count + field.count, 0)).toBe(4);
+  expect(graph.edges.some((edge) => edge.relation === 'declared_dependency')).toBe(false);
+  const mobile = dependencyAtlasLayout(graph, 350);
+  expect([...mobile.points.values()].every((point) => point.x >= 0 && point.x < 350)).toBe(true);
 });
