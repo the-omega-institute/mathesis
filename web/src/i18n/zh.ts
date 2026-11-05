@@ -367,6 +367,8 @@ export const zh: Record<string, string> = {
   'Administrator access for': '管理员权限：',
   'Research graph': '研究图谱',
   'Knowledge graph': '知识图谱',
+  'Follow reviewed results, confirmed Lean targets and verified contributions as they become reusable mathematics.':
+    '从经过审阅的数学结果、已确认的 Lean 目标和通过验证的贡献，探索不断积累、可供复用的数学知识。',
   'Build on checked Lean results, follow their contributors, and explore the research behind them.':
     '基于已核验的 Lean 结果继续研究，了解贡献者及其背后的工作。',
   'Knowledge graph layer': '知识图谱层次',
@@ -476,6 +478,8 @@ export const zh: Record<string, string> = {
   'More formal results': '更多形式化结果',
   'Back to the first results': '返回首批结果',
   'No public Lean results yet': '暂无公开的 Lean 结果',
+  'Review recommendations become contribution opportunities once their exact Lean targets are confirmed. Checked proofs then appear with their contributors and reuse connections.':
+    '审稿建议中的结果，在精确的 Lean 目标确认后即可开放贡献。通过独立验证的证明将展示贡献者及其复用关系。',
   'Author-confirmed statements, checked propositions and their proof connections will appear here as research becomes public.':
     '研究公开后，作者确认的命题、已核验的结果与证明关联会展示在这里。',
   'Contribute Lean work': '贡献 Lean 成果',
