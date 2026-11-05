@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ResearchGraph } from '../api/types';
 import { fakeApi, renderWithApp } from '../test/render';
 import { publicPaper } from '../test/fixtures';
+import { dependencySource, dependencyPaper, dependencyKnowledge } from '../test/dependencyFixtures';
 import { PaperView } from './Papers';
 import { GraphView, ResearchGraphPage } from './ResearchGraph';
 import citationFixtures from '../test/research-citations.json';
@@ -61,15 +62,26 @@ const graph: ResearchGraph = {
   scope: 'Source-declared citations. Coverage is incomplete.',
 };
 describe('shared research graph', () => {
-  it('starts from a complete theory outline and leaves local graphs inside results', async () => {
-    const api = fakeApi();
+  it('opens directly into a dependency graph and keeps the directory auxiliary', async () => {
+    const api = fakeApi({
+      researchGraph: vi.fn(async () => dependencySource),
+      getCollectedPaper: async () => dependencyPaper,
+      collectedKnowledge: async () => dependencyKnowledge,
+    });
     renderWithApp(<ResearchGraphPage />, api);
-    expect(screen.getByRole('heading', { name: 'Knowledge library' })).toBeVisible();
-    expect(await screen.findByRole('link', { name: 'Algebra' })).toBeVisible();
-    expect(screen.queryByRole('combobox')).toBeNull();
-    expect(screen.queryByRole('figure')).toBeNull();
-    expect(api.researchGraph).not.toHaveBeenCalled();
-    expect(api.listCollectedPapers).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Dependency graph' })).toBeVisible();
+    expect(
+      await screen.findByRole('figure', { name: 'Mathematical dependency graph' }),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Browse existing theory' })).toHaveAttribute(
+      'href',
+      '/research-graph?focus=library%3Aall',
+    );
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(api.researchGraph).toHaveBeenCalledWith(
+      { limit: 20, before: undefined },
+      expect.anything(),
+    );
   });
   it('opens the source paper citations when switching from an exact statement link', async () => {
     const api = fakeApi({ researchGraph: vi.fn(async () => graph) });

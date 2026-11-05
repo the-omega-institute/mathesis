@@ -324,14 +324,22 @@ horizontal graph. Existing paper-level Lean links do not mark every statement
 verified. Only confirmed exact targets offer proof submission; independent
 verifier results retain their existing meaning and credit rules.
 
-## Theory library as the public entry
+## Theory library as an auxiliary resource
 
-The default `/research-graph` entry now opens a field-based knowledge library,
-not a paper selector or a graph wall. `focus=theory:<area>` opens a reading page:
-established mathematical resources, related public research, then questions and
-formalization participation. Existing exact statement, citation and query URLs
-retain their original meanings. Local graphs remain inside result/citation reading.
-The navigation label is Knowledge library; its compatibility URL is unchanged.
+The default `/research-graph` entry opens an interactive dependency graph. Fields
+filter the loaded results; selecting a node reads its exact statement, original
+authorship and available Lean contribution route. A readable neighborhood starts
+with at most three earlier and three later neighbors, with further connections
+reachable through paging. The expanded graph retains all loaded nodes, can be
+panned or zoomed, and centers the selected result at a readable scale. Dense ranks
+wrap rather than shrinking hundreds of nodes into an unreadable vertical stripe.
+Keyboard direction keys pan the canvas; node buttons and the connection list
+remain keyboard accessible. Mobile field selection uses a native select.
+
+The auxiliary directory opens at `focus=library:all` or `focus=library:<area>`.
+`focus=theory:<area>` now opens the graph for that field. Existing exact statement,
+citation and query URLs retain their original meanings. Navigation is labelled
+Knowledge graph.
 
 `web/src/data/mathlib-catalog.json` lists every `.lean` blob beneath `Mathlib/`
 from the exact Git tree pinned in `infra/verifier/lakefile.toml`. The current
@@ -368,3 +376,46 @@ with a complete recursive GitHub tree response for that exact commit. The script
 checks source identity, path validity and exhaustive area coverage before writing.
 Tests reject a stale verifier pin, missing/duplicated resource roots, missing
 reading entries, unsound path construction and broken source/result navigation.
+
+
+## Graph data and truth boundaries
+
+The browser composes bounded public projections already owned by Rust; there is no
+new graph database, crawler, review, proof attempt or manuscript mutation. Each
+page reads at most 20 source works and their public exact statements. Expanding
+research re-reads previously requested pages against current visibility before
+merging the current responses. This transient view is discarded on navigation;
+it is not a durable client cache. Shared literature identities and repeated edges
+are deduplicated. Paper containers use `paper:<work>:<version>` in this view;
+result nodes use `statement:<work>:<version>:<claim>`. Ordinary claims require a
+public publication snapshot matching the graph's version; a changed or absent
+snapshot cannot contribute claims from another version.
+
+| Relation | Reading direction and meaning |
+| --- | --- |
+| Manuscript reference | Referenced statement → referring statement, from literal source references; does not independently certify proof use |
+| Author-stated dependency | Declared prerequisite → dependent result, from accepted author-confirmed claim dependencies |
+| Checked proof use | Exact contributed declaration → result whose checked proof term actually used it |
+| Bibliography | Earlier cited work → citing paper; no theorem-level correspondence is inferred |
+| Membership | Paper → contained result, without a proof arrow |
+
+A result's full statement, original title/section, macros and mathematical authors
+come from its public source version. A checked intermediate proposition separately
+names its formalization contributor and source result, preserving both credits.
+Checked-use evidence is loaded from the existing result-use API for the selected
+verified ordinary result and fenced to exact result versions. Paper-level Lean
+links never mark each contained result checked. Unconfirmed collected statements
+link to the general Lean contribution entry, without implying a ready target.
+Confirmed targets reuse the existing target-specific route.
+
+Literal source references can form cycles. Strongly connected components determine
+the expanded layout; this is a display algorithm, not proof-dependency admission.
+The pinned Mathlib file catalogue does not contain declaration-level dependency
+edges, and this change does not claim to import them. The precise bridge from a
+collected statement to a confirmed Lean target remains tracked in issue #80.
+
+Validation covers relation direction and evidence type, exact versions, withdrawn
+publication snapshots, deduplication, cycles and large ranks, selecting earlier and
+later results, checked-contribution credit, fresh pagination, graph-first routing
+and Chinese UI. Production-corpus browser checks cover desktop/mobile, expansion,
+source reading, field filters, panning/zoom and responsive overflow.

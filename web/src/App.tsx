@@ -37,7 +37,7 @@ function titleFor(route: Route): string {
     case 'subject':
       return findSubject(route.msc)?.title ?? 'Not found';
     case 'research_graph':
-      return 'Knowledge library';
+      return 'Knowledge graph';
     case 'feedback':
       return 'Knowledge proposal';
     case 'binding_profile':
