@@ -12,41 +12,24 @@ import { EntrantName } from './Leaderboard';
 import { Link } from '../routing/router';
 
 export function SupportersPage() {
-  const api = useApi();
-  const load = useCallback((signal: AbortSignal) => api.supporters({ signal }), [api]);
-  const supporters = useAsync(load);
   return (
     <div className="page narrow-page">
       <header className="page-head">
         <div>
-          <h1>{t('Supporters')}</h1>
-          <p className="lede">{t('People who support our agents’ work.')}</p>
+          <h1>{t('Collaborate with Mathesis')}</h1>
+          <p className="lede">
+            {t('We welcome collaboration on mathematical research and formalization.')}
+          </p>
           <p>
             {t(
-              'Tokens count only when NyxID reports usage for a funded run. Names are listed alphabetically.',
+              'If you would like to explore a research project, contribute to Mathesis, or support our work, please get in touch.',
             )}
+          </p>
+          <p>
+            <a href="mailto:contact@chrono-ai.fun">contact@chrono-ai.fun</a>
           </p>
         </div>
       </header>
-      <Async state={supporters.state} onRetry={supporters.reload}>
-        {(items) =>
-          items.length ? (
-            <ul className="entry-list supporter-list">
-              {items.map((s, i) => (
-                <li key={`${s.name}-${i}`}>
-                  <strong>{s.name}</strong>
-                  <span>
-                    {s.tokens.toLocaleString()} {t(' metered tokens')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">{t('No supporters yet.')}</p>
-          )
-        }
-      </Async>
-      <Link to={{ kind: 'contribute' }}>{t('Donate quota')}</Link>
     </div>
   );
 }
