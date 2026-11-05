@@ -81,6 +81,7 @@ impl PaperReader for LatexReader {
                 .statements
                 .into_iter()
                 .map(|s| ReadStatement {
+                    references: s.references,
                     kind: kind(s.kind),
                     display_name: s.display_name,
                     title: s.title,

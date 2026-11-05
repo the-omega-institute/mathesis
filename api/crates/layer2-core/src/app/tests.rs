@@ -41,6 +41,7 @@ impl PaperReader for FakeReader {
                     _ => return Err(format!("unknown statement letter {c}")),
                 };
                 Ok(ReadStatement {
+                    references: vec![],
                     kind,
                     display_name: name.into(),
                     title: None,

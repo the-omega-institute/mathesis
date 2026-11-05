@@ -707,6 +707,21 @@ export type CollectedPaper = {
   pdf: { url: string };
   source: { url: string };
 };
+export type CollectedKnowledge = {
+  work: string;
+  version: number;
+  statements: {
+    id: string;
+    kind: ClaimKind;
+    name: string;
+    title?: string | null;
+    statement: string;
+    section?: string | null;
+  }[];
+  connections: { from: string; to: string; relation: 'references_in_manuscript' }[];
+  macros: Record<string, string>;
+  limitations: string[];
+};
 export type PublicClaim = {
   latex_label?: string;
   verified?: VerifiedAttempt | null;

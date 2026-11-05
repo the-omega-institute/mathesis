@@ -590,6 +590,40 @@ fn following_proof(
     false
 }
 
+/// Read syntax only: no evaluation, inferred implication or proof verification.
+fn local_references(
+    raw: &str,
+    following: &str,
+    label: Option<&str>,
+    envs: &BTreeMap<String, String>,
+) -> Vec<String> {
+    let mut text = crate::bibliography::reading_text(raw, true);
+    if following_proof(following, label, envs)
+        && let Some(start) = following.find("\\begin{proof}")
+    {
+        let body = &following[start + "\\begin{proof}".len()..];
+        let body = bracketed(body, 0).map_or(body, |(_, end)| &body[end..]);
+        if let Some(end) = body.find("\\end{proof}") {
+            text.push_str(&crate::bibliography::reading_text(&body[..end], true));
+        }
+    }
+    ["\\ref", "\\eqref", "\\autoref", "\\cref", "\\Cref"]
+        .into_iter()
+        .flat_map(|command| all_arguments(&text, command))
+        .flat_map(|reference| {
+            reference
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty() && s.len() <= 200)
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .take(100)
+        .collect()
+}
+
 fn command_argument<'a>(source: &'a str, command: &str) -> Option<&'a str> {
     let mut from = 0;
     while let Some(found) = source[from..].find(command) {
@@ -850,6 +884,7 @@ pub fn parse(files: &Files) -> LatexResult<ParsedPaper> {
             .find(|(at, _)| *at < open)
             .map(|(_, name)| name.clone());
         statements.push(Statement {
+            references: local_references(raw, &source[k..], label.as_deref(), &envs),
             index: statements.len() + 1,
             kind,
             environment: env,
@@ -916,6 +951,25 @@ Every run has length at most $2$, and 100\% of them are short.
 The spectrum is $\{1,2\}$ for every $r$.
 \end{conj*}
 "#;
+
+    #[test]
+    fn local_result_references_preserve_literal_evidence_without_borrowing_another_proof() {
+        let source = r"\documentclass{article}
+\newtheorem{theorem}{Theorem}\newtheorem{lemma}{Lemma}
+\begin{document}
+\begin{lemma}\label{lem:base} A base case. \end{lemma}
+\begin{proof} % \ref{comment}
+\begin{verbatim}\ref{code}\end{verbatim} A direct check.\end{proof}
+\begin{theorem}[A consequence]\label{thm:main} As in \ref{lem:base}.\end{theorem}
+\begin{proof} Apply \cref{lem:base,eq:other}, not \reference{not-a-ref}.\end{proof}
+\begin{theorem}\label{thm:last} A different result.\end{theorem}
+\begin{proof}[Proof of Theorem~\ref{thm:main}] Apply \ref{not-last}.\end{proof}
+\end{document}";
+        let paper = parse(&files(&[("main.tex", source)])).unwrap();
+        assert!(paper.statements[0].references.is_empty());
+        assert_eq!(paper.statements[1].references, ["eq:other", "lem:base"]);
+        assert!(paper.statements[2].references.is_empty());
+    }
 
     #[test]
     fn recognizes_proofs_after_explanatory_prose_without_borrowing_other_proofs() {

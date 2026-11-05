@@ -1,4 +1,4 @@
-# Shared research graph: first usable slice
+# Mathematical knowledge and its sources
 
 Mathesis indexes the references actually cited by an accepted manuscript as a
 shared bibliographic foundation. Two manuscripts citing the same supported DOI
@@ -284,3 +284,42 @@ The Lean layer also displays collected papers' published Lean source links with
 original research authorship. These source nodes earn no new verifier badge or
 leaderboard credit. Confirmed targets remain the community proof entry points;
 checked-use arrows require the existing independent proof inspection.
+
+## Exact mathematical statements
+
+The default knowledge view reads mathematical results before opening the separate
+citation and checked-proof layers. For collected papers,
+`GET /api/v1/collected-papers/{work}/knowledge?version=N` requires the exact public
+source version. It returns `work`, `version`, `statements`, `connections`, `macros`
+and `limitations`. A statement retains its original kind, display name, optional
+manuscript title, section and full wording. `s1`, `s2`, … are source-order identities
+within that version, **not printed theorem numbers**. Section context is not a new
+theorem title. Original research authorship comes from the unchanged public paper.
+
+The source reader observes literal `ref`, `eqref`, `autoref`, `cref` and `Cref`
+commands in statements and attached proofs. Comments/code are masked. An attached
+proof explicitly identifying another statement is not borrowed. Only unambiguous
+labels of retained statements create `references_in_manuscript` connections;
+equations, self-references, ambiguous and unresolved labels do not. Deferred proofs,
+indirect references and unlabelled prose may be missing. This syntax is neither
+proof validation nor a cross-paper implication claim. Cycles remain legitimate.
+
+The existing source-bound CAS sidecar now retains optional results alongside the
+bibliography. Legacy indexes without results upgrade once through the existing
+admin `/index` route; retries then reuse the index. A source digest mismatch hides
+the observations. There are no new review, proof or compilation jobs, delivery
+changes or scientific receipt changes. The index retains at most 100 statements,
+each at most 30,000 bytes and 512 KiB together. Oversized bodies are omitted,
+never shortened. Display names are at most 1,000 bytes; optional titles and
+sections at most 4,000 bytes. Macros are retained within 64 KiB. Missing coverage
+remains explicit. No private review or source digest is in the public response.
+
+The reader shows a selected result's full mathematical statement, surrounding
+literal references, source context and formalization status. Navigation covers all
+collected pages and then all accepted-record pages. Exact source result links use
+`/research-graph?focus=statement:<work>:<version>:<id>`. Ordinary accepted statements
+retain author-declared dependencies and their existing result/contribution pages.
+On small screens the statement appears before the connections, without a cropped
+horizontal graph. Existing paper-level Lean links do not mark every statement
+verified. Only confirmed exact targets offer proof submission; independent
+verifier results retain their existing meaning and credit rules.

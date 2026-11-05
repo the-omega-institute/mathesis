@@ -363,3 +363,131 @@ async fn collected_graph_indexes_public_sources_and_credits_real_references_with
     assert_eq!(seen.len(), 3);
     assert!(seen.contains(&record));
 }
+
+struct KnowledgeReader;
+impl PaperReader for KnowledgeReader {
+    fn read(&self, bytes: &[u8], filename: &str) -> Result<ReadPaper, String> {
+        let mut read = IndexedReader.read(bytes, filename)?;
+        let base = read.statements[0].clone();
+        let mut lemma = base.clone();
+        lemma.kind = ClaimKind::Lemma;
+        lemma.display_name = "Lemma".into();
+        lemma.latex_label = Some("lem:base".into());
+        let mut theorem = base.clone();
+        theorem.title = Some("A named consequence".into());
+        theorem.latex_label = Some("thm:main".into());
+        theorem.references = vec!["lem:base".into(), "eq:unrelated".into(), "duplicate".into()];
+        let mut duplicate = base.clone();
+        duplicate.latex_label = Some("duplicate".into());
+        read.statements = vec![lemma, theorem, duplicate.clone(), duplicate];
+        Ok(read)
+    }
+}
+
+#[tokio::test]
+async fn collected_knowledge_has_exact_result_identity_but_no_invented_verification_or_credit() {
+    let mut w = World::new().await;
+    w.app = App::with_internal_accounts(
+        w.stores
+            .ports(Arc::new(SystemClock), Arc::new(KnowledgeReader)),
+        Policy::default(),
+        BTreeSet::from(["admin".into()]),
+        20,
+        BTreeSet::from(["publisher".into()]),
+    );
+    let owner = w.person("publisher", &[]).await;
+    let admin = w.person("admin", &[]).await;
+    let (delivery, pdf, source) = package(1);
+    w.app
+        .collect_pre_reviewed(&owner, delivery, pdf, source)
+        .await
+        .unwrap();
+    let mut saved = w.stores.get("a-note", Some(1)).await.unwrap().unwrap();
+    let original_queue = w.stores.queued().await;
+    let knowledge = w.app.collected_knowledge("a-note", 1).await.unwrap();
+    assert_eq!(knowledge.work, "a-note");
+    assert_eq!(knowledge.version, 1);
+    assert_eq!(knowledge.results.statements.len(), 4);
+    assert_eq!(
+        knowledge.results.statements[1].title.as_deref(),
+        Some("A named consequence")
+    );
+    assert_eq!(
+        knowledge.results.connections,
+        [CollectedConnection {
+            from: "s2".into(),
+            to: "s1".into(),
+            relation: CollectedRelation::ReferencesInManuscript
+        }]
+    );
+    let public = serde_json::to_string(&knowledge).unwrap();
+    assert!(
+        !public.contains("private_evidence")
+            && !public.contains("verified")
+            && !public.contains("source_sha256")
+    );
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(w.app.collected_knowledge("a-note", 2).await.is_err());
+
+    // A legacy bibliography index upgrades once, without touching the public delivery or queue.
+    saved.id = "legacy-knowledge".into();
+    saved.delivery.work_id = "legacy-knowledge".into();
+    saved.source_index.as_mut().unwrap().results = None;
+    w.stores.insert(&saved).await.unwrap();
+    assert!(
+        w.app
+            .collected_knowledge("legacy-knowledge", 1)
+            .await
+            .unwrap()
+            .results
+            .statements
+            .is_empty()
+    );
+    w.app
+        .index_collected_paper(&admin, "legacy-knowledge", 1)
+        .await
+        .unwrap();
+    w.app
+        .index_collected_paper(&admin, "legacy-knowledge", 1)
+        .await
+        .unwrap();
+    let mut after = w
+        .stores
+        .get("legacy-knowledge", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.source_index.as_ref().unwrap().revision, 2);
+    after.source_index = saved.source_index.clone();
+    assert_eq!(after, saved);
+    assert_eq!(w.stores.queued().await, original_queue);
+
+    // Observations of other bytes cannot supply a public statement or connection.
+    let mut stale = saved;
+    stale.id = "stale-source".into();
+    stale.delivery.work_id = "stale-source".into();
+    stale.source_index = w
+        .stores
+        .get("a-note", Some(1))
+        .await
+        .unwrap()
+        .unwrap()
+        .source_index;
+    stale.source_index.as_mut().unwrap().source_sha256 = "0".repeat(64);
+    w.stores.insert(&stale).await.unwrap();
+    assert!(
+        w.app
+            .collected_knowledge("stale-source", 1)
+            .await
+            .unwrap()
+            .results
+            .statements
+            .is_empty()
+    );
+}

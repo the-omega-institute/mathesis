@@ -51,6 +51,7 @@ impl PaperReader for OneTheorem {
             return Err("no main .tex file".into());
         }
         let statement = |kind, name: &str| ReadStatement {
+            references: vec![],
             kind,
             display_name: name.into(),
             title: None,

@@ -242,6 +242,7 @@ fn statements(text: &str) -> Result<Vec<Statement>, String> {
                 out.push(previous);
             }
             current = Some(Statement {
+                references: vec![],
                 index: out.len() + 1,
                 kind,
                 environment: "pdf".into(),

@@ -23,11 +23,22 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/collected-papers", get(list))
         .route("/collected-papers/{id}", get(paper))
         .route("/collected-papers/{id}/index", post(index))
+        .route("/collected-papers/{id}/knowledge", get(knowledge))
         .route(
             "/collected-papers/{id}/plain-language/request",
             post(request_explanation),
         )
         .route("/collected-papers/{id}/files/{kind}", get(file))
+}
+async fn knowledge(
+    State(app): AppState,
+    Path(id): Path<String>,
+    Query(q): Query<Version>,
+) -> ApiResult<impl IntoResponse> {
+    let version = q
+        .version
+        .ok_or_else(|| Problem(CoreError::invalid("name the exact publication version")))?;
+    Ok(Json(app.collected_knowledge(&id, version).await?))
 }
 async fn index(
     State(app): AppState,

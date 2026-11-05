@@ -69,6 +69,9 @@ export function PublishedNotePage({
           {t('Download source')}
         </a>
         {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
+        <Link to={{ kind: 'research_graph', focus: `statement:${note.id}:${note.revision}:s1` }}>
+          {t('Explore mathematical results')}
+        </Link>
       </nav>
       <section>
         <h2>{t('Abstract')}</h2>

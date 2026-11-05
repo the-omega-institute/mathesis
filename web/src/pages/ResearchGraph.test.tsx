@@ -61,17 +61,25 @@ const graph: ResearchGraph = {
   scope: 'Source-declared citations. Coverage is incomplete.',
 };
 describe('shared research graph', () => {
-  it('starts with Lean knowledge and leaves citations as a separate view', async () => {
+  it('starts with mathematical results and leaves proof verification as a separate view', async () => {
     const api = fakeApi();
     renderWithApp(<ResearchGraphPage />, api);
-    expect(
-      await screen.findByRole('heading', { name: 'No public Lean results yet' }),
-    ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Lean results' })).toHaveAttribute(
+    expect(await screen.findByRole('heading', { name: 'Mathematics to build on' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Mathematical results' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     expect(api.researchGraph).not.toHaveBeenCalled();
+  });
+  it('opens the source paper citations when switching from an exact statement link', async () => {
+    const api = fakeApi({ researchGraph: vi.fn(async () => graph) });
+    renderWithApp(<ResearchGraphPage focus="statement:gap-note:2:s1" />, api);
+    await userEvent.click(screen.getByRole('button', { name: 'Papers and sources' }));
+    await screen.findByRole('figure', { name: 'Research connections' });
+    expect(api.researchGraph).toHaveBeenCalledWith(
+      { focus: 'paper:gap-note', q: undefined, before: undefined },
+      expect.anything(),
+    );
   });
   it('opens citations with source credit and no search form', async () => {
     renderWithApp(<ResearchGraphPage />, fakeApi({ researchGraph: async () => graph }));
