@@ -356,6 +356,81 @@ async fn people_submissions_and_revision_fencing() {
 }
 
 #[tokio::test]
+async fn populated_gridfs_bucket_recovers_its_file_lookup_index_on_restart() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let stored = db
+        .store
+        .put(b"reviewed source", "application/zip")
+        .await
+        .unwrap();
+    db.store
+        .raw("papers.chunks")
+        .drop_index("files_id_1_n_1")
+        .await
+        .unwrap();
+    // A populated bucket makes the driver's upload-time index creation skip
+    // recovery. Startup must restore it, before any further upload or download.
+    let reopened = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    let count = reopened
+        .raw("papers.chunks")
+        .count_documents(doc! { "files_id": &stored.id })
+        .hint(mongodb::options::Hint::Keys(doc! { "files_id": 1, "n": 1 }))
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+    assert_eq!(
+        BlobStore::get(&reopened, &stored.id)
+            .await
+            .unwrap()
+            .unwrap(),
+        b"reviewed source"
+    );
+    reopened
+        .raw("papers.chunks")
+        .drop_index("files_id_1_n_1")
+        .await
+        .unwrap();
+    reopened
+        .raw("papers.chunks")
+        .create_index(
+            IndexModel::builder()
+                .keys(doc! { "files_id": 1, "n": 1 })
+                .options(
+                    IndexOptions::builder()
+                        .name("restored_unique_chunks".to_owned())
+                        .unique(true)
+                        .build(),
+                )
+                .build(),
+        )
+        .await
+        .unwrap();
+    // A restored bucket may already have a compatible custom/unique index;
+    // startup must accept it rather than replacing its name or options.
+    let compatible = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        BlobStore::get(&compatible, &stored.id)
+            .await
+            .unwrap()
+            .unwrap(),
+        b"reviewed source"
+    );
+    db.drop().await;
+}
+
+#[tokio::test]
 async fn blobs_empty_small_and_chunk_boundaries() {
     let Some(db) = TestDb::open().await else {
         return;

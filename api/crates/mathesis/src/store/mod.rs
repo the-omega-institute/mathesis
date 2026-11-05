@@ -85,6 +85,36 @@ impl MongoStore {
                 )
                 .build()
         };
+        // GridFS only creates these indexes automatically for an empty bucket.
+        // Restored/populated buckets still need a bounded lookup of each file's
+        // chunks, rather than a scan of all stored manuscript/knowledge bytes.
+        let chunks = self.raw("papers.chunks");
+        let mut indexed = false;
+        match chunks.list_indexes().await {
+            Ok(mut cursor) => {
+                while let Some(index) = cursor.try_next().await? {
+                    if index.keys.len() == 2
+                        && index.keys.keys().map(String::as_str).eq(["files_id", "n"])
+                        && index.keys.values().all(|value| match value {
+                            mongodb::bson::Bson::Int32(n) => *n == 1,
+                            mongodb::bson::Bson::Int64(n) => *n == 1,
+                            mongodb::bson::Bson::Double(n) => *n == 1.0,
+                            _ => false,
+                        })
+                    {
+                        indexed = true;
+                    }
+                }
+            }
+            Err(error) if matches!(error.kind.as_ref(), ErrorKind::Command(e) if e.code == 26) => {}
+            Err(error) => return Err(error.into()),
+        }
+        if !indexed {
+            tracing::warn!("restoring missing GridFS file lookup index");
+            chunks
+                .create_index(plain(doc! { "files_id": 1, "n": 1 }))
+                .await?;
+        }
         self.raw(collected::COLLECTION)
             .create_indexes([
                 unique(doc! {"id": 1}),

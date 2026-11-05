@@ -31,6 +31,7 @@ impl MongoStore {
     /// This avoids the driver's separate raw-batch download path. Validate the
     /// complete chunk sequence before returning any bytes to a reader.
     async fn read_blob(&self, id: &str) -> CoreResult<Option<Vec<u8>>> {
+        tracing::debug!(blob_id = id, "reading file header");
         let Some(file) = self
             .db
             .collection::<FileHeader>("papers.files")
@@ -40,6 +41,7 @@ impl MongoStore {
         else {
             return Ok(None);
         };
+        tracing::debug!(blob_id = id, length = file.length, "file header read");
         if file.chunk_size == 0 {
             return Err(gridfs("invalid chunk size"));
         }
@@ -50,6 +52,7 @@ impl MongoStore {
             .sort(doc! { "n": 1 })
             .await
             .map_err(gridfs)?;
+        tracing::debug!(blob_id = id, "file chunk cursor opened");
         let mut bytes = Vec::new();
         let mut n = 0;
         let mut remaining = file.length;
@@ -106,7 +109,7 @@ impl BlobStore for MongoStore {
     async fn get(&self, id: &str) -> CoreResult<Option<Vec<u8>>> {
         let result = tokio::time::timeout(std::time::Duration::from_secs(30), self.read_blob(id))
             .await
-            .map_err(|_| gridfs("read timed out"))?;
+            .unwrap_or_else(|_| Err(gridfs("read timed out")));
         if let Err(error) = &result {
             tracing::warn!(blob_id = id, %error, "file read failed");
         }
