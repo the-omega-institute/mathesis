@@ -20,10 +20,16 @@ impl Advisor for CmaAdvisor {
         input: &AdvisorInput,
         store: &dyn RunStore,
     ) -> ReviewResult<crate::explanation::ExplanationOut> {
+        let state = store.load().await?;
+        let digest = state.as_ref().and_then(|state| state["input"].as_str());
         parse_answer(
             &self
                 .client
-                .answer(store, crate::explanation::prompt(input), self.timeout)
+                .answer(
+                    store,
+                    crate::explanation::admitted_prompt(input, digest),
+                    self.timeout,
+                )
                 .await?,
         )
     }

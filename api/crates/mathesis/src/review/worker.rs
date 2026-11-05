@@ -219,6 +219,9 @@ impl Worker {
     }
 
     async fn process(&self, job: &LeasedJob) -> Result<bool, Failure> {
+        if job.kind == JobKind::CollectedExplanation {
+            return self.collected_explanation_job(job).await;
+        }
         if job.kind == JobKind::VerifyResearch {
             self.app
                 .verify_research_leased(&self.reviewer, job, self.jobs.as_ref())
@@ -268,7 +271,8 @@ impl Worker {
             Err(error) => return Err(error.into()),
         };
         match job.kind {
-            JobKind::PaperExplanation
+            JobKind::CollectedExplanation
+            | JobKind::PaperExplanation
             | JobKind::ErrorReports
             | JobKind::AgentAttempt
             | JobKind::OpenProblems

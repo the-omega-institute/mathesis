@@ -163,6 +163,10 @@ def main():
         key = (work["id"], work["revision"])
         if key in works:
             work["published_on"] = works[key]["published_on"]
+            # Exposition is maintained by the downstream reader. An exact
+            # scientific-package retry must preserve its independently written guide.
+            if "plain_language" in works[key]:
+                work["plain_language"] = works[key]["plain_language"]
             if work != works[key]:
                 raise ValueError("a published revision is immutable: " + work["id"])
         works[key] = work

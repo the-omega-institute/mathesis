@@ -31,7 +31,14 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             id: d.work_id.clone(),
             revision: d.version.to_string(),
             previous_version: d.previous_version.map(|v| v.to_string()),
-            paper: d.paper.clone(),
+            paper: CollectedMetadata {
+                plain_language: v
+                    .explanation
+                    .text
+                    .clone()
+                    .or_else(|| d.paper.plain_language.clone()),
+                ..d.paper.clone()
+            },
             published_on: v.published_on,
             pdf: file("pdf"),
             source: file("source"),
@@ -126,6 +133,7 @@ impl App {
                         "published versions are immutable; deliver a new version",
                     ));
                 }
+                self.enqueue_collected_explanation(&existing).await?;
                 return Ok(receipt(&existing));
             }
             if delivery.previous_version != Some(current.delivery.version) {
@@ -147,6 +155,7 @@ impl App {
             }
         };
         let version = CollectedVersion {
+            explanation: CollectedExplanation::default(),
             id: uuid::Uuid::now_v7().to_string(),
             owner: caller.person.clone(),
             delivery,
@@ -169,12 +178,87 @@ impl App {
                     && saved.owner == version.owner
                     && saved.request_digest == version.request_digest
                 {
+                    self.enqueue_collected_explanation(&saved).await?;
                     return Ok(receipt(&saved));
                 }
             }
             return Err(error);
         }
+        self.enqueue_collected_explanation(&version).await?;
         Ok(receipt(&version))
+    }
+
+    async fn enqueue_collected_explanation(&self, v: &CollectedVersion) -> CoreResult<()> {
+        if v.explanation.text.is_none() {
+            self.ports
+                .queue
+                .enqueue(
+                    &crate::ids::SubmissionId(format!(
+                        "collected:{}:{}",
+                        v.delivery.work_id, v.delivery.version
+                    )),
+                    crate::ports::JobKind::CollectedExplanation,
+                )
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Backfill exposition of an already public exact version; never admits or re-reviews it.
+    pub async fn request_collected_explanation(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+    ) -> CoreResult<PublicCollectedPaper> {
+        caller.require(Role::Admin)?;
+        let v = self
+            .collected_explanation_input(caller, work, version)
+            .await?;
+        self.enqueue_collected_explanation(&v).await?;
+        Ok((&v).into())
+    }
+
+    pub async fn collected_explanation_input(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+    ) -> CoreResult<CollectedVersion> {
+        if !caller.has(Role::Admin) {
+            caller.require(Role::Reviewer)?;
+        }
+        self.ports
+            .collected
+            .get(work, Some(version))
+            .await?
+            .ok_or_else(|| CoreError::not_found("collected paper", work))
+    }
+
+    /// Only the explanation sidecar changes. File bytes, review, authors and receipt stay immutable.
+    pub async fn save_collected_explanation(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+        value: CollectedExplanation,
+        expected: u64,
+    ) -> CoreResult<()> {
+        caller.require(Role::Reviewer)?;
+        if let Some(text) = &value.text {
+            text.validate()?;
+        }
+        if serde_json::to_vec(&value)
+            .map_err(|_| CoreError::invalid("invalid explanation"))?
+            .len()
+            > 2_000_000
+        {
+            return Err(CoreError::invalid("explanation state too large"));
+        }
+        self.ports
+            .collected
+            .save_explanation(work, version, &value, expected)
+            .await
     }
     pub async fn collected_paper(
         &self,

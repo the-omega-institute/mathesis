@@ -2477,3 +2477,50 @@ async fn research_graph_persists_source_observations_and_rechecks_live_visibilit
     }
     db.drop().await;
 }
+
+#[tokio::test]
+async fn collected_exposition_cas_upgrades_legacy_records_without_touching_delivery() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let version: CollectedVersion = serde_json::from_value(serde_json::json!({
+        "id":"test-collection-version", "owner":"publisher", "request_digest":"immutable-reviewed-request", "published_on":Utc::now(),
+        "pdf":{"id":"pdf", "bytes":10,"sha256":"a".repeat(64)},
+        "source":{"id":"source", "bytes":20,"sha256":"b".repeat(64)},
+        "delivery":{"schema":"mathesis.pre-reviewed-delivery.v1", "producer":"publisher", "work_id":"a-note", "version":1,
+          "previous_version":null,"authorize_publication":true,
+          "paper":{"title":"A note", "abstract":"A bound on gaps", "authors":[{"name":"Original Author"}],"license":"CC-BY-4.0"},
+          "review":{"verdict":"PASS","pdf_sha256":"a".repeat(64),"source_sha256":"b".repeat(64),"record":{"private_review":"preserved"}}}
+    })).unwrap();
+    let mut legacy = to_document(&version).unwrap();
+    legacy.remove("explanation");
+    db.store
+        .raw(collected::COLLECTION)
+        .insert_one(legacy)
+        .await
+        .unwrap();
+    let value = CollectedExplanation {
+        revision: 1,
+        text: Some(PlainLanguageText {
+            en: "A reading guide.".into(),
+            zh: "论文解读。".into(),
+        }),
+        progress: serde_json::json!({"answer":"saved"}),
+    };
+    db.store
+        .save_explanation("a-note", 1, &value, 0)
+        .await
+        .unwrap();
+    assert!(matches!(
+        db.store.save_explanation("a-note", 1, &value, 0).await,
+        Err(CoreError::StaleRevision { .. })
+    ));
+    let mut saved = CollectedPaperStore::get(&db.store, "a-note", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.explanation, value);
+    saved.explanation = CollectedExplanation::default();
+    assert_eq!(saved, version);
+    db.drop().await;
+}

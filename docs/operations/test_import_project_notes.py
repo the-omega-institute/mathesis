@@ -104,6 +104,17 @@ class ProjectImportTests(unittest.TestCase):
         self.assertNotEqual(self.run_import("--authorize-publication").returncode, 0)
         self.assertEqual(snapshot.read_bytes(), before)
 
+    def test_exact_reimport_preserves_downstream_reading_guide(self):
+        self.assertEqual(self.run_import("--authorize-publication").returncode, 0)
+        snapshot = self.root / "web/src/data/project-notes.json"
+        existing = json.loads(snapshot.read_text())
+        guide = {"en": "A complete reading guide.", "zh": "完整的论文解读。"}
+        existing["works"][0]["plain_language"] = guide
+        snapshot.write_text(json.dumps(existing))
+        result = self.run_import("--authorize-publication")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(snapshot.read_text())["works"][0]["plain_language"], guide)
+
 
 if __name__ == "__main__":
     unittest.main()

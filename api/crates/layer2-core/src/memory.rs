@@ -871,6 +871,27 @@ impl LeanDepositStore for MemoryStores {
 
 #[async_trait]
 impl CollectedPaperStore for MemoryStores {
+    async fn save_explanation(
+        &self,
+        work: &str,
+        version: u32,
+        value: &CollectedExplanation,
+        expected: u64,
+    ) -> CoreResult<()> {
+        let mut values = self.collected.lock().await;
+        let saved = values
+            .values_mut()
+            .find(|v| v.delivery.work_id == work && v.delivery.version == version)
+            .ok_or_else(|| CoreError::not_found("collected paper", work))?;
+        if saved.explanation.revision != expected || value.revision != expected + 1 {
+            return Err(CoreError::StaleRevision {
+                kind: "collected explanation",
+                id: work.into(),
+            });
+        }
+        saved.explanation = value.clone();
+        Ok(())
+    }
     async fn get(&self, work: &str, version: Option<u32>) -> CoreResult<Option<CollectedVersion>> {
         Ok(self
             .collected
