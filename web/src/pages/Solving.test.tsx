@@ -368,7 +368,14 @@ describe('solving pages', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Papers', 'Conjectures', 'Formalizations', 'Knowledge graph', 'Submit', 'My work']);
+    ).toEqual([
+      'Papers',
+      'Conjectures',
+      'Formalizations',
+      'Knowledge library',
+      'Submit',
+      'My work',
+    ]);
     expect(within(nav).queryByRole('link', { name: 'Policy' })).not.toBeInTheDocument();
     for (const name of ['Leaderboard', 'Contribute']) {
       expect(within(nav).queryByRole('link', { name })).not.toBeInTheDocument();

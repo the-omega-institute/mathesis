@@ -61,15 +61,15 @@ const graph: ResearchGraph = {
   scope: 'Source-declared citations. Coverage is incomplete.',
 };
 describe('shared research graph', () => {
-  it('starts with mathematical results and leaves proof verification as a separate view', async () => {
+  it('starts from a complete theory outline and leaves local graphs inside results', async () => {
     const api = fakeApi();
     renderWithApp(<ResearchGraphPage />, api);
-    expect(await screen.findByRole('heading', { name: 'Mathematics to build on' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Mathematical results' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(screen.getByRole('heading', { name: 'Knowledge library' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Algebra' })).toBeVisible();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('figure')).toBeNull();
     expect(api.researchGraph).not.toHaveBeenCalled();
+    expect(api.listCollectedPapers).not.toHaveBeenCalled();
   });
   it('opens the source paper citations when switching from an exact statement link', async () => {
     const api = fakeApi({ researchGraph: vi.fn(async () => graph) });
@@ -82,7 +82,10 @@ describe('shared research graph', () => {
     );
   });
   it('opens citations with source credit and no search form', async () => {
-    renderWithApp(<ResearchGraphPage />, fakeApi({ researchGraph: async () => graph }));
+    renderWithApp(
+      <ResearchGraphPage focus="doi:10.1234/old" />,
+      fakeApi({ researchGraph: async () => graph }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Papers and sources' }));
     const map = await screen.findByRole('figure', { name: 'Research connections' });
     expect(within(map).getByRole('button', { name: /An old result E\. Earlier/ })).toHaveAttribute(

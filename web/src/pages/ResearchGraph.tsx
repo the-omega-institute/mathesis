@@ -1,5 +1,5 @@
 import { t } from '../i18n/locale';
-import { useCallback, useId, useState } from 'react';
+import { lazy, Suspense, useCallback, useId, useState } from 'react';
 import { LeanKnowledgeGraph } from '../components/LeanKnowledgeGraph';
 import { MathematicalKnowledge } from '../components/MathematicalKnowledge';
 import { useApi } from '../api/context';
@@ -10,6 +10,10 @@ import { InlineLatex } from '../components/Markdown';
 import { safeHttpUrl } from '../lib/links';
 import { Link } from '../routing/router';
 
+const TheoryLibrary = lazy(() =>
+  import('../components/TheoryLibrary').then((module) => ({ default: module.TheoryLibrary })),
+);
+
 export function ResearchGraphPage({
   focus,
   q,
@@ -19,8 +23,14 @@ export function ResearchGraphPage({
   q?: string;
   before?: string;
 }) {
-  const [layer, setLayer] = useState<'results' | 'lean' | 'citations'>(
-    focus?.startsWith('statement:') ? 'results' : focus || q || before ? 'citations' : 'results',
+  const [layer, setLayer] = useState<'library' | 'results' | 'lean' | 'citations'>(
+    focus?.startsWith('theory:')
+      ? 'library'
+      : focus?.startsWith('statement:')
+        ? 'results'
+        : focus || q || before
+          ? 'citations'
+          : 'library',
   );
   const api = useApi();
   const citationFocus = focus?.startsWith('statement:') ? `paper:${focus.split(':')[1]}` : focus;
@@ -31,45 +41,59 @@ export function ResearchGraphPage({
   const graph = useAsync(layer === 'citations' ? load : null);
   return (
     <div className="page research-graph">
-      <h1>{t('Knowledge graph')}</h1>
-      <p>
+      <h1>
         {t(
-          'Explore mathematical results, understand how they connect, and find the next proof to contribute.',
+          layer === 'library'
+            ? 'Knowledge library'
+            : layer === 'results'
+              ? 'Mathematical results'
+              : layer === 'lean'
+                ? 'Verified proof connections'
+                : 'Papers and sources',
         )}
-      </p>
-      <div className="filter-row" role="group" aria-label={t('Knowledge graph layer')}>
-        <button
-          type="button"
-          className="text-button"
-          aria-pressed={layer === 'results'}
-          onClick={() => setLayer('results')}
-        >
-          {t('Mathematical results')}
-        </button>
-        <button
-          type="button"
-          className="text-button"
-          aria-pressed={layer === 'lean'}
-          onClick={() => setLayer('lean')}
-        >
-          {t('Verified proof connections')}
-        </button>
-        <button
-          type="button"
-          className="text-button"
-          aria-pressed={layer === 'citations'}
-          onClick={() => setLayer('citations')}
-        >
-          {t('Papers and sources')}
-        </button>
-      </div>
+      </h1>
+      {layer !== 'library' ? (
+        <>
+          <p>
+            <Link to={{ kind: 'research_graph' }}>{t('Back to the knowledge library')}</Link>
+          </p>
+          <div className="filter-row" role="group" aria-label={t('Knowledge graph layer')}>
+            {(
+              [
+                ['results', 'Mathematical results'],
+                ['lean', 'Verified proof connections'],
+                ['citations', 'Papers and sources'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className="text-button"
+                aria-pressed={layer === value}
+                onClick={() => setLayer(value)}
+              >
+                {t(label)}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {layer === 'library' ? (
+        <>
+          <Suspense fallback={<p>{t('Loading…')}</p>}>
+            <TheoryLibrary focus={focus} />
+          </Suspense>
+          {!focus ? (
+            <p className="small">
+              <button type="button" className="text-button" onClick={() => setLayer('lean')}>
+                {t('Explore independently checked proof connections')}
+              </button>
+            </p>
+          ) : null}
+        </>
+      ) : null}
       {layer === 'results' ? <MathematicalKnowledge focus={focus} /> : null}
       {layer === 'lean' ? <LeanKnowledgeGraph /> : null}
-      {focus || q || before ? (
-        <p>
-          <Link to={{ kind: 'research_graph' }}>{t('Back to the research graph')}</Link>
-        </p>
-      ) : null}
       {layer === 'citations' ? (
         <Async state={graph.state} onRetry={graph.reload}>
           {(value) => (

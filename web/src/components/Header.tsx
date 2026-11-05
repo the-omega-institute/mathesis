@@ -53,7 +53,7 @@ export function Header() {
           />
           <NavLink
             to={{ kind: 'research_graph' }}
-            label={t('Knowledge graph')}
+            label={t('Knowledge library')}
             active={k === 'research_graph'}
           />
           <NavLink to={{ kind: 'submit' }} label={t('Submit')} active={k === 'submit'} />
