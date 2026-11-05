@@ -1,5 +1,4 @@
 import type { PublicPaper } from '../api/types';
-import { pdfHref } from '../api/client';
 import { citationUrl } from '../lib/citation';
 import { texToText } from '../lib/texText';
 
@@ -24,7 +23,7 @@ export function PaperMetadata({ paper }: { paper: PublicPaper }) {
       {summary.submission && version?.has_pdf ? (
         <meta
           name="citation_pdf_url"
-          content={origin + pdfHref(summary.submission, version.number)}
+          content={`${origin}/papers/${encodeURIComponent(summary.record)}/pdf`}
         />
       ) : null}
     </>
