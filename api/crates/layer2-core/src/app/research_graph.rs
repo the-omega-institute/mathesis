@@ -59,6 +59,8 @@ pub struct ResearchNode {
     pub authors: Vec<String>,
     pub url: Option<String>,
     pub record: Option<RecordId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<u32>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -107,6 +109,7 @@ fn manuscript_node(record: &RecordId, s: &Submission) -> ResearchNode {
         authors: s.authors.iter().map(|a| a.name.clone()).collect(),
         url: None,
         record: Some(record.clone()),
+        version: s.current_version().map(|v| v.number),
     }
 }
 fn reference_url(r: &BibliographicReference) -> Option<String> {
@@ -181,44 +184,91 @@ impl App {
                 "choose either a graph focus or text search",
             ));
         }
-        let (records, next_before) = if let Some(id) = &paper_focus {
-            let r = self
-                .ports
-                .records
-                .get(id)
-                .await?
-                .ok_or_else(|| CoreError::not_found("paper", id.as_str()))?;
-            (vec![r], None)
-        } else if let Some(id) = &local_focus {
-            // An unmerged reference has exactly one source. Opening an older
-            // occurrence should not require scanning past newer publications.
-            (
-                self.ports.records.get(id).await?.into_iter().collect(),
-                None,
-            )
-        } else {
-            let selection = focus.map_or_else(
-                || ResearchSearch::from_text(query.q.as_deref().unwrap_or("")),
-                |id| ResearchSearch::Identity(id.into()),
-            );
-            let page = self
-                .ports
-                .records
-                .search_research(
-                    &selection,
-                    query.limit.unwrap_or(10).clamp(1, 20),
-                    query.before,
-                )
-                .await?;
-            (page.items, page.next_before)
-        };
-        let mut nodes = BTreeMap::new();
-        let mut edges = vec![];
-        let mut coverage = vec![];
         let selection = focus.map_or_else(
             || ResearchSearch::from_text(query.q.as_deref().unwrap_or("")),
             |id| ResearchSearch::Identity(id.into()),
         );
+        let limit = query.limit.unwrap_or(10).clamp(1, 20);
+        // The cursor first traverses accepted records, then collected versions.
+        // Each store filters before pagination; references never consume source slots.
+        let (records, collected, next_before) =
+            if let Some(id) = paper_focus.as_ref().or(local_focus.as_ref()) {
+                let records: Vec<_> = self.ports.records.get(id).await?.into_iter().collect();
+                let local_version = local_focus.as_ref().and_then(|_| {
+                    focus?
+                        .strip_prefix("reference:")?
+                        .split(':')
+                        .nth(1)?
+                        .parse::<u32>()
+                        .ok()
+                });
+                let collected: Vec<_> = if records.is_empty() {
+                    self.ports
+                        .collected
+                        .get(id.as_str(), local_version)
+                        .await?
+                        .into_iter()
+                        .collect()
+                } else {
+                    vec![]
+                };
+                if paper_focus.is_some() && records.is_empty() && collected.is_empty() {
+                    return Err(CoreError::not_found("paper", id.as_str()));
+                }
+                (records, collected, None)
+            } else if let Some(cursor) = query
+                .before
+                .as_deref()
+                .and_then(|v| v.strip_prefix("collection:"))
+            {
+                let page = self
+                    .ports
+                    .collected
+                    .search_research(
+                        &selection,
+                        limit,
+                        (!cursor.is_empty()).then(|| cursor.into()),
+                    )
+                    .await?;
+                (
+                    vec![],
+                    page.items,
+                    page.next_before.map(|v| format!("collection:{v}")),
+                )
+            } else {
+                let page = self
+                    .ports
+                    .records
+                    .search_research(&selection, limit, query.before.clone())
+                    .await?;
+                if page.next_before.is_some() {
+                    (page.items, vec![], page.next_before)
+                } else if page.items.len() == limit as usize {
+                    // Keep the boundary as an explicit cursor so this page stays bounded.
+                    let more = self
+                        .ports
+                        .collected
+                        .search_research(&selection, 1, None)
+                        .await?;
+                    let cursor = (!more.items.is_empty()).then(|| "collection:".to_owned());
+                    (page.items, vec![], cursor)
+                } else {
+                    let collected = self
+                        .ports
+                        .collected
+                        .search_research(&selection, limit - page.items.len() as u32, None)
+                        .await?;
+                    (
+                        page.items,
+                        collected.items,
+                        collected.next_before.map(|v| format!("collection:{v}")),
+                    )
+                }
+            };
+        let mut nodes = BTreeMap::new();
+        let mut edges = vec![];
+        let mut coverage = vec![];
+        let mut sources = vec![];
         for record in records {
             let s = match self.accepted(&record).await {
                 Ok(s) => s,
@@ -236,22 +286,76 @@ impl App {
             let Some(version) = s.current_version() else {
                 continue;
             };
-            let paper = manuscript_node(&record.id, &s);
-            let paper_matches = selection.matches_paper(&record.id, &s);
-            let bibliography = version.bibliography.as_ref();
+            sources.push((
+                record.id.clone(),
+                version.number,
+                manuscript_node(&record.id, &s),
+                selection.matches_paper(&record.id, &s),
+                version.bibliography.clone(),
+                vec![],
+            ));
+        }
+        for collected in collected {
+            let record = collected.graph_record();
+            let version = collected.delivery.version;
+            let paper = ResearchNode {
+                id: format!("paper:{record}"),
+                kind: ResearchNodeKind::Manuscript,
+                title: collected.delivery.paper.title.clone(),
+                authors: collected
+                    .delivery
+                    .paper
+                    .authors
+                    .iter()
+                    .map(|a| a.name.clone())
+                    .collect(),
+                url: None,
+                record: Some(record.clone()),
+                version: Some(version),
+            };
+            let limitations = collected
+                .source_index
+                .as_ref()
+                .map_or_else(Vec::new, |i| i.limitations.clone());
+            sources.push((
+                record,
+                version,
+                paper,
+                collected.matches_research_paper(&selection),
+                collected.indexed_bibliography().cloned(),
+                limitations,
+            ));
+        }
+        for (record, version, paper, paper_matches, bibliography, mut limitations) in sources {
+            if bibliography.is_none() {
+                limitations.push(
+                    "This source version has not been indexed; consult its original references."
+                        .into(),
+                );
+            }
+            if let Some(b) = &bibliography {
+                limitations.extend(b.limitations.clone());
+            }
             // Coverage applies to this page's public accepted inputs, even with no matches.
-            coverage.push(GraphCoverage {record: record.id.clone(), version:version.number,
-                method:bibliography.map(|b|b.method.clone()),
-                limitations:bibliography.map_or_else(||vec!["This accepted source version has not been indexed; consult its original references.".into()],|b|b.limitations.clone())});
+            coverage.push(GraphCoverage {
+                record: record.clone(),
+                version,
+                method: bibliography.as_ref().map(|b| b.method.clone()),
+                limitations,
+            });
             if paper_focus.is_some() || (focus.is_none() && paper_matches) {
                 nodes.insert(paper.id.clone(), paper.clone());
             }
-            for r in bibliography.into_iter().flat_map(|b| &b.references) {
-                let id = reference_identity(&record.id, version.number, r);
+            for r in bibliography
+                .as_ref()
+                .into_iter()
+                .flat_map(|b| &b.references)
+            {
+                let id = reference_identity(&record, version, r);
                 let matches = if let Some(focus) = focus {
                     focus == id || focus == paper.id
                 } else {
-                    paper_matches || selection.matches_reference(&record.id, version.number, r)
+                    paper_matches || selection.matches_reference(&record, version, r)
                 };
                 if !matches {
                     continue;
@@ -264,13 +368,14 @@ impl App {
                     authors: r.authors.clone(),
                     url: reference_url(r),
                     record: None,
+                    version: None,
                 });
                 edges.push(CitationEdge {
                     from: paper.id.clone(),
                     to: id,
                     relation: ResearchRelation::Cites,
-                    record: record.id.clone(),
-                    version: version.number,
+                    record: record.clone(),
+                    version,
                     reference_key: r.key.clone(),
                     display_text: r.display_text(),
                     source_location: r.source_location.clone(),
@@ -283,6 +388,6 @@ impl App {
             }
         }
         Ok(ResearchGraph {nodes:nodes.into_values().collect(),edges,coverage,next_before,
-            scope:"Source-declared citations in a bounded page of matching currently public accepted Mathesis versions. Search and exact-identifier focus select matches before pagination; unrelated publications do not consume result pages. Literature identities are shared by exact supported identifiers. Legacy, PDF and unsupported sources may be unindexed; this is not exhaustive literature coverage or a proof-dependency graph.".into()})
+            scope:"Source-declared citations in a bounded page of matching public Mathesis publications and trusted collected versions. Search and exact-identifier focus select matches before pagination; unrelated publications do not consume result pages. Literature identities are shared by exact supported identifiers. Legacy, PDF and unsupported sources may be unindexed; this is not exhaustive literature coverage or a proof-dependency graph.".into()})
     }
 }

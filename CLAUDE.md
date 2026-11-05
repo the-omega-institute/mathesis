@@ -939,3 +939,20 @@ text; private review evidence and execution state never enter the explanation
 prompt. New reading guides explain the problem, definitions, result, proof idea
 and limitations in five to eight connected paragraphs. Already admitted legacy
 explanation conversations retain their original prompt bytes.
+
+## Collected sources and formalization participation
+
+Collected works join the public citation graph by their stable work id and exact
+version. A source-SHA-bound bibliography sidecar is read deterministically from
+the existing source archive; admin backfill neither mutates delivery receipts nor
+queues review, compilation or proof work. Graph pagination traverses accepted
+records and then collected works, filtering matches before pagination. Citation
+edges remain source-declared references, never proof dependencies.
+
+The Lean graph includes published collected Lean sources alongside independently
+checked propositions and confirmed targets. A source link alone is not a checked
+target or a new contribution. Only confirmed open targets offer target-specific
+proof submission. Paper formalizations have a separate leaderboard: first verified
+proofs count, with authorship, visibility and target validity enforced by the same
+rules as existing contribution profiles. Importing a paper or Lean link awards no
+new Mathesis proof credit.

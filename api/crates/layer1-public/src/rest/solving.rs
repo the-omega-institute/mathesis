@@ -66,6 +66,7 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/conjectures/{record}/{claim}/attempts/mine", get(mine))
         .route("/attempts/{id}", get(status))
         .route("/leaderboard", get(board))
+        .route("/leaderboard/formalizations", get(formalization_board))
         .route("/entrants/{id}", get(profile))
         .route(
             "/submissions/{id}/open-problems/check",
@@ -217,6 +218,19 @@ async fn board(State(app): AppState, Query(q): Query<BoardQuery>) -> ApiResult<i
 }
 async fn profile(State(app): AppState, Path(id): Path<String>) -> ApiResult<impl IntoResponse> {
     Ok(Json(app.entrant_profile(&id).await?))
+}
+
+async fn formalization_board(
+    State(app): AppState,
+    Query(q): Query<BoardQuery>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.formalization_leaderboard(
+            q.period.as_deref().unwrap_or("all"),
+            q.entrants.as_deref().unwrap_or("all"),
+        )
+        .await?,
+    ))
 }
 
 async fn statement(

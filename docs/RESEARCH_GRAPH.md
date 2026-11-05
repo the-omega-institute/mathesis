@@ -257,3 +257,30 @@ remain unfinished, and an individual helper is not presented as sufficient.
 Citations and imports alone never enter this projection. Fresh reads and bundles
 recheck both endpoint visibility and exact source/target pins. No graph-editing
 step is added to author submission.
+
+## Trusted public collections
+
+Collected papers use their existing work slug as the graph's paper identity and
+reader record. Every manuscript node includes its exact published `version`, so a
+reader opens the source version supplying the displayed citations. New deliveries
+receive a deterministic bibliography index from their uploaded source ZIP; failed
+or unsupported extraction is explicit and never prevents collection. No compiler
+or model runs during indexing.
+
+For legacy collected versions, an administrator may call
+`POST /api/v1/collected-papers/{work}/index?version=N`. This reads the existing
+checksummed public source and saves only a source-bound, revision-fenced index.
+It neither alters the scientific delivery/receipt nor queues review or proof work.
+Unindexed works still have manuscript nodes with explicit coverage limitations.
+
+Search and exact-identifier focus include the latest collected versions. Graph
+pagination traverses ordinary accepted records, then collected sources; opaque
+`collection:` cursors continue that second stream without mixing store identities.
+Source-local reference focus retains the named collected source version. Citation
+occurrences, original author order and supported DOI/arXiv identities are preserved.
+A citation is never a checked mathematical dependency.
+
+The Lean layer also displays collected papers' published Lean source links with
+original research authorship. These source nodes earn no new verifier badge or
+leaderboard credit. Confirmed targets remain the community proof entry points;
+checked-use arrows require the existing independent proof inspection.

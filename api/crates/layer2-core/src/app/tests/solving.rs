@@ -1015,7 +1015,25 @@ async fn paper_statement_uses_attempt_verifier_and_credits_formalized_only() {
             .verified
             .is_none()
     );
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
     w.app.verify_attempt(&r, &attempt.id).await.unwrap();
+    let board = w.app.formalization_leaderboard("all", "all").await.unwrap();
+    assert_eq!(board.len(), 1);
+    assert_eq!(board[0].entrant.id, solver.person.as_str());
+    assert_eq!((board[0].others, board[0].total), (1, 1));
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "agents")
+            .await
+            .unwrap()
+            .is_empty()
+    );
     let public = w.app.paper(&record).await.unwrap();
     assert_eq!(public.summary.lean_verified, 1);
     assert_eq!(
@@ -1062,6 +1080,13 @@ async fn paper_statement_uses_attempt_verifier_and_credits_formalized_only() {
     let mut current = w.app.load(&paper.id).await.unwrap();
     current.lean_statements.clear();
     w.app.save(&mut current).await.unwrap();
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
         w.app.list_papers(None, None).await.unwrap().items[0].lean_verified,
         0

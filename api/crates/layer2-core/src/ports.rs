@@ -454,6 +454,19 @@ pub trait LeanDepositStore: Send + Sync {
 /// and work/predecessor pairs atomically; list filters only the latest version.
 #[async_trait]
 pub trait CollectedPaperStore: Send + Sync {
+    async fn save_source_index(
+        &self,
+        work: &str,
+        version: u32,
+        index: &crate::model::CollectedSourceIndex,
+        expected: u64,
+    ) -> CoreResult<()>;
+    async fn search_research(
+        &self,
+        search: &crate::model::ResearchSearch,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<crate::model::CollectedVersion>>;
     async fn save_explanation(
         &self,
         work: &str,

@@ -4,6 +4,7 @@ import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import type {
   CheckedContribution,
+  CollectedPaper,
   FormalizationOpportunity,
   ResultLink,
   ResultUse,
@@ -13,13 +14,18 @@ import { Async } from './ui';
 import { Link } from '../routing/router';
 import { EntrantName } from '../pages/Leaderboard';
 import { ProofAttribution } from './ProofAttribution';
+import { safeHttpUrl } from '../lib/links';
 
 export function LeanKnowledgeGraph() {
   const api = useApi();
   const [before, setBefore] = useState<string | undefined>();
+  const [sourceBefore, setSourceBefore] = useState<string | undefined>();
   const load = useCallback(
     async (signal: AbortSignal) => {
-      const page = await api.formalizationOpportunities({ limit: 8, before }, { signal });
+      const [page, sources] = await Promise.all([
+        api.formalizationOpportunities({ limit: 8, before }, { signal }),
+        api.listCollectedPapers({ limit: 4, before: sourceBefore }, { signal }),
+      ]);
       // The existing public services enforce source visibility, target validity and proof receipts.
       const neighborhoods = await Promise.all(
         page.items.map(async (item) => {
@@ -32,11 +38,12 @@ export function LeanKnowledgeGraph() {
       );
       return {
         page,
+        sources,
         uses: neighborhoods.flatMap((n) => n.uses),
         checked: neighborhoods.flatMap((n) => n.checked),
       };
     },
-    [api, before],
+    [api, before, sourceBefore],
   );
   const graph = useAsync(load);
   return (
@@ -44,11 +51,34 @@ export function LeanKnowledgeGraph() {
       {(data) => (
         <>
           <LeanGraphView
-            key={before ?? 'first'}
+            key={`${before ?? 'first'}:${sourceBefore ?? 'first'}`}
             items={data.page.items}
             uses={data.uses}
             checked={data.checked}
+            sources={data.sources.items}
           />
+          {data.sources.next_before ? (
+            <p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setSourceBefore(data.sources.next_before!)}
+              >
+                {t('More published Lean sources')}
+              </button>
+            </p>
+          ) : null}
+          {sourceBefore ? (
+            <p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setSourceBefore(undefined)}
+              >
+                {t('Back to the first published sources')}
+              </button>
+            </p>
+          ) : null}
           {data.page.next_before ? (
             <p>
               <button
@@ -76,7 +106,8 @@ export function LeanKnowledgeGraph() {
 type Node = {
   id: string;
   title: string;
-  context: ResultLink | FormalizationOpportunity;
+  context?: ResultLink | FormalizationOpportunity;
+  source?: CollectedPaper;
   checked?: CheckedContribution;
   use?: ResultUse;
   item?: FormalizationOpportunity;
@@ -89,10 +120,12 @@ export function LeanGraphView({
   items,
   uses,
   checked,
+  sources = [],
 }: {
   items: FormalizationOpportunity[];
   uses: ResultUse[];
   checked: CheckedContribution[];
+  sources?: CollectedPaper[];
 }) {
   const arrowId = useId();
   const panelId = useId();
@@ -136,12 +169,20 @@ export function LeanGraphView({
       });
     edges.set(JSON.stringify([from, to, use.attempt]), { from, to, use });
   }
-  const nodes = [...propositions.values(), ...results.values()];
+  const published: Node[] = sources
+    .filter((paper) => Boolean(paper.lean))
+    .map((paper) => ({
+      id: `source:${paper.id}:${paper.revision}`,
+      title: paper.title,
+      source: paper,
+    }));
+  const foundations = [...propositions.values(), ...published];
+  const nodes = [...foundations, ...results.values()];
   const [selection, setSelection] = useState<string | undefined>();
   const selected = nodes.find((n) => n.id === selection) ?? nodes[0];
-  const height = Math.max(320, 64 + 128 * Math.max(propositions.size, results.size));
+  const height = Math.max(320, 64 + 128 * Math.max(foundations.length, results.size));
   const positions = new Map<string, { x: number; y: number }>();
-  for (const [column, group] of [[...propositions.values()], [...results.values()]].entries()) {
+  for (const [column, group] of [foundations, [...results.values()]].entries()) {
     group.forEach((node, index) =>
       positions.set(node.id, { x: column ? 460 : 16, y: 48 + 128 * index }),
     );
@@ -178,11 +219,16 @@ export function LeanGraphView({
         >
           <div className="research-map-canvas" style={{ height }}>
             <span className="research-map-column" style={{ left: '2.2%' }}>
-              {t('Checked propositions')}
+              {t('Published sources & checked propositions')}
             </span>
             <span className="research-map-column" style={{ left: '63%' }}>
               {t('Results & formalization targets')}
             </span>
+            {!results.size ? (
+              <p className="research-map-waiting">
+                {t('Confirmed targets will appear here for community contributions.')}
+              </p>
+            ) : null}
             <svg viewBox={`0 0 730 ${height}`} preserveAspectRatio="none" aria-hidden="true">
               <defs>
                 <marker
@@ -226,13 +272,15 @@ export function LeanGraphView({
                     <InlineLatex source={node.title} />
                   </span>
                   <span className="research-map-node-authors">
-                    {node.checked || propositions.has(node.id)
-                      ? t('Lean checked')
-                      : node.item?.status === 'open'
-                        ? t('Awaiting formal proof')
-                        : node.item?.status === 'disproved'
-                          ? t('Lean disproof')
-                          : t('Lean checked')}
+                    {node.source
+                      ? t('Published Lean source')
+                      : node.checked || propositions.has(node.id)
+                        ? t('Lean checked')
+                        : node.item?.status === 'open'
+                          ? t('Awaiting formal proof')
+                          : node.item?.status === 'disproved'
+                            ? t('Lean disproof')
+                            : t('Lean checked')}
                   </span>
                 </button>
               );
@@ -255,15 +303,47 @@ export function LeanGraphView({
           <InlineLatex source={selected.title} />
         </h2>
         <p className="research-map-credit">
-          {selected.context.authors.map((a) => a.name).join('; ')}
+          {(selected.source?.authors ?? selected.context?.authors ?? [])
+            .map((a) => a.name)
+            .join('; ')}
         </p>
         <p>
           <Link
-            to={{ kind: 'result', record: selected.context.record, claim: selected.context.claim }}
+            to={
+              selected.source
+                ? { kind: 'paper', record: selected.source.id, version: selected.source.revision }
+                : {
+                    kind: 'result',
+                    record: selected.context!.record,
+                    claim: selected.context!.claim,
+                  }
+            }
           >
             {t('Read the mathematics and contribution history')}
           </Link>
         </p>
+        {selected.source?.lean ? (
+          <>
+            <p>
+              {t(
+                'This paper provides Lean source. Read the declarations and assumptions for the scope of its formalization.',
+              )}
+            </p>
+            {safeHttpUrl(selected.source.lean.url) ? (
+              <p>
+                <a href={selected.source.lean.url}>{t('Read the Lean source')}</a>
+              </p>
+            ) : null}
+            <p>
+              {t(
+                'New formalization credit is recorded when a contributed proof passes independent checking against a confirmed target.',
+              )}
+            </p>
+            <p>
+              <Link to={{ kind: 'submit', intake: 'lean' }}>{t('Contribute Lean work')}</Link>
+            </p>
+          </>
+        ) : null}
         {contribution ? (
           <>
             <LatexText source={contribution.intermediate.proposition} />
@@ -285,6 +365,21 @@ export function LeanGraphView({
               <p>{t('This confirmed Lean target is open for contributions.')}</p>
             )}
             <ProofAttribution attribution={selected.item.attribution ?? undefined} />
+            {selected.item.status === 'open' ? (
+              <p>
+                <Link
+                  className="button button-quiet"
+                  to={{
+                    kind: 'submit',
+                    intake: 'lean',
+                    record: selected.item.record,
+                    claim: selected.item.claim,
+                  }}
+                >
+                  {t('Contribute a proof')}
+                </Link>
+              </p>
+            ) : null}
           </>
         ) : null}
         {!contribution && propositions.has(selected.id) && use ? (

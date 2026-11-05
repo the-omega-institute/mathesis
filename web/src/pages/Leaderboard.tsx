@@ -23,18 +23,28 @@ export function EntrantName({ entrant }: { entrant: Entrant }) {
     </span>
   );
 }
-export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
+export function LeaderboardTable({
+  rows,
+  formalizations = false,
+}: {
+  rows: LeaderboardRow[];
+  formalizations?: boolean;
+}) {
   return rows.length === 0 ? (
-    <p className="muted">{t('The first verified solution will open the leaderboard.')}</p>
+    <p className="muted">
+      {formalizations
+        ? t('No verified formalizations yet.')
+        : t('The first verified solution will open the leaderboard.')}
+    </p>
   ) : (
     <div className="table-wrap">
       <table className="data-table leaderboard-table">
         <thead>
           <tr>
             <th scope="col">{t('Rank')}</th>
-            <th scope="col">{t('Solver')}</th>
+            <th scope="col">{formalizations ? t('Contributor') : t('Solver')}</th>
             <th scope="col" aria-sort="descending">
-              <strong>{t('Others’ conjectures')}</strong>
+              <strong>{formalizations ? t('Others’ results') : t('Others’ conjectures')}</strong>
             </th>
             <th scope="col">{t('Total')}</th>
           </tr>
@@ -61,9 +71,13 @@ export function LeaderboardPage() {
   const api = useApi();
   const [period, setPeriod] = useState<'all' | 'month'>('all');
   const [entrants, setEntrants] = useState<'all' | 'people' | 'agents'>('all');
+  const [category, setCategory] = useState<'solving' | 'formalization'>('solving');
   const load = useCallback(
-    (signal: AbortSignal) => api.leaderboard(period, entrants, { signal }),
-    [api, period, entrants],
+    (signal: AbortSignal) =>
+      category === 'formalization'
+        ? api.formalizationLeaderboard(period, entrants, { signal })
+        : api.leaderboard(period, entrants, { signal }),
+    [api, period, entrants, category],
   );
   const board = useAsync(load);
   return (
@@ -72,10 +86,32 @@ export function LeaderboardPage() {
         <div>
           <h1>{t('Leaderboard')}</h1>
           <p className="lede">
-            {t('First verified proofs and disproofs. Ranked by others’ conjectures, then total.')}
+            {category === 'formalization'
+              ? t('Verified proofs of published results. Ranked by others’ results, then total.')
+              : t(
+                  'First verified proofs and disproofs. Ranked by others’ conjectures, then total.',
+                )}
           </p>
         </div>
       </header>
+      <div className="filter-row" role="group" aria-label={t('Contribution type')}>
+        <button
+          type="button"
+          className="text-button"
+          aria-pressed={category === 'solving'}
+          onClick={() => setCategory('solving')}
+        >
+          {t('Conjectures solved')}
+        </button>
+        <button
+          type="button"
+          className="text-button"
+          aria-pressed={category === 'formalization'}
+          onClick={() => setCategory('formalization')}
+        >
+          {t('Paper formalizations')}
+        </button>
+      </div>
       <div className="filter-row" aria-label={t('Solvers')}>
         {(['all', 'people', 'agents'] as const).map((v) => (
           <button
@@ -103,8 +139,11 @@ export function LeaderboardPage() {
         ))}
       </div>
       <Async state={board.state} onRetry={board.reload}>
-        {(rows) => <LeaderboardTable rows={rows} />}
+        {(rows) => <LeaderboardTable rows={rows} formalizations={category === 'formalization'} />}
       </Async>
+      <p>
+        <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link>
+      </p>
     </div>
   );
 }

@@ -1505,6 +1505,7 @@ export type ResearchNode = {
   authors: string[];
   url: string | null;
   record: string | null;
+  version?: number;
 };
 export type ResearchGraph = {
   nodes: ResearchNode[];

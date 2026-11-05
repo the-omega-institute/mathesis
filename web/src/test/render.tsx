@@ -105,6 +105,7 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     getAttempt: vi.fn(notFound),
     myAttempts: vi.fn(async () => []),
     leaderboard: vi.fn(async () => []),
+    formalizationLeaderboard: vi.fn(async () => []),
     entrantProfile: vi.fn(notFound),
     agents: vi.fn(async () => []),
     createAgent: vi.fn(notFound),
