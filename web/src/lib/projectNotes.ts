@@ -52,6 +52,21 @@ export const projectNotes = [...new Set(projectNoteVersions.map((note) => note.i
     .reduce((latest, note) => (Number(note.revision) > Number(latest.revision) ? note : latest)),
 );
 
+/** Live versions replace migrated snapshots while each work keeps one archive entry. */
+export function mergeCollectedNotes(
+  papers: CollectedPaper[],
+  historical: ProjectNote[] = projectNotes,
+): ProjectNote[] {
+  const notes = new Map(historical.map((note) => [note.id, note]));
+  for (const paper of papers) {
+    const previous = notes.get(paper.id);
+    if (!previous || Number(paper.revision) >= Number(previous.revision)) {
+      notes.set(paper.id, collectedPaperNote(paper));
+    }
+  }
+  return [...notes.values()];
+}
+
 export function findProjectNotes(query: PaperQuery): ProjectNote[] {
   if (query.kind && query.kind !== 'note') return [];
   const msc = query.msc?.trim().toUpperCase();

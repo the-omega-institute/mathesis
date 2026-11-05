@@ -356,6 +356,100 @@ async fn people_submissions_and_revision_fencing() {
 }
 
 #[tokio::test]
+async fn blobs_empty_small_and_chunk_boundaries() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    for size in [0, 1, 31, 32, 33, 84_411, 255 * 1024, 255 * 1024 + 1] {
+        let bytes: Vec<u8> = (0..size).map(|i| (i % 251) as u8).collect();
+        let stored = db
+            .store
+            .put(&bytes, "application/octet-stream")
+            .await
+            .unwrap();
+        let read = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            BlobStore::get(&db.store, &stored.id),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("blob read timed out for {size} bytes"))
+        .unwrap();
+        assert_eq!(read, Some(bytes));
+        db.store.discard(&stored.id).await.unwrap();
+    }
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn blobs_reject_incomplete_and_corrupt_gridfs_files() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    for corruption in ["missing", "sequence", "short", "extra", "zero-chunk-size"] {
+        let stored = db
+            .store
+            .put(&[42; 256 * 1024], "application/pdf")
+            .await
+            .unwrap();
+        let filter = doc! { "files_id": &stored.id, "n": 0 };
+        match corruption {
+            "missing" => {
+                db.store
+                    .raw("papers.chunks")
+                    .delete_one(filter)
+                    .await
+                    .unwrap();
+            }
+            "sequence" => {
+                db.store
+                    .raw("papers.chunks")
+                    .update_one(filter, doc! { "$set": { "n": 10 } })
+                    .await
+                    .unwrap();
+            }
+            "short" => {
+                db.store
+                    .raw("papers.chunks")
+                    .update_one(
+                        filter,
+                        doc! { "$set": { "data": mongodb::bson::Binary {
+                            subtype: mongodb::bson::spec::BinarySubtype::Generic, bytes: vec![42],
+                        } } },
+                    )
+                    .await
+                    .unwrap();
+            }
+            "extra" => {
+                db.store.raw("papers.chunks").insert_one(doc! {
+                    "files_id": &stored.id, "n": 2,
+                    "data": mongodb::bson::Binary { subtype: mongodb::bson::spec::BinarySubtype::Generic, bytes: vec![42] },
+                }).await.unwrap();
+            }
+            "zero-chunk-size" => {
+                db.store
+                    .raw("papers.files")
+                    .update_one(
+                        doc! { "_id": &stored.id },
+                        doc! { "$set": { "chunkSize": 0 } },
+                    )
+                    .await
+                    .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            matches!(
+                BlobStore::get(&db.store, &stored.id).await,
+                Err(CoreError::Unavailable(_))
+            ),
+            "{corruption}"
+        );
+        db.store.discard(&stored.id).await.unwrap();
+    }
+    db.drop().await;
+}
+
+#[tokio::test]
 async fn blobs_beyond_the_document_limit() {
     let Some(db) = TestDb::open().await else {
         return;
