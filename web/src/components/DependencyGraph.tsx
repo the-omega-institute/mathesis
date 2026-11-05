@@ -11,6 +11,7 @@ import {
   addCheckedUses,
   cleanSnapshot,
   dependencyLayout,
+  dependencyAtlasLayout,
   loadDependencyGraph,
   resultDegree,
   type DependencyNode,
@@ -30,7 +31,7 @@ const relationLabel: Record<DependencyRelation, string> = {
 
 export function DependencyGraph({ area }: { area?: string }) {
   const api = useApi();
-  const [pages, setPages] = useState(1);
+  const [pages, setPages] = useState(2);
   const load = useCallback(
     async (signal: AbortSignal) => {
       let graph: DependencySnapshot = { nodes: [], edges: [], next: null };
@@ -73,9 +74,17 @@ export function DependencyGraph({ area }: { area?: string }) {
   );
 }
 
+function inArea(node: DependencyNode, area: string) {
+  return (
+    !area ||
+    node.areas.includes(area) ||
+    (area === 'unclassified' && node.kind !== 'literature' && !node.areas.length)
+  );
+}
+
 function initialResult(graph: DependencySnapshot, area: string) {
   return graph.nodes
-    .filter((node) => node.kind === 'result' && (!area || node.areas.includes(area)))
+    .filter((node) => node.kind === 'result' && inArea(node, area))
     .sort(
       (a, b) => resultDegree(graph, b.id) - resultDegree(graph, a.id) || a.id.localeCompare(b.id),
     )[0];
@@ -90,10 +99,10 @@ export function DependencyGraphView({
 }) {
   const api = useApi();
   const locale = useLocale();
-  const [area, setArea] = useState(initialArea);
+  const [area, setArea] = useState(initialArea === 'all' ? '' : initialArea);
   const [chosen, setChosen] = useState<string>();
   const [proofOwner, setProofOwner] = useState<string>();
-  const [overview, setOverview] = useState(false);
+  const [overview, setOverview] = useState(true);
   const [connectionPage, setConnectionPage] = useState(0);
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
   const [availableWidth, setAvailableWidth] = useState(970);
@@ -126,9 +135,7 @@ export function DependencyGraphView({
   const graph = useMemo(() => addCheckedUses(source, uses.value ?? []), [source, uses.value]);
   const selected = graph.nodes.find((node) => node.id === chosen) ?? initialResult(graph, area);
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
-  const resultNodes = graph.nodes.filter(
-    (node) => node.kind === 'result' && (!area || node.areas.includes(area)),
-  );
+  const resultNodes = graph.nodes.filter((node) => node.kind === 'result' && inArea(node, area));
   const related = graph.edges.filter(
     (edge) =>
       (edge.relation !== 'contains' || selected?.kind === 'paper') &&
@@ -148,12 +155,17 @@ export function DependencyGraphView({
   // An isolated result retains a visible source, without pretending membership is proof use.
   if (localIds.size === 1 && selected?.paper) localIds.add(selected.paper);
   const activeIds = new Set(
-    graph.nodes.filter((node) => !area || node.areas.includes(area)).map((node) => node.id),
+    graph.nodes.filter((node) => inArea(node, area)).map((node) => node.id),
   );
   // Keep sources and checked prerequisites visible across a subject boundary.
   for (const edge of graph.edges) if (activeIds.has(edge.to)) activeIds.add(edge.from);
+  const atlas = overview && !area;
   const visibleNodes = graph.nodes.filter((node) =>
-    overview ? activeIds.has(node.id) : localIds.has(node.id),
+    atlas
+      ? node.kind === 'result' || node.kind === 'contribution'
+      : overview
+        ? activeIds.has(node.id)
+        : localIds.has(node.id),
   );
   const ids = new Set(visibleNodes.map((node) => node.id));
   const visibleEdges = graph.edges.filter(
@@ -163,7 +175,15 @@ export function DependencyGraphView({
       (overview || edge.from === selected?.id || edge.to === selected?.id),
   );
   const overviewLayout = dependencyLayout({ ...graph, nodes: visibleNodes, edges: visibleEdges });
-  const points = overview ? overviewLayout.points : new Map<string, { x: number; y: number }>();
+  const atlasLayout = dependencyAtlasLayout(
+    { ...graph, nodes: visibleNodes, edges: visibleEdges },
+    availableWidth,
+  );
+  const points = atlas
+    ? atlasLayout.points
+    : overview
+      ? overviewLayout.points
+      : new Map<string, { x: number; y: number }>();
   if (!overview && selected) {
     points.set(selected.id, {
       x: compact ? Math.max(20, (availableWidth - 240) / 2) : 360,
@@ -194,21 +214,36 @@ export function DependencyGraphView({
       );
     }
   }
-  const width = overview ? overviewLayout.width : compact ? availableWidth : 970;
-  const height = overview ? overviewLayout.height : compact ? 480 : 600;
-  const fit = overview
-    ? Math.max(0.6, Math.min(1, availableWidth / width, 600 / height))
-    : compact
-      ? 1
-      : Math.min(1, availableWidth / 970);
+  const width = atlas
+    ? atlasLayout.width
+    : overview
+      ? overviewLayout.width
+      : compact
+        ? availableWidth
+        : 970;
+  const height = atlas
+    ? atlasLayout.height
+    : overview
+      ? overviewLayout.height
+      : compact
+        ? 480
+        : 600;
+  const fit = atlas
+    ? 1
+    : overview
+      ? Math.max(0.6, Math.min(1, availableWidth / width, 600 / height))
+      : compact
+        ? 1
+        : Math.min(1, availableWidth / 970);
   const overviewFocus = selected && points.get(selected.id);
   const centeredX =
-    overview && overviewFocus
+    !atlas && overview && overviewFocus
       ? availableWidth / 2 - (overviewFocus.x + 120) * fit
       : (availableWidth - width * fit) / 2;
-  const centeredY = overview && overviewFocus ? 260 - overviewFocus.y * fit : 0;
+  const centeredY = !atlas && overview && overviewFocus ? 260 - overviewFocus.y * fit : 0;
   const scale = fit * camera.scale;
   const choose = (id: string) => {
+    if (atlas) setArea(byId.get(id)?.areas[0] ?? 'unclassified');
     if (selected?.kind === 'result') setProofOwner(selected.id);
     setChosen(id);
     setConnectionPage(0);
@@ -220,7 +255,7 @@ export function DependencyGraphView({
     setChosen(undefined);
     setProofOwner(undefined);
     setConnectionPage(0);
-    setOverview(false);
+    setOverview(true);
     setCamera({ x: 0, y: 0, scale: 1 });
   };
   const label = (node: DependencyNode) =>
@@ -272,7 +307,9 @@ export function DependencyGraphView({
       <div className="dependency-content">
         <p className="dependency-intro">
           {t(
-            'Follow the results behind an argument, see what builds on them, and find the next contribution.',
+            atlas
+              ? 'Explore the results and connections across mathematical fields. Select a field or a result to read further.'
+              : 'Follow the results behind an argument, see what builds on them, and find the next contribution.',
           )}
         </p>
         <div className="dependency-toolbar">
@@ -283,17 +320,19 @@ export function DependencyGraphView({
             <span>· {t('{count} results loaded', { count: resultNodes.length })}</span>
           </p>
           <div role="group" aria-label={t('Graph view')}>
-            <button
-              type="button"
-              className="text-button"
-              aria-pressed={overview}
-              onClick={() => {
-                setOverview(!overview);
-                setCamera({ x: 0, y: 0, scale: 1 });
-              }}
-            >
-              {overview ? t('Focus on the selected result') : t('Explore the full graph')}
-            </button>
+            {!atlas ? (
+              <button
+                type="button"
+                className="text-button"
+                aria-pressed={overview}
+                onClick={() => {
+                  setOverview(!overview);
+                  setCamera({ x: 0, y: 0, scale: 1 });
+                }}
+              >
+                {overview ? t('Focus on the selected result') : t('Explore the full graph')}
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-button"
@@ -321,9 +360,13 @@ export function DependencyGraphView({
         </div>
         {selected ? (
           <>
-            <figure className="dependency-figure" aria-label={t('Mathematical dependency graph')}>
+            <figure
+              className={`dependency-figure${atlas ? ' is-atlas' : ''}`}
+              aria-label={t('Mathematical dependency graph')}
+            >
               <div
                 className="dependency-viewport"
+                style={atlas ? { height } : undefined}
                 ref={measureViewport}
                 role="region"
                 tabIndex={0}
@@ -369,7 +412,7 @@ export function DependencyGraphView({
                 }}
               >
                 <div
-                  className={`dependency-canvas${overview && scale < 0.4 ? ' is-distant' : ''}`}
+                  className={`dependency-canvas${atlas ? ' is-atlas' : ''}${overview && scale < 0.4 ? ' is-distant' : ''}`}
                   style={{
                     width,
                     height,
@@ -399,17 +442,37 @@ export function DependencyGraphView({
                           className={`dependency-edge is-${edge.relation}${edge.from === selected.id || edge.to === selected.id ? ' is-active' : ''}`}
                           data-relation={edge.relation}
                           d={
-                            compact && !overview
-                              ? `M ${a.x + 3} ${a.y + 25} C ${a.x - 40} ${a.y + 65}, ${b.x - 40} ${b.y - 15}, ${b.x - 8} ${b.y + 20}`
-                              : b.x > a.x
-                                ? `M ${a.x + 245} ${a.y + 20} C ${a.x + 280} ${a.y + 20}, ${b.x - 45} ${b.y + 20}, ${b.x - 8} ${b.y + 20}`
-                                : `M ${a.x - 8} ${a.y + 36} C ${a.x - 45} ${a.y + 36}, ${b.x + 280} ${b.y + 36}, ${b.x + 245} ${b.y + 36}`
+                            atlas
+                              ? `M ${a.x + 4} ${a.y + 4} L ${b.x + 4} ${b.y + 4}`
+                              : compact && !overview
+                                ? `M ${a.x + 3} ${a.y + 25} C ${a.x - 40} ${a.y + 65}, ${b.x - 40} ${b.y - 15}, ${b.x - 8} ${b.y + 20}`
+                                : b.x > a.x
+                                  ? `M ${a.x + 245} ${a.y + 20} C ${a.x + 280} ${a.y + 20}, ${b.x - 45} ${b.y + 20}, ${b.x - 8} ${b.y + 20}`
+                                  : `M ${a.x - 8} ${a.y + 36} C ${a.x - 45} ${a.y + 36}, ${b.x + 280} ${b.y + 36}, ${b.x + 245} ${b.y + 36}`
                           }
                           markerEnd={edge.relation === 'contains' ? undefined : `url(#${arrow})`}
                         />
                       );
                     })}
                   </svg>
+                  {atlas
+                    ? atlasLayout.fields.map((field) => (
+                        <button
+                          type="button"
+                          key={field.id}
+                          className="dependency-atlas-field"
+                          style={{ left: field.x, top: field.y, width: field.width }}
+                          onClick={() => changeArea(field.id)}
+                        >
+                          <span>
+                            {findTheoryArea(field.id)
+                              ? localize(findTheoryArea(field.id)!.title, locale)
+                              : t('Other mathematics')}
+                          </span>
+                          <small>{t('{count} results', { count: field.count })}</small>
+                        </button>
+                      ))
+                    : null}
                   {visibleNodes.map((node) => {
                     const position = points.get(node.id)!;
                     return (
@@ -417,11 +480,11 @@ export function DependencyGraphView({
                         <button
                           type="button"
                           title={`${label(node)} — ${node.authors.join('; ')}`}
-                          className={`dependency-node is-${node.kind}${node.id === selected.id ? ' is-selected' : ''}${node.verified ? ' is-verified' : ''}`}
+                          className={`dependency-node is-${node.kind}${!atlas && node.id === selected.id ? ' is-selected' : ''}${node.verified ? ' is-verified' : ''}`}
                           style={{ left: position.x, top: position.y }}
                           aria-label={`${label(node)} — ${node.authors.join('; ')}`}
-                          aria-pressed={node.id === selected.id}
-                          aria-controls={panel}
+                          aria-pressed={!atlas && node.id === selected.id}
+                          aria-controls={!atlas ? panel : undefined}
                           onClick={() => choose(node.id)}
                         >
                           <span className="dependency-dot" />
@@ -452,7 +515,11 @@ export function DependencyGraphView({
                     </span>
                   ))}
                 <span className="dependency-map-help">
-                  {t('Drag to explore; select a node to read.')}
+                  {atlas
+                    ? t(
+                        'Each point is a result. Select a field or a point to explore its connections.',
+                      )
+                    : t('Drag to explore; select a node to read.')}
                 </span>
               </figcaption>
             </figure>
@@ -476,110 +543,120 @@ export function DependencyGraphView({
                 </button>
               </p>
             ) : null}
-            <section
-              className="dependency-detail"
-              role="region"
-              aria-label={t('Selected result and its dependencies')}
-              id={panel}
-            >
-              <MacrosProvider macros={selected.macros}>
-                <p className="dependency-kicker">
-                  {selected.verified
-                    ? t('Lean checked')
-                    : selected.kind === 'literature'
-                      ? t('Earlier literature')
-                      : (selected.label ?? t('Research'))}
-                </p>
-                <h2>
-                  <InlineLatex source={selected.title} />
-                </h2>
-                <p className="dependency-credit">{selected.authors.join('; ')}</p>
-                {selected.contributor ? (
-                  <p>
-                    {t('Formalization: ')}
-                    <EntrantName entrant={selected.contributor} />
-                  </p>
-                ) : null}
-                {selected.statement ? <LatexText source={selected.statement} /> : null}
-                <p className="dependency-detail-links">
-                  {sourcePaper ? (
-                    <button
-                      type="button"
-                      className="text-button"
-                      onClick={() => choose(sourcePaper.id)}
-                    >
-                      {t('View this paper’s sources and results')}
-                    </button>
-                  ) : null}
-                  {selected.work ? (
-                    <Link
-                      to={
-                        selected.kind === 'contribution' || (!selected.collected && selected.claim)
-                          ? { kind: 'result', record: selected.work, claim: selected.claim! }
-                          : { kind: 'paper', record: selected.work, version: selected.version }
-                      }
-                    >
-                      {sourcePaper ? (
-                        <InlineLatex source={sourcePaper.title} />
-                      ) : (
-                        t('Read the paper')
-                      )}
-                    </Link>
-                  ) : null}
-                  {selected.url && safeHttpUrl(selected.url) ? (
-                    <a href={safeHttpUrl(selected.url)!}>{t('Original source')}</a>
-                  ) : null}
-                  {lean ? <a href={lean}>{t('Published Lean source for this paper')}</a> : null}
-                  {selected.target ? (
-                    <Link to={{ kind: 'result', record: selected.work!, claim: selected.claim! }}>
-                      {t('Contribute a formal proof')}
-                    </Link>
-                  ) : selected.kind === 'result' && !selected.verified ? (
-                    <Link to={{ kind: 'submit', intake: 'lean' }}>{t('Contribute Lean work')}</Link>
-                  ) : null}
-                </p>
-                {related.length ? (
-                  <ul className="dependency-reading-links">
-                    {related.map((edge) => {
-                      const node = byId.get(edge.from === selected.id ? edge.to : edge.from)!;
-                      return (
-                        <li key={JSON.stringify(edge)}>
-                          <button
-                            type="button"
-                            className="text-button"
-                            onClick={() => choose(node.id)}
-                          >
-                            <InlineLatex source={label(node)} />
-                          </button>
-                          <span>{t(relationLabel[edge.relation])}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-                {uses.state.status === 'error' ? (
-                  <p>
-                    <button type="button" className="text-button" onClick={uses.reload}>
-                      {t('Retry loading checked proof dependencies')}
-                    </button>
-                  </p>
-                ) : null}
-              </MacrosProvider>
-            </section>
-            <nav className="dependency-result-navigation" aria-label={t('Explore further results')}>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => {
-                  const index = resultNodes.findIndex((node) => node.id === selected.id);
-                  const node = resultNodes[(index + 1) % resultNodes.length];
-                  if (node) choose(node.id);
-                }}
+            {!atlas ? (
+              <section
+                className="dependency-detail"
+                role="region"
+                aria-label={t('Selected result and its dependencies')}
+                id={panel}
               >
-                {t('Explore another result')}
-              </button>
-              <Link to={{ kind: 'formalizations' }}>{t('Find work awaiting formalization')}</Link>
-            </nav>
+                <MacrosProvider macros={selected.macros}>
+                  <p className="dependency-kicker">
+                    {selected.verified
+                      ? t('Lean checked')
+                      : selected.kind === 'literature'
+                        ? t('Earlier literature')
+                        : (selected.label ?? t('Research'))}
+                  </p>
+                  <h2>
+                    <InlineLatex source={selected.title} />
+                  </h2>
+                  <p className="dependency-credit">{selected.authors.join('; ')}</p>
+                  {selected.contributor ? (
+                    <p>
+                      {t('Formalization: ')}
+                      <EntrantName entrant={selected.contributor} />
+                    </p>
+                  ) : null}
+                  {selected.statement ? <LatexText source={selected.statement} /> : null}
+                  <p className="dependency-detail-links">
+                    {sourcePaper ? (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => choose(sourcePaper.id)}
+                      >
+                        {t('View this paper’s sources and results')}
+                      </button>
+                    ) : null}
+                    {selected.work ? (
+                      <Link
+                        to={
+                          selected.kind === 'contribution' ||
+                          (!selected.collected && selected.claim)
+                            ? { kind: 'result', record: selected.work, claim: selected.claim! }
+                            : { kind: 'paper', record: selected.work, version: selected.version }
+                        }
+                      >
+                        {sourcePaper ? (
+                          <InlineLatex source={sourcePaper.title} />
+                        ) : (
+                          t('Read the paper')
+                        )}
+                      </Link>
+                    ) : null}
+                    {selected.url && safeHttpUrl(selected.url) ? (
+                      <a href={safeHttpUrl(selected.url)!}>{t('Original source')}</a>
+                    ) : null}
+                    {lean ? <a href={lean}>{t('Published Lean source for this paper')}</a> : null}
+                    {selected.target ? (
+                      <Link to={{ kind: 'result', record: selected.work!, claim: selected.claim! }}>
+                        {t('Contribute a formal proof')}
+                      </Link>
+                    ) : selected.kind === 'result' && !selected.verified ? (
+                      <Link to={{ kind: 'submit', intake: 'lean' }}>
+                        {t('Contribute Lean work')}
+                      </Link>
+                    ) : null}
+                  </p>
+                  {related.length ? (
+                    <ul className="dependency-reading-links">
+                      {related.map((edge) => {
+                        const node = byId.get(edge.from === selected.id ? edge.to : edge.from)!;
+                        return (
+                          <li key={JSON.stringify(edge)}>
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() => choose(node.id)}
+                            >
+                              <InlineLatex source={label(node)} />
+                            </button>
+                            <span>{t(relationLabel[edge.relation])}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                  {uses.state.status === 'error' ? (
+                    <p>
+                      <button type="button" className="text-button" onClick={uses.reload}>
+                        {t('Retry loading checked proof dependencies')}
+                      </button>
+                    </p>
+                  ) : null}
+                </MacrosProvider>
+              </section>
+            ) : null}
+            {!atlas ? (
+              <nav
+                className="dependency-result-navigation"
+                aria-label={t('Explore further results')}
+              >
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    const index = resultNodes.findIndex((node) => node.id === selected.id);
+                    const node = resultNodes[(index + 1) % resultNodes.length];
+                    if (node) choose(node.id);
+                  }}
+                >
+                  {t('Explore another result')}
+                </button>
+                <Link to={{ kind: 'formalizations' }}>{t('Find work awaiting formalization')}</Link>
+              </nav>
+            ) : null}
           </>
         ) : (
           <p>

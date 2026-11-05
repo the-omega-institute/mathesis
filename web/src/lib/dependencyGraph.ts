@@ -1,6 +1,6 @@
 import type { ApiClient } from '../api/client';
 import type { Entrant, ResultUse } from '../api/types';
-import { researchAreas } from './theoryLibrary';
+import { researchAreas, theoryAreas } from './theoryLibrary';
 
 export type DependencyNode = {
   id: string;
@@ -264,5 +264,53 @@ export function dependencyLayout(graph: DependencySnapshot) {
     width: 80 + columnOffset * 320,
     height:
       140 + Math.min(rowLimit, Math.max(1, ...[...rows.values()].map((list) => list.length))) * 110,
+  };
+}
+
+/** A field overview positions the same exact results; grouping creates no dependency edges. */
+export function dependencyAtlasLayout(graph: DependencySnapshot, availableWidth: number) {
+  const columns = availableWidth >= 850 ? 3 : availableWidth >= 560 ? 2 : 1;
+  const tileWidth = availableWidth / columns;
+  const tileHeight = 230;
+  const groups = new Map<string, DependencyNode[]>();
+  for (const node of graph.nodes) {
+    if (node.kind !== 'result' && node.kind !== 'contribution') continue;
+    const area = node.areas[0] ?? 'unclassified';
+    groups.set(area, [...(groups.get(area) ?? []), node]);
+  }
+  const points = new Map<string, { x: number; y: number }>();
+  const fieldOrder = (id: string) => {
+    const index = theoryAreas.findIndex((area) => area.id === id);
+    return index < 0 ? theoryAreas.length : index;
+  };
+  const fields = [...groups]
+    .sort(([a], [b]) => fieldOrder(a) - fieldOrder(b))
+    .map(([id, nodes], index) => {
+      const x = (index % columns) * tileWidth;
+      const y = Math.floor(index / columns) * tileHeight;
+      const ids = new Set(nodes.map((node) => node.id));
+      const local = dependencyLayout({
+        ...graph,
+        nodes,
+        edges: graph.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to)),
+      });
+      const scale = Math.min((tileWidth - 48) / local.width, (tileHeight - 90) / local.height);
+      for (const node of nodes) {
+        const p = local.points.get(node.id)!;
+        points.set(node.id, { x: x + 16 + (p.x + 120) * scale, y: y + 62 + p.y * scale });
+      }
+      return {
+        id,
+        x,
+        y,
+        width: tileWidth - 24,
+        count: nodes.filter((node) => node.kind === 'result').length,
+      };
+    });
+  return {
+    points,
+    fields,
+    width: availableWidth,
+    height: Math.max(230, Math.ceil(fields.length / columns) * tileHeight),
   };
 }

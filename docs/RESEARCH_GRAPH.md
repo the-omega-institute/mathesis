@@ -328,9 +328,13 @@ verifier results retain their existing meaning and credit rules.
 
 The default `/research-graph` entry opens an interactive dependency graph. Fields
 filter the loaded results; selecting a node reads its exact statement, original
-authorship and available Lean contribution route. A readable neighborhood starts
-with at most three earlier and three later neighbors, with further connections
-reachable through paging. The expanded graph retains all loaded nodes, can be
+authorship and available Lean contribution route. All fields starts with a field overview containing every loaded mathematical
+result and actual connection. Each result occupies one primary field in that
+overview; secondary field filters still retain related work. Grouping positions
+results and creates no dependency edges. Selecting a field expands its graph,
+while selecting a result opens a readable neighborhood with at most three earlier
+and three later neighbors, with further connections reachable through paging.
+All fields restores the entire overview and clears the local selection. The expanded graph retains all loaded nodes, can be
 panned or zoomed, and centers the selected result at a readable scale. Dense ranks
 wrap rather than shrinking hundreds of nodes into an unreadable vertical stripe.
 Keyboard direction keys pan the canvas; node buttons and the connection list
@@ -381,7 +385,7 @@ reading entries, unsound path construction and broken source/result navigation.
 ## Graph data and truth boundaries
 
 The browser composes bounded public projections already owned by Rust; there is no
-new graph database, crawler, review, proof attempt or manuscript mutation. Each
+new graph database, crawler, review, proof attempt or manuscript mutation. The initial view reads two bounded pages, up to forty source works. Each
 page reads at most 20 source works and their public exact statements. Expanding
 research re-reads previously requested pages against current visibility before
 merging the current responses. This transient view is discarded on navigation;
@@ -419,3 +423,19 @@ publication snapshots, deduplication, cycles and large ranks, selecting earlier 
 later results, checked-contribution credit, fresh pagination, graph-first routing
 and Chinese UI. Production-corpus browser checks cover desktop/mobile, expansion,
 source reading, field filters, panning/zoom and responsive overflow.
+
+
+## All-fields overview regression
+
+PR92 displayed a single result neighborhood under All fields, concealing the
+cross-field scope behind a separate expansion control. The entry now positions
+all loaded result/contribution nodes in field groups, keeping the same exact node
+identities and only existing result-to-result edges. Bibliographic sources and
+paper membership remain in the selected paper/result reading rather than crowding
+the global result overview. No field-to-field mathematical implication is inferred.
+The visible field headings navigate into their actual graphs. Unclassified results
+remain in Other mathematics. Mobile lays out the whole overview vertically, with
+no clipped field groups or horizontal overflow. Tests cover results across fields,
+exactly-once positioning, unchanged edge evidence, responsive bounds and restoring
+all results after selecting one node. The current 38-work collection fits the two
+initial source pages, exposing all 222 statements without a separate load-more click.
