@@ -165,4 +165,21 @@ describe('mathematical knowledge', () => {
     );
     expect(screen.queryByRole('button', { name: 'More papers' })).toBeNull();
   });
+  it('keeps reciprocal manuscript references without duplicating result nodes', () => {
+    renderWithApp(
+      <ResultConstellation
+        reading={{
+          ...reading,
+          connections: [
+            { from: 's2', to: 's1' },
+            { from: 's1', to: 's2' },
+          ],
+        }}
+      />,
+      fakeApi(),
+    );
+    const map = screen.getByRole('figure');
+    expect(within(map).getAllByRole('button', { name: 'Lemma: The local bound' })).toHaveLength(1);
+    expect(map.querySelectorAll('[data-relation="manuscript_reference"]')).toHaveLength(2);
+  });
 });

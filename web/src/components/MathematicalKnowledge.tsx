@@ -241,9 +241,11 @@ export function ResultConstellation({
   const references = nearby
     .filter((edge) => edge.from === selected?.id)
     .map((edge) => byId.get(edge.to)!);
+  const referenceIds = new Set(references.map((result) => result.id));
   const referencedBy = nearby
     .filter((edge) => edge.to === selected?.id)
-    .map((edge) => byId.get(edge.from)!);
+    .map((edge) => byId.get(edge.from)!)
+    .filter((statement) => !referenceIds.has(statement.id));
   const pages = Math.max(1, Math.ceil(Math.max(references.length, referencedBy.length) / 3));
   const currentPage = Math.min(page, pages - 1);
   const left = references.slice(currentPage * 3, (currentPage + 1) * 3);
