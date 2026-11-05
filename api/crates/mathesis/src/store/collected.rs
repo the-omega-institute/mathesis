@@ -10,6 +10,46 @@ use mongodb::bson::doc;
 pub(super) const COLLECTION: &str = "collected_papers";
 #[async_trait]
 impl CollectedPaperStore for MongoStore {
+    async fn save_explanation(
+        &self,
+        work: &str,
+        version: u32,
+        value: &mathesis_core::model::CollectedExplanation,
+        expected: u64,
+    ) -> CoreResult<()> {
+        if value.revision != expected + 1 {
+            return Err(mathesis_core::CoreError::invalid(
+                "invalid explanation revision",
+            ));
+        }
+        let mut filter = doc! {"delivery.work_id":work, "delivery.version":i64::from(version)};
+        if expected == 0 {
+            filter.insert(
+                "$or",
+                vec![
+                    doc! {"explanation.revision":0},
+                    doc! {"explanation.revision":{"$exists":false}},
+                ],
+            );
+        } else {
+            filter.insert("explanation.revision", expected as i64);
+        }
+        let result = self
+            .raw(COLLECTION)
+            .update_one(
+                filter,
+                doc! {"$set":{"explanation":super::to_document(value)?}},
+            )
+            .await
+            .map_err(unavailable)?;
+        if result.matched_count != 1 {
+            return Err(mathesis_core::CoreError::StaleRevision {
+                kind: "collected explanation",
+                id: work.into(),
+            });
+        }
+        Ok(())
+    }
     async fn get(&self, work: &str, version: Option<u32>) -> CoreResult<Option<CollectedVersion>> {
         let mut filter = doc! {"delivery.work_id": work};
         if let Some(v) = version {

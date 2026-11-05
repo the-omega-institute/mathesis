@@ -6261,3 +6261,57 @@ async fn queued_exposition_for_an_unaccepted_paper_does_not_call_a_model() {
     assert_eq!(w.advisor.explanations.load(Ordering::SeqCst), 0);
     assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
 }
+
+#[tokio::test]
+async fn collected_exposition_is_version_bound_and_never_runs_referee_or_formalizer() {
+    use base64::Engine;
+    use mathesis_core::{
+        model::{CollectedExplanation, CollectedVersion},
+        ports::{BlobStore, CollectedPaperStore, ReviewQueue},
+    };
+    let w = World::new(vec![], true).await;
+    let bytes = base64::engine::general_purpose::STANDARD.decode("UEsDBBQAAAAIABBmZV3X65kGPQAAAEkAAAAIAAAAbWFpbi50ZXiLSclPLs1NzStJzkksLq5OLCrJTM5JrY1JSk3PzKuGSda6lqUWVSqkJxYoZBYrpGXmZZak6sWk5qUgVAAAUEsBAhQDFAAAAAgAEGZlXdfrmQY9AAAASQAAAAgAAAAAAAAAAAAAAIABAAAAAG1haW4udGV4UEsFBgAAAAABAAEANgAAAGMAAAAAAA==").unwrap();
+    let source = w.stores.put(&bytes, "application/zip").await.unwrap();
+    let pdf = w
+        .stores
+        .put(b"%PDF-reviewed", "application/pdf")
+        .await
+        .unwrap();
+    let paper: CollectedVersion = serde_json::from_value(serde_json::json!({
+        "id":"collection-version-one", "owner":"publisher", "request_digest":"exact-reviewed-request", "published_on":chrono::Utc::now(),
+        "pdf":pdf,"source":source,
+        "delivery":{"schema":"mathesis.pre-reviewed-delivery.v1", "producer":"publisher", "work_id":"a-note", "version":1,
+          "previous_version":null,"authorize_publication":true,
+          "paper":{"title":"A note", "abstract":"A bound on gaps", "authors":[{"name":"Original Author"}],"license":"CC-BY-4.0"},
+          "review":{"verdict":"PASS","pdf_sha256":pdf.sha256,"source_sha256":source.sha256,"record":{"private_review":"must stay private"}}}
+    })).unwrap();
+    CollectedPaperStore::insert(w.stores.as_ref(), &paper)
+        .await
+        .unwrap();
+    ReviewQueue::enqueue(
+        w.stores.as_ref(),
+        &"collected:a-note:1".into(),
+        JobKind::CollectedExplanation,
+    )
+    .await
+    .unwrap();
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert!(!w.worker.collected_explanation_job(&job).await.unwrap());
+    assert!(!w.worker.collected_explanation_job(&job).await.unwrap());
+    let mut after = CollectedPaperStore::get(w.stores.as_ref(), "a-note", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        after.explanation.text.as_ref().unwrap().zh,
+        "作者研究间隔。"
+    );
+    after.explanation = CollectedExplanation::default();
+    assert_eq!(paper, after);
+    assert_eq!(w.advisor.explanations.load(Ordering::SeqCst), 1);
+    assert_eq!(w.advisor.audits.load(Ordering::SeqCst), 0);
+    assert_eq!(w.advisor.advice.load(Ordering::SeqCst), 0);
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+    assert_eq!(w.formalizer.calls.load(Ordering::SeqCst), 0);
+    assert!(w.file().await.rounds.is_empty());
+}

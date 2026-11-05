@@ -159,6 +159,17 @@ pub struct CollectedVersion {
     pub pdf: BlobRef,
     pub source: BlobRef,
     pub published_on: DateTime<Utc>,
+    /// Independently generated reading guide; never changes the reviewed delivery.
+    #[serde(default)]
+    pub explanation: CollectedExplanation,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedExplanation {
+    pub revision: u64,
+    pub text: Option<PlainLanguageText>,
+    /// Private, durable CMA conversation and cleanup state, omitted from public projections.
+    pub progress: serde_json::Value,
 }
 impl CollectedVersion {
     pub fn matches(&self, q: &PaperSearch) -> bool {
@@ -241,6 +252,7 @@ mod tests {
     fn collection_search_matches_title_author_and_source() {
         let d = delivery();
         let v = CollectedVersion {
+            explanation: CollectedExplanation::default(),
             id: "id".into(),
             owner: PersonId::from("operator"),
             delivery: d,

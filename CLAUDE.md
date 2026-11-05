@@ -926,3 +926,16 @@ the accepted manuscript, hidden with its detailed private projection, and awards
 no Mathesis proof or correction credit. Do not infer authors from uploaders or
 `createdBy`, generate new contributions for indexing, or equate source-history
 links with verified Lean proof use. See `docs/CONTRIBUTION_GRAPH.md`.
+
+
+## Collected-paper reading guides
+
+Pre-reviewed collection intake retains the reviewed scientific delivery and its
+receipt unchanged. It queues only an independent venue-funded CMA reading guide,
+not a Mathesis referee, audit, admission or Lean attempt. The exact-version
+explanation sidecar uses optimistic revision fencing and owns the same durable
+CMA conversation through cleanup/restart. Public projections expose only bilingual
+text; private review evidence and execution state never enter the explanation
+prompt. New reading guides explain the problem, definitions, result, proof idea
+and limitations in five to eight connected paragraphs. Already admitted legacy
+explanation conversations retain their original prompt bytes.

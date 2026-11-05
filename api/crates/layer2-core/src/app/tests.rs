@@ -1,5 +1,6 @@
 use std::{collections::BTreeSet, sync::Arc};
 
+mod collected;
 mod explanations;
 mod knowledge;
 mod manuscripts;

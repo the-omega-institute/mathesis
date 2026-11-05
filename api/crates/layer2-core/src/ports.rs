@@ -161,6 +161,7 @@ pub enum JobKind {
     Compile,
     Referee,
     PaperExplanation,
+    CollectedExplanation,
     LeanStatement,
     ResearchTarget,
     BindingAudit,
@@ -453,6 +454,13 @@ pub trait LeanDepositStore: Send + Sync {
 /// and work/predecessor pairs atomically; list filters only the latest version.
 #[async_trait]
 pub trait CollectedPaperStore: Send + Sync {
+    async fn save_explanation(
+        &self,
+        work: &str,
+        version: u32,
+        explanation: &crate::model::CollectedExplanation,
+        expected: u64,
+    ) -> CoreResult<()>;
     async fn get(
         &self,
         work: &str,

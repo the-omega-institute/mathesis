@@ -10,6 +10,7 @@
 
 mod agent_store;
 mod bindings;
+mod collected_explanations;
 mod error_reports;
 mod explanations;
 mod feedback;
@@ -44,6 +45,7 @@ pub use mathesis_core::ports::{JobLease, LeasedJob};
 /// The stored form of a job kind: `compile` or `stage:<stage>`.
 pub fn kind_key(kind: JobKind) -> String {
     match kind {
+        JobKind::CollectedExplanation => "collected_explanation".into(),
         JobKind::PaperExplanation => "paper_explanation".into(),
         JobKind::FeedbackReadback => "feedback_readback".into(),
         JobKind::BindingAudit => "binding_audit".into(),
@@ -67,6 +69,9 @@ pub fn kind_key(kind: JobKind) -> String {
 }
 
 pub fn parse_kind_key(key: &str) -> Option<JobKind> {
+    if key == "collected_explanation" {
+        return Some(JobKind::CollectedExplanation);
+    }
     if key == "paper_explanation" {
         return Some(JobKind::PaperExplanation);
     }
@@ -271,6 +276,7 @@ mod tests {
     #[test]
     fn kind_keys_round_trip() {
         for kind in [
+            JobKind::CollectedExplanation,
             JobKind::PaperExplanation,
             JobKind::Compile,
             JobKind::Referee,

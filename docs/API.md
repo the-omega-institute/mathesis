@@ -1168,6 +1168,14 @@ fresh round identity. A resume request cannot authorize a replacement target.
 
 ## Plain-language paper explanations
 
+Trusted public collections use a separate exact-version sidecar: a delivery queues
+only a venue-funded CMA reading guide, without an independent referee or Lean
+attempt. `POST /collected-papers/:id/plain-language/request?version=N` is admin-only
+and queues missing exposition for that exact version. The public collected-paper
+response prefers the completed `{en, zh}` guide over any supplied upstream text.
+Scientific files, producer review evidence and the immutable delivery receipt do
+not change. See [PRE_REVIEWED_COLLECTION.md](PRE_REVIEWED_COLLECTION.md).
+
 Each newly confirmed manuscript independently queues bilingual exposition. The
 current `PaperVersion.plain_language` stores `{version, claims_revision,
 source_sha256, text: {en, zh}, prepared_at}`. Old documents omit it. Public
