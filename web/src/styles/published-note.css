@@ -13,6 +13,16 @@
 .paper-reading .paper-heading .author-line {
   margin-bottom: 0.75rem;
 }
+.paper-reading .paper-heading .author-line > li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 0.35rem;
+}
+.paper-reading .paper-heading .affiliation {
+  order: 1;
+  flex-basis: 100%;
+}
 .paper-reading .paper-access {
   margin-block: 1rem 1.5rem;
 }
@@ -46,6 +56,9 @@
 .paper-content > section,
 .paper-content > details {
   max-width: 88ch;
+}
+.paper-reading .paper-content > :first-child {
+  margin-top: 0;
 }
 .paper-content > :first-child > h2,
 .paper-sidebar > :first-child > h2 {
