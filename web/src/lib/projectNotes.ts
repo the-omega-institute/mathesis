@@ -5,6 +5,7 @@ import { routePath } from '../routing/routes';
 import { noteSubjects } from './projectNoteSubjects';
 
 export type ProjectNote = {
+  archive?: { doi: string; concept_doi?: string };
   id: string;
   revision: string;
   title: string;
@@ -26,6 +27,7 @@ export type ProjectNote = {
 /** Adapt a trusted API collection record to the same compact paper reader used by historical notes. */
 export function collectedPaperNote(paper: CollectedPaper): ProjectNote {
   return {
+    archive: paper.archive,
     id: paper.id,
     revision: paper.revision,
     title: paper.title,
@@ -83,6 +85,8 @@ export function findProjectNotes(query: PaperQuery): ProjectNote[] {
       note.title,
       note.abstract,
       note.summary,
+      note.archive?.doi ?? '',
+      note.archive?.concept_doi ?? '',
       note.id,
       ...note.problem_ids,
       ...note.problems.map((p) => `${p.name} ${p.source.locator}`),
@@ -96,5 +100,6 @@ export function findProjectNotes(query: PaperQuery): ProjectNote[] {
 
 /** This is a citation to the source work, with no invented venue, DOI or verdict. */
 export function projectCitation(note: ProjectNote): string {
-  return `${note.authors.map((a) => a.name).join('; ')}. ${note.title}. Version ${note.revision}. ${note.published_on.slice(0, 4)}. ${window.location.origin}${routePath({ kind: 'paper', record: note.id, version: note.revision })}`;
+  const doi = note.archive?.doi;
+  return `${note.authors.map((a) => a.name).join('; ')}. ${note.title}. Version ${note.revision}. ${note.published_on.slice(0, 4)}. ${doi ? `https://doi.org/${doi}` : `${window.location.origin}${routePath({ kind: 'paper', record: note.id, version: note.revision })}`}`;
 }

@@ -1,6 +1,7 @@
 //! Mathesis server: composes Layer 1–3 with MongoDB, NyxID sign-in, the
 //! LaTeX compiler and the machine review worker.
 
+mod archives;
 mod auth;
 mod cma_connection;
 mod cma_tokens;

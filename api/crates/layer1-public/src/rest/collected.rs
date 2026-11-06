@@ -10,7 +10,7 @@ use axum::{
 use mathesis_core::{
     CoreError,
     app::{App, MAX_UPLOAD_BYTES, Upload},
-    model::{PaperSearch, PreReviewedDelivery, SubmissionKind},
+    model::{CollectedArchiveInput, PaperSearch, PreReviewedDelivery, SubmissionKind},
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -22,6 +22,7 @@ pub(super) fn routes() -> Router<Arc<App>> {
         )
         .route("/collected-papers", get(list))
         .route("/collected-papers/{id}", get(paper))
+        .route("/collected-papers/{id}/archive", post(attach_archive))
         .route("/collected-papers/{id}/index", post(index))
         .route("/collected-papers/{id}/knowledge", get(knowledge))
         .route(
@@ -29,6 +30,21 @@ pub(super) fn routes() -> Router<Arc<App>> {
             post(request_explanation),
         )
         .route("/collected-papers/{id}/files/{kind}", get(file))
+}
+async fn attach_archive(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Query(q): Query<Version>,
+    Json(input): Json<CollectedArchiveInput>,
+) -> ApiResult<impl IntoResponse> {
+    let version = q
+        .version
+        .ok_or_else(|| Problem(CoreError::invalid("name the exact publication version")))?;
+    Ok(Json(
+        app.attach_collected_archive(&caller, &id, version, input)
+            .await?,
+    ))
 }
 async fn knowledge(
     State(app): AppState,

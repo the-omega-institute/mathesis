@@ -227,3 +227,49 @@ it('combines intake paths by date and does not repeat local publications on late
   await screen.findByRole('link', { name: newer.title });
   expect(container.querySelectorAll('.research-archive-list > li')).toHaveLength(11);
 });
+
+it('preserves a live exact-version DOI through archive, paper citation and reference-manager metadata', async () => {
+  const old = projectNotes[0]!;
+  const live = {
+    ...liveVersion(old),
+    archive: { doi: '10.5281/zenodo.23957560', concept_doi: '10.5281/zenodo.23957559' },
+  };
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: [live], next_before: null })),
+    getCollectedPaper: vi.fn(async () => live),
+  });
+  const archive = renderWithApp(<PapersPage initialQuery={live.archive.doi} />, api);
+  expect(await screen.findByRole('link', { name: 'DOI' })).toHaveAttribute(
+    'href',
+    'https://doi.org/' + live.archive.doi,
+  );
+  archive.unmount();
+  const paper = renderWithApp(<PaperPage record={live.id} />, api);
+  expect(await screen.findByRole('link', { name: live.archive.doi })).toHaveAttribute(
+    'href',
+    'https://doi.org/' + live.archive.doi,
+  );
+  expect(document.getElementById('citation')).toHaveTextContent(
+    'https://doi.org/' + live.archive.doi,
+  );
+  expect(document.getElementById('citation')).not.toHaveTextContent(live.archive.concept_doi);
+  expect(document.querySelector('meta[name="citation_doi"]')).toHaveAttribute(
+    'content',
+    live.archive.doi,
+  );
+  expect(document.querySelector('meta[name="citation_pdf_url"]')).toHaveAttribute(
+    'content',
+    new URL(live.pdf.url, window.location.origin).href,
+  );
+  expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    `${window.location.origin}/papers/${live.id}?version=${live.revision}`,
+  );
+  expect(document.querySelector('meta[name="citation_journal_title"]')).toBeNull();
+  paper.unmount();
+  renderWithApp(<PublishedNotePage id={old.id} note={old} />, fakeApi());
+  expect(document.querySelector('meta[name="citation_doi"]')).toBeNull();
+  expect(document.getElementById('citation')).toHaveTextContent(
+    `/papers/${old.id}?version=${old.revision}`,
+  );
+});

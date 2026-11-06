@@ -4,6 +4,8 @@ import { PaperExplanation } from '../components/PaperExplanation';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { DateText, ExternalLink } from '../components/ui';
 import { sourceHref, sourceLabel } from '../lib/links';
+import { CitationMetadata } from '../components/PaperMetadata';
+import { routePath } from '../routing/routes';
 import {
   projectCitation,
   projectNotes,
@@ -26,6 +28,9 @@ export function PublishedNoteEntry({ note }: { note: ProjectNote }) {
         <AuthorLine authors={note.authors.map(({ name }) => ({ name }))} />
         <p className="entry-meta">
           <span>{t('Version {version}', { version: note.revision })}</span>
+          {note.archive ? (
+            <ExternalLink href={`https://doi.org/${note.archive.doi}`}>DOI</ExternalLink>
+          ) : null}
           {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
         </p>
       </div>
@@ -56,6 +61,15 @@ export function PublishedNotePage({
   if (!note) return <NotFoundPage path={`/papers/${id}`} />;
   return (
     <article className="page published-note paper-reading">
+      <CitationMetadata
+        title={note.title}
+        authors={note.authors}
+        doi={note.archive?.doi}
+        abstract={note.abstract}
+        publicationDate={note.published_on}
+        canonicalUrl={`${window.location.origin}${routePath({ kind: 'paper', record: note.id, version: note.revision })}`}
+        pdfUrl={new URL(note.pdf.url, window.location.origin).href}
+      />
       <Link to={{ kind: 'papers' }}>{t('Research archive')}</Link>
       <header className="paper-heading">
         <div>
@@ -132,6 +146,16 @@ export function PublishedNotePage({
           <section>
             <h2>{t('Publication details')}</h2>
             <dl className="paper-metadata">
+              {note.archive ? (
+                <>
+                  <dt>DOI</dt>
+                  <dd>
+                    <ExternalLink href={`https://doi.org/${note.archive.doi}`}>
+                      {note.archive.doi}
+                    </ExternalLink>
+                  </dd>
+                </>
+              ) : null}
               <dt>{t('License')}</dt>
               <dd>{note.license}</dd>
               {note.msc?.length ? (

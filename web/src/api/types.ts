@@ -692,6 +692,7 @@ export type PaperSummary = {
   lean_verified?: number;
 };
 export type CollectedPaper = {
+  archive?: { doi: string; concept_doi?: string };
   id: string;
   revision: string;
   previous_version?: string;

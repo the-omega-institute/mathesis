@@ -27,6 +27,9 @@ pub struct CollectedMetadata {
     pub abstract_text: String,
     pub authors: Vec<Author>,
     pub license: String,
+    /// Optional published archive identifier, independently checked before collection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_doi: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plain_language: Option<PlainLanguageText>,
     #[serde(default)]
@@ -103,6 +106,9 @@ impl PreReviewedDelivery {
         if let Some(text) = &self.paper.plain_language {
             text.validate()?;
         }
+        if let Some(doi) = &self.paper.archive_doi {
+            zenodo_record_id(doi)?;
+        }
         if self.paper.problems.len() > 100 {
             return Err(CoreError::invalid("at most 100 source questions"));
         }
@@ -159,12 +165,60 @@ pub struct CollectedVersion {
     pub pdf: BlobRef,
     pub source: BlobRef,
     pub published_on: DateTime<Utc>,
+    /// Publication metadata may arrive after collection without replacing reviewed inputs.
+    #[serde(default)]
+    pub archive: Option<CollectedArchive>,
     /// Independently generated reading guide; never changes the reviewed delivery.
     #[serde(default)]
     pub explanation: CollectedExplanation,
     /// Deterministic source observations, independent of delivery and review.
     #[serde(default)]
     pub source_index: Option<CollectedSourceIndex>,
+}
+
+/// A published exact-version DOI; the concept DOI is kept separately.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchiveCitation {
+    pub doi: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub concept_doi: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedArchive {
+    pub citation: ArchiveCitation,
+    pub pdf_sha256: String,
+    pub source_sha256: String,
+    pub checked_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CollectedArchiveInput {
+    pub doi: String,
+    pub pdf_sha256: String,
+    pub source_sha256: String,
+}
+
+/// This channel consumes production Zenodo publications, never draft reservations.
+pub fn zenodo_record_id(doi: &str) -> CoreResult<u64> {
+    let id = doi.strip_prefix("10.5281/zenodo.").unwrap_or_default();
+    if id.is_empty() || id.starts_with('0') || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(CoreError::invalid(
+            "supply the published version DOI as 10.5281/zenodo.<record>",
+        ));
+    }
+    id.parse()
+        .map_err(|_| CoreError::invalid("invalid Zenodo record identity"))
+}
+
+impl CollectedVersion {
+    pub fn archive_citation(&self) -> Option<&ArchiveCitation> {
+        self.archive
+            .as_ref()
+            .filter(|a| a.pdf_sha256 == self.pdf.sha256 && a.source_sha256 == self.source.sha256)
+            .map(|a| &a.citation)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -218,6 +272,12 @@ impl CollectedVersion {
             super::ResearchSearch::All => true,
             super::ResearchSearch::Identity(id) => {
                 id == &format!("paper:{}", self.delivery.work_id)
+                    || self.archive_citation().is_some_and(|a| {
+                        id == &format!("doi:{}", a.doi.to_ascii_lowercase())
+                            || a.concept_doi
+                                .as_ref()
+                                .is_some_and(|d| id == &format!("doi:{}", d.to_ascii_lowercase()))
+                    })
             }
             super::ResearchSearch::Text(q) => std::iter::once(self.delivery.work_id.as_str())
                 .chain([self.delivery.paper.title.as_str()])
@@ -274,7 +334,7 @@ impl CollectedVersion {
             return false;
         }
         let text = format!(
-            "{} {} {} {} {}",
+            "{} {} {} {} {} {}",
             self.delivery.work_id,
             p.title,
             p.abstract_text,
@@ -283,7 +343,10 @@ impl CollectedVersion {
                 .iter()
                 .map(|p| format!("{} {}", p.name, p.source.locator))
                 .collect::<Vec<_>>()
-                .join(" ")
+                .join(" "),
+            self.archive_citation()
+                .map(|a| format!("{} {}", a.doi, a.concept_doi.as_deref().unwrap_or_default()))
+                .unwrap_or_default()
         )
         .to_lowercase();
         q.q.as_ref().is_none_or(|q| {
@@ -331,6 +394,7 @@ mod tests {
     fn collection_search_matches_title_author_and_source() {
         let d = delivery();
         let v = CollectedVersion {
+            archive: None,
             source_index: None,
             explanation: CollectedExplanation::default(),
             id: "id".into(),

@@ -491,3 +491,202 @@ async fn collected_knowledge_has_exact_result_identity_but_no_invented_verificat
             .is_empty()
     );
 }
+
+struct PublishedArchive(std::sync::atomic::AtomicUsize);
+#[async_trait::async_trait]
+impl crate::ports::ArchiveRegistry for PublishedArchive {
+    async fn verify(
+        &self,
+        doi: &str,
+        pdf: &BlobRef,
+        source: &BlobRef,
+    ) -> CoreResult<ArchiveCitation> {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let (d, p, s) = package(1);
+        assert_eq!(pdf.sha256, d.review.pdf_sha256);
+        assert_eq!(source.sha256, d.review.source_sha256);
+        assert_eq!(pdf.bytes, p.bytes.len() as u64);
+        assert_eq!(source.bytes, s.bytes.len() as u64);
+        if doi != "10.5281/zenodo.123" {
+            return Err(CoreError::invalid("not this published manuscript"));
+        }
+        Ok(ArchiveCitation {
+            doi: doi.into(),
+            concept_doi: Some("10.5281/zenodo.122".into()),
+        })
+    }
+}
+
+#[tokio::test]
+async fn late_archive_is_owned_exact_version_set_once_and_preserves_delivery_receipt_and_queue() {
+    let mut w = World::new().await;
+    let registry = Arc::new(PublishedArchive(std::sync::atomic::AtomicUsize::new(0)));
+    let mut ports = w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+    ports.archives = registry.clone();
+    w.app = App::with_internal_accounts(
+        ports,
+        Policy::default(),
+        BTreeSet::from(["admin".into()]),
+        20,
+        BTreeSet::from(["publisher".into(), "other-publisher".into()]),
+    );
+    let owner = w.person("publisher", &[]).await;
+    let other = w.person("other-publisher", &[]).await;
+    let reader = w.person("reader", &[]).await;
+    let admin = w.person("admin", &[]).await;
+    let (d, p, s) = package(1);
+    let receipt = w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap();
+    let saved = w.stores.get("a-note", Some(1)).await.unwrap().unwrap();
+    let queue = w.stores.queued().await;
+    let input = CollectedArchiveInput {
+        doi: "10.5281/zenodo.123".into(),
+        pdf_sha256: saved.pdf.sha256.clone(),
+        source_sha256: saved.source.sha256.clone(),
+    };
+    for caller in [&other, &reader] {
+        assert!(matches!(
+            w.app
+                .attach_collected_archive(caller, "a-note", 1, input.clone())
+                .await,
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+    let mut wrong = input.clone();
+    wrong.pdf_sha256 = "0".repeat(64);
+    assert!(
+        w.app
+            .attach_collected_archive(&owner, "a-note", 1, wrong)
+            .await
+            .is_err()
+    );
+    assert_eq!(registry.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+    let mut wrong = input.clone();
+    wrong.doi = "10.5281/zenodo.999".into();
+    assert!(
+        w.app
+            .attach_collected_archive(&owner, "a-note", 1, wrong)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        w.stores.get("a-note", Some(1)).await.unwrap().unwrap(),
+        saved
+    );
+    let public = w
+        .app
+        .attach_collected_archive(&owner, "a-note", 1, input.clone())
+        .await
+        .unwrap();
+    assert_eq!(public.archive.as_ref().unwrap().doi, input.doi);
+    assert_eq!(
+        public.archive.as_ref().unwrap().concept_doi.as_deref(),
+        Some("10.5281/zenodo.122")
+    );
+    let calls = registry.0.load(std::sync::atomic::Ordering::SeqCst);
+    w.app
+        .attach_collected_archive(&admin, "a-note", 1, input.clone())
+        .await
+        .unwrap();
+    assert_eq!(registry.0.load(std::sync::atomic::Ordering::SeqCst), calls);
+    let mut different = input;
+    different.doi = "10.5281/zenodo.124".into();
+    assert!(
+        w.app
+            .attach_collected_archive(&admin, "a-note", 1, different)
+            .await
+            .is_err()
+    );
+    let mut after = w.stores.get("a-note", Some(1)).await.unwrap().unwrap();
+    after.archive = None;
+    assert_eq!(after, saved);
+    let (d, p, s) = package(1);
+    assert_eq!(
+        serde_json::to_value(w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap()).unwrap(),
+        serde_json::to_value(receipt).unwrap()
+    );
+    assert_eq!(w.stores.queued().await, queue);
+    let text = serde_json::to_string(&public).unwrap();
+    assert!(
+        !text.contains("archive_doi")
+            && !text.contains("checked_at")
+            && !text.contains("private_evidence")
+    );
+    let (d, p, s) = package(2);
+    w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap();
+    assert!(
+        w.app
+            .collected_paper("a-note", None)
+            .await
+            .unwrap()
+            .archive
+            .is_none()
+    );
+    assert!(
+        w.app
+            .collected_paper("a-note", Some(1))
+            .await
+            .unwrap()
+            .archive
+            .is_some()
+    );
+}
+
+#[tokio::test]
+async fn initial_published_archive_is_checked_before_storage_and_searchable_without_a_second_review()
+ {
+    let mut w = World::new().await;
+    let registry = Arc::new(PublishedArchive(std::sync::atomic::AtomicUsize::new(0)));
+    let mut ports = w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+    ports.archives = registry.clone();
+    w.app = App::with_internal_accounts(
+        ports,
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from(["publisher".into()]),
+    );
+    let owner = w.person("publisher", &[]).await;
+    let (mut d, p, s) = package(1);
+    // Absent metadata keeps the original serialized request (and historical retry digest).
+    let old = serde_json::to_value(&d).unwrap();
+    assert!(old["paper"].get("archive_doi").is_none());
+    d.paper.archive_doi = Some("10.5281/zenodo.999".into());
+    assert!(
+        w.app
+            .collect_pre_reviewed(&owner, d.clone(), package(1).1, package(1).2)
+            .await
+            .is_err()
+    );
+    assert!(w.stores.get("a-note", None).await.unwrap().is_none());
+    assert!(w.stores.queued().await.is_empty());
+    d.paper.archive_doi = Some("10.5281/zenodo.123".into());
+    w.app
+        .collect_pre_reviewed(&owner, d.clone(), package(1).1, package(1).2)
+        .await
+        .unwrap();
+    w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap();
+    assert_eq!(registry.0.load(std::sync::atomic::Ordering::SeqCst), 2);
+    for doi in ["10.5281/zenodo.123", "10.5281/zenodo.122"] {
+        let found = w
+            .app
+            .collected_papers(
+                PaperSearch {
+                    q: Some(doi.into()),
+                    ..Default::default()
+                },
+                Some(10),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(found.items.len(), 1);
+    }
+    assert_eq!(
+        w.stores.queued().await,
+        vec![("collected:a-note:1".into(), JobKind::CollectedExplanation)]
+    );
+    // A corrupt/stale sidecar must not leak a DOI onto another source version.
+    let mut saved = w.stores.get("a-note", None).await.unwrap().unwrap();
+    saved.source.sha256 = "0".repeat(64);
+    assert!(PublicCollectedPaper::from(&saved).archive.is_none());
+}

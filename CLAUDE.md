@@ -1016,3 +1016,14 @@ Source references may cycle; condense cycles for layout without claiming they fo
 a proof DAG. Retain original mathematical authorship and formalizer credit separately.
 This interface queues no review or proof jobs. Mathlib declaration dependencies and
 the collected-statement-to-confirmed-target bridge remain separate unfinished work.
+
+## Published collected-paper DOI
+
+Collection optionally consumes an existing published exact-version Zenodo DOI.
+A fixed public registry adapter verifies publication and both archived file hashes;
+reserved or concept identifiers cannot occupy the version DOI slot. A set-once
+version-bound sidecar allows the owning trusted operator or admin to add a late DOI
+without changing delivery digests, files, receipts, publication dates or queues.
+Public citation/search projections expose the checked exact DOI and a separate
+concept DOI, never raw verification data. Collection does not register a DOI or
+imply Mathesis acceptance. See docs/PRE_REVIEWED_COLLECTION.md.

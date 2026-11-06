@@ -30,8 +30,8 @@ links and optional pinned Lean source.
 
 This path is intentionally explicit. It is not a background import of every
 upstream result, and ordinary external submissions continue through
-`/manuscript-deliveries` and the independent Mathesis review pipeline. The first
-real upstream delivery is still pending until the producer calls this endpoint.
+`/manuscript-deliveries` and the independent Mathesis review pipeline. A real delivery is collected only when the producer calls this endpoint; a
+source repository or an archive DOI alone does not create a Mathesis paper.
 
 ## Independent reading guide
 
@@ -52,3 +52,44 @@ an administrator with `POST /api/v1/collected-papers/<work-id>/plain-language/re
 Exact delivery retries repair queue admission without creating a manuscript or
 restarting the referee. The same durable CMA run and job are retained through
 worker restarts and asynchronous agent deletion.
+
+## Published archive DOI
+
+Mathesis consumes an existing published Zenodo DOI; collection does not register a
+new DOI or represent Zenodo archiving as a Mathesis publication decision. Producers
+may supply `paper.archive_doi` with the **exact version** identifier, for example
+`10.5281/zenodo.23957560`. Omit it until the archive has actually published the
+record. Reserved identifiers, drafts and concept identifiers in the exact-version
+slot are rejected. The server reads the public production Zenodo record and checks
+that both its PDF and source ZIP have the same sizes and SHA-256 values as the
+reviewed files. Ambiguous matching files or unavailable evidence cannot add a DOI.
+The registry's concept DOI is retained separately; the reader and citation use the
+exact-version DOI. There is no dependence on private archive credentials.
+
+For an already collected version, the owning trusted operator or an administrator
+can attach a DOI without resubmitting the scientific delivery:
+
+```http
+POST /api/v1/collected-papers/<work-id>/archive?version=N
+Content-Type: application/json
+Authorization: Bearer <NyxID token>
+
+{
+  "doi": "10.5281/zenodo.23957560",
+  "pdf_sha256": "<exact reviewed PDF SHA-256>",
+  "source_sha256": "<exact reviewed source ZIP SHA-256>"
+}
+```
+
+This set-once, file-bound sidecar preserves the original delivery JSON, request
+digest, files, publication time, review evidence and receipt. It creates no review,
+exposition or Lean job. Identical retries return the same public paper; a different
+DOI conflicts. Each version has its own archive citation; a newer manuscript never
+inherits an earlier version's DOI. Adding a DOI to an old delivery envelope would
+change its digest and is intentionally refused: use this enrichment endpoint.
+
+Public collection responses optionally include
+`archive: {doi, concept_doi?}`; they omit verification internals and unverified
+input metadata. Existing clients and deliveries without DOI remain compatible.
+The archive, paper sidebar, plain-text citation and reference-manager metadata
+link the exact DOI. Archive search also accepts the DOI.

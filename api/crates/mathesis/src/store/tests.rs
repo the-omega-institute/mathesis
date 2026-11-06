@@ -568,6 +568,7 @@ async fn paper_flow_against_mongo() {
     };
     let shared = Arc::new(db.store.clone());
     let ports = Ports {
+        archives: Arc::new(mathesis_core::ports::UnavailableArchiveRegistry),
         collected: Arc::new(db.store.clone()),
         deposits: Arc::new(db.store.clone()),
         cma_bindings: shared.clone(),
@@ -2663,6 +2664,7 @@ async fn collected_exposition_cas_upgrades_legacy_records_without_touching_deliv
     })).unwrap();
     let mut legacy = to_document(&version).unwrap();
     legacy.remove("explanation");
+    legacy.remove("archive");
     db.store
         .raw(collected::COLLECTION)
         .insert_one(legacy)
@@ -2755,5 +2757,40 @@ async fn collected_exposition_cas_upgrades_legacy_records_without_touching_deliv
     saved.source_index = None;
     saved.explanation = CollectedExplanation::default();
     assert_eq!(saved, version);
+    let archive = CollectedArchive {
+        citation: ArchiveCitation {
+            doi: "10.5281/zenodo.123".into(),
+            concept_doi: Some("10.5281/zenodo.122".into()),
+        },
+        pdf_sha256: saved.pdf.sha256.clone(),
+        source_sha256: saved.source.sha256.clone(),
+        checked_at: Utc::now(),
+    };
+    let mut wrong = archive.clone();
+    wrong.source_sha256 = "0".repeat(64);
+    assert!(db.store.attach_archive("a-note", 1, &wrong).await.is_err());
+    let (first, retry) = tokio::join!(
+        db.store.attach_archive("a-note", 1, &archive),
+        db.store.attach_archive("a-note", 1, &archive)
+    );
+    first.unwrap();
+    retry.unwrap();
+    let mut conflict = archive.clone();
+    conflict.citation.doi = "10.5281/zenodo.124".into();
+    assert!(
+        db.store
+            .attach_archive("a-note", 1, &conflict)
+            .await
+            .is_err()
+    );
+    let mut enriched = CollectedPaperStore::get(&db.store, "a-note", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(enriched.archive.as_ref(), Some(&archive));
+    enriched.archive = None;
+    enriched.source_index = None;
+    enriched.explanation = CollectedExplanation::default();
+    assert_eq!(enriched, version);
     db.drop().await;
 }

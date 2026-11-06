@@ -17,6 +17,8 @@ pub struct PublicCollectedPaper {
     pub published_on: chrono::DateTime<chrono::Utc>,
     pub pdf: CollectedFileLink,
     pub source: CollectedFileLink,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archive: Option<ArchiveCitation>,
 }
 impl From<&CollectedVersion> for PublicCollectedPaper {
     fn from(v: &CollectedVersion) -> Self {
@@ -32,6 +34,7 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             revision: d.version.to_string(),
             previous_version: d.previous_version.map(|v| v.to_string()),
             paper: CollectedMetadata {
+                archive_doi: None,
                 plain_language: v
                     .explanation
                     .text
@@ -42,6 +45,7 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             published_on: v.published_on,
             pdf: file("pdf"),
             source: file("source"),
+            archive: v.archive_citation().cloned(),
         }
     }
 }
@@ -315,6 +319,26 @@ impl App {
                 "first collected version cannot name a predecessor",
             ));
         }
+        let archive = if let Some(doi) = &delivery.paper.archive_doi {
+            Some(
+                self.check_collected_archive(
+                    doi,
+                    &BlobRef {
+                        id: String::new(),
+                        bytes: pdf.bytes.len() as u64,
+                        sha256: delivery.review.pdf_sha256.clone(),
+                    },
+                    &BlobRef {
+                        id: String::new(),
+                        bytes: source.bytes.len() as u64,
+                        sha256: delivery.review.source_sha256.clone(),
+                    },
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
         let pdf_ref = self.ports.blobs.put(&pdf.bytes, "application/pdf").await?;
         let source_ref = match self.ports.blobs.put(&source.bytes, "application/zip").await {
             Ok(v) => v,
@@ -324,6 +348,7 @@ impl App {
             }
         };
         let version = CollectedVersion {
+            archive,
             source_index: Some(self.read_collected_index(&source.bytes, &source_ref.sha256, 1)),
             explanation: CollectedExplanation::default(),
             id: uuid::Uuid::now_v7().to_string(),
@@ -356,6 +381,80 @@ impl App {
         }
         self.enqueue_collected_explanation(&version).await?;
         Ok(receipt(&version))
+    }
+
+    async fn check_collected_archive(
+        &self,
+        doi: &str,
+        pdf: &BlobRef,
+        source: &BlobRef,
+    ) -> CoreResult<CollectedArchive> {
+        zenodo_record_id(doi)?;
+        let citation = self.ports.archives.verify(doi, pdf, source).await?;
+        if citation.doi != doi
+            || citation
+                .concept_doi
+                .as_ref()
+                .is_some_and(|v| zenodo_record_id(v).is_err() || v == doi)
+        {
+            return Err(CoreError::invalid(
+                "archive returned a different DOI identity",
+            ));
+        }
+        Ok(CollectedArchive {
+            citation,
+            pdf_sha256: pdf.sha256.clone(),
+            source_sha256: source.sha256.clone(),
+            checked_at: self.ports.clock.now(),
+        })
+    }
+
+    /// Enrich one already public version without changing its delivery, receipt or queue.
+    pub async fn attach_collected_archive(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+        input: CollectedArchiveInput,
+    ) -> CoreResult<PublicCollectedPaper> {
+        if !caller.has(Role::Admin) && !self.is_internal_account(&caller.person) {
+            return Err(CoreError::forbidden(
+                "trusted collection operator or administrator required",
+            ));
+        }
+        let saved = self
+            .ports
+            .collected
+            .get(work, Some(version))
+            .await?
+            .ok_or_else(|| CoreError::not_found("collected paper", work))?;
+        if !caller.has(Role::Admin) && saved.owner != caller.person {
+            return Err(CoreError::forbidden(
+                "only this collection's owner can attach its archive",
+            ));
+        }
+        if input.pdf_sha256 != saved.pdf.sha256 || input.source_sha256 != saved.source.sha256 {
+            return Err(CoreError::conflict(
+                "archive must name this exact reviewed PDF and source",
+            ));
+        }
+        zenodo_record_id(&input.doi)?;
+        if let Some(existing) = saved.archive_citation() {
+            if existing.doi != input.doi {
+                return Err(CoreError::conflict(
+                    "this version already has a different archive DOI",
+                ));
+            }
+            return Ok((&saved).into());
+        }
+        let archive = self
+            .check_collected_archive(&input.doi, &saved.pdf, &saved.source)
+            .await?;
+        self.ports
+            .collected
+            .attach_archive(work, version, &archive)
+            .await?;
+        self.collected_paper(work, Some(version)).await
     }
 
     async fn enqueue_collected_explanation(&self, v: &CollectedVersion) -> CoreResult<()> {
