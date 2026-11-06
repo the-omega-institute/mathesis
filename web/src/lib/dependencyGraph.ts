@@ -269,9 +269,9 @@ export function dependencyLayout(graph: DependencySnapshot) {
 
 /** A field overview positions the same exact results; grouping creates no dependency edges. */
 export function dependencyAtlasLayout(graph: DependencySnapshot, availableWidth: number) {
-  const columns = availableWidth >= 850 ? 3 : availableWidth >= 560 ? 2 : 1;
+  const columns = availableWidth >= 1160 ? 3 : availableWidth >= 720 ? 2 : 1;
   const tileWidth = availableWidth / columns;
-  const tileHeight = 230;
+  const tileHeight = 320;
   const groups = new Map<string, DependencyNode[]>();
   for (const node of graph.nodes) {
     if (node.kind !== 'result' && node.kind !== 'contribution') continue;
@@ -294,16 +294,16 @@ export function dependencyAtlasLayout(graph: DependencySnapshot, availableWidth:
         nodes,
         edges: graph.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to)),
       });
-      const scale = Math.min((tileWidth - 48) / local.width, (tileHeight - 90) / local.height);
+      const scale = Math.min((tileWidth - 64) / local.width, (tileHeight - 96) / local.height);
       for (const node of nodes) {
         const p = local.points.get(node.id)!;
-        points.set(node.id, { x: x + 16 + (p.x + 120) * scale, y: y + 62 + p.y * scale });
+        points.set(node.id, { x: x + 24 + (p.x + 120) * scale, y: y + 72 + p.y * scale });
       }
       return {
         id,
         x,
         y,
-        width: tileWidth - 24,
+        width: tileWidth - 40,
         count: nodes.filter((node) => node.kind === 'result').length,
       };
     });
@@ -311,6 +311,6 @@ export function dependencyAtlasLayout(graph: DependencySnapshot, availableWidth:
     points,
     fields,
     width: availableWidth,
-    height: Math.max(230, Math.ceil(fields.length / columns) * tileHeight),
+    height: Math.max(tileHeight, Math.ceil(fields.length / columns) * tileHeight),
   };
 }
