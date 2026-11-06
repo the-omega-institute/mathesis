@@ -10,7 +10,7 @@ import { ResultPage } from './Result';
 import { PaperPage, PapersPage } from './Papers';
 
 describe('public paper page', () => {
-  it('shows bilingual exposition before the technical abstract', async () => {
+  it('keeps the abstract first and offers bilingual exposition in the paper navigation', async () => {
     renderWithApp(
       <PaperPage record="WP-2026-0001" />,
       fakeApi({
@@ -22,9 +22,16 @@ describe('public paper page', () => {
     );
     const english = await screen.findByText('Readable mathematical context.');
     expect(
-      english.compareDocumentPosition(screen.getByRole('heading', { name: 'Abstract' })) &
+      screen.getByRole('heading', { name: 'Abstract' }).compareDocumentPosition(english) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    const navigation = screen.getByRole('navigation', { name: 'On this page' });
+    expect(within(navigation).getByRole('link', { name: 'In plain language' })).toHaveAttribute(
+      'href',
+      '#plain-language',
+    );
+    await userEvent.click(within(navigation).getByRole('link', { name: 'Citation and versions' }));
+    expect(screen.getByLabelText('Citation format')).toBeVisible();
     act(() => setLocale('zh'));
     expect(screen.getByText('易懂的数学背景。')).toBeInTheDocument();
   });

@@ -97,7 +97,9 @@ describe('published manuscripts', () => {
       'href',
       note.source.url,
     );
-    const questions = screen.getByText('Sources and related questions').closest('details')!;
+    const questions = screen
+      .getByText('Sources and related questions', { selector: 'summary' })
+      .closest('details')!;
     expect(
       within(questions).getAllByRole('link', { name: 'arXiv:2509.18724v1', hidden: true }),
     ).toHaveLength(2);
@@ -107,6 +109,23 @@ describe('published manuscripts', () => {
     );
     expect(container.querySelector('.badge')).toBeNull();
     expect(screen.getByRole('heading', { name: 'In plain language' })).toBeInTheDocument();
+  });
+
+  it('opens sources and the exact-version citation from the paper navigation', async () => {
+    const note = projectNotes.find((note) => note.id === 'wang-conjecture326')!;
+    renderWithApp(<PublishedNotePage id={note.id} />, fakeApi());
+    const navigation = screen.getByRole('navigation', { name: 'On this page' });
+    await userEvent.click(
+      within(navigation).getByRole('link', { name: 'Sources and related questions' }),
+    );
+    expect(
+      screen.getByText('Sources and related questions', { selector: 'summary' }).closest('details'),
+    ).toHaveAttribute('open');
+    await userEvent.click(within(navigation).getByRole('link', { name: 'Citation and versions' }));
+    expect(document.getElementById('citation')).toHaveAttribute('open');
+    expect(document.getElementById('citation')).toHaveTextContent(
+      `/papers/${note.id}?version=${note.revision}`,
+    );
   });
 
   it('pins version navigation and rejects unknown versions', () => {
