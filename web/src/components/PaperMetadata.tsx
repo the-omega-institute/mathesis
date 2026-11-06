@@ -1,4 +1,4 @@
-import type { PublicPaper } from '../api/types';
+import type { Author, PublicPaper } from '../api/types';
 import { citationUrl } from '../lib/citation';
 import { texToText } from '../lib/texText';
 
@@ -8,24 +8,54 @@ export function PaperMetadata({ paper }: { paper: PublicPaper }) {
   const version = paper.versions?.at(-1);
   const origin = window.location.origin;
   return (
+    <CitationMetadata
+      title={summary.title}
+      authors={summary.authors}
+      doi={summary.doi}
+      abstract={summary.abstract_text}
+      canonicalUrl={citationUrl(summary, origin)}
+      publicationDate={summary.accepted_at}
+      pdfUrl={
+        summary.submission && version?.has_pdf
+          ? `${origin}/papers/${encodeURIComponent(summary.record)}/pdf`
+          : undefined
+      }
+    />
+  );
+}
+
+/** Public bibliographic facts, shared by venue records and independently archived papers. */
+export function CitationMetadata({
+  title,
+  authors,
+  doi,
+  abstract,
+  canonicalUrl,
+  publicationDate,
+  pdfUrl,
+}: {
+  title: string;
+  authors: Author[];
+  doi?: string;
+  abstract?: string;
+  canonicalUrl: string;
+  publicationDate?: string;
+  pdfUrl?: string;
+}) {
+  return (
     <>
-      <title>{texToText(summary.title)} · Mathesis</title>
-      <link rel="canonical" href={citationUrl(summary, origin)} />
-      <meta name="citation_title" content={summary.title} />
-      {summary.authors.map((author, index) => (
+      <title>{texToText(title)} · Mathesis</title>
+      <link rel="canonical" href={canonicalUrl} />
+      <meta name="citation_title" content={title} />
+      {authors.map((author, index) => (
         <meta key={index} name="citation_author" content={texToText(author.name)} />
       ))}
-      {summary.accepted_at ? (
-        <meta name="citation_publication_date" content={summary.accepted_at.slice(0, 10)} />
+      {publicationDate ? (
+        <meta name="citation_publication_date" content={publicationDate.slice(0, 10)} />
       ) : null}
-      {summary.doi ? <meta name="citation_doi" content={summary.doi} /> : null}
-      {summary.abstract_text ? <meta name="description" content={summary.abstract_text} /> : null}
-      {summary.submission && version?.has_pdf ? (
-        <meta
-          name="citation_pdf_url"
-          content={`${origin}/papers/${encodeURIComponent(summary.record)}/pdf`}
-        />
-      ) : null}
+      {doi ? <meta name="citation_doi" content={doi} /> : null}
+      {abstract ? <meta name="description" content={abstract} /> : null}
+      {pdfUrl ? <meta name="citation_pdf_url" content={pdfUrl} /> : null}
     </>
   );
 }

@@ -10,6 +10,34 @@ use mongodb::bson::doc;
 pub(super) const COLLECTION: &str = "collected_papers";
 #[async_trait]
 impl CollectedPaperStore for MongoStore {
+    async fn attach_archive(
+        &self,
+        work: &str,
+        version: u32,
+        archive: &mathesis_core::model::CollectedArchive,
+    ) -> CoreResult<()> {
+        let result = self.raw(COLLECTION).update_one(
+            doc! {"delivery.work_id":work, "delivery.version":i64::from(version), "pdf.sha256":&archive.pdf_sha256, "source.sha256":&archive.source_sha256, "archive":mongodb::bson::Bson::Null},
+            doc! {"$set":{"archive":super::to_document(archive)?}},
+        ).await.map_err(unavailable)?;
+        if result.matched_count != 1 {
+            let saved = self
+                .get(work, Some(version))
+                .await?
+                .ok_or_else(|| mathesis_core::CoreError::not_found("collected paper", work))?;
+            if saved.archive.as_ref().is_some_and(|a| {
+                a.citation == archive.citation
+                    && a.pdf_sha256 == archive.pdf_sha256
+                    && a.source_sha256 == archive.source_sha256
+            }) {
+                return Ok(());
+            }
+            return Err(mathesis_core::CoreError::conflict(
+                "archive citation already attached or file bindings differ",
+            ));
+        }
+        Ok(())
+    }
     async fn save_source_index(
         &self,
         work: &str,

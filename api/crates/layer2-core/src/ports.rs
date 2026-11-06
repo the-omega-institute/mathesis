@@ -338,6 +338,7 @@ pub trait GrantStore: Send + Sync {
 
 /// Everything Layer 2 needs, bundled for composition.
 pub struct Ports {
+    pub archives: Arc<dyn ArchiveRegistry>,
     pub collected: Arc<dyn CollectedPaperStore>,
     pub deposits: Arc<dyn LeanDepositStore>,
     pub cma_bindings: Arc<dyn CmaBindingStore>,
@@ -455,6 +456,13 @@ pub trait LeanDepositStore: Send + Sync {
 /// and work/predecessor pairs atomically; list filters only the latest version.
 #[async_trait]
 pub trait CollectedPaperStore: Send + Sync {
+    /// Set once for this exact version; concurrent identical retries are idempotent.
+    async fn attach_archive(
+        &self,
+        work: &str,
+        version: u32,
+        archive: &crate::model::CollectedArchive,
+    ) -> CoreResult<()>;
     async fn save_source_index(
         &self,
         work: &str,
@@ -487,4 +495,30 @@ pub trait CollectedPaperStore: Send + Sync {
         limit: u32,
         before: Option<String>,
     ) -> CoreResult<Listing<crate::model::CollectedVersion>>;
+}
+
+/// Reads a public published record and checks its archived file bytes against this version.
+#[async_trait]
+pub trait ArchiveRegistry: Send + Sync {
+    async fn verify(
+        &self,
+        doi: &str,
+        pdf: &BlobRef,
+        source: &BlobRef,
+    ) -> CoreResult<crate::model::ArchiveCitation>;
+}
+
+pub struct UnavailableArchiveRegistry;
+#[async_trait]
+impl ArchiveRegistry for UnavailableArchiveRegistry {
+    async fn verify(
+        &self,
+        _: &str,
+        _: &BlobRef,
+        _: &BlobRef,
+    ) -> CoreResult<crate::model::ArchiveCitation> {
+        Err(crate::CoreError::Unavailable(
+            "archive registry is unavailable".into(),
+        ))
+    }
 }

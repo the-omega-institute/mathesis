@@ -56,6 +56,7 @@ impl Composition {
                 let store = MongoStore::connect(uri, database).await?;
                 let shared = Arc::new(store.clone());
                 let ports = Ports {
+                    archives: Arc::new(mathesis_core::ports::UnavailableArchiveRegistry),
                     collected: shared.clone(),
                     deposits: shared.clone(),
                     cma_bindings: shared.clone(),
@@ -91,6 +92,7 @@ impl Composition {
             }
         };
 
+        ports.archives = Arc::new(crate::archives::ZenodoArchive);
         let timeout = Duration::from_secs(config.verifier_timeout_secs);
         if let Some(url) = &config.verifier_url {
             ports.verifier = Arc::new(crate::verifier::HttpVerifier {

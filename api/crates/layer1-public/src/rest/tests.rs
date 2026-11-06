@@ -1710,3 +1710,36 @@ async fn public_proof_work_contract_has_no_client_success_route_and_hides_missin
         );
     }
 }
+
+#[tokio::test]
+async fn collected_archive_enrichment_requires_authentication_and_an_explicit_version() {
+    let router = router();
+    let body = serde_json::json!({"doi":"10.5281/zenodo.123","pdf_sha256":"a".repeat(64),"source_sha256":"b".repeat(64)});
+    let (status, _, _) = call(
+        &router,
+        "POST",
+        "/collected-papers/a-note/archive?version=1",
+        None,
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _, _) = call(
+        &router,
+        "POST",
+        "/collected-papers/a-note/archive",
+        Some("reader"),
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (status, _, _) = call(
+        &router,
+        "POST",
+        "/collected-papers/a-note/archive?version=1",
+        Some("reader"),
+        Some(body),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}

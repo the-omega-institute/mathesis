@@ -3144,7 +3144,7 @@
           {
             "name": "focus",
             "in": "query",
-            "description": "Node identity returned by the API. paper:WP-… returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
+            "description": "Node identity returned by the API. paper:WP-\u2026 returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
             "required": false,
             "schema": {
               "type": "string"
@@ -3172,7 +3172,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Matching public accepted source records per page, clamped to 1–20 (default 10). Matching and live visibility precede pagination.",
+            "description": "Matching public accepted source records per page, clamped to 1\u201320 (default 10). Matching and live visibility precede pagination.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -3825,7 +3825,7 @@
         ],
         "responses": {
           "200": {
-            "description": "LeaderboardRow[]; others counts other researchers’ results and total includes own results"
+            "description": "LeaderboardRow[]; others counts other researchers\u2019 results and total includes own results"
           },
           "422": {
             "description": "Invalid filter"
@@ -3964,6 +3964,89 @@
           },
           "404": {
             "description": "No public collected source version"
+          }
+        }
+      }
+    },
+    "/api/v1/collected-papers/{work}/archive": {
+      "post": {
+        "operationId": "attach_collected_archive",
+        "summary": "Attach a published Zenodo exact-version DOI to reviewed collection files. Owner operator or administrator; no new manuscript version or review.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "doi",
+                  "pdf_sha256",
+                  "source_sha256"
+                ],
+                "properties": {
+                  "doi": {
+                    "type": "string",
+                    "pattern": "^10\\.5281/zenodo\\.[1-9][0-9]*$"
+                  },
+                  "pdf_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "source_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Public collected paper with verified archive DOI (identical retries are idempotent)"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Owning collection operator or administrator required"
+          },
+          "404": {
+            "description": "Collected version not found"
+          },
+          "409": {
+            "description": "Different DOI already attached or exact file bindings differ"
+          },
+          "503": {
+            "description": "Public archive unavailable; retry the same DOI"
+          },
+          "422": {
+            "description": "Unpublished DOI, ambiguous files or different archived bytes"
           }
         }
       }

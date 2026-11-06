@@ -89,6 +89,7 @@ pub struct MemoryStores {
 impl MemoryStores {
     pub fn ports(self: &Arc<Self>, clock: Arc<dyn Clock>, reader: Arc<dyn PaperReader>) -> Ports {
         Ports {
+            archives: Arc::new(UnavailableArchiveRegistry),
             collected: self.clone(),
             deposits: self.clone(),
             cma_bindings: self.clone(),
@@ -871,6 +872,32 @@ impl LeanDepositStore for MemoryStores {
 
 #[async_trait]
 impl CollectedPaperStore for MemoryStores {
+    async fn attach_archive(
+        &self,
+        work: &str,
+        version: u32,
+        archive: &CollectedArchive,
+    ) -> CoreResult<()> {
+        let mut values = self.collected.lock().await;
+        let saved = values
+            .values_mut()
+            .find(|v| v.delivery.work_id == work && v.delivery.version == version)
+            .ok_or_else(|| CoreError::not_found("collected paper", work))?;
+        if saved.pdf.sha256 != archive.pdf_sha256 || saved.source.sha256 != archive.source_sha256 {
+            return Err(CoreError::conflict("archive file bindings differ"));
+        }
+        if let Some(existing) = &saved.archive {
+            if existing.citation == archive.citation
+                && existing.pdf_sha256 == archive.pdf_sha256
+                && existing.source_sha256 == archive.source_sha256
+            {
+                return Ok(());
+            }
+            return Err(CoreError::conflict("archive citation already attached"));
+        }
+        saved.archive = Some(archive.clone());
+        Ok(())
+    }
     async fn save_source_index(
         &self,
         work: &str,
