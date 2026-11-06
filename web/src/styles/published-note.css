@@ -1,7 +1,3 @@
-.published-note {
-  max-width: 70rem;
-  margin-inline: auto;
-}
 .published-note > section,
 .published-note > details {
   max-width: 88ch;

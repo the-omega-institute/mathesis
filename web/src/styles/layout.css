@@ -490,8 +490,6 @@
 /* Public records use the familiar abstract, bibliography and version order. */
 .paper.academic-paper {
   display: block;
-  max-width: 76rem;
-  margin-inline: auto;
 }
 .paper-access {
   display: flex;
@@ -562,10 +560,6 @@
   -webkit-line-clamp: 3;
   overflow: hidden;
   max-width: 88ch;
-}
-.result-page {
-  max-width: 76rem;
-  margin-inline: auto;
 }
 .result-page > section,
 .result-statement {

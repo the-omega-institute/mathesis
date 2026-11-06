@@ -856,6 +856,9 @@ funded; local elaboration and proof verification carry no CMA payer.
 - Use the archive's page alignment, horizontal submission steps, readable text measures
   and restrained rules. Avoid nested centred cards, rounded status pills or decorative
   borders. Keep real input boundaries, keyboard focus, error text and responsive layout.
+- Public pages share the header/footer's outer margins through `--page` and `--gutter`.
+  Keep headings and page containers on those same edges. Restrict prose within the
+  shared page instead of centering narrower page wrappers or widening individual routes.
 - See `docs/UPLOAD_FIRST_SUBMISSION.md` for draft preparation and client interfaces.
 
 - A manuscript in `in_review` cannot receive a new source version, including through
