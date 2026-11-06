@@ -1718,7 +1718,7 @@ async fn collected_archive_enrichment_requires_authentication_and_an_explicit_ve
     let (status, _, _) = call(
         &router,
         "POST",
-        "/api/v1/collected-papers/a-note/archive?version=1",
+        "/collected-papers/a-note/archive?version=1",
         None,
         Some(body.clone()),
     )
@@ -1727,7 +1727,7 @@ async fn collected_archive_enrichment_requires_authentication_and_an_explicit_ve
     let (status, _, _) = call(
         &router,
         "POST",
-        "/api/v1/collected-papers/a-note/archive",
+        "/collected-papers/a-note/archive",
         Some("reader"),
         Some(body.clone()),
     )
@@ -1736,7 +1736,7 @@ async fn collected_archive_enrichment_requires_authentication_and_an_explicit_ve
     let (status, _, _) = call(
         &router,
         "POST",
-        "/api/v1/collected-papers/a-note/archive?version=1",
+        "/collected-papers/a-note/archive?version=1",
         Some("reader"),
         Some(body),
     )
