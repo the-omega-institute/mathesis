@@ -1,8 +1,15 @@
+.research-graph > h1 {
+  font-size: clamp(1.8rem, 1.3rem + 1vw, 2.25rem);
+  letter-spacing: -0.025em;
+}
+main:has(> .research-graph) {
+  max-width: 96rem;
+}
 .dependency-reading {
   display: grid;
-  grid-template-columns: 12.5rem minmax(0, 1fr);
-  gap: 2.75rem;
-  margin-top: 1.5rem;
+  grid-template-columns: 11.5rem minmax(0, 1fr);
+  gap: 2.5rem;
+  margin-top: 2rem;
 }
 .dependency-fields {
   display: flex;
@@ -32,7 +39,7 @@
   min-width: 0;
 }
 .dependency-intro {
-  margin: 0 0 1.5rem;
+  margin: 0 0 2rem;
   max-width: 47rem;
   color: var(--ink-soft);
 }
@@ -43,7 +50,7 @@
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
   font-size: 0.82rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
 }
 .dependency-toolbar p {
   margin: 0;
@@ -283,7 +290,7 @@
   margin-top: 2rem;
 }
 .dependency-more {
-  margin-left: 15.25rem;
+  margin-left: 14rem;
   font-size: 0.9rem;
 }
 @media (max-width: 960px) {
@@ -295,7 +302,7 @@
     margin-left: 11.5rem;
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .dependency-reading {
     display: block;
   }
