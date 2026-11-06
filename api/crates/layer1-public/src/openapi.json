@@ -4030,9 +4030,6 @@
           "200": {
             "description": "Public collected paper with verified archive DOI (identical retries are idempotent)"
           },
-          "400": {
-            "description": "Unpublished DOI, ambiguous files or different archived bytes"
-          },
           "401": {
             "description": "Authentication required"
           },
@@ -4047,6 +4044,9 @@
           },
           "503": {
             "description": "Public archive unavailable; retry the same DOI"
+          },
+          "422": {
+            "description": "Unpublished DOI, ambiguous files or different archived bytes"
           }
         }
       }

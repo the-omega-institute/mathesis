@@ -1732,7 +1732,7 @@ async fn collected_archive_enrichment_requires_authentication_and_an_explicit_ve
         Some(body.clone()),
     )
     .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     let (status, _, _) = call(
         &router,
         "POST",
