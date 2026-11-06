@@ -1,27 +1,138 @@
-.published-note > section,
-.published-note > details {
+/* Shared abstract-page typography, within the site's common outer margins. */
+.paper-reading .paper-heading {
+  margin-block: 1.25rem 1.5rem;
+}
+.paper-reading .paper-heading h1 {
+  max-width: 55ch;
+  font-size: clamp(1.8rem, 1.3rem + 1.65vw, 2.6rem);
+  line-height: 1.16;
+  letter-spacing: -0.025em;
+  margin-bottom: 1rem;
+  text-wrap: pretty;
+}
+.paper-reading .paper-heading .author-line {
+  margin-bottom: 0.75rem;
+}
+.paper-reading .paper-heading .author-line > li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 0.35rem;
+}
+.paper-reading .paper-heading .affiliation {
+  order: 1;
+  flex-basis: 100%;
+}
+.paper-reading .paper-access {
+  margin-block: 1rem 1.5rem;
+}
+.paper-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.75rem;
+  margin-bottom: 2rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.9rem;
+}
+.paper-sections a {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.paper-sections a:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+.paper-reading-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  gap: clamp(2rem, 4vw, 4.5rem);
+  align-items: start;
+}
+.paper-content,
+.paper-sidebar {
+  min-width: 0;
+}
+.paper-content > section,
+.paper-content > details {
   max-width: 88ch;
 }
-.published-note > details {
-  margin-block: 1.5rem;
+.paper-reading .paper-content > :first-child {
+  margin-top: 0;
 }
-.paper-questions li + li {
+.paper-content > :first-child > h2,
+.paper-sidebar > :first-child > h2 {
+  margin-top: 0;
+}
+.paper-reading .paper-content .abstract {
+  max-width: none;
+}
+.paper-content .paper-explanation {
+  margin-block: 2.5rem;
+}
+.paper-content .paper-explanation p,
+.paper-content .paper-abstract {
+  line-height: 1.75;
+}
+.paper-sidebar {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.paper-sidebar h2,
+.paper-sidebar .paper-versions h2 {
+  margin-block: 0 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.paper-sidebar > section,
+.paper-sidebar > .citation {
+  margin-block: 0 2rem;
+}
+.paper-sidebar .paper-metadata {
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+.paper-sidebar .citation {
+  padding: 0;
+  border: 0;
+}
+.paper-sidebar .citation summary {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.paper-sidebar .citation-format {
+  align-items: start;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.paper-sidebar .version-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.paper-sidebar .version-list li + li {
   margin-top: 1rem;
 }
+.paper-version-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
 .paper-citation p {
-  margin-top: 0.75rem;
   overflow-wrap: anywhere;
 }
 .paper-questions {
   list-style: none;
   padding: 0;
 }
-
+.paper-questions li + li {
+  margin-top: 1rem;
+}
 .paper-details {
-  max-width: 88ch;
-  margin-block: 1.25rem;
-  border-top: 1px solid var(--line, #d8d8d8);
-  padding-top: 0.8rem;
+  margin-block: 2rem;
 }
 .paper-details summary {
   cursor: pointer;
@@ -32,4 +143,28 @@
 }
 .paper-details ul {
   margin-block: 0.5rem;
+}
+.paper-reading :is(section, details, h2)[id] {
+  scroll-margin-top: 1.5rem;
+}
+@media (max-width: 58rem) {
+  .paper-reading-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+  }
+  .paper-sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: 1.5rem 2.5rem;
+  }
+  .paper-sidebar > section,
+  .paper-sidebar > .citation {
+    margin: 0;
+  }
+}
+@media (max-width: 35rem) {
+  .paper-sections {
+    gap: 0.5rem 1.25rem;
+    margin-bottom: 1.5rem;
+  }
 }

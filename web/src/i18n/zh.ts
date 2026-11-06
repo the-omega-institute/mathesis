@@ -1,5 +1,11 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'On this page': '本文导航',
+  'Publication details': '论文信息',
+  'Citation and versions': '引用与版本',
+  'Sources and related questions': '文献来源与相关问题',
+  'View paper': '查看论文',
+  License: '许可协议',
   'Explore mathematical results, understand how they connect, and find the next proof to contribute.':
     '探索数学结果及其联系，找到下一项值得参与的证明。',
   'Mathematical results': '数学结果',

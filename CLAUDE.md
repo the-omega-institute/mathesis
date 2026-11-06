@@ -859,6 +859,11 @@ funded; local elaboration and proof verification carry no CMA payer.
 - Public pages share the header/footer's outer margins through `--page` and `--gutter`.
   Keep headings and page containers on those same edges. Restrict prose within the
   shared page instead of centering narrower page wrappers or widening individual routes.
+- Public paper lists keep compact bibliographic rows, with dates and file access in
+  a consistent secondary column on desktop. Both paper readers use the same title,
+  abstract-first reading order, section links and citation/version sidebar; narrow
+  screens retain document order. Keep complete bilingual explanations on the work
+  page and show only sections and public downloads that actually exist.
 - See `docs/UPLOAD_FIRST_SUBMISSION.md` for draft preparation and client interfaces.
 
 - A manuscript in `in_review` cannot receive a new source version, including through

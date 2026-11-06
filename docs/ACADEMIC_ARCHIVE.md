@@ -79,3 +79,19 @@ immutable publication across private revisions, and unchanged legacy prompts.
 Web tests cover citation escaping/provenance, public-only result access, conditional
 assumptions, search URLs and the corresponding page behavior. Browser fixtures
 remain local and are never submitted to production review or publication.
+
+## Paper presentation, 6 November 2026
+
+The paper list and abstract pages also draw on [Hexagon](https://hexagonmath.org/)'s
+separation of bibliographic content, file access and supporting metadata. Archive
+rows remain compact: title, authors and version/record occupy the main column;
+dates and available file links align in a secondary column. Full abstracts and
+reading guides stay on the work page. Small screens stack each row in reading order.
+
+Both paper readers share title typography, an abstract-first main reading column,
+section links, and a sidebar for publication metadata, citation and versions.
+Navigation opens folded citations and related sources when selected. Complete
+plain-language explanations follow the global language setting. Shared site
+margins, manuscript authorship, exact-version links, private-source restrictions
+and the distinction between Lean sources and checked proofs are preserved.
+This presentation adds no admission, review or formalization work.

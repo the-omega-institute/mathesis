@@ -34,17 +34,22 @@ import { Link, useRouter } from '../routing/router';
 export function PaperEntry({ paper }: { paper: PaperSummary }) {
   return (
     <article className="paper-entry research-entry">
-      <h3>
-        <Link to={{ kind: 'paper', record: paper.record }}>
-          <InlineLatex source={paper.title} />
-        </Link>
-      </h3>
-      <AuthorLine authors={paper.authors.map(({ name }) => ({ name }))} />
-      <div className="entry-meta">
-        <span>{paper.record}</span>
-        <span>{t(SUBMISSION_KIND_LABELS[paper.kind])}</span>
+      <div className="research-entry-body">
+        <h3>
+          <Link to={{ kind: 'paper', record: paper.record }}>
+            <InlineLatex source={paper.title} />
+          </Link>
+        </h3>
+        <AuthorLine authors={paper.authors.map(({ name }) => ({ name }))} />
+        <div className="entry-meta">
+          <span>{paper.record}</span>
+          <span>{t(SUBMISSION_KIND_LABELS[paper.kind])}</span>
+          <MscList codes={paper.msc ?? []} />
+        </div>
+      </div>
+      <div className="research-entry-access">
         {paper.accepted_at ? <DateText iso={paper.accepted_at} /> : null}
-        <MscList codes={paper.msc ?? []} />
+        <Link to={{ kind: 'paper', record: paper.record }}>{t('View paper')}</Link>
       </div>
     </article>
   );
@@ -292,13 +297,13 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
   const doiHref = s.doi ? sourceHref({ kind: 'doi', locator: s.doi }) : null;
   return (
     <MacrosProvider macros={paper.macros ?? {}}>
-      <article className="paper academic-paper">
+      <article className="paper academic-paper paper-reading">
         <PaperMetadata paper={paper} />
         <p className="entry-meta">
           <Link to={{ kind: 'papers' }}>{t('Research archive')}</Link> · {s.record} ·{' '}
           {t(SUBMISSION_KIND_LABELS[s.kind])}
         </p>
-        <header className="record-head">
+        <header className="paper-heading">
           <h1>
             <InlineLatex source={s.title} />
           </h1>
@@ -316,7 +321,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                 <DateText iso={s.accepted_at} />
               </>
             ) : null}
-            {latest ? ` · version ${latest.number}` : null}
+            {latest ? ` · ${t('Version {version}', { version: latest.number })}` : null}
           </p>
           <nav className="paper-access" aria-label={t('Paper files and citation')}>
             {latest?.has_pdf && s.submission ? (
@@ -338,91 +343,119 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             {t(' confirmed error report(s). Read the corrections before relying on its results.')}
           </p>
         ) : null}
-        <PaperExplanation text={paper.plain_language} />
-        {s.abstract_text ? (
-          <section aria-labelledby="abstract-h" className="paper-abstract">
-            <h2 id="abstract-h">{t('Abstract')}</h2>
-            <LatexText source={s.abstract_text} className="abstract" />
-          </section>
-        ) : null}
-        {s.msc?.length || s.doi ? (
-          <dl className="paper-metadata">
-            {s.msc?.length ? (
-              <>
-                <dt>{t('Subjects')}</dt>
-                <dd>
-                  {s.msc.map((code, index) => (
-                    <span key={code}>
-                      {index ? '; ' : ''}
-                      <Link to={{ kind: 'papers', msc: code }}>
-                        {t('MSC ')}
-                        {code}
-                      </Link>
-                    </span>
-                  ))}
-                </dd>
-              </>
+        <nav className="paper-sections" aria-label={t('On this page')}>
+          {s.abstract_text ? <a href="#abstract-h">{t('Abstract')}</a> : null}
+          {paper.plain_language?.en.trim() && paper.plain_language.zh.trim() ? (
+            <a href="#plain-language">{t('In plain language')}</a>
+          ) : null}
+          {claims.length ? <a href="#results-h">{t('Results')}</a> : null}
+          {paper.publication ? <a href="#references-h">{t('References and connections')}</a> : null}
+          <a
+            href="#citation"
+            onClick={() => document.getElementById('citation')?.setAttribute('open', '')}
+          >
+            {t('Citation and versions')}
+          </a>
+        </nav>
+        <div className="paper-reading-layout">
+          <div className="paper-content">
+            {s.abstract_text ? (
+              <section aria-labelledby="abstract-h" className="paper-abstract">
+                <h2 id="abstract-h">{t('Abstract')}</h2>
+                <LatexText source={s.abstract_text} className="abstract" />
+              </section>
             ) : null}
-            {s.doi ? (
-              <>
-                <dt>{arxiv ? t('arXiv') : t('DOI')}</dt>
-                <dd>
-                  {doiHref ? (
-                    <ExternalLink
-                      href={arxiv ? `https://arxiv.org/abs/${encodeURIComponent(arxiv)}` : doiHref}
-                    >
-                      {arxiv ? `arXiv:${arxiv}` : s.doi}
-                    </ExternalLink>
-                  ) : (
-                    s.doi
-                  )}
-                </dd>
-              </>
+            <PaperExplanation text={paper.plain_language} />
+            {claims.length ? (
+              <PaperResults paper={paper} />
+            ) : (
+              <p className="muted">{t('The author keeps the mathematical details private.')}</p>
+            )}
+            {claims.length ? (
+              <details className="history">
+                <summary>{t('Corrections')}</summary>
+                <ReportError record={s.record} subject={{ kind: 'review' }} />
+                <ErrorReports record={s.record} />
+              </details>
             ) : null}
-          </dl>
-        ) : null}
-        {versions.length ? (
-          <section aria-labelledby="public-versions-h" className="paper-versions">
-            <h2 id="public-versions-h">{t('Version history')}</h2>
-            <ol className="version-list">
-              {[...versions].reverse().map((version) => (
-                <li key={version.number}>
-                  <strong>
-                    {t('Version ')}
-                    {version.number}
-                  </strong>{' '}
-                  · <DateText iso={version.uploaded_at} />
-                  {version.has_pdf && s.submission ? (
+            <Bibliography paper={paper} />
+            <ProblemLinks links={paper.problems ?? []} />
+            {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
+          </div>
+          <aside className="paper-sidebar" aria-label={t('Publication details')}>
+            {s.msc?.length || s.doi ? (
+              <section>
+                <h2>{t('Publication details')}</h2>
+                <dl className="paper-metadata">
+                  {s.msc?.length ? (
                     <>
-                      {' '}
-                      ·{' '}
-                      <a href={pdfHref(s.submission, version.number)}>
-                        {t('Version ')}
-                        {version.number} {t(' PDF')}
-                      </a>
+                      <dt>{t('Subjects')}</dt>
+                      <dd>
+                        {s.msc.map((code, index) => (
+                          <span key={code}>
+                            {index ? '; ' : ''}
+                            <Link to={{ kind: 'papers', msc: code }}>
+                              {t('MSC ')}
+                              {code}
+                            </Link>
+                          </span>
+                        ))}
+                      </dd>
                     </>
                   ) : null}
-                </li>
-              ))}
-            </ol>
-          </section>
-        ) : null}
-        <Citation paper={s} locator={{ version: paper.publication?.version ?? latest?.number }} />
-        <Bibliography paper={paper} />
-        <ProblemLinks links={paper.problems ?? []} />
-        {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
-        {claims.length ? (
-          <PaperResults paper={paper} />
-        ) : (
-          <p className="muted">{t('The author keeps the mathematical details private.')}</p>
-        )}
-        {claims.length ? (
-          <details className="history">
-            <summary>{t('Corrections')}</summary>
-            <ReportError record={s.record} subject={{ kind: 'review' }} />
-            <ErrorReports record={s.record} />
-          </details>
-        ) : null}
+                  {s.doi ? (
+                    <>
+                      <dt>{arxiv ? t('arXiv') : t('DOI')}</dt>
+                      <dd>
+                        {doiHref ? (
+                          <ExternalLink
+                            href={
+                              arxiv ? `https://arxiv.org/abs/${encodeURIComponent(arxiv)}` : doiHref
+                            }
+                          >
+                            {arxiv ? `arXiv:${arxiv}` : s.doi}
+                          </ExternalLink>
+                        ) : (
+                          s.doi
+                        )}
+                      </dd>
+                    </>
+                  ) : null}
+                </dl>
+              </section>
+            ) : null}
+            <Citation
+              paper={s}
+              locator={{ version: paper.publication?.version ?? latest?.number }}
+            />
+            {versions.length ? (
+              <section aria-labelledby="public-versions-h" className="paper-versions">
+                <h2 id="public-versions-h">{t('Version history')}</h2>
+                <ol className="version-list">
+                  {[...versions].reverse().map((version) => (
+                    <li key={version.number}>
+                      <strong>
+                        {t('Version ')}
+                        {version.number}
+                      </strong>{' '}
+                      · <DateText iso={version.uploaded_at} />
+                      {version.has_pdf && s.submission ? (
+                        <>
+                          {' '}
+                          ·{' '}
+                          <a href={pdfHref(s.submission, version.number)}>
+                            {t('Version ')}
+                            {version.number} {t(' PDF')}
+                          </a>
+                        </>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ) : null}
+          </aside>
+        </div>
       </article>
     </MacrosProvider>
   );
