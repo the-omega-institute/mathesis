@@ -301,9 +301,8 @@ img {
   flex: 1 1 24rem;
   min-width: 0;
 }
-.page.narrow-page {
+.page.narrow-page > * {
   max-width: min(100%, var(--measure));
-  margin-inline: auto;
 }
 .lede {
   font-size: 1.075rem;

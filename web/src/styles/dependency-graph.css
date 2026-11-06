@@ -2,9 +2,6 @@
   font-size: clamp(1.8rem, 1.3rem + 1vw, 2.25rem);
   letter-spacing: -0.025em;
 }
-main:has(> .research-graph) {
-  max-width: 96rem;
-}
 .dependency-reading {
   display: grid;
   grid-template-columns: 11.5rem minmax(0, 1fr);
