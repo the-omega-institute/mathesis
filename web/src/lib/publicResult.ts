@@ -31,7 +31,17 @@ export async function loadCollectedResult(
       String(current.publication?.version) === version &&
       current.claim.statement === statement.statement
     )
-      return { paper, result: current, current: true };
+      return {
+        paper,
+        result: {
+          ...current,
+          claim: {
+            ...current.claim,
+            label: statement.title ? `${statement.name}: ${statement.title}` : current.claim.label,
+          },
+        },
+        current: true,
+      };
   } catch (error) {
     if (signal.aborted) throw error;
     // A removed current statement does not hide an independently public older version.
