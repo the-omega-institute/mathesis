@@ -167,7 +167,7 @@ async fn collected_world() -> (World, Arc<CollectedTransport>) {
         "pdf":pdf,"source":source,
         "delivery":{"schema":"mathesis.pre-reviewed-delivery.v1","producer":"publisher","work_id":"a-note","version":1,
           "previous_version":null,"authorize_publication":true,
-          "paper":{"title":"A fixture note","abstract":"Fixture statements","authors":[{"name":"Original Author"}],"license":"CC-BY-4.0",
+          "paper":{"title":"A fixture note (leanprover/lean4:v4.33.0, Mathlib db584cd6d46c92f209a44c0f1c829460d327499d)","abstract":"Fixture statements","authors":[{"name":"Original Author"}],"license":"CC-BY-4.0",
           "lean":{"url":format!("https://github.com/example/research/blob/{}/Proof.lean","a".repeat(40)),"revision":"a".repeat(40)}},
           "review":{"verdict":"PASS","pdf_sha256":pdf.sha256,"source_sha256":source.sha256,"record":{"private_review":"must stay private"}}},
         "source_index":{"revision":1,"source_sha256":source.sha256,"bibliography":null,"limitations":[],"results":{"statements":[
@@ -258,7 +258,9 @@ async fn collected_batch_runs_through_the_worker_dispatch_and_verification_lanes
         .unwrap();
     assert!(preparation.contains("v4.35.0"));
     assert!(preparation.contains("56a005855ea17e0b0958f73ec801ae140b0a1679"));
-    assert!(!preparation.contains("db584cd6"));
+    let (instructions, data) = preparation.split_once("\n{\"").unwrap();
+    assert!(!instructions.contains("db584cd6"));
+    assert!(data.contains("A fixture note (leanprover/lean4:v4.33.0, Mathlib db584cd6"));
 }
 
 #[tokio::test]
