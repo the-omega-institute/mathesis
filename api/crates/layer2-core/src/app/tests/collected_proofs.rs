@@ -93,6 +93,153 @@ fn faithful() -> FaithfulnessCheck {
     }
 }
 
+async fn directory(w: &World, status: Option<&str>) -> Vec<super::super::FormalizationOpportunity> {
+    w.app
+        .formalization_opportunities(super::super::FormalizationQuery {
+            status: status.map(str::to_owned),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .items
+}
+
+#[tokio::test]
+async fn pending_pool_is_public_before_provider_execution_without_private_metadata_or_credit() {
+    let (w, _, reviewer) = world().await;
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let claim = "s1".into();
+    let file = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    w.app
+        .save_collected_proof_run(
+            &reviewer,
+            "a-note",
+            1,
+            &claim,
+            "prepare",
+            serde_json::json!({"private_provider_key": "private-provider-response"}),
+            file.revision,
+        )
+        .await
+        .unwrap();
+    let pending = directory(&w, Some("unverified")).await;
+    assert_eq!(pending.len(), 1);
+    let row = &pending[0];
+    assert_eq!(row.record.as_str(), "a-note");
+    assert_eq!(row.version, 1);
+    assert_eq!(row.status, "preparing");
+    assert_eq!(row.statement, "Every natural number equals itself.");
+    assert_eq!(row.authors[0].name, "Original Author");
+    assert!(row.target_digest.is_none() && row.toolchain.is_none());
+    assert_eq!(row.verified_count, 0);
+    assert!(row.receipt.is_none() && row.contributor.is_none() && row.attribution.is_none());
+    let json = serde_json::to_string(&row).unwrap();
+    for private in [
+        "private_provider_key",
+        "private-provider-response",
+        "runs",
+        "blocked",
+        "proposal",
+        "requested_by",
+    ] {
+        assert!(!json.contains(private));
+    }
+    assert_eq!(directory(&w, Some("preparing")).await.len(), 1);
+    for status in [None, Some("open"), Some("verified"), Some("disproved")] {
+        assert!(directory(&w, status).await.is_empty());
+    }
+    let public = w
+        .app
+        .public_statement(&"a-note".into(), &claim)
+        .await
+        .unwrap();
+    assert_eq!(public.claim.statement, row.statement);
+    assert!(public.target.is_none());
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn pending_pool_paginates_after_filters_and_rejects_stale_statement_pins() {
+    let (w, _, _) = world().await;
+    let mut version = w.stores.get("a-note", Some(1)).await.unwrap().unwrap();
+    let index = version.source_index.as_mut().unwrap();
+    let expected = index.revision;
+    index.revision += 1;
+    let results = index.results.as_mut().unwrap();
+    results.macros.insert("\\N".into(), "\\mathbb{N}".into());
+    results.statements = (0..105)
+        .map(|i| CollectedStatement {
+            id: format!("s{i:03}"),
+            kind: if i == 0 {
+                ClaimKind::Conjecture
+            } else {
+                ClaimKind::Theorem
+            },
+            name: format!("Theorem {i}"),
+            title: None,
+            statement: format!(
+                "{}: $n \\in \\N$.",
+                if i % 2 == 0 { "selected" } else { "other" }
+            ),
+            section: None,
+        })
+        .collect();
+    w.stores
+        .save_source_index("a-note", 1, index, expected)
+        .await
+        .unwrap();
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let mut cursor = None;
+    let mut claims = BTreeSet::new();
+    loop {
+        let page = w
+            .app
+            .formalization_opportunities(super::super::FormalizationQuery {
+                status: Some("unverified".into()),
+                kind: Some("paper".into()),
+                q: Some("selected Original Author".into()),
+                limit: Some(7),
+                before: cursor,
+            })
+            .await
+            .unwrap();
+        assert!(page.items.len() <= 7);
+        for row in page.items {
+            assert!(row.statement.starts_with("selected"));
+            assert_eq!(row.macros.get("\\N").unwrap(), "\\mathbb{N}");
+            assert!(claims.insert(row.claim));
+        }
+        cursor = page.next_before;
+        if cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(claims.len(), 52);
+    assert_eq!(directory(&w, Some("preparing")).await.len(), 25);
+    // Reindexing the same source can change a statement; old proof work must
+    // not be attached to its replacement merely because the id still matches.
+    let expected = index.revision;
+    index.revision += 1;
+    for statement in &mut index.results.as_mut().unwrap().statements {
+        statement.statement.push_str(" changed");
+    }
+    w.stores
+        .save_source_index("a-note", 1, index, expected)
+        .await
+        .unwrap();
+    assert!(directory(&w, Some("unverified")).await.is_empty());
+}
+
 #[tokio::test]
 async fn historical_internal_papers_enter_the_pool_without_a_manual_request() {
     let (w, _, reviewer) = world().await;
@@ -187,6 +334,10 @@ async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_wi
         "preparing"
     );
     assert!(w.app.target(&work.into(), &claim).await.is_err());
+    assert_eq!(
+        directory(&w, Some("unverified")).await[0].status,
+        "preparing"
+    );
     w.app
         .save_collected_proposal(&reviewer, work, &claim, proposal())
         .await
@@ -207,6 +358,10 @@ async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_wi
         w.app.collected_proofs(work, 1).await.unwrap()[0].state,
         "open"
     );
+    assert!(directory(&w, Some("preparing")).await.is_empty());
+    let ready = directory(&w, Some("unverified")).await;
+    assert_eq!(ready[0].status, "open");
+    assert!(ready[0].target_digest.is_some());
     let first = w
         .app
         .submit_collected_proposal(&reviewer, work, &claim)
@@ -224,6 +379,8 @@ async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_wi
     let view = w.app.collected_proofs(work, 1).await.unwrap();
     assert_eq!(view[0].state, "verified");
     assert_eq!(view[0].proofs.len(), 1);
+    assert!(directory(&w, Some("unverified")).await.is_empty());
+    assert_eq!(directory(&w, Some("verified")).await.len(), 1);
     let directory = w
         .app
         .formalization_opportunities(Default::default())
@@ -293,6 +450,7 @@ async fn new_source_invalidates_targets_and_queued_attempts_while_preserving_his
     let (d, p, s) = super::collected::package(2);
     w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap();
     index(&w, 2).await;
+    assert!(directory(&w, Some("unverified")).await.is_empty());
     assert!(
         !w.app
             .collected_proof_active(&reviewer, "a-note", 1, &claim)

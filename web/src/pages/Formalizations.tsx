@@ -4,7 +4,7 @@ import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { usePaged } from '../api/usePaged';
 import { Async, Badge } from '../components/ui';
-import { LatexText } from '../components/Markdown';
+import { LatexText, MacrosProvider } from '../components/Markdown';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { Pager } from '../components/Pager';
 import { Link } from '../routing/router';
@@ -13,7 +13,7 @@ import { EntrantName } from './Leaderboard';
 
 export function FormalizationsPage() {
   const api = useApi();
-  const [status, setStatus] = useState('open');
+  const [status, setStatus] = useState('unverified');
   const [kind, setKind] = useState('');
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
@@ -48,26 +48,17 @@ export function FormalizationsPage() {
           <span aria-hidden="true">↗</span>
         </Link>
       </header>
-      <div className="formalization-intro">
-        <p>
-          <strong>{t('01 · Choose a statement')}</strong>
-          <span>{t('Browse exact targets confirmed by their authors.')}</span>
-        </p>
-        <p>
-          <strong>{t('02 · Contribute your proof')}</strong>
-          <span>{t('Submit Lean sources and credit the people behind them.')}</span>
-        </p>
-        <p>
-          <strong>{t('03 · Get a checked receipt')}</strong>
-          <span>{t('Verified proofs appear with their source research.')}</span>
-        </p>
-      </div>
+      <p>
+        {t(
+          'Choose a result below and read its proof. Results awaiting a Lean statement remain visible; once the statement is ready, you can submit a proof directly.',
+        )}
+      </p>
       <p>
         <Link to={{ kind: 'research_graph' }}>{t('Explore the knowledge graph')}</Link>
       </p>
       <div className="filter-row" role="group" aria-label={t('Formalization status')}>
         {[
-          ['open', 'Ready to formalize'],
+          ['unverified', 'To formalize'],
           ['verified', 'Verified proofs'],
           ['disproved', 'Disproofs'],
         ].map(([value, label]) => (
@@ -108,56 +99,88 @@ export function FormalizationsPage() {
           page.items.length ? (
             <ul className="entry-list">
               {page.items.map((item) => (
-                <li key={`${item.record}:${item.claim}`}>
-                  <article>
-                    <p className="entry-meta">
-                      <code>{item.record}</code>
-                      <span>{item.label}</span>
-                      <Badge tone={item.status === 'open' ? 'muted' : 'good'}>
-                        {item.status === 'open'
-                          ? t('Target ready')
-                          : item.status === 'verified'
-                            ? t('Lean ✓')
-                            : t('Lean disproof')}
-                      </Badge>
-                    </p>
-                    <Link
-                      className="entry-title"
-                      to={{ kind: 'statement', record: item.record, claim: item.claim }}
-                    >
-                      <InlineLatex source={item.title} />
-                    </Link>
-                    <AuthorLine authors={item.authors} />
-                    <LatexText source={item.statement} />
-                    {item.contributor ? (
-                      <p className="small">
-                        {t('Verified contribution by ')}
-                        <EntrantName entrant={item.contributor} /> · {item.verified_count}{' '}
-                        {t(' verified')} {item.verified_count === 1 ? 'attempt' : 'attempts'}
+                <li key={`${item.record}:${item.claim}:${item.version ?? ''}`}>
+                  <MacrosProvider macros={item.macros ?? {}}>
+                    <article>
+                      <p className="entry-meta">
+                        <Badge
+                          tone={['preparing', 'open'].includes(item.status) ? 'muted' : 'good'}
+                        >
+                          {item.status === 'preparing'
+                            ? t('Awaiting formalization')
+                            : item.status === 'open'
+                              ? t('Target ready')
+                              : item.status === 'verified'
+                                ? t('Lean ✓')
+                                : t('Lean disproof')}
+                        </Badge>
                       </p>
-                    ) : null}
-                    <ProofAttribution attribution={item.attribution ?? undefined} />
-                    <div className="button-row">
                       <Link
-                        className="button button-small"
+                        className="entry-title"
                         to={{
-                          kind: 'submit',
-                          intake: 'lean',
+                          kind: item.status === 'preparing' ? 'result' : 'statement',
                           record: item.record,
                           claim: item.claim,
                         }}
                       >
-                        {item.status === 'open' ? t('Contribute a proof') : t('Add another proof')}
+                        <InlineLatex source={item.label} />
                       </Link>
-                      <Link
-                        className="text-link"
-                        to={{ kind: 'statement', record: item.record, claim: item.claim }}
-                      >
-                        {t('View statement & ')}
-                        {item.status === 'open' ? 'target' : 'receipt'} →
-                      </Link>
-                    </div>
-                  </article>
+                      <p>
+                        <Link
+                          to={{
+                            kind: 'paper',
+                            record: item.record,
+                            version: item.version?.toString(),
+                          }}
+                        >
+                          <InlineLatex source={item.title} />
+                        </Link>
+                      </p>
+                      <AuthorLine authors={item.authors} />
+                      <LatexText source={item.statement} className="result-excerpt" />
+                      {item.contributor ? (
+                        <p className="small">
+                          {t('Verified contribution by ')}
+                          <EntrantName entrant={item.contributor} /> · {item.verified_count}{' '}
+                          {t(' verified')} {item.verified_count === 1 ? 'attempt' : 'attempts'}
+                        </p>
+                      ) : null}
+                      <ProofAttribution attribution={item.attribution ?? undefined} />
+                      <div className="button-row">
+                        {item.target_digest ? (
+                          <>
+                            <Link
+                              className="button button-small"
+                              to={{
+                                kind: 'submit',
+                                intake: 'lean',
+                                record: item.record,
+                                claim: item.claim,
+                              }}
+                            >
+                              {item.status === 'open'
+                                ? t('Contribute a proof')
+                                : t('Add another proof')}
+                            </Link>
+                            <Link
+                              className="text-link"
+                              to={{ kind: 'statement', record: item.record, claim: item.claim }}
+                            >
+                              {t('View statement & ')}
+                              {item.status === 'open' ? 'target' : 'receipt'} →
+                            </Link>
+                          </>
+                        ) : (
+                          <Link
+                            className="text-link"
+                            to={{ kind: 'result', record: item.record, claim: item.claim }}
+                          >
+                            {t('Read result')} →
+                          </Link>
+                        )}
+                      </div>
+                    </article>
+                  </MacrosProvider>
                 </li>
               ))}
             </ul>
@@ -166,14 +189,14 @@ export function FormalizationsPage() {
               <h2>
                 {query || kind
                   ? t('No matching statements')
-                  : status === 'open'
-                    ? t('The next proof can start with you.')
+                  : status === 'unverified'
+                    ? t('No results awaiting formalization')
                     : t('Verified contributions will appear here.')}
               </h2>
               <p>
-                {status === 'open'
+                {status === 'unverified'
                   ? t(
-                      'Targets appear here after author approval and confirmation. You can already submit an existing formalization with its authors, source, and license.',
+                      'Published results awaiting a formal proof appear here, including those whose Lean statements are still being prepared. You can also contribute existing Lean work with its original attribution.',
                     )
                   : t(
                       'Only independent verification of the current confirmed target makes a contribution public here.',

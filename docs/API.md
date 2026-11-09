@@ -961,10 +961,16 @@ an AI review or grant permission to publish it.
 
 `GET /api/v1/formalizations/opportunities` is anonymous. Optional query fields:
 `q` (at most 200 characters, all words), `kind=paper|conjecture`,
-`status=open|verified|disproved`, `limit` (1–100), `before` (returned cursor).
-Only current public author-confirmed targets are returned. Each row includes
+`status=unverified|preparing|open|verified|disproved`, `limit` (1–100), `before` (returned cursor).
+`unverified` includes current public results in the collected formalization pool,
+even before a faithful Lean target is ready, plus confirmed open targets.
+`preparing` selects only those pending collected targets. Existing queries without
+these two statuses retain confirmed-target-only behavior. Each row includes
 record/claim, title/label/statement/authors, kind/status, target_digest/toolchain,
-verified_count and nullable contributor/attribution/receipt. Filters apply
+version, manuscript macros, verified_count and nullable contributor/attribution/receipt.
+Preparing rows have status `preparing`, null target_digest/toolchain and no proof credit.
+They link to the public mathematical result, not an unavailable proof submission form.
+Source/version/statement pins are checked before inclusion. Filters apply
 before pagination. No private source deposits or unverified attempts appear.
 
 Lean intake also accepts optional `formalizers: string[]`,

@@ -112,6 +112,14 @@ export const zh: Record<string, string> = {
   Papers: '论文',
   Conjectures: '猜想',
   Formalizations: '形式化',
+  'To formalize': '待形式化',
+  'Awaiting formalization': '等待形式化',
+  'Read result': '阅读结果',
+  'No results awaiting formalization': '目前没有待形式化的结果',
+  'Choose a result below and read its proof. Results awaiting a Lean statement remain visible; once the statement is ready, you can submit a proof directly.':
+    '选择下方的结果，阅读它的证明。Lean 命题仍在准备的结果也会列出；命题准备完成后，即可直接提交形式化证明。',
+  'Published results awaiting a formal proof appear here, including those whose Lean statements are still being prepared. You can also contribute existing Lean work with its original attribution.':
+    '已发表且等待形式化证明的结果会列在这里，包括 Lean 命题尚在准备的结果。你也可以提交已有的 Lean 工作，并保留原贡献者的署名。',
   Submit: '投稿',
   'My work': '我的工作',
   'Review queue': '审稿队列',

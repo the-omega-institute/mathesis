@@ -964,7 +964,7 @@
     "/api/v1/formalizations/opportunities": {
       "get": {
         "operationId": "formalization_opportunities",
-        "summary": "Discover public confirmed Lean targets and verified contributions. Filters apply before cursor pagination; old versions, hidden work and unconfirmed targets are excluded.",
+        "summary": "Discover public formalization work, confirmed targets and checked contributions",
         "security": [],
         "parameters": [
           {
@@ -992,11 +992,14 @@
             "schema": {
               "type": "string",
               "enum": [
+                "unverified",
+                "preparing",
                 "open",
                 "verified",
                 "disproved"
               ]
-            }
+            },
+            "description": "unverified includes pending collected results and confirmed open targets; preparing selects pending targets only. Other queries retain confirmed-target-only behavior."
           },
           {
             "name": "limit",
@@ -5132,10 +5135,16 @@
             "type": "string"
           },
           "target_digest": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "toolchain": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "authors": {
             "type": "array",
@@ -5151,6 +5160,7 @@
           },
           "status": {
             "enum": [
+              "preparing",
               "open",
               "verified",
               "disproved"
@@ -5176,6 +5186,16 @@
               "object",
               "null"
             ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "macros": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "required": [

@@ -1448,6 +1448,34 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
     assert_eq!(stored.revision, 1);
     assert!([1, 2].contains(&stored.downstream));
     assert_eq!(SolvingStore::all(store).await.unwrap().len(), 1);
+    let mut pending = file.clone();
+    pending.id = "collected:s1:v1:c0".into();
+    pending.admitted = false;
+    pending.collected = Some(CollectedProof {
+        toolchain: None,
+        source_sha256: "a".repeat(64),
+        statement_sha256: "b".repeat(64),
+        requested_by: "owner".into(),
+        target: None,
+        proposal: None,
+        faithfulness: None,
+        blocked: None,
+        runs: Default::default(),
+    });
+    SolvingStore::insert(store, &pending).await.unwrap();
+    let legacy = SolvingStore::list_formalization_candidates(store, 20, None, false)
+        .await
+        .unwrap();
+    assert!(legacy.items.iter().all(|row| row.id != pending.id));
+    let expanded = SolvingStore::list_formalization_candidates(store, 1, None, true)
+        .await
+        .unwrap();
+    assert_eq!(expanded.items[0].id, pending.id);
+    let rest = SolvingStore::list_formalization_candidates(store, 20, expanded.next_before, true)
+        .await
+        .unwrap();
+    assert_eq!(rest.items.len(), 1);
+    assert!(rest.items.iter().all(|row| row.id != pending.id));
     db.drop().await;
 }
 
