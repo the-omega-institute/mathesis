@@ -20,7 +20,6 @@ export function ConjectureEntry({ conjecture: c }: { conjecture: ConjectureSumma
       </Link>
       <p className="entry-meta">
         <code>{c.record}</code>
-        <span>{c.claim}</span>
         <span>{t(SUBMISSION_KIND_LABELS[c.kind ?? 'conjecture'])}</span>
         <span>{c.source}</span>
         <Badge tone={c.status === 'open' ? 'muted' : 'good'}>
@@ -32,7 +31,7 @@ export function ConjectureEntry({ conjecture: c }: { conjecture: ConjectureSumma
         </Badge>
       </p>
       <div className="entry-meta">
-        {c.authors ? <AuthorLine authors={c.authors} /> : null}
+        {c.authors ? <AuthorLine authors={c.authors} compact /> : null}
         {c.accepted_at ? <DateText iso={c.accepted_at} /> : null}
       </div>
       <LatexText source={c.statement} className="conjecture-one-line" />
@@ -65,6 +64,11 @@ export function ConjecturesPage() {
           <h1>{t('Conjectures')}</h1>
           <p className="lede">
             {t('Follow a problem through new results, readable notes and formal proofs.')}
+          </p>
+          <p>
+            <Link to={{ kind: 'submit', intake: 'conjecture' }}>{t('Propose a conjecture')}</Link>
+            {' · '}
+            <Link to={{ kind: 'formalizations' }}>{t('Contribute a formalization')}</Link>
           </p>
         </div>
       </header>

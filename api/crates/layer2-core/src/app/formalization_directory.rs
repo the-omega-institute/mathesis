@@ -1,4 +1,4 @@
-//! Public contribution discovery: current confirmed targets and verified receipts only.
+//! Public results awaiting formalization, confirmed targets and verified receipts.
 use super::{App, clamp};
 use crate::{
     CoreError, CoreResult,
@@ -21,14 +21,16 @@ pub struct FormalizationQuery {
 pub struct FormalizationOpportunity {
     pub record: RecordId,
     pub claim: ClaimId,
+    pub version: u32,
     pub title: String,
     pub label: String,
     pub statement: String,
     pub authors: Vec<Author>,
     pub kind: String,
     pub status: String,
-    pub target_digest: String,
-    pub toolchain: String,
+    pub macros: std::collections::BTreeMap<String, String>,
+    pub target_digest: Option<String>,
+    pub toolchain: Option<String>,
     pub verified_count: usize,
     pub contributor: Option<Entrant>,
     pub attribution: Option<FormalizationAttribution>,
@@ -43,10 +45,9 @@ impl App {
             .kind
             .as_deref()
             .is_some_and(|k| !["paper", "conjecture"].contains(&k))
-            || query
-                .status
-                .as_deref()
-                .is_some_and(|s| !["open", "verified", "disproved"].contains(&s))
+            || query.status.as_deref().is_some_and(|s| {
+                !["unverified", "preparing", "open", "verified", "disproved"].contains(&s)
+            })
             || query.q.as_ref().is_some_and(|s| s.chars().count() > 200)
             || query.before.as_ref().is_some_and(|s| s.len() > 250)
         {
@@ -60,11 +61,18 @@ impl App {
             .map(str::to_lowercase)
             .collect();
         let limit = clamp(query.limit) as usize;
+        // Existing clients retain the confirmed-target-only directory unless
+        // they explicitly request the broader pool.
+        let include_preparing = matches!(query.status.as_deref(), Some("unverified" | "preparing"));
         let mut cursor = query.before;
         let mut items = vec![];
         let mut keys = vec![];
         loop {
-            let page = self.ports.solving.list_admitted(100, cursor).await?;
+            let page = self
+                .ports
+                .solving
+                .list_formalization_candidates(100, cursor, include_preparing)
+                .await?;
             for file in page.items {
                 let source = match self.conjecture_source(&file.record).await {
                     Ok(s) => s,
@@ -104,19 +112,51 @@ impl App {
                 if !words.iter().all(|word| searchable.contains(word)) {
                     continue;
                 }
+                let preparing = include_preparing
+                    && !file.record.as_str().starts_with("WP-")
+                    && !claim.kind.is_open()
+                    && file.collected.as_ref().is_some_and(|p| p.target.is_none());
+                if preparing {
+                    // A source update invalidates a pending row just as it does
+                    // a confirmed target. Never publish its private run data.
+                    match self.collected_solve_file(&file.record, &file.claim).await {
+                        Ok(current) if current.id == file.id => {}
+                        Ok(_) | Err(CoreError::NotFound { .. } | CoreError::Conflict(_)) => {
+                            continue;
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
                 let target = match self.target(&file.record, &file.claim).await {
-                    Ok(t) => t,
+                    Ok(t) => Some(t),
+                    Err(CoreError::NotFound { .. } | CoreError::Conflict(_)) if preparing => None,
                     Err(CoreError::NotFound { .. } | CoreError::Conflict(_)) => continue,
                     Err(e) => return Err(e),
                 };
-                let file = self.public_solve_file(&file.record, &file.claim).await?;
-                let winner = file.winner(&target.digest);
-                let status = match winner.and_then(|a| a.receipt.as_ref()).map(|r| r.verdict) {
-                    Some(Verdict::Proved) => "verified",
-                    Some(Verdict::Disproved) => "disproved",
-                    _ => "open",
+                let file = if target.is_some() {
+                    self.public_solve_file(&file.record, &file.claim).await?
+                } else {
+                    file
                 };
-                if query.status.as_deref().is_some_and(|s| s != status) {
+                let winner = target
+                    .as_ref()
+                    .and_then(|target| file.winner(&target.digest));
+                let status = if target.is_none() {
+                    "preparing"
+                } else {
+                    match winner.and_then(|a| a.receipt.as_ref()).map(|r| r.verdict) {
+                        Some(Verdict::Proved) => "verified",
+                        Some(Verdict::Disproved) => "disproved",
+                        _ => "open",
+                    }
+                };
+                if query.status.as_deref().is_some_and(|s| {
+                    if s == "unverified" {
+                        !["preparing", "open"].contains(&status)
+                    } else {
+                        s != status
+                    }
+                }) {
                     continue;
                 }
                 // Only matching public rows contribute to cursors and counts.
@@ -134,21 +174,25 @@ impl App {
                 items.push(FormalizationOpportunity {
                     record: file.record.clone(),
                     claim: file.claim.clone(),
+                    version: file.version,
                     title: source.title.clone(),
                     label: claim.label.clone(),
                     statement: claim.statement.clone(),
                     authors: source.authors.clone(),
                     kind: kind.into(),
                     status: status.into(),
-                    target_digest: target.digest.clone(),
-                    toolchain: target.toolchain,
+                    macros: source.macros.clone(),
+                    target_digest: target.as_ref().map(|target| target.digest.clone()),
+                    toolchain: target.as_ref().map(|target| target.toolchain.clone()),
                     verified_count: file
                         .attempts
                         .iter()
                         .filter(|a| {
                             a.intermediate.is_none()
                                 && a.verified()
-                                && a.target_digest == target.digest
+                                && target
+                                    .as_ref()
+                                    .is_some_and(|target| a.target_digest == target.digest)
                         })
                         .count(),
                     contributor,

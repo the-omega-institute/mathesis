@@ -22,10 +22,12 @@ export function ResearchGraphPage({
   focus,
   q,
   before,
+  embedded = false,
 }: {
   focus?: string;
   q?: string;
   before?: string;
+  embedded?: boolean;
 }) {
   const [layer, setLayer] = useState<'graph' | 'library' | 'results' | 'lean' | 'citations'>(
     focus?.startsWith('library:')
@@ -33,7 +35,7 @@ export function ResearchGraphPage({
       : focus?.startsWith('theory:')
         ? 'graph'
         : focus?.startsWith('statement:')
-          ? 'results'
+          ? 'graph'
           : focus || q || before
             ? 'citations'
             : 'graph',
@@ -45,21 +47,24 @@ export function ResearchGraphPage({
     [api, citationFocus, q, before],
   );
   const graph = useAsync(layer === 'citations' ? load : null);
+  const Heading = embedded ? 'h2' : 'h1';
   return (
-    <div className="page research-graph">
-      <h1>
-        {t(
-          layer === 'graph'
-            ? 'Dependency graph'
-            : layer === 'library'
-              ? 'Theory resources'
-              : layer === 'results'
-                ? 'Mathematical results'
-                : layer === 'lean'
-                  ? 'Verified proof connections'
-                  : 'Papers and sources',
-        )}
-      </h1>
+    <div className={embedded ? 'research-graph' : 'page research-graph'}>
+      {!embedded || layer !== 'graph' ? (
+        <Heading>
+          {t(
+            layer === 'graph'
+              ? 'Dependency graph'
+              : layer === 'library'
+                ? 'Theory resources'
+                : layer === 'results'
+                  ? 'Mathematical results'
+                  : layer === 'lean'
+                    ? 'Verified proof connections'
+                    : 'Papers and sources',
+          )}
+        </Heading>
+      ) : null}
       {layer !== 'library' && layer !== 'graph' ? (
         <>
           <p>
@@ -88,7 +93,10 @@ export function ResearchGraphPage({
       ) : null}
       {layer === 'graph' ? (
         <Suspense fallback={<p>{t('Loading…')}</p>}>
-          <DependencyGraph area={focus?.startsWith('theory:') ? focus.slice(7) : undefined} />
+          <DependencyGraph
+            area={focus?.startsWith('theory:') ? focus.slice(7) : undefined}
+            focus={focus?.startsWith('statement:') ? focus : undefined}
+          />
         </Suspense>
       ) : null}
       {layer === 'library' ? (

@@ -714,13 +714,14 @@ impl GrantStore for MemoryStores {
 
 #[async_trait]
 impl SolvingStore for MemoryStores {
-    async fn list_admitted(
+    async fn list_formalization_candidates(
         &self,
         limit: u32,
         before: Option<String>,
+        include_preparing: bool,
     ) -> CoreResult<Listing<SolveFile>> {
         Ok(page(&*self.solving.lock().await, limit, before, |f| {
-            f.admitted
+            f.admitted || (include_preparing && f.collected.is_some())
         }))
     }
     async fn report_files(&self) -> CoreResult<Vec<ErrorReportFile>> {

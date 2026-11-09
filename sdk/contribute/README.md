@@ -51,7 +51,10 @@ mathesis-contribute submit-formalization project.json
 ```
 
 MCP also exposes `formalization-opportunities` with q/kind/status and cursor
-pagination, `formalizations`, and `formalization-project`. Intake JSON may carry
+pagination, `formalizations`, and `formalization-project`. Use `status: "unverified"`
+to include public results whose Lean statements are still being prepared; these
+rows have null target fields and link to the mathematical result. Only a confirmed
+target accepts a direct proof submission. Intake JSON may carry
 `modules` (up to 512 dotted module paths, 8 MiB total Lean source), `formalizers`
 and a full `source_revision`. Original research authors and Lean contributors
 remain distinct. Use `expected_target` on `verify-formalization` to bind the

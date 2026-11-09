@@ -363,10 +363,12 @@ pub struct Ports {
 
 #[async_trait]
 pub trait SolvingStore: Send + Sync {
-    async fn list_admitted(
+    /// Candidate discovery only. Composition rechecks public source and target validity.
+    async fn list_formalization_candidates(
         &self,
         limit: u32,
         before: Option<String>,
+        include_preparing: bool,
     ) -> CoreResult<Listing<crate::model::SolveFile>>;
     async fn report_files(&self) -> CoreResult<Vec<crate::model::ErrorReportFile>>;
     async fn insert_report_file(&self, file: &crate::model::ErrorReportFile) -> CoreResult<()>;

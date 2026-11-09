@@ -12,6 +12,7 @@ import { LatexText, MacrosProvider } from '../components/Markdown';
 import { Async, DateText, InlineError, SignInPrompt } from '../components/ui';
 import { EntrantName } from './Leaderboard';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
+import { AuthorLine } from '../components/AuthorLine';
 export function ConjecturePage({ record, claim }: { record: string; claim: string }) {
   const api = useApi();
   const load = useCallback(
@@ -36,11 +37,13 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
     <MacrosProvider macros={c.macros}>
       <article>
         <p className="eyebrow">
-          {s.record} · {s.claim} · {s.source}
+          <Link to={{ kind: 'paper', record: s.record }}>{t('Read the paper')}</Link>
+          {s.source ? ` · ${s.source}` : ''}
         </p>
         <h1>
           <InlineLatex source={s.title} />
         </h1>
+        {s.authors ? <AuthorLine authors={s.authors} /> : null}
         <ReportError record={s.record} subject={{ kind: 'statement', claim: s.claim }} />
         <div className="status-card">
           <h2>

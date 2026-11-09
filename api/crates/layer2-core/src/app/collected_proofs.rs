@@ -17,6 +17,7 @@ pub(crate) struct ProofSource {
     pub revision: u64,
     pub claims_revision: u64,
     pub claims: Vec<Claim>,
+    pub macros: BTreeMap<String, String>,
     version: ProofVersion,
     approved: Vec<ClaimId>,
 }
@@ -65,6 +66,7 @@ impl App {
                 .current_version()
                 .ok_or_else(|| CoreError::conflict("source unavailable"))?;
             return Ok(ProofSource {
+                macros: v.macros.clone(),
                 version: ProofVersion {
                     number: v.number,
                     archive: v.archive.clone(),
@@ -112,6 +114,7 @@ impl App {
             })
             .collect();
         Ok(ProofSource {
+            macros: index.macros.clone(),
             title: s.delivery.paper.title,
             authors: s.delivery.paper.authors,
             submitter: s.owner,

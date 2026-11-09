@@ -41,13 +41,18 @@ pub(super) async fn ensure_indexes(store: &MongoStore) -> anyhow::Result<()> {
 }
 #[async_trait]
 impl SolvingStore for MongoStore {
-    async fn list_admitted(
+    async fn list_formalization_candidates(
         &self,
         limit: u32,
         before: Option<String>,
+        include_preparing: bool,
     ) -> CoreResult<mathesis_core::ports::Listing<SolveFile>> {
-        self.page(FILES, doc! {"admitted": true}, limit, before)
-            .await
+        let filter = if include_preparing {
+            doc! {"$or": [{"admitted": true}, {"collected": {"$type": "object"}}]}
+        } else {
+            doc! {"admitted": true}
+        };
+        self.page(FILES, filter, limit, before).await
     }
     async fn report_files(&self) -> CoreResult<Vec<ErrorReportFile>> {
         self.raw(REPORTS)

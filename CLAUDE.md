@@ -710,7 +710,8 @@ funded; local elaboration and proof verification carry no CMA payer.
   `docs/MATHESIS_MIGRATION.md` for compatibility: persistent WP ids, proof names,
   identity subjects, database names, cookies and WISHPOOL server config remain.
 - Formalization is a primary participation path. The public directory lists
-  only current confirmed public targets and independent verifier results;
+  current public collected results awaiting formalization, confirmed public targets
+  and independent verifier results;
   private deposits, queued/rejected attempts and stale targets are excluded.
 - Deposits may include 512 dotted-path supporting Lean modules, at most 8 MiB together
   with the optional Solution adapter (1 MiB maximum). Inert project configuration
@@ -1043,3 +1044,8 @@ An optional legacy verifier URL routes historical pins to the prior service.
 CMA outages retain the original job and remote identities without spending a
 proof generation. A second semantic assessment admits exact translations;
 independent kernel verification alone grants checked status and proof credit.
+
+
+## Visible formalization pool
+
+The formalization page defaults to status=unverified: current source-bound collected results awaiting Lean translation remain discoverable alongside confirmed open targets. Preparing rows expose only public mathematics and authorship, null target fields and no verification credit. Only confirmed targets offer direct proof submission. Existing directory queries without unverified/preparing retain their confirmed-target-only behavior. Discovery rechecks exact source/version/statement pins, and never queues/restarts provider work or exposes private run data.

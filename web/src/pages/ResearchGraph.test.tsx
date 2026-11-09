@@ -70,10 +70,10 @@ describe('shared research graph', () => {
     });
     renderWithApp(<ResearchGraphPage />, api);
     expect(screen.getByRole('heading', { name: 'Dependency graph' })).toBeVisible();
-    expect(await screen.findByRole('button', { name: 'Verified knowledge' })).toBeVisible();
+    expect(await screen.findByRole('button', { name: /^All results/ })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Browse existing theory' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=library%3Aall',
+      '/formalizations?focus=library%3Aall',
     );
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(api.researchGraph).toHaveBeenCalledWith(
@@ -86,22 +86,26 @@ describe('shared research graph', () => {
     expect(screen.getByRole('heading', { name: 'Theory resources' })).toBeVisible();
     expect(await screen.findByRole('link', { name: 'Algebra' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=library%3Aalgebra',
+      '/formalizations?focus=library%3Aalgebra',
     );
     expect(screen.getByRole('link', { name: 'Back to the dependency graph' })).toHaveAttribute(
       'href',
-      '/research-graph',
+      '/formalizations',
     );
   });
-  it('opens the source paper citations when switching from an exact statement link', async () => {
-    const api = fakeApi({ researchGraph: vi.fn(async () => graph) });
+  it('opens an exact result directly in the dependency graph', async () => {
+    const api = fakeApi({
+      researchGraph: vi.fn(async () => dependencySource),
+      getCollectedPaper: async () => dependencyPaper,
+      collectedKnowledge: async () => dependencyKnowledge,
+    });
     renderWithApp(<ResearchGraphPage focus="statement:gap-note:2:s1" />, api);
-    await userEvent.click(screen.getByRole('button', { name: 'Papers and sources' }));
-    await screen.findByRole('figure', { name: 'Research connections' });
-    expect(api.researchGraph).toHaveBeenCalledWith(
-      { focus: 'paper:gap-note', q: undefined, before: undefined },
-      expect.anything(),
+    expect(await screen.findByRole('heading', { name: 'The local bound' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Read result' })).toHaveAttribute(
+      'href',
+      '/papers/gap-note/results/s1?version=2',
     );
+    expect(screen.queryByRole('button', { name: 'Papers and sources' })).toBeNull();
   });
   it('opens citations with source credit and no search form', async () => {
     renderWithApp(
@@ -137,7 +141,7 @@ describe('shared research graph', () => {
     );
     expect(detail.getByRole('link', { name: 'Explore these connections' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=paper%3AWP-2026-0001',
+      '/formalizations?focus=paper%3AWP-2026-0001',
     );
     await user.click(detail.getByRole('button', { name: 'An old result' }));
     detail = within(screen.getByRole('region', { name: 'Selected work' }));
@@ -154,7 +158,7 @@ describe('shared research graph', () => {
       before: 'WP-2026-0002',
     };
     const url = new URL(routePath(route), 'https://example.test');
-    expect(parseRoute(url.pathname, url.search)).toEqual(route);
+    expect(parseRoute(url.pathname, url.search)).toEqual({ ...route, kind: 'formalizations' });
   });
   it('requests a bounded page without inferring exhaustive results from an empty match', async () => {
     const api = fakeApi({ researchGraph: vi.fn(async () => ({ ...graph, nodes: [], edges: [] })) });
@@ -200,7 +204,7 @@ describe('shared research graph', () => {
     );
     expect(screen.getByRole('link', { name: 'An old result' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=doi%3A10.1234%2Fold',
+      '/formalizations?focus=doi%3A10.1234%2Fold',
     );
     expect(screen.queryByRole('link', { name: 'Source link' })).toBeNull();
     await user.click(screen.getByText('Source evidence'));
@@ -262,7 +266,7 @@ describe('shared research graph', () => {
     );
     expect(screen.getByRole('link', { name: 'Next group of papers' })).toHaveAttribute(
       'href',
-      '/research-graph?q=10.1234%2Fold&before=WP-2026-0001',
+      '/formalizations?q=10.1234%2Fold&before=WP-2026-0001',
     );
     expect(screen.queryByRole('textbox')).toBeNull();
   });

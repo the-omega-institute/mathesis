@@ -19,16 +19,22 @@ export type Route =
     }
   | { kind: 'research_problem'; id: string; before?: string }
   | { kind: 'conjectures' }
-  | { kind: 'formalizations' }
+  | { kind: 'formalizations'; focus?: string; q?: string; before?: string; view?: 'list' }
   | { kind: 'conjecture'; record: string; claim: string }
-  | { kind: 'leaderboard' }
+  | { kind: 'leaderboard'; category?: 'formalization' }
   | { kind: 'supporters' }
   | { kind: 'statement'; record: string; claim: string }
   | { kind: 'entrant'; id: string }
   | { kind: 'paper'; record: string; version?: string }
-  | { kind: 'result'; record: string; claim: string }
+  | { kind: 'result'; record: string; claim: string; version?: string }
   | { kind: 'policy' }
-  | { kind: 'submit'; intake?: 'lean' | 'review' | 'conjecture'; record?: string; claim?: string }
+  | {
+      kind: 'submit';
+      intake?: 'lean' | 'review' | 'conjecture';
+      record?: string;
+      claim?: string;
+      version?: string;
+    }
   | { kind: 'submissions' }
   | { kind: 'queue' }
   | { kind: 'submission'; id: string; staff?: boolean }
@@ -97,7 +103,12 @@ export function parseRoute(pathname: string, search = ''): Route {
       case 'supporters':
         return { kind: 'supporters' };
       case 'leaderboard':
-        return { kind: 'leaderboard' };
+        return {
+          kind: 'leaderboard',
+          ...(new URLSearchParams(search).get('category') === 'formalization'
+            ? { category: 'formalization' as const }
+            : {}),
+        };
       case 'conjectures':
         return { kind: 'conjectures' };
       case 'papers': {
@@ -116,8 +127,16 @@ export function parseRoute(pathname: string, search = ''): Route {
       }
       case 'policy':
         return { kind: 'policy' };
-      case 'formalizations':
-        return { kind: 'formalizations' };
+      case 'formalizations': {
+        const params = new URLSearchParams(search);
+        return {
+          kind: 'formalizations',
+          ...(params.get('focus') ? { focus: params.get('focus')! } : {}),
+          ...(params.get('q') ? { q: params.get('q')! } : {}),
+          ...(params.get('before') ? { before: params.get('before')! } : {}),
+          ...(params.get('view') === 'list' ? { view: 'list' as const } : {}),
+        };
+      }
       case 'submit': {
         const params = new URLSearchParams(search);
         return {
@@ -134,6 +153,7 @@ export function parseRoute(pathname: string, search = ''): Route {
                 intake: 'lean' as const,
                 record: params.get('record')!,
                 claim: params.get('claim')!,
+                ...(params.get('version') ? { version: params.get('version')! } : {}),
               }
             : {}),
         };
@@ -164,8 +184,15 @@ export function parseRoute(pathname: string, search = ''): Route {
   }
   if (segments.length === 3 && first === 'staff' && second === 'submissions')
     return { kind: 'submission', id: segments[2] as string, staff: true };
-  if (segments.length === 4 && first === 'papers' && segments[2] === 'results')
-    return { kind: 'result', record: second as string, claim: segments[3] as string };
+  if (segments.length === 4 && first === 'papers' && segments[2] === 'results') {
+    const version = new URLSearchParams(search).get('version');
+    return {
+      kind: 'result',
+      record: second as string,
+      claim: segments[3] as string,
+      ...(version ? { version } : {}),
+    };
+  }
   if (segments.length === 4 && first === 'papers' && segments[2] === 'statements')
     return { kind: 'statement', record: second as string, claim: segments[3] as string };
   if (segments.length === 3 && first === 'feedback')
@@ -218,7 +245,7 @@ export function routePath(route: Route): string {
       if (route.focus) params.set('focus', route.focus);
       if (route.q) params.set('q', route.q);
       if (route.before) params.set('before', route.before);
-      return `/research-graph${params.size ? `?${params}` : ''}`;
+      return `/formalizations${params.size ? `?${params}` : ''}`;
     }
     case 'feedback':
       return `/feedback/${seg(route.id)}/${seg(route.key)}`;
@@ -231,13 +258,16 @@ export function routePath(route: Route): string {
     case 'supporters':
       return '/supporters';
     case 'result':
-      return `/papers/${seg(route.record)}/results/${seg(route.claim)}`;
+      return (
+        `/papers/${seg(route.record)}/results/${seg(route.claim)}` +
+        (route.version ? `?version=${seg(route.version)}` : '')
+      );
     case 'statement':
       return `/papers/${seg(route.record)}/statements/${seg(route.claim)}`;
     case 'home':
       return '/';
     case 'leaderboard':
-      return '/leaderboard';
+      return route.category ? '/leaderboard?category=' + route.category : '/leaderboard';
     case 'entrant':
       return `/entrants/${seg(route.id)}`;
     case 'conjecture':
@@ -258,14 +288,21 @@ export function routePath(route: Route): string {
       return `/papers/${seg(route.record)}${route.version ? `?version=${seg(route.version)}` : ''}`;
     case 'policy':
       return '/policy';
-    case 'formalizations':
-      return '/formalizations';
+    case 'formalizations': {
+      const params = new URLSearchParams();
+      if (route.focus) params.set('focus', route.focus);
+      if (route.q) params.set('q', route.q);
+      if (route.before) params.set('before', route.before);
+      if (route.view) params.set('view', route.view);
+      return `/formalizations${params.size ? `?${params}` : ''}`;
+    }
     case 'submit': {
       const params = new URLSearchParams();
       if (route.intake) params.set('type', route.intake);
       if (route.record && route.claim) {
         params.set('record', route.record);
         params.set('claim', route.claim);
+        if (route.version) params.set('version', route.version);
       }
       return `/submit${params.size ? `?${params}` : ''}`;
     }

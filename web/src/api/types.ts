@@ -1099,14 +1099,16 @@ export interface FormalizationAttribution {
 export interface FormalizationOpportunity {
   record: string;
   claim: string;
+  version?: number;
   title: string;
   label: string;
   statement: string;
   authors: Author[];
   kind: 'paper' | 'conjecture';
-  status: 'open' | 'verified' | 'disproved';
-  target_digest: string;
-  toolchain: string;
+  status: 'preparing' | 'open' | 'verified' | 'disproved';
+  macros?: Record<string, string>;
+  target_digest: string | null;
+  toolchain: string | null;
   verified_count: number;
   contributor: Entrant | null;
   attribution: FormalizationAttribution | null;

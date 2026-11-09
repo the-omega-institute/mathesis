@@ -17,9 +17,19 @@ import { resultLabel } from '../lib/statements';
 import { Link } from '../routing/router';
 import { EntrantName } from './Leaderboard';
 import { pdfHref } from '../api/client';
+import { loadCollectedResult } from '../lib/publicResult';
 
-export function ResultPage({ record, claim }: { record: string; claim: string }) {
-  if (!record.startsWith('WP-')) return <CollectedResultPage record={record} claim={claim} />;
+export function ResultPage({
+  record,
+  claim,
+  version,
+}: {
+  record: string;
+  claim: string;
+  version?: string;
+}) {
+  if (!record.startsWith('WP-'))
+    return <CollectedResultPage record={record} claim={claim} version={version} />;
   return <ReviewedResultPage record={record} claim={claim} />;
 }
 function ReviewedResultPage({ record, claim }: { record: string; claim: string }) {
@@ -139,25 +149,25 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
   );
 }
 
-function CollectedResultPage({ record, claim }: { record: string; claim: string }) {
+function CollectedResultPage({
+  record,
+  claim,
+  version,
+}: {
+  record: string;
+  claim: string;
+  version?: string;
+}) {
   const api = useApi();
   const load = useCallback(
-    async (signal: AbortSignal) => {
-      const result = await api.getStatement(record, claim, { signal });
-      const paper = await api.getCollectedPaper(
-        record,
-        result.publication ? String(result.publication.version) : undefined,
-        { signal },
-      );
-      return { paper, result };
-    },
-    [api, record, claim],
+    (signal: AbortSignal) => loadCollectedResult(api, record, claim, version, signal),
+    [api, record, claim, version],
   );
   const data = useAsync(load);
   return (
     <div className="page">
       <Async state={data.state} onRetry={data.reload}>
-        {({ paper, result }) => (
+        {({ paper, result, current }) => (
           <MacrosProvider macros={result.macros}>
             <article className="result-page">
               <p>
@@ -229,9 +239,15 @@ function CollectedResultPage({ record, claim }: { record: string; claim: string 
                       {t('View formalization and contributors')}
                     </Link>
                   </>
+                ) : current ? (
+                  <Link
+                    to={{ kind: 'submit', intake: 'lean', record, claim, version: paper.revision }}
+                  >
+                    {t('Contribute Lean work')}
+                  </Link>
                 ) : null}
               </section>
-              <CheckedResultUses record={record} claim={claim} />
+              {current ? <CheckedResultUses record={record} claim={claim} /> : null}
               <Link
                 to={{
                   kind: 'research_graph',

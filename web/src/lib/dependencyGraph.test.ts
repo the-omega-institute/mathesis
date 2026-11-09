@@ -112,7 +112,7 @@ describe('public dependency projection', () => {
         relation: 'checked_use',
       },
     ]);
-    expect(graph.nodes.find((n) => n.id === 'statement:gap-note:2:s2')!.verified).toBeUndefined();
+    expect(graph.nodes.find((n) => n.id === 'statement:gap-note:2:s2')!.verified).toBe(false);
   });
   it('merges shared literature while keeping different source versions separate and discarding dangling edges', async () => {
     const first = await loadDependencyGraph(collectedApi(), undefined, signal());
@@ -197,7 +197,24 @@ it('projects collected verification only from the version-bound proof service, n
             target_digest: 'exact-target',
             reading: 'Full statement.',
             next_step: 'Read proof.',
-            proofs: [],
+            proofs: [
+              {
+                id: 'checked-proof',
+                entrant: dependencyUse.contributor,
+                receipt: {
+                  verdict: 'proved',
+                  reason: 'Kernel checked',
+                  target_digest: 'exact-target',
+                  solution_digest: 'solution',
+                  toolchain: 'pinned',
+                  axioms: [],
+                  checked_at: '2026-11-10T00:00:00Z',
+                  duration: 1,
+                },
+                solution: 'checked source',
+                also_verified: false,
+              },
+            ],
           },
           {
             claim: 's1',

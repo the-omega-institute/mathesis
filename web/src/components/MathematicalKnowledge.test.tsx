@@ -73,7 +73,7 @@ describe('mathematical knowledge', () => {
     expect(screen.queryByRole('link', { name: 'Contribute a proof' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Link to this result' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=statement%3Agap-note%3A2%3As2',
+      '/formalizations?focus=statement%3Agap-note%3A2%3As2',
     );
     await user.click(within(map).getByRole('button', { name: /Lemma: The local bound/ }));
     expect(detail.getByRole('heading', { name: 'Lemma: The local bound' })).toBeVisible();

@@ -1,4 +1,8 @@
 /* Shared abstract-page typography, within the site's common outer margins. */
+.compact-formalizations > li {
+  padding-block: 0.65rem;
+  border: 0;
+}
 .paper-reading .paper-heading {
   margin-block: 1.25rem 1.5rem;
 }

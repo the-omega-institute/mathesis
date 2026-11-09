@@ -1,0 +1,64 @@
+.formalizations-head {
+  border: 0;
+  padding-bottom: 0;
+  margin-bottom: 1.5rem;
+}
+.formalizations-head > div > p:last-child {
+  max-width: 76ch;
+  color: var(--ink-soft);
+}
+.formalization-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+.section-tabs {
+  display: flex;
+  gap: 1.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+.section-tabs > a {
+  padding: 0.65rem 0;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.section-tabs > a[aria-current='page'] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+.formalization-work {
+  margin-top: 1.5rem;
+}
+.formalization-work > p {
+  max-width: 80ch;
+  color: var(--ink-soft);
+}
+.formalization-work .entry-title {
+  font-size: 1.15rem;
+}
+.formalization-work article > p {
+  margin-block: 0.3rem;
+}
+.author-line.is-compact {
+  gap: 0 0.5rem;
+  margin-block: 0.4rem;
+}
+.author-line.is-compact .affiliation,
+.author-line.is-compact .orcid,
+.author-line.is-compact li > a:not(.author-name) {
+  display: none;
+}
+.author-line.is-compact .author-name {
+  font-size: 0.95rem;
+}
+@media (max-width: 760px) {
+  .formalization-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1rem 1.5rem;
+  }
+}

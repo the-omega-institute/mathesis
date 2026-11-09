@@ -38,7 +38,7 @@ export function ProofWork({ record, claim }: { record: string; claim: string }) 
       <p>{t('The goal is a complete proof of the author-confirmed statement above.')}</p>
       {work.value.managed ? (
         <>
-          <p>{labels[work.value.state]}</p>
+          <p>{t(labels[work.value.state])}</p>
           {work.value.state === 'not_authorized' && work.value.total_generations > 0 ? (
             <p>
               {t(

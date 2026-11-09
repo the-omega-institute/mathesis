@@ -90,7 +90,7 @@ it('keeps a selected checked intermediate proposition visible with its contribut
   expect(details).toHaveTextContent('Formalizer');
   expect(within(details).getByRole('link', { name: 'Read the paper' })).toHaveAttribute(
     'href',
-    '/papers/WP-2026-0002/results/C1',
+    '/papers/WP-2026-0002?version=1',
   );
 });
 it('keeps the graph as the primary view in Chinese and treats the theory outline as an auxiliary link', async () => {
@@ -99,7 +99,7 @@ it('keeps the graph as the primary view in Chinese and treats the theory outline
   expect(await screen.findByRole('figure', { name: '数学依赖图' })).toBeVisible();
   expect(screen.getByRole('link', { name: '浏览已有理论' })).toHaveAttribute(
     'href',
-    '/research-graph?focus=library%3Aall',
+    '/formalizations?focus=library%3Aall',
   );
   expect(screen.queryByRole('region', { name: '所选结果及其依赖' })).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: /Theorem: The uniform bound/ }));
@@ -139,14 +139,20 @@ it('shows results from every loaded field first and restores the whole overview 
   expect(within(map).getByRole('button', { name: /Number theory\s*3 results/ })).toBeVisible();
 });
 
-it('defaults to checked knowledge and keeps unverified manuscripts available in the wider view', async () => {
+it('shows verified and awaiting nodes together by default, and filters without changing their meaning', async () => {
   renderWithApp(<DependencyGraph />, makeApi());
-  await screen.findByRole('button', { name: 'Verified knowledge' });
-  expect(screen.getByRole('button', { name: 'Verified knowledge' })).toHaveAttribute(
+  await screen.findByRole('figure');
+  expect(screen.getByRole('button', { name: /^All results/ })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
+  const pending = screen.getByRole('button', { name: /Theorem: The uniform bound/ });
+  expect(pending).toHaveAttribute('data-verification', 'pending');
+  await userEvent.click(pending);
+  expect(pending).not.toHaveClass('is-verified');
+  await userEvent.click(screen.getByRole('button', { name: /^Formalized in Lean/ }));
   expect(screen.queryByRole('button', { name: /Theorem: The uniform bound/ })).toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'All results and open targets' }));
+  expect(screen.getByText(/No independently verified formalizations yet/)).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /^All results/ }));
   expect(await screen.findByRole('button', { name: /Theorem: The uniform bound/ })).toBeVisible();
 });

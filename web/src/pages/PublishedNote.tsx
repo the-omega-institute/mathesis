@@ -93,9 +93,6 @@ export function PublishedNotePage({
           {t('Download source')}
         </a>
         {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
-        <Link to={{ kind: 'research_graph', focus: `statement:${note.id}:${note.revision}:s1` }}>
-          {t('Explore mathematical results')}
-        </Link>
       </nav>
       <nav className="paper-sections" aria-label={t('On this page')}>
         <a href="#abstract-h">{t('Abstract')}</a>
@@ -220,14 +217,21 @@ function PublishedFormalizations({ work, version }: { work: string; version: str
   return (
     <section aria-labelledby="formalization-h">
       <h2 id="formalization-h">{t('Formalization')}</h2>
+      <p>
+        <Link
+          to={{ kind: 'formalizations', focus: `statement:${work}:${version}:${rows[0]!.claim}` }}
+        >
+          {t('Explore mathematical results')}
+        </Link>
+      </p>
       <MacrosProvider macros={knowledge.value?.macros ?? {}}>
-        <ul className="entry-list">
-          {rows.map((row) => {
+        <ul className="entry-list compact-formalizations">
+          {rows.slice(0, 3).map((row) => {
             const claim = knowledge.value?.statements.find((c) => c.id === row.claim);
             if (!claim) return null;
             return (
               <li key={row.claim}>
-                <Link to={{ kind: 'result', record: work, claim: row.claim }}>
+                <Link to={{ kind: 'result', record: work, claim: row.claim, version }}>
                   <InlineLatex source={claim.title ?? claim.name} />
                 </Link>
                 {' · '}
@@ -240,13 +244,37 @@ function PublishedFormalizations({ work, version }: { work: string; version: str
                         ? 'Open for formalization'
                         : row.state === 'needs_attention'
                           ? 'Further proof work is needed'
-                          : 'Formalization in progress',
+                          : 'Awaiting a formal proof',
                 )}
-                {row.reading ? <p>{row.reading}</p> : null}
               </li>
             );
           })}
         </ul>
+        {rows.length > 3 ? (
+          <details className="history">
+            <summary>{t('All formalization results ({count})', { count: rows.length })}</summary>
+            <ul className="entry-list compact-formalizations">
+              {rows.slice(3).map((row) => {
+                const claim = knowledge.value?.statements.find((c) => c.id === row.claim);
+                return claim ? (
+                  <li key={row.claim}>
+                    <Link to={{ kind: 'result', record: work, claim: row.claim, version }}>
+                      <InlineLatex source={claim.title ?? claim.name} />
+                    </Link>{' '}
+                    ·{' '}
+                    {t(
+                      row.state === 'verified'
+                        ? 'Verified in Lean'
+                        : row.state === 'disproved'
+                          ? 'Disproved in Lean'
+                          : 'Awaiting a formal proof',
+                    )}
+                  </li>
+                ) : null;
+              })}
+            </ul>
+          </details>
+        ) : null}
       </MacrosProvider>
     </section>
   );

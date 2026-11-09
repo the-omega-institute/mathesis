@@ -29,6 +29,7 @@ export function SubmitPage({
   initialIntake,
   targetRecord,
   targetClaim,
+  targetVersion,
   initialSubmission,
   onSubmitted,
 }: {
@@ -37,6 +38,7 @@ export function SubmitPage({
   initialIntake?: 'lean' | 'review' | 'conjecture';
   targetRecord?: string;
   targetClaim?: string;
+  targetVersion?: string;
 } = {}) {
   const [typedEntry, setTypedEntry] = useState(
     initialIntake === 'conjecture' && !initialSubmission,
@@ -88,7 +90,11 @@ export function SubmitPage({
             />
           )
         ) : (
-          <LeanDepositForm targetRecord={targetRecord} targetClaim={targetClaim} />
+          <LeanDepositForm
+            targetRecord={targetRecord}
+            targetClaim={targetClaim}
+            targetVersion={targetVersion}
+          />
         )
       ) : null}
       {person && intake !== 'lean' && !initialSubmission ? (

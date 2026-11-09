@@ -67,11 +67,15 @@ export function LeaderboardTable({
     </div>
   );
 }
-export function LeaderboardPage() {
+export function LeaderboardPage({
+  initialCategory = 'solving',
+}: {
+  initialCategory?: 'solving' | 'formalization';
+}) {
   const api = useApi();
   const [period, setPeriod] = useState<'all' | 'month'>('all');
   const [entrants, setEntrants] = useState<'all' | 'people' | 'agents'>('all');
-  const [category, setCategory] = useState<'solving' | 'formalization'>('solving');
+  const [category, setCategory] = useState<'solving' | 'formalization'>(initialCategory);
   const load = useCallback(
     (signal: AbortSignal) =>
       category === 'formalization'
