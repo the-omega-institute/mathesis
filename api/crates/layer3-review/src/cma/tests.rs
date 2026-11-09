@@ -188,6 +188,146 @@ fn client(replies: Vec<ReviewResult<TransportReply>>) -> (Client, Arc<Fake>) {
     )
 }
 
+fn inline_profile() -> Value {
+    json!({"model":"gpt-6.1-sol","reasoning_effort":"high","permission_mode":"autonomous"})
+}
+
+#[tokio::test]
+async fn inline_lifecycle_waits_for_agent_and_retires_without_removed_stop_route() {
+    let store = Memory::default();
+    let (mut client, fake) = client(vec![
+        reply(json!({"id":"operation_test","status":"provisioning"})),
+        reply(json!({"status":"running","agent_id":null})),
+        reply(json!({"status":"succeeded","agent_id":"agt_test"})),
+        receipt("resp_test"),
+        completed(r#"{"checked":true}"#),
+        accepted(),
+    ]);
+    client.profile = Some(inline_profile());
+    assert_eq!(
+        client
+            .answer(&store, "mathematical data".into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        r#"{"checked":true}"#
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(state.lifecycle_id.as_deref(), Some("operation_test"));
+    assert_eq!(state.agent_id.as_deref(), Some("agt_test"));
+    assert!(state.deleted);
+    let calls = fake.calls.lock().await;
+    assert_eq!(calls[0].1, "api/v1/agents");
+    let body = calls[0].2.as_ref().unwrap();
+    assert_eq!(body["workspace_id"], "wks_test");
+    assert_eq!(body["profile"], inline_profile());
+    assert!(
+        calls
+            .iter()
+            .all(|c| !c.1.ends_with("/stop") && !c.1.contains("agents/operation_test"))
+    );
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| c.0 == "POST" && c.1 == "api/v1/agents")
+            .count(),
+        1
+    );
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| c.1 == "api/v1/agent-lifecycle/operation_test")
+            .count(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn restart_reconciles_saved_lifecycle_without_recreating_agent() {
+    let store = Memory::default();
+    let prompt = "source";
+    store
+        .save(
+            serde_json::to_value(RunState {
+                create_intent: Some((
+                    "api/v1/agents".into(),
+                    json!({"workspace_id":"original","profile":inline_profile()}),
+                )),
+                lifecycle_id: Some("operation_original".into()),
+                input: format!("{:x}", Sha256::digest(prompt.as_bytes())),
+                deadline: now() + 60,
+                ..Default::default()
+            })
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let (client, fake) = client(vec![
+        reply(json!({"status":"succeeded","agent_id":"agt_original"})),
+        receipt("resp_original"),
+        completed("{}"),
+        accepted(),
+    ]);
+    assert_eq!(
+        client
+            .answer(&store, prompt.into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        "{}"
+    );
+    let calls = fake.calls.lock().await;
+    assert_eq!(calls[0].1, "api/v1/agent-lifecycle/operation_original");
+    assert!(
+        calls
+            .iter()
+            .all(|c| !(c.0 == "POST" && (c.1 == "api/v1/agents" || c.1.ends_with("/agents"))))
+    );
+}
+
+#[tokio::test]
+async fn failed_lifecycle_retires_saved_agent_without_submitting_paper() {
+    let store = Memory::default();
+    let (mut client, fake) = client(vec![
+        reply(json!({"id":"operation_failed","status":"provisioning"})),
+        reply(json!({"status":"failed","agent_id":"agt_failed","error":"private detail"})),
+        accepted(),
+    ]);
+    client.profile = Some(inline_profile());
+    assert!(
+        client
+            .answer(&store, "source".into(), Duration::from_secs(60))
+            .await
+            .is_err()
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(state.deleted);
+    assert!(!state.failure.unwrap().contains("private detail"));
+    let calls = fake.calls.lock().await;
+    assert!(
+        calls
+            .iter()
+            .all(|c| !c.1.ends_with("/responses") && !c.1.ends_with("/stop"))
+    );
+}
+
+#[tokio::test]
+async fn failed_lifecycle_before_agent_allocation_has_no_orphan_to_clean() {
+    let store = Memory::default();
+    let (mut client, fake) = client(vec![
+        reply(json!({"id":"operation_failed","status":"provisioning"})),
+        reply(json!({"status":"failed","agent_id":null})),
+    ]);
+    client.profile = Some(inline_profile());
+    assert!(
+        client
+            .answer(&store, "source".into(), Duration::from_secs(60))
+            .await
+            .is_err()
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(state.deleted && state.agent_id.is_none());
+    assert_eq!(fake.calls.lock().await.len(), 2);
+}
+
 #[test]
 fn delivery_contract_preserves_input_and_legacy_bytes_and_repeats_the_schema_last() {
     let instructions = crate::referee_prompts::ADVICE;

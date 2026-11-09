@@ -163,6 +163,7 @@ pub enum JobKind {
     Referee,
     PaperExplanation,
     CollectedExplanation,
+    CollectedFormalization,
     LeanStatement,
     ResearchTarget,
     BindingAudit,

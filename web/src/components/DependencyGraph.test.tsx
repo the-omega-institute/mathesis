@@ -20,7 +20,7 @@ const makeApi = () =>
   });
 it('starts with a real graph and follows prerequisite and subsequent results with exact author credit', async () => {
   const api = makeApi();
-  renderWithApp(<DependencyGraph />, api);
+  renderWithApp(<DependencyGraph initialScope="all" />, api);
   const map = await screen.findByRole('figure', { name: 'Mathematical dependency graph' });
   expect(map.querySelectorAll('[data-relation="manuscript_reference"]')).toHaveLength(2);
   await userEvent.click(within(map).getByRole('button', { name: /Theorem: The uniform bound/ }));
@@ -62,7 +62,7 @@ it('loads another page after rechecking current public visibility, without retai
     if (before === 'two') return { ...dependencySource, next_before: 'three' };
     return { ...dependencySource, next_before: null };
   });
-  renderWithApp(<DependencyGraph />, api);
+  renderWithApp(<DependencyGraph initialScope="all" />, api);
   await screen.findByRole('figure');
   expanded = true;
   await userEvent.click(screen.getByRole('button', { name: 'Load more research into the graph' }));
@@ -95,7 +95,7 @@ it('keeps a selected checked intermediate proposition visible with its contribut
 });
 it('keeps the graph as the primary view in Chinese and treats the theory outline as an auxiliary link', async () => {
   setLocale('zh');
-  renderWithApp(<DependencyGraph />, makeApi());
+  renderWithApp(<DependencyGraph initialScope="all" />, makeApi());
   expect(await screen.findByRole('figure', { name: '数学依赖图' })).toBeVisible();
   expect(screen.getByRole('link', { name: '浏览已有理论' })).toHaveAttribute(
     'href',
@@ -137,4 +137,16 @@ it('shows results from every loaded field first and restores the whole overview 
   map = screen.getByRole('figure');
   expect(map.querySelectorAll('.dependency-node')).toHaveLength(4);
   expect(within(map).getByRole('button', { name: /Number theory\s*3 results/ })).toBeVisible();
+});
+
+it('defaults to checked knowledge and keeps unverified manuscripts available in the wider view', async () => {
+  renderWithApp(<DependencyGraph />, makeApi());
+  await screen.findByRole('button', { name: 'Verified knowledge' });
+  expect(screen.getByRole('button', { name: 'Verified knowledge' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(screen.queryByRole('button', { name: /Theorem: The uniform bound/ })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'All results and open targets' }));
+  expect(await screen.findByRole('button', { name: /Theorem: The uniform bound/ })).toBeVisible();
 });

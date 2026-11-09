@@ -34,6 +34,7 @@ export function SupportersPage() {
   );
 }
 export function StatementPage({ record, claim }: { record: string; claim: string }) {
+  const reviewed = record.startsWith('WP-');
   const api = useApi();
   const load = useCallback(
     (signal: AbortSignal) => api.getStatement(record, claim, { signal }),
@@ -51,19 +52,31 @@ export function StatementPage({ record, claim }: { record: string; claim: string
               </p>
               <h1>{s.claim.label}</h1>
               <LatexText source={s.claim.statement} />
-              <ReportError record={record} subject={{ kind: 'statement', claim }} />
+              {reviewed ? (
+                <ReportError record={record} subject={{ kind: 'statement', claim }} />
+              ) : null}
               {s.claim.verified ? (
                 <p className="notice">
                   <strong>{t('Lean ✓')}</strong> ·{' '}
                   <EntrantName entrant={s.claim.verified.entrant} />{' '}
-                  {t('proved the author-confirmed Lean target.')}
+                  {t(
+                    reviewed
+                      ? 'proved the author-confirmed Lean target.'
+                      : 'proved this exact Lean statement.',
+                  )}
                 </p>
               ) : null}
               <section>
                 <h2>{t('Lean target')}</h2>
                 {s.target ? (
                   <>
-                    <p>{t('The author confirmed this exact target.')}</p>
+                    <p>
+                      {t(
+                        reviewed
+                          ? 'The author confirmed this exact target.'
+                          : 'This Lean statement was checked against the published result.',
+                      )}
+                    </p>
                     <details open>
                       <summary>{t('View Target.lean')}</summary>
                       <pre>
@@ -77,10 +90,12 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                     >
                       {t('Download Target.lean')}
                     </a>
-                    <ReportError
-                      record={record}
-                      subject={{ kind: 'target', claim, digest: s.target.digest }}
-                    />
+                    {reviewed ? (
+                      <ReportError
+                        record={record}
+                        subject={{ kind: 'target', claim, digest: s.target.digest }}
+                      />
+                    ) : null}
                   </>
                 ) : (
                   <p className="muted">
@@ -119,7 +134,11 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                         </a>
                         <p>
                           {a.receipt.verdict === 'proved' ? t('Proved') : t('Disproved')}{' '}
-                          {t(' the author-confirmed Lean target.')}
+                          {t(
+                            reviewed
+                              ? ' the author-confirmed Lean target.'
+                              : ' this exact Lean statement.',
+                          )}
                         </p>
                         <details>
                           <summary>{t('View Lean proof')}</summary>
@@ -140,7 +159,7 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                 </section>
               ) : null}
               {s.target ? <ProofWork record={record} claim={claim} /> : null}
-              <ErrorReports record={record} />
+              {reviewed ? <ErrorReports record={record} /> : null}
             </article>
           </MacrosProvider>
         )}

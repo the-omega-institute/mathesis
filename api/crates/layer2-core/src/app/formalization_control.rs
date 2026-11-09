@@ -30,8 +30,17 @@ impl App {
         claim: &ClaimId,
         control: FormalizationControl,
     ) -> CoreResult<FormalizationAuthorization> {
+        if !record.as_str().starts_with("WP-") {
+            return Err(CoreError::conflict(
+                "collected proof work is funded and scheduled by the venue",
+            ));
+        }
         let source = self.conjecture_source(record).await?;
-        Self::require_submitter(caller, &source)?;
+        if caller.person != source.submitter {
+            return Err(CoreError::forbidden(
+                "only the source owner can authorize work",
+            ));
+        }
         if !source.approved_statement(claim) {
             return Err(CoreError::conflict(
                 "continuous work requires an author-approved paper formalization",
@@ -302,8 +311,9 @@ impl App {
             expires_at: saved_authorization.map(|a| a.expires_at),
             paused: saved_authorization.is_some_and(|a| a.paused),
             state,
-            can_control: caller.is_some_and(|c| c.person == source.submitter),
-            managed: source.approved_statement(claim),
+            can_control: file.collected.is_none()
+                && caller.is_some_and(|c| c.person == source.submitter),
+            managed: file.collected.is_none() && source.approved_statement(claim),
         })
     }
 }

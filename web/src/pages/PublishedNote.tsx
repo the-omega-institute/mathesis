@@ -1,3 +1,7 @@
+import { useCallback } from 'react';
+import { useApi } from '../api/context';
+import { useAsync } from '../api/useAsync';
+import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperExplanation } from '../components/PaperExplanation';
@@ -120,6 +124,7 @@ export function PublishedNotePage({
             <LatexText source={note.abstract} className="abstract" />
           </section>
           <PaperExplanation text={note.plain_language} />
+          <PublishedFormalizations work={note.id} version={note.revision} />
           {note.problems.length ? (
             <details className="paper-details" id="related-questions">
               <summary>{t('Sources and related questions')}</summary>
@@ -200,5 +205,49 @@ export function PublishedNotePage({
         </aside>
       </div>
     </article>
+  );
+}
+
+function PublishedFormalizations({ work, version }: { work: string; version: string }) {
+  const api = useApi();
+  const load = useCallback(
+    (signal: AbortSignal) => api.collectedKnowledge(work, version, { signal }),
+    [api, work, version],
+  );
+  const knowledge = useAsync(load);
+  const rows = knowledge.value?.formalizations ?? [];
+  if (!rows.length) return null;
+  return (
+    <section aria-labelledby="formalization-h">
+      <h2 id="formalization-h">{t('Formalization')}</h2>
+      <MacrosProvider macros={knowledge.value?.macros ?? {}}>
+        <ul className="entry-list">
+          {rows.map((row) => {
+            const claim = knowledge.value?.statements.find((c) => c.id === row.claim);
+            if (!claim) return null;
+            return (
+              <li key={row.claim}>
+                <Link to={{ kind: 'result', record: work, claim: row.claim }}>
+                  <InlineLatex source={claim.title ?? claim.name} />
+                </Link>
+                {' · '}
+                {t(
+                  row.state === 'verified'
+                    ? 'Verified in Lean'
+                    : row.state === 'disproved'
+                      ? 'Disproved in Lean'
+                      : row.state === 'open'
+                        ? 'Open for formalization'
+                        : row.state === 'needs_attention'
+                          ? 'Further proof work is needed'
+                          : 'Formalization in progress',
+                )}
+                {row.reading ? <p>{row.reading}</p> : null}
+              </li>
+            );
+          })}
+        </ul>
+      </MacrosProvider>
+    </section>
   );
 }

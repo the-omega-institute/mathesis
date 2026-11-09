@@ -19,6 +19,10 @@ import { EntrantName } from './Leaderboard';
 import { pdfHref } from '../api/client';
 
 export function ResultPage({ record, claim }: { record: string; claim: string }) {
+  if (!record.startsWith('WP-')) return <CollectedResultPage record={record} claim={claim} />;
+  return <ReviewedResultPage record={record} claim={claim} />;
+}
+function ReviewedResultPage({ record, claim }: { record: string; claim: string }) {
   const api = useApi();
   const load = useCallback(
     (signal: AbortSignal) => api.getPaper(record, { signal }),
@@ -132,5 +136,114 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
         </details>
       </article>
     </MacrosProvider>
+  );
+}
+
+function CollectedResultPage({ record, claim }: { record: string; claim: string }) {
+  const api = useApi();
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      const result = await api.getStatement(record, claim, { signal });
+      const paper = await api.getCollectedPaper(
+        record,
+        result.publication ? String(result.publication.version) : undefined,
+        { signal },
+      );
+      return { paper, result };
+    },
+    [api, record, claim],
+  );
+  const data = useAsync(load);
+  return (
+    <div className="page">
+      <Async state={data.state} onRetry={data.reload}>
+        {({ paper, result }) => (
+          <MacrosProvider macros={result.macros}>
+            <article className="result-page">
+              <p>
+                <Link to={{ kind: 'paper', record, version: paper.revision }}>
+                  <InlineLatex source={paper.title} />
+                </Link>
+              </p>
+              <h1>
+                <InlineLatex source={resultLabel(result.claim)} />
+              </h1>
+              <AuthorLine authors={paper.authors} />
+              <LatexText source={result.claim.statement} className="result-statement" />
+              <p>
+                <a href={paper.pdf.url}>{t('Read in the paper (PDF)')}</a>
+              </p>
+              <section>
+                <h2>{t('Formalization')}</h2>
+                {result.verified_attempts.length ? (
+                  result.verified_attempts.map((proof) => (
+                    <div key={proof.id}>
+                      <p>
+                        {t(
+                          proof.receipt.verdict === 'proved'
+                            ? 'A verified formal proof is available.'
+                            : 'A checked counterexample is available for this Lean statement.',
+                        )}
+                      </p>
+                      {proof.attribution ? (
+                        <ProofAttribution attribution={proof.attribution} />
+                      ) : (
+                        <p>
+                          {t('Proof contribution by ')}
+                          <EntrantName entrant={proof.entrant} />
+                        </p>
+                      )}
+                      <a
+                        href={`/api/v1/papers/${encodeURIComponent(record)}/statements/${encodeURIComponent(claim)}/attempts/${encodeURIComponent(proof.id)}/bundle`}
+                      >
+                        {t('Download proof and verification details')}
+                      </a>
+                      <details>
+                        <summary>{t('View Lean proof')}</summary>
+                        <pre>
+                          <code>{proof.solution}</code>
+                        </pre>
+                      </details>
+                    </div>
+                  ))
+                ) : (
+                  <p>
+                    {result.target
+                      ? t('Contribute a proof of this exact statement.')
+                      : t('No public formal proof is available for this result.')}
+                  </p>
+                )}
+                {result.target ? (
+                  <>
+                    <details>
+                      <summary>{t('View Lean statement')}</summary>
+                      <pre>
+                        <code>{result.target.lean}</code>
+                      </pre>
+                    </details>
+                    <Link to={{ kind: 'submit', intake: 'lean', record, claim }}>
+                      {t('Submit attributed Lean work')}
+                    </Link>
+                    {' · '}
+                    <Link to={{ kind: 'statement', record, claim }}>
+                      {t('View formalization and contributors')}
+                    </Link>
+                  </>
+                ) : null}
+              </section>
+              <CheckedResultUses record={record} claim={claim} />
+              <Link
+                to={{
+                  kind: 'research_graph',
+                  focus: `statement:${record}:${paper.revision}:${claim}`,
+                }}
+              >
+                {t('Explore mathematical results')}
+              </Link>
+            </article>
+          </MacrosProvider>
+        )}
+      </Async>
+    </div>
   );
 }

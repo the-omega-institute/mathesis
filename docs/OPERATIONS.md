@@ -19,11 +19,14 @@ expires without renewal. Key acceptance through the proxy does not imply that
 direct CMA origins accept the same key. Verify the deployed route with resource
 reads, then a complete Agent response before declaring review execution ready.
 
-All CMA modes require `WISHPOOL_CMA_AGENT_PROFILE` with a published `id` and
-positive `revision`. It must be readable by each executing account. A sandbox
-profile and an agent profile are different resources. An existing workspace
-alone is insufficient. BYOK also requires the author's owned, ready workspace
-in an active sandbox using `own_credentials`.
+Current CMA execution uses `WISHPOOL_CMA_AGENT_PROFILE` with the explicit inline
+profile `{"model":"gpt-6.1-sol","reasoning_effort":"high","permission_mode":"autonomous"}`.
+New tasks use `POST /api/v1/agents` with the owned workspace and this exact profile;
+the durable lifecycle receipt is saved and polled until it yields an Agent.
+Legacy `{id,revision}` configuration and already saved creation intents retain
+their original route and bytes for historical servers and recovery. Do not send
+a profile ID to the current lifecycle endpoint. BYOK also requires the author's
+owned, ready workspace in an active sandbox using `own_credentials`.
 
 For company-managed execution, use an operator workspace whose sandbox profile
 selects `chronoai_managed` and leave `WISHPOOL_CMA_BYOK_ENABLED=false`. A personal
@@ -32,7 +35,9 @@ subscription supplies the model. Model access, resource ownership and usage/quot
 attribution are separate facts. Confirm the company's actual resources and
 quota configuration before claiming the complete review service is available.
 
-CMA cleanup retains each Agent until deletion is observed. A fresh `stopped`
+Current CMA cleanup retires an Agent through its lifecycle DELETE and waits for
+observed deletion; it does not call the removed `/stop` route. Legacy CMA cleanup
+retains each Agent until deletion is observed. A fresh `stopped`
 or `failed` Agent state permits the existing deletion request; a stop acknowledgement
 alone does not. Failed startup Agents can refuse stop with `agent_not_ready` but
 remain eligible for deletion. Cleanup preserves their recorded failure and task

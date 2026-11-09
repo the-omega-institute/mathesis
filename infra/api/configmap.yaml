@@ -57,6 +57,7 @@ data:
   # NyxID user access tokens only; provision the mounted token file out of band.
   WISHPOOL_AGENT_BACKEND: ""
   WISHPOOL_CMA_WORKSPACE: ""
+  WISHPOOL_CMA_FORMALIZATION_WORKSPACE: ""
   # Pin a published profile readable by executing accounts; required for all CMA modes.
   WISHPOOL_CMA_AGENT_PROFILE: ""
   # Author CMA consent is independent of hosted donations. Requires NyxID, HTTP

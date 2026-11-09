@@ -364,6 +364,7 @@ impl Composition {
             oracle,
             advisor,
             formalizer,
+            cma_formalization_workspace: config.cma_formalization_workspace.clone(),
             oracle_poll: Duration::from_secs(config.oracle_poll_secs),
             advisor_work_dir: config.advisor_work_dir.clone().into(),
             audit_budget: Duration::from_secs(if cma.is_some() {

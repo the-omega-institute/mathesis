@@ -29,15 +29,21 @@ export function LeanDepositForm({
   const load = useCallback(
     async (signal: AbortSignal) => {
       if (!targetRecord || !targetClaim) return null;
-      const [statement, paper] = await Promise.all([
-        api.getStatement(targetRecord, targetClaim, { signal }),
-        api.getPaper(targetRecord, { signal }),
-      ]);
+      const statement = await api.getStatement(targetRecord, targetClaim, { signal });
+      const authors = targetRecord.startsWith('WP-')
+        ? (await api.getPaper(targetRecord, { signal })).summary.authors
+        : (
+            await api.getCollectedPaper(
+              targetRecord,
+              statement.publication ? String(statement.publication.version) : undefined,
+              { signal },
+            )
+          ).authors;
       if (!statement.target)
         throw new Error(
           'This statement no longer has a confirmed target. Choose a current statement.',
         );
-      return { statement, authors: paper.summary.authors.map((a) => a.name) };
+      return { statement, authors: authors.map((a) => a.name) };
     },
     [api, targetRecord, targetClaim],
   );

@@ -70,9 +70,7 @@ describe('shared research graph', () => {
     });
     renderWithApp(<ResearchGraphPage />, api);
     expect(screen.getByRole('heading', { name: 'Dependency graph' })).toBeVisible();
-    expect(
-      await screen.findByRole('figure', { name: 'Mathematical dependency graph' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Verified knowledge' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Browse existing theory' })).toHaveAttribute(
       'href',
       '/research-graph?focus=library%3Aall',

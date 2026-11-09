@@ -347,21 +347,44 @@ impl App {
         claims_revision: u64,
     ) -> CoreResult<ResultLink> {
         let current = self.conjecture_source(record).await?;
+        if !record.as_str().starts_with("WP-") {
+            if current.current_version().map(|v| v.number) != Some(version)
+                || claims_revision != current.claims_revision
+            {
+                return Err(CoreError::conflict(
+                    "result source changed; reload the evidence",
+                ));
+            }
+            let statement = current
+                .claim(claim)
+                .ok_or_else(|| CoreError::not_found("result", claim.as_str()))?;
+            return Ok(ResultLink {
+                record: record.clone(),
+                claim: claim.clone(),
+                version,
+                claims_revision,
+                title: current.title.clone(),
+                label: statement.label.clone(),
+                authors: current.authors.clone(),
+            });
+        }
         let publication = self
             .ports
             .records
             .get(record)
             .await?
             .ok_or_else(|| CoreError::not_found("paper", record.as_str()))?;
+        let live_submission = self.submission_proof_source(record).await?;
         let source = publication
-            .publication_input(&current)
+            .publication_input(&live_submission)
             .ok_or_else(|| CoreError::not_found("result", claim.as_str()))?;
         // Proof pins must match both live eligibility and the immutable result
         // page. A later acceptance can reuse the record id, but not its identity.
-        if [&current, source].iter().any(|s| {
-            s.current_version().map(|v| v.number) != Some(version)
-                || s.claims_revision != claims_revision
-        }) {
+        if current.current_version().map(|v| v.number) != Some(version)
+            || current.claims_revision != claims_revision
+            || source.current_version().map(|v| v.number) != Some(version)
+            || source.claims_revision != claims_revision
+        {
             return Err(CoreError::conflict(
                 "result source changed; reload the evidence",
             ));

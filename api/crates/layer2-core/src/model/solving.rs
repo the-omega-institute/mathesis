@@ -96,6 +96,9 @@ pub struct DependencyEdge {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SolveFile {
+    /// Exact collected result; absent for ordinary submissions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collected: Option<super::CollectedProof>,
     #[serde(default)]
     pub referee_backend: super::RefereeBackend,
     /// Explicit, target-bound lifetime allowance; never replenished by retry/resume.

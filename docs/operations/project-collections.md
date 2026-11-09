@@ -8,8 +8,9 @@ remains separate from scientific metadata. Inclusion does not invent an independ
 Mathesis acceptance, verification badge, public review report.
 
 Collection inclusion does not submit a manuscript for independent Mathesis review
-or enqueue Oracle/referee/audit work. An independent venue-funded CMA task may
-produce the bilingual reading guide from the exact public manuscript source. Upstream-reviewed published notes are collected after
+or enqueue Oracle/referee/audit work. Separate venue-funded CMA tasks produce the
+bilingual reading guide and check or extend the paper's formalizations from its
+exact public manuscript source. Upstream-reviewed published notes are collected after
 checking their published files, provenance, rights and version identity. Do not
 re-review the full project as a prerequisite for showing its publications.
 Independent Mathesis review is a separate, explicitly requested submission.

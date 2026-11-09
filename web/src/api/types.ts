@@ -708,7 +708,17 @@ export type CollectedPaper = {
   pdf: { url: string };
   source: { url: string };
 };
+export type CollectedProof = {
+  claim: string;
+  version: number;
+  state: 'verified' | 'disproved' | 'open' | 'preparing' | 'needs_attention';
+  target_digest?: string | null;
+  reading?: string | null;
+  next_step: string;
+  proofs: VerifiedAttempt[];
+};
 export type CollectedKnowledge = {
+  formalizations?: CollectedProof[];
   work: string;
   version: number;
   statements: {
@@ -1045,6 +1055,7 @@ export type ErrorReport = {
 };
 export type Supporter = { name: string; tokens: number };
 export type StatementDetail = {
+  publication?: { version: number; claims_revision: number } | null;
   record: string;
   title: string;
   claim: PublicClaim;

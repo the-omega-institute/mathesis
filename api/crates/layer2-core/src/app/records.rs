@@ -392,7 +392,7 @@ impl App {
         loop {
             let page = self.ports.records.list(100, cursor).await?;
             for record in page.items {
-                let Ok(s) = self.conjecture_source(&record.id).await else {
+                let Ok(s) = self.submission_proof_source(&record.id).await else {
                     continue;
                 };
                 if s.analysis_visibility != Visibility::Public {
@@ -705,7 +705,7 @@ impl App {
         record: &RecordId,
         claim: &ClaimId,
     ) -> CoreResult<PublicConjecture> {
-        let source = self.conjecture_source(record).await?;
+        let source = self.submission_proof_source(record).await?;
         let mut cursor = None;
         let summary = loop {
             let page = self.list_conjectures(Some(100), cursor).await?;
@@ -745,6 +745,7 @@ impl App {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PublicStatement {
+    pub publication: Option<PublicPublication>,
     pub record: RecordId,
     pub title: String,
     pub claim: PublicClaim,
@@ -758,6 +759,60 @@ impl App {
         record: &RecordId,
         claim: &ClaimId,
     ) -> CoreResult<PublicStatement> {
+        if !record.as_str().starts_with("WP-") {
+            let source = self.conjecture_source(record).await?;
+            let claim = source
+                .claim(claim)
+                .ok_or_else(|| CoreError::not_found("statement", claim.as_str()))?;
+            let version = source.current_version().unwrap().number;
+            let target = match self.target(record, &claim.id).await {
+                Ok(t) => Some(t),
+                Err(CoreError::Conflict(_) | CoreError::NotFound { .. }) => None,
+                Err(e) => return Err(e),
+            };
+            let verified_attempts = if target.is_some() {
+                self.public_attempts(record, &claim.id).await?
+            } else {
+                vec![]
+            };
+            let knowledge = self.collected_knowledge(record.as_str(), version).await?;
+            let current = self.conjecture_source(record).await?;
+            if current.current_version().map(|v| v.number) != Some(version)
+                || current
+                    .claim(&claim.id)
+                    .is_none_or(|c| c.statement != claim.statement)
+            {
+                return Err(CoreError::conflict(
+                    "the public result version changed; reload it",
+                ));
+            }
+            return Ok(PublicStatement {
+                publication: Some(PublicPublication {
+                    version,
+                    claims_revision: 0,
+                }),
+                record: record.clone(),
+                title: source.title.clone(),
+                claim: PublicClaim {
+                    id: claim.id.clone(),
+                    kind: claim.kind,
+                    role: claim.role,
+                    label: claim.label.clone(),
+                    latex_label: None,
+                    statement: claim.statement.clone(),
+                    section: claim.section.clone(),
+                    depends_on: vec![],
+                    lean: None,
+                    verified: verified_attempts
+                        .iter()
+                        .find(|a| a.receipt.verdict == Verdict::Proved)
+                        .cloned(),
+                },
+                target,
+                verified_attempts,
+                macros: knowledge.results.macros,
+            });
+        }
         let paper = self.paper(record).await?;
         let statement = paper
             .claims
@@ -775,6 +830,7 @@ impl App {
             vec![]
         };
         Ok(PublicStatement {
+            publication: paper.publication,
             record: record.clone(),
             title: paper.summary.title,
             claim: statement,

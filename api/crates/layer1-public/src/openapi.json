@@ -726,7 +726,7 @@
     "/api/v1/papers/{record}/statements/{claim}": {
       "get": {
         "operationId": "read_lean_target",
-        "summary": "Read the exact confirmed target, pinned toolchain and verified attempts.",
+        "summary": "Read an exact public result, its source-version identity, Lean target and independently checked attempts, including collected papers.",
         "security": [],
         "responses": {
           "200": {
@@ -3144,7 +3144,7 @@
           {
             "name": "focus",
             "in": "query",
-            "description": "Node identity returned by the API. paper:WP-\u2026 returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
+            "description": "Node identity returned by the API. paper:WP-… returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
             "required": false,
             "schema": {
               "type": "string"
@@ -3172,7 +3172,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Matching public accepted source records per page, clamped to 1\u201320 (default 10). Matching and live visibility precede pagination.",
+            "description": "Matching public accepted source records per page, clamped to 1–20 (default 10). Matching and live visibility precede pagination.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -3825,7 +3825,7 @@
         ],
         "responses": {
           "200": {
-            "description": "LeaderboardRow[]; others counts other researchers\u2019 results and total includes own results"
+            "description": "LeaderboardRow[]; others counts other researchers’ results and total includes own results"
           },
           "422": {
             "description": "Invalid filter"
@@ -3836,7 +3836,7 @@
     "/api/v1/collected-papers/{work}/knowledge": {
       "get": {
         "operationId": "collected_mathematical_knowledge",
-        "summary": "Read full mathematical statements and literal local source references of an exact public collected version. No verification or credit claim.",
+        "summary": "Read exact source statements, literal manuscript references and separately verified formalization results.",
         "security": [],
         "parameters": [
           {
@@ -3953,6 +3953,12 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "formalizations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CollectedProof"
+                      }
                     }
                   }
                 }
@@ -4047,6 +4053,102 @@
           },
           "422": {
             "description": "Unpublished DOI, ambiguous files or different archived bytes"
+          }
+        }
+      }
+    },
+    "/api/v1/collected-papers/{work}/proofs": {
+      "get": {
+        "operationId": "collected_proofs",
+        "summary": "Read exact-version formalization targets and independently checked proofs, with original credits. Private CMA runs are omitted.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current version proof projections; historical versions do not inherit newer targets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectedProof"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Paper not found"
+          }
+        }
+      }
+    },
+    "/api/v1/collected-papers/{work}/results/{claim}/formalization": {
+      "post": {
+        "operationId": "request_collected_formalization",
+        "summary": "Request venue-funded Lean proof work for an internal collection. Reuses source inspection across this paper’s results; never re-runs manuscript review.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "claim",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Idempotently queued against the exact current source."
+          },
+          "403": {
+            "description": "Owning internal operator or internal administrator required."
+          },
+          "409": {
+            "description": "This version has been superseded."
+          },
+          "422": {
+            "description": "An indexed non-open result is required."
           }
         }
       }
@@ -9130,6 +9232,56 @@
           "evidence"
         ],
         "additionalProperties": false
+      },
+      "CollectedProof": {
+        "type": "object",
+        "required": [
+          "claim",
+          "version",
+          "state",
+          "next_step",
+          "proofs"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "enum": [
+              "preparing",
+              "open",
+              "verified",
+              "needs_attention",
+              "disproved"
+            ]
+          },
+          "target_digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reading": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_step": {
+            "type": "string"
+          },
+          "proofs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Public independently verified attempts, exact source context and original attribution."
+            }
+          }
+        }
       }
     }
   }
