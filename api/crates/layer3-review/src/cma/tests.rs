@@ -1234,6 +1234,75 @@ async fn proof_observation_resumes_an_expired_window_without_recreating_or_cance
     assert_eq!(saved.response_id.as_deref(), Some("resp_retained"));
     assert!(saved.failure.is_none() && saved.deleted);
 }
+
+#[tokio::test]
+async fn deployed_stop_prerequisite_is_retained_until_actual_agent_deletion() {
+    let store = Memory::default();
+    let prompt = "completed proof work";
+    store
+        .save(
+            serde_json::to_value(RunState {
+                agent_id: Some("agt_stop_first".into()),
+                create_intent: Some(("api/v1/agents".into(), json!({}))),
+                input: format!("{:x}", Sha256::digest(prompt.as_bytes())),
+                answer: Some("{}".into()),
+                ..Default::default()
+            })
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let (client, fake) = client(vec![
+        Err(ReviewError::Provider {
+            status: 409,
+            body: "agent_not_stopped".into(),
+        }),
+        accepted(),
+        accepted(),
+    ]);
+    fake.agent_observations.lock().await.extend([
+        reply(json!({"status":"ready"})),
+        reply(json!({"status":"stopped"})),
+        Err(ReviewError::Provider {
+            status: 404,
+            body: "not_found".into(),
+        }),
+    ]);
+    assert_eq!(
+        client
+            .answer(&store, prompt.into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        "{}"
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(state.stop_before_delete && !state.deleted);
+    assert_eq!(
+        client
+            .answer(&store, prompt.into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        "{}"
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(state.deleted);
+    let calls = fake.calls.lock().await;
+    let stops: Vec<_> = calls
+        .iter()
+        .filter(|c| c.0 == "POST" && c.1.ends_with("/stop"))
+        .collect();
+    assert_eq!(stops.len(), 1);
+    let deletes: Vec<_> = calls.iter().filter(|c| c.0 == "DELETE").collect();
+    assert_eq!(deletes.len(), 2);
+    assert_eq!(deletes[0].1, deletes[1].1);
+    assert_ne!(deletes[0].3, deletes[1].3);
+    assert!(deletes[1].3.as_deref().unwrap().ends_with(":after-stop"));
+    assert!(
+        calls
+            .iter()
+            .all(|c| !c.1.ends_with("/responses") && !c.1.ends_with("/agents"))
+    );
+}
 #[cfg(unix)]
 #[tokio::test]
 async fn cli_stream_receipt_is_saved_without_waiting_for_completion_and_body_file_is_removed() {

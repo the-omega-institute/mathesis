@@ -162,6 +162,8 @@ pub struct RunState {
     pub typed_failure: Option<FailureKind>,
     /// Legacy wire name: stop was acknowledged; actual stopping is asynchronous.
     pub stopped: bool,
+    /// Some deployed lifecycle versions require explicit stop before deletion.
+    pub stop_before_delete: bool,
     pub deleted: bool,
     /// Original revision-bound control intent survives an uncertain POST.
     pub cancel_intent: Option<(String, Value)>,
@@ -765,9 +767,9 @@ impl Client {
             if *flag {
                 continue;
             }
-            // The current lifecycle owns stopping and retirement. Its DELETE
-            // replaces the removed /stop route; observe deletion before release.
-            if modern && method == "POST" {
+            // Prefer lifecycle retirement; deployed providers may instead require
+            // explicit stop. In either case observe deletion before release.
+            if modern && method == "POST" && !state.stop_before_delete {
                 continue;
             }
             if method == "DELETE" {
@@ -780,7 +782,9 @@ impl Client {
                 {
                     Ok(v)
                         if matches!(v["status"].as_str(), Some("stopped" | "failed"))
-                            || (modern && v["status"] != "deleted") => {}
+                            || (modern
+                                && !state.stop_before_delete
+                                && v["status"] != "deleted") => {}
                     Ok(v) if v["status"] == "deleted" => {
                         *flag = true;
                         continue;
@@ -801,7 +805,15 @@ impl Client {
                     method,
                     format!("api/v1/agents/{agent}{suffix}"),
                     (method == "POST").then(|| json!({})),
-                    Some(format!("{}:{method}{suffix}", store.key())),
+                    Some(format!(
+                        "{}:{method}{suffix}{}",
+                        store.key(),
+                        if method == "DELETE" && state.stop_before_delete {
+                            ":after-stop"
+                        } else {
+                            ""
+                        }
+                    )),
                 )
                 .await
             {
@@ -819,6 +831,14 @@ impl Client {
                     }
                 }
                 Ok(_) | Err(ReviewError::Provider { status: 404, .. }) => *flag = true,
+                Err(ReviewError::Provider { status: 409, body })
+                    if modern && method == "DELETE" && body == "agent_not_stopped" =>
+                {
+                    // The provider explicitly rejected deletion before mutation.
+                    // Its rejection may be cached by key. After a fresh terminal
+                    // observation, use one distinct key for the satisfied prerequisite.
+                    state.stop_before_delete = true;
+                }
                 Err(e) => tracing::warn!(%e, "CMA agent cleanup failed"),
             }
         }

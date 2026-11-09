@@ -35,8 +35,11 @@ subscription supplies the model. Model access, resource ownership and usage/quot
 attribution are separate facts. Confirm the company's actual resources and
 quota configuration before claiming the complete review service is available.
 
-Current CMA cleanup retires an Agent through its lifecycle DELETE and waits for
-observed deletion; it does not call the removed `/stop` route. Legacy CMA cleanup
+Current CMA cleanup first requests lifecycle DELETE and waits for observed
+deletion. If the deployment explicitly requires a stopped Agent, it persists that
+prerequisite, calls the documented `/stop`, and waits for a terminal read before
+deleting with a distinct post-stop key; the earlier rejection can be cached.
+Legacy CMA cleanup
 retains each Agent until deletion is observed. A fresh `stopped`
 or `failed` Agent state permits the existing deletion request; a stop acknowledgement
 alone does not. Failed startup Agents can refuse stop with `agent_not_ready` but
