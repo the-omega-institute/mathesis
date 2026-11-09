@@ -246,3 +246,59 @@ it('opens community proof contribution for a collected result and preserves its 
   expect(api.getCollectedPaper).toHaveBeenCalledWith('gap-note', '2', expect.any(Object));
   expect(api.getPaper).not.toHaveBeenCalled();
 });
+
+it('keeps pending result context and authors while saving Lean work without verification or public credit', async () => {
+  const { dependencyPaper } = await import('../test/dependencyFixtures');
+  const input = {
+    record: 'gap-note',
+    title: dependencyPaper.title,
+    publication: { version: 2, claims_revision: 0 },
+    claim: {
+      id: 's1',
+      label: 'Lemma 1',
+      kind: 'lemma' as const,
+      role: 'main' as const,
+      statement: 'A precise bound.',
+      depends_on: [],
+    },
+    target: null,
+    verified_attempts: [],
+    macros: {},
+  };
+  const api = fakeApi(
+    {
+      getStatement: vi.fn(async () => input),
+      getCollectedPaper: vi.fn(async () => dependencyPaper),
+      submitFormalization: vi.fn(async (body: NewLeanDeposit) => ({
+        ...body,
+        modules: {},
+        id: 'private-work',
+        owner: author.id,
+        source: { id: 'source', bytes: 12, sha256: 'source' },
+        submitted_at: '2026-11-10T00:00:00Z',
+        attempts: [],
+        revision: 0,
+      })),
+    },
+    author,
+  );
+  renderWithApp(<SubmitPage initialIntake="lean" targetRecord="gap-note" targetClaim="s1" />, api);
+  expect(await screen.findByLabelText('Original authors 1')).toHaveValue('Original Author');
+  expect(screen.getByLabelText('Mathematical statement')).toHaveValue('A precise bound.');
+  expect(screen.getByLabelText('Original research or source URL').getAttribute('value')).toMatch(
+    /\/papers\/gap-note\/results\/s1\?version=2$/,
+  );
+  expect(
+    screen.getByText(/verification and public credit require a matching Lean statement/),
+  ).toBeVisible();
+  const source = new File(['import Mathlib'], 'Proof.lean');
+  Object.defineProperty(source, 'text', { value: async () => 'import Mathlib' });
+  await userEvent.upload(
+    screen.getByLabelText('Solution.lean / standalone source (up to 1 MB)'),
+    source,
+  );
+  fireEvent.submit(screen.getByRole('form', { name: 'Submit Lean formalization' }));
+  await waitFor(() => expect(api.submitFormalization).toHaveBeenCalled());
+  expect(api.verifyFormalization).not.toHaveBeenCalled();
+  expect(await screen.findByRole('status')).toHaveTextContent('Verification has not run yet');
+});

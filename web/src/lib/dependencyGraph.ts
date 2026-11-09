@@ -1,5 +1,11 @@
 import type { ApiClient } from '../api/client';
-import type { Entrant, ResultUse } from '../api/types';
+import type {
+  Entrant,
+  ResultUse,
+  VerifiedAttempt,
+  FormalizationAttribution,
+  ResearchGraph,
+} from '../api/types';
 import { researchAreas, theoryAreas } from './theoryLibrary';
 
 export type DependencyNode = {
@@ -18,6 +24,9 @@ export type DependencyNode = {
   areas: readonly string[];
   macros?: Record<string, string>;
   verified?: boolean;
+  disproved?: boolean;
+  proof?: VerifiedAttempt;
+  attribution?: FormalizationAttribution | null;
   target?: boolean;
   url?: string;
   leanSource?: string;
@@ -39,8 +48,20 @@ export async function loadDependencyGraph(
   api: ApiClient,
   before: string | undefined,
   signal: AbortSignal,
+  focus?: string,
 ): Promise<DependencySnapshot> {
-  const source = await api.researchGraph({ limit: 20, before }, { signal });
+  const source = await api.researchGraph(
+    { limit: 20, before, ...(focus ? { focus } : {}) },
+    { signal },
+  );
+  return composeDependencyGraph(api, source, signal);
+}
+
+async function composeDependencyGraph(
+  api: ApiClient,
+  source: Pick<ResearchGraph, 'nodes' | 'edges' | 'next_before'>,
+  signal: AbortSignal,
+): Promise<DependencySnapshot> {
   const identities = new Map(
     source.nodes.map((node) => [
       node.id,
@@ -75,10 +96,25 @@ export async function loadDependencyGraph(
           api.getCollectedPaper(work, version, { signal }),
           api.collectedKnowledge(work, version, { signal }),
         ]);
+        if (
+          paper.id !== work ||
+          paper.revision !== version ||
+          knowledge.work !== work ||
+          String(knowledge.version) !== version
+        )
+          return;
         node.areas = researchAreas(work, paper.msc);
         node.leanSource = paper.lean?.url;
         for (const claim of knowledge.statements) {
           const id = statementId(work, version, claim.id);
+          const formalization = knowledge.formalizations?.find(
+            (p) => p.claim === claim.id && String(p.version) === version,
+          );
+          const proof = formalization?.proofs.find(
+            (p) =>
+              p.receipt.target_digest === formalization.target_digest &&
+              p.receipt.verdict === (formalization.state === 'verified' ? 'proved' : 'disproved'),
+          );
           nodes.push({
             id,
             kind: 'result',
@@ -94,14 +130,14 @@ export async function loadDependencyGraph(
             section: claim.section ?? undefined,
             areas: node.areas,
             macros: knowledge.macros,
-            verified: knowledge.formalizations?.some(
-              (p) =>
-                p.claim === claim.id && String(p.version) === version && p.state === 'verified',
-            ),
-            target: knowledge.formalizations?.some(
-              (p) =>
-                p.claim === claim.id && String(p.version) === version && Boolean(p.target_digest),
-            ),
+            verified:
+              formalization?.state === 'verified' && Boolean(proof?.receipt.verdict === 'proved'),
+            disproved:
+              formalization?.state === 'disproved' && proof?.receipt.verdict === 'disproved',
+            target: Boolean(formalization?.target_digest),
+            proof,
+            contributor: proof?.entrant,
+            attribution: proof?.attribution,
           });
           edges.push({ from: node.id, to: id, relation: 'contains' });
         }
@@ -136,7 +172,11 @@ export async function loadDependencyGraph(
             section: claim.section,
             areas: node.areas,
             macros: paper.macros,
-            verified: Boolean(claim.verified),
+            verified: claim.verified?.receipt.verdict === 'proved',
+            disproved: claim.verified?.receipt.verdict === 'disproved',
+            proof: claim.verified ?? undefined,
+            contributor: claim.verified?.entrant,
+            attribution: claim.verified?.attribution,
             target: Boolean(paper.lean_statements?.some((target) => target.claim === claim.id)),
           });
           edges.push({ from: node.id, to: id, relation: 'contains' });
@@ -153,6 +193,39 @@ export async function loadDependencyGraph(
   return cleanSnapshot({ nodes, edges, next: source.next_before });
 }
 
+/** Exact result links retain the original public source version, even after an update. */
+export async function loadFocusedDependencyGraph(
+  api: ApiClient,
+  focus: string,
+  signal: AbortSignal,
+): Promise<DependencySnapshot> {
+  const exact = /^statement:([^:]+):([1-9]\d*):([^:]+)$/.exec(focus);
+  if (!exact) return { nodes: [], edges: [], next: null };
+  const work = exact[1]!;
+  const version = exact[2]!;
+  if (work.startsWith('WP-')) return loadDependencyGraph(api, undefined, signal, `paper:${work}`);
+  const paper = await api.getCollectedPaper(work, version, { signal });
+  return composeDependencyGraph(
+    api,
+    {
+      nodes: [
+        {
+          id: `paper:${work}`,
+          kind: 'manuscript',
+          title: paper.title,
+          authors: paper.authors.map((a) => a.name),
+          record: work,
+          version: Number(version),
+          url: null,
+        },
+      ],
+      edges: [],
+      next_before: null,
+    },
+    signal,
+  );
+}
+
 export function cleanSnapshot(graph: DependencySnapshot): DependencySnapshot {
   const nodes = [...new Map(graph.nodes.map((node) => [node.id, node])).values()];
   const ids = new Set(nodes.map((node) => node.id));
@@ -166,7 +239,9 @@ export function cleanSnapshot(graph: DependencySnapshot): DependencySnapshot {
 
 /** The knowledge view contains checked results; manuscript references stay in the wider view. */
 export function verifiedKnowledge(graph: DependencySnapshot): DependencySnapshot {
-  const results = graph.nodes.filter((node) => node.kind === 'result' && node.verified);
+  const results = graph.nodes.filter(
+    (node) => node.kind === 'result' && (node.verified || node.disproved),
+  );
   const ids = new Set(results.flatMap((node) => [node.id, ...(node.paper ? [node.paper] : [])]));
   return cleanSnapshot({
     ...graph,
@@ -198,6 +273,7 @@ export function addCheckedUses(graph: DependencySnapshot, uses: ResultUse[]): De
       areas: researchAreas(use.used_result.record),
       verified: true,
       contributor: use.contributor,
+      attribution: use.attribution,
     });
     edges.push({ from: id, to: target, relation: 'checked_use' });
   }

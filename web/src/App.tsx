@@ -1,6 +1,5 @@
 import { t, useLocale } from './i18n/locale';
 import { ResearchProblemPage } from './pages/ResearchProblems';
-import { ResearchGraphPage } from './pages/ResearchGraph';
 import { FeedbackPage } from './pages/Feedback';
 import { BindingsPage, BindingPage, BindingProfilePage } from './pages/Bindings';
 import { FormalizationsPage } from './pages/Formalizations';
@@ -38,7 +37,7 @@ function titleFor(route: Route): string {
     case 'subject':
       return findSubject(route.msc)?.title ?? 'Not found';
     case 'research_graph':
-      return 'Knowledge graph';
+      return 'Formalizations';
     case 'feedback':
       return 'Knowledge proposal';
     case 'binding_profile':
@@ -107,7 +106,7 @@ function Page({ route }: { route: Route }) {
       return <SubjectPage key={route.msc} msc={route.msc} />;
     case 'research_graph':
       return (
-        <ResearchGraphPage
+        <FormalizationsPage
           key={routePath(route)}
           focus={route.focus}
           q={route.q}
@@ -129,7 +128,7 @@ function Page({ route }: { route: Route }) {
     case 'home':
       return <HomePage />;
     case 'leaderboard':
-      return <LeaderboardPage />;
+      return <LeaderboardPage key={route.category} initialCategory={route.category} />;
     case 'entrant':
       return <EntrantPage id={route.id} />;
     case 'conjecture':
@@ -147,13 +146,28 @@ function Page({ route }: { route: Route }) {
         />
       );
     case 'result':
-      return <ResultPage key={routePath(route)} record={route.record} claim={route.claim} />;
+      return (
+        <ResultPage
+          key={routePath(route)}
+          record={route.record}
+          claim={route.claim}
+          version={route.version}
+        />
+      );
     case 'paper':
       return <PaperPage key={routePath(route)} record={route.record} version={route.version} />;
     case 'policy':
       return <PolicyPage />;
     case 'formalizations':
-      return <FormalizationsPage />;
+      return (
+        <FormalizationsPage
+          key={routePath(route)}
+          focus={route.focus}
+          q={route.q}
+          before={route.before}
+          view={route.view}
+        />
+      );
     case 'submit':
       return (
         <SubmitPage
@@ -161,6 +175,7 @@ function Page({ route }: { route: Route }) {
           initialIntake={route.intake}
           targetRecord={route.record}
           targetClaim={route.claim}
+          targetVersion={route.version}
         />
       );
     case 'submissions':

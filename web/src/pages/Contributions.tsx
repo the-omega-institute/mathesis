@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { Async } from '../components/ui';
-import { LatexText, MacrosProvider } from '../components/Markdown';
+import { InlineLatex, LatexText, MacrosProvider } from '../components/Markdown';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
 import { AttemptForm } from './Conjecture';
 import { EntrantName } from './Leaderboard';
@@ -53,21 +53,36 @@ export function StatementPage({ record, claim }: { record: string; claim: string
           <MacrosProvider macros={s.macros}>
             <article>
               <p className="eyebrow">
-                <Link to={{ kind: 'paper', record }}>{record}</Link> · {claim}
+                <Link
+                  to={{
+                    kind: 'paper',
+                    record,
+                    version: s.publication ? String(s.publication.version) : undefined,
+                  }}
+                >
+                  <InlineLatex source={s.title} />
+                </Link>
               </p>
-              <h1>{s.claim.label}</h1>
+              <h1>
+                <InlineLatex source={s.claim.label} />
+              </h1>
               <LatexText source={s.claim.statement} />
-              {reviewed ? (
-                <ReportError record={record} subject={{ kind: 'statement', claim }} />
-              ) : null}
               {s.claim.verified ? (
                 <p className="notice">
-                  <strong>{t('Lean ✓')}</strong> ·{' '}
-                  <EntrantName entrant={s.claim.verified.entrant} />{' '}
+                  <strong>
+                    {t(
+                      s.claim.verified.receipt.verdict === 'disproved'
+                        ? 'Disproved in Lean'
+                        : 'Lean ✓',
+                    )}
+                  </strong>{' '}
+                  · <EntrantName entrant={s.claim.verified.entrant} />{' '}
                   {t(
-                    reviewed
-                      ? 'proved the author-confirmed Lean target.'
-                      : 'proved this exact Lean statement.',
+                    s.claim.verified.receipt.verdict === 'disproved'
+                      ? 'provided a checked counterexample to this Lean statement.'
+                      : reviewed
+                        ? 'proved the author-confirmed Lean target.'
+                        : 'proved this exact Lean statement.',
                   )}
                 </p>
               ) : null}
@@ -82,7 +97,7 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                           : 'This Lean statement was checked against the published result.',
                       )}
                     </p>
-                    <details open>
+                    <details>
                       <summary>{t('View Target.lean')}</summary>
                       <pre>
                         <code>{s.target.lean}</code>
@@ -105,8 +120,19 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                 ) : (
                   <p className="muted">
                     {t(
-                      'A target becomes available after author approval, our faithfulness check, and author confirmation.',
-                    )}
+                      'A matching Lean statement is being prepared. You can read the mathematical result and contribute existing Lean work in the meantime.',
+                    )}{' '}
+                    <Link
+                      to={{
+                        kind: 'result',
+                        record,
+                        claim,
+                        version:
+                          !reviewed && s.publication ? String(s.publication.version) : undefined,
+                      }}
+                    >
+                      {t('Read result')}
+                    </Link>
                   </p>
                 )}
               </section>
@@ -116,14 +142,30 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                   <Link className="button" to={{ kind: 'submit', intake: 'lean', record, claim }}>
                     {t('Submit attributed Lean work')}
                   </Link>
-                  <p>
-                    {t(
-                      'Import Target and prove wishpool_solution : wishpool_target_prop, or wishpool_disproof : ¬ wishpool_target_prop.',
-                    )}
-                  </p>
-                  <AttemptForm record={record} claim={claim} statement />
+                  <details className="history">
+                    <summary>{t('Submit a proof adapter directly')}</summary>
+                    <p>
+                      {t(
+                        'Import Target and prove wishpool_solution : wishpool_target_prop, or wishpool_disproof : ¬ wishpool_target_prop.',
+                      )}
+                    </p>
+                    <AttemptForm record={record} claim={claim} statement />
+                  </details>
                 </section>
-              ) : null}
+              ) : (
+                <Link
+                  className="button"
+                  to={{
+                    kind: 'submit',
+                    intake: 'lean',
+                    record,
+                    claim,
+                    version: !reviewed && s.publication ? String(s.publication.version) : undefined,
+                  }}
+                >
+                  {t('Contribute Lean work')}
+                </Link>
+              )}
               {s.verified_attempts.length ? (
                 <section>
                   <h2>{t('Verified attempts')}</h2>
@@ -164,7 +206,13 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                 </section>
               ) : null}
               {s.target ? <ProofWork record={record} claim={claim} /> : null}
-              {reviewed ? <ErrorReports record={record} /> : null}
+              {reviewed ? (
+                <details className="history">
+                  <summary>{t('Corrections')}</summary>
+                  <ReportError record={record} subject={{ kind: 'statement', claim }} />
+                  <ErrorReports record={record} />
+                </details>
+              ) : null}
             </article>
           </MacrosProvider>
         )}

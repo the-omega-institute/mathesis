@@ -115,14 +115,18 @@
   background: var(--bg);
 }
 .dependency-node.is-selected .dependency-dot {
-  background: var(--accent);
   width: 9px;
   height: 9px;
   left: -1px;
-}
-.dependency-node.is-verified .dependency-dot {
   outline: 1px solid var(--accent);
   outline-offset: 3px;
+}
+.dependency-node.is-verified .dependency-dot {
+  background: var(--accent);
+}
+.dependency-node.is-disproved .dependency-dot {
+  border-color: var(--bad);
+  background: var(--bad);
 }
 .dependency-node.is-paper .dependency-dot {
   border-radius: 0;
@@ -389,9 +393,71 @@
 .dependency-canvas.is-atlas .dependency-dot {
   left: 0;
   top: 0;
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   background: var(--bg);
+}
+.dependency-canvas.is-atlas .dependency-node.is-verified .dependency-dot {
+  background: var(--accent);
+}
+.dependency-canvas.is-atlas .dependency-node.is-disproved .dependency-dot {
+  background: var(--bad);
+}
+.dependency-scope {
+  justify-content: flex-start;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dependency-scope [aria-pressed='true'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+.scope-count {
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+.formalization-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 1.5rem;
+}
+.formalization-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.formalization-mark {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  background: var(--bg);
+}
+.formalization-mark.is-verified {
+  background: var(--accent);
+}
+.formalization-mark.is-disproved {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+.dependency-connections h3 {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.dependency-connections .dependency-reading-links {
+  margin-top: 0.5rem;
+}
+.formalization-invitation {
+  color: var(--ink-soft);
+  max-width: 65ch;
 }
 .dependency-canvas.is-atlas .dependency-node-label,
 .dependency-canvas.is-atlas .dependency-node-authors {

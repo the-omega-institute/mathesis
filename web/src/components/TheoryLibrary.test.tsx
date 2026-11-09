@@ -27,7 +27,7 @@ describe('theory library reading', () => {
     renderWithApp(<TheoryLibrary />, api);
     expect(screen.getByRole('link', { name: 'Algebra' })).toHaveAttribute(
       'href',
-      '/research-graph?focus=library%3Aalgebra',
+      '/formalizations?focus=library%3Aalgebra',
     );
     expect(screen.getByRole('link', { name: 'Topology' })).toBeVisible();
     expect(screen.queryByRole('combobox')).toBeNull();
@@ -49,7 +49,7 @@ describe('theory library reading', () => {
     ).toHaveAttribute('href', '/papers/kmvq31-sl3-obstruction?version=2');
     expect(
       screen.getByRole('link', { name: 'Read the results and their connections' }),
-    ).toHaveAttribute('href', '/research-graph?focus=statement%3Akmvq31-sl3-obstruction%3A2%3As1');
+    ).toHaveAttribute('href', '/formalizations?focus=statement%3Akmvq31-sl3-obstruction%3A2%3As1');
     expect(screen.getByText('Original Author')).toBeVisible();
     expect(screen.queryByText('Lean verified')).toBeNull();
     expect(screen.getByText(/Papers are placed by subject/)).toBeVisible();

@@ -31,7 +31,7 @@ export function Header() {
 
   return (
     <header className="site-header">
-      <div className="site-header-inner">
+      <div className={`site-header-inner${staff ? ' has-staff-navigation' : ''}`}>
         <Link to={{ kind: 'home' }} className="wordmark">
           <BrandMark />
           Mathesis
@@ -50,12 +50,7 @@ export function Header() {
           <NavLink
             to={{ kind: 'formalizations' }}
             label={t('Formalizations')}
-            active={k === 'formalizations' || k === 'statement'}
-          />
-          <NavLink
-            to={{ kind: 'research_graph' }}
-            label={t('Knowledge graph')}
-            active={k === 'research_graph'}
+            active={k === 'formalizations' || k === 'research_graph' || k === 'statement'}
           />
           <NavLink to={{ kind: 'submit' }} label={t('Submit')} active={k === 'submit'} />
           {person ? (

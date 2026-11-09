@@ -1,3 +1,4 @@
+import '../styles/formalizations.css';
 import { t } from '../i18n/locale';
 import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState, type FormEvent } from 'react';
@@ -10,13 +11,73 @@ import { Pager } from '../components/Pager';
 import { Link } from '../routing/router';
 import { AuthorLine } from '../components/AuthorLine';
 import { EntrantName } from './Leaderboard';
+import { ResearchGraphPage } from './ResearchGraph';
+import { useRouter } from '../routing/router';
+import { useEffect } from 'react';
 
-export function FormalizationsPage() {
+export function FormalizationsPage({
+  focus,
+  q,
+  before,
+  view,
+}: {
+  focus?: string;
+  q?: string;
+  before?: string;
+  view?: 'list';
+}) {
+  const { route, navigate } = useRouter();
+  useEffect(() => {
+    if (route.kind === 'research_graph')
+      navigate({ kind: 'formalizations', focus, q, before }, { replace: true });
+  }, [route.kind, navigate, focus, q, before]);
+  return (
+    <div className="page formalizations-page">
+      <header className="page-head formalizations-head">
+        <div>
+          <h1>{t('Formalizations')}</h1>
+          <p className="lede">
+            {t('Build on existing mathematics. Make the next proof a shared foundation.')}
+          </p>
+          <p>
+            {t(
+              'Explore how results connect, find a missing formal proof, and contribute Lean work with credit for the mathematics and its formalization.',
+            )}
+          </p>
+        </div>
+        <nav className="formalization-actions" aria-label={t('Formalization contributions')}>
+          <Link className="button" to={{ kind: 'submit', intake: 'lean' }}>
+            {t('Contribute Lean work')}
+          </Link>
+          <Link to={{ kind: 'leaderboard', category: 'formalization' }}>{t('Leaderboard')}</Link>
+        </nav>
+      </header>
+      <nav className="section-tabs" aria-label={t('Formalization views')}>
+        <Link to={{ kind: 'formalizations' }} aria-current={view !== 'list' ? 'page' : undefined}>
+          {t('Dependency graph')}
+        </Link>
+        <Link
+          to={{ kind: 'formalizations', view: 'list' }}
+          aria-current={view === 'list' ? 'page' : undefined}
+        >
+          {t('Work to formalize')}
+        </Link>
+      </nav>
+      {view === 'list' ? (
+        <FormalizationOpportunities initialQuery={q} />
+      ) : (
+        <ResearchGraphPage embedded focus={focus} q={q} before={before} />
+      )}
+    </div>
+  );
+}
+
+export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery?: string }) {
   const api = useApi();
   const [status, setStatus] = useState('unverified');
   const [kind, setKind] = useState('');
-  const [draft, setDraft] = useState('');
-  const [query, setQuery] = useState('');
+  const [draft, setDraft] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
   const load = useCallback(
     (before: string | null, signal: AbortSignal) =>
       api.formalizationOpportunities(
@@ -31,30 +92,11 @@ export function FormalizationsPage() {
     setQuery(draft.trim());
   };
   return (
-    <div className="page">
-      <header className="page-head">
-        <div>
-          <p className="eyebrow">{t('Participate in mathematical research')}</p>
-          <h1>{t('Formalizations')}</h1>
-          <p className="lede">{t('Turn an argument into a checked proof.')}</p>
-          <p>
-            {t(
-              'Formalize a published result, prove or disprove a conjecture, or contribute existing Lean work with its original attribution.',
-            )}
-          </p>
-        </div>
-        <Link className="button" to={{ kind: 'submit', intake: 'lean' }}>
-          {t('Submit Lean work ')}
-          <span aria-hidden="true">↗</span>
-        </Link>
-      </header>
+    <section className="formalization-work" aria-label={t('Formalization work')}>
       <p>
         {t(
-          'Choose a result below and read its proof. Results awaiting a Lean statement remain visible; once the statement is ready, you can submit a proof directly.',
+          'Read the result and its proof. When its Lean statement is ready, you can submit a proof directly; existing Lean projects and source links are also welcome.',
         )}
-      </p>
-      <p>
-        <Link to={{ kind: 'research_graph' }}>{t('Explore the knowledge graph')}</Link>
       </p>
       <div className="filter-row" role="group" aria-label={t('Formalization status')}>
         {[
@@ -121,6 +163,9 @@ export function FormalizationsPage() {
                           kind: item.status === 'preparing' ? 'result' : 'statement',
                           record: item.record,
                           claim: item.claim,
+                          ...(item.status === 'preparing'
+                            ? { version: item.version?.toString() }
+                            : {}),
                         }}
                       >
                         <InlineLatex source={item.label} />
@@ -136,7 +181,7 @@ export function FormalizationsPage() {
                           <InlineLatex source={item.title} />
                         </Link>
                       </p>
-                      <AuthorLine authors={item.authors} />
+                      <AuthorLine authors={item.authors} compact />
                       <LatexText source={item.statement} className="result-excerpt" />
                       {item.contributor ? (
                         <p className="small">
@@ -173,7 +218,12 @@ export function FormalizationsPage() {
                         ) : (
                           <Link
                             className="text-link"
-                            to={{ kind: 'result', record: item.record, claim: item.claim }}
+                            to={{
+                              kind: 'result',
+                              record: item.record,
+                              claim: item.claim,
+                              version: item.version?.toString(),
+                            }}
                           >
                             {t('Read result')} →
                           </Link>
@@ -210,6 +260,6 @@ export function FormalizationsPage() {
         }
       </Async>
       <Pager paged={paged} />
-    </div>
+    </section>
   );
 }

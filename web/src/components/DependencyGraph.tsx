@@ -6,6 +6,7 @@ import { Link } from '../routing/router';
 import { InlineLatex, LatexText, MacrosProvider } from './Markdown';
 import { Async } from './ui';
 import { EntrantName } from '../pages/Leaderboard';
+import { ProofAttribution } from './ProofAttribution';
 import { safeHttpUrl } from '../lib/links';
 import {
   addCheckedUses,
@@ -13,6 +14,7 @@ import {
   dependencyLayout,
   dependencyAtlasLayout,
   loadDependencyGraph,
+  loadFocusedDependencyGraph,
   resultDegree,
   verifiedKnowledge,
   type DependencyNode,
@@ -32,14 +34,18 @@ const relationLabel: Record<DependencyRelation, string> = {
 
 export function DependencyGraph({
   area,
-  initialScope = 'verified',
+  initialScope = 'all',
+  focus,
 }: {
   area?: string;
-  initialScope?: 'verified' | 'all';
+  initialScope?: 'verified' | 'all' | 'pending';
+  focus?: string;
 }) {
   const api = useApi();
   const [pages, setPages] = useState(2);
   const [scope, setScope] = useState(initialScope);
+  const exact = /^statement:([^:]+):([1-9]\d*):([^:]+)$/.exec(focus ?? '');
+  const focusWork = exact?.[1];
   const load = useCallback(
     async (signal: AbortSignal) => {
       let graph: DependencySnapshot = { nodes: [], edges: [], next: null };
@@ -55,49 +61,95 @@ export function DependencyGraph({
         if (!next.next) break;
         before = next.next;
       }
+      if (focusWork && !graph.nodes.some((n) => n.id === focus)) {
+        const focused = await loadFocusedDependencyGraph(api, focus!, signal);
+        graph = cleanSnapshot({
+          nodes: [...graph.nodes, ...focused.nodes],
+          edges: [...graph.edges, ...focused.edges],
+          next: graph.next,
+        });
+      }
       return graph;
     },
-    [api, pages],
+    [api, pages, focus, focusWork],
   );
   const data = useAsync(load);
   return (
     <Async state={data.state} onRetry={data.reload}>
       {(graph) => (
         <>
+          <div className="formalization-key" aria-label={t('Node meanings')}>
+            <span>
+              <i className="formalization-mark is-verified" aria-hidden="true" />
+              {t('Formalized in Lean')}
+            </span>
+            <span>
+              <i className="formalization-mark" aria-hidden="true" />
+              {t('Awaiting a formal proof')}
+            </span>
+            {graph.nodes.some((n) => n.disproved) ? (
+              <span>
+                <i className="formalization-mark is-disproved" aria-hidden="true" />
+                {t('Disproved in Lean')}
+              </span>
+            ) : null}
+          </div>
           <div
             role="group"
             aria-label={t('Knowledge and formalization')}
-            className="dependency-toolbar"
+            className="dependency-toolbar dependency-scope"
           >
-            <button
-              type="button"
-              className="text-button"
-              aria-pressed={scope === 'verified'}
-              onClick={() => setScope('verified')}
-            >
-              {t('Verified knowledge')}
-            </button>
-            <button
-              type="button"
-              className="text-button"
-              aria-pressed={scope === 'all'}
-              onClick={() => setScope('all')}
-            >
-              {t('All results and open targets')}
-            </button>
+            {(['all', 'pending', 'verified'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                className="text-button"
+                aria-pressed={scope === value}
+                onClick={() => setScope(value)}
+              >
+                {t(
+                  value === 'all'
+                    ? 'All results'
+                    : value === 'pending'
+                      ? 'Awaiting formalization'
+                      : 'Formalized in Lean',
+                )}
+                <span className="scope-count">
+                  {
+                    graph.nodes.filter(
+                      (n) =>
+                        n.kind === 'result' &&
+                        (value === 'all' ||
+                          (value === 'verified'
+                            ? n.verified || n.disproved
+                            : !n.verified && !n.disproved)),
+                    ).length
+                  }
+                </span>
+              </button>
+            ))}
           </div>
-          {scope === 'verified' &&
-          !graph.nodes.some((node) => node.kind === 'result' && node.verified) ? (
-            <p>
-              {t(
-                'Verified results will appear here after their Lean proofs have been checked. Explore all results to find work awaiting formalization.',
-              )}
-            </p>
-          ) : null}
           <DependencyGraphView
             key={scope}
-            graph={scope === 'verified' ? verifiedKnowledge(graph) : graph}
+            graph={
+              scope === 'verified'
+                ? verifiedKnowledge(graph)
+                : scope === 'pending'
+                  ? cleanSnapshot({
+                      ...graph,
+                      nodes: graph.nodes.filter(
+                        (n) => n.kind !== 'result' || (!n.verified && !n.disproved),
+                      ),
+                    })
+                  : graph
+            }
             initialArea={area}
+            focus={focus}
+            empty={
+              scope === 'verified'
+                ? 'No independently verified formalizations yet. Explore the open results and contribute a proof.'
+                : undefined
+            }
           />
           {graph.next ? (
             <p className="dependency-more">
@@ -135,16 +187,20 @@ function initialResult(graph: DependencySnapshot, area: string) {
 export function DependencyGraphView({
   graph: source,
   initialArea = '',
+  focus,
+  empty,
 }: {
   graph: DependencySnapshot;
   initialArea?: string;
+  focus?: string;
+  empty?: string;
 }) {
   const api = useApi();
   const locale = useLocale();
   const [area, setArea] = useState(initialArea === 'all' ? '' : initialArea);
-  const [chosen, setChosen] = useState<string>();
+  const [chosen, setChosen] = useState<string | undefined>(focus);
   const [proofOwner, setProofOwner] = useState<string>();
-  const [overview, setOverview] = useState(true);
+  const [overview, setOverview] = useState(!focus);
   const [connectionPage, setConnectionPage] = useState(0);
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
   const [availableWidth, setAvailableWidth] = useState(970);
@@ -164,16 +220,20 @@ export function DependencyGraphView({
   const selection =
     source.nodes.find((node) => node.id === chosen) ??
     source.nodes.find((node) => node.id === proofOwner) ??
-    initialResult(source, area);
+    (chosen && !overview ? undefined : initialResult(source, area));
   const usesWork = selection?.work;
   const usesClaim = selection?.claim;
   const loadUses = useCallback(
     (signal: AbortSignal) => api.resultUses(usesWork!, usesClaim!, { signal }),
     [api, usesWork, usesClaim],
   );
-  const uses = useAsync(selection?.kind === 'result' && selection.verified ? loadUses : null);
+  const uses = useAsync(
+    selection?.kind === 'result' && (selection.verified || selection.disproved) ? loadUses : null,
+  );
   const graph = useMemo(() => addCheckedUses(source, uses.value ?? []), [source, uses.value]);
-  const selected = graph.nodes.find((node) => node.id === chosen) ?? initialResult(graph, area);
+  const selected =
+    graph.nodes.find((node) => node.id === chosen) ??
+    (chosen && !overview ? undefined : initialResult(graph, area));
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const resultNodes = graph.nodes.filter((node) => node.kind === 'result' && inArea(node, area));
   const related = graph.edges.filter(
@@ -520,14 +580,17 @@ export function DependencyGraphView({
                         <button
                           type="button"
                           title={`${label(node)} — ${node.authors.join('; ')}`}
-                          className={`dependency-node is-${node.kind}${!atlas && node.id === selected.id ? ' is-selected' : ''}${node.verified ? ' is-verified' : ''}`}
+                          className={`dependency-node is-${node.kind}${!atlas && node.id === selected.id ? ' is-selected' : ''}${node.verified || node.disproved ? ' is-verified' : ''}${node.disproved ? ' is-disproved' : ''}`}
                           style={{ left: position.x, top: position.y }}
-                          aria-label={`${label(node)} — ${node.authors.join('; ')}`}
+                          aria-label={`${label(node)} — ${node.authors.join('; ')}${node.kind === 'result' || node.kind === 'contribution' ? ` — ${t(node.disproved ? 'Disproved in Lean' : node.verified ? 'Formalized in Lean' : 'Awaiting a formal proof')}` : ''}`}
+                          data-verification={
+                            node.disproved ? 'disproved' : node.verified ? 'verified' : 'pending'
+                          }
                           aria-pressed={!atlas && node.id === selected.id}
                           aria-controls={!atlas ? panel : undefined}
                           onClick={() => choose(node.id)}
                         >
-                          <span className="dependency-dot" />
+                          <span className="dependency-dot" aria-hidden="true" />
                           <span className="dependency-node-label">
                             <InlineLatex source={label(node)} />
                           </span>
@@ -592,23 +655,43 @@ export function DependencyGraphView({
               >
                 <MacrosProvider macros={selected.macros}>
                   <p className="dependency-kicker">
-                    {selected.verified
-                      ? t('Lean checked')
-                      : selected.kind === 'literature'
-                        ? t('Earlier literature')
-                        : (selected.label ?? t('Research'))}
+                    {selected.disproved
+                      ? t('Disproved in Lean')
+                      : selected.verified
+                        ? t('Lean checked')
+                        : selected.kind === 'literature'
+                          ? t('Earlier literature')
+                          : (selected.label ?? t('Research'))}
                   </p>
                   <h2>
                     <InlineLatex source={selected.title} />
                   </h2>
-                  <p className="dependency-credit">{selected.authors.join('; ')}</p>
+                  <p className="dependency-credit">
+                    {selected.authors.map((author, index) => (
+                      <span key={`${author}:${index}`}>
+                        {index ? '; ' : ''}
+                        <Link to={{ kind: 'papers', author }}>{author}</Link>
+                      </span>
+                    ))}
+                  </p>
                   {selected.contributor ? (
                     <p>
                       {t('Formalization: ')}
                       <EntrantName entrant={selected.contributor} />
                     </p>
                   ) : null}
+                  <ProofAttribution attribution={selected.attribution ?? undefined} />
                   {selected.statement ? <LatexText source={selected.statement} /> : null}
+                  {selected.kind === 'result' && !selected.verified && !selected.disproved ? (
+                    <p className="formalization-invitation">
+                      {t(
+                        selected.target
+                          ? 'This result is ready for a Lean proof. Your verified contribution will be credited here.'
+                          : 'This result is awaiting a formal proof. Read the argument, build on its prerequisites, and share your Lean work. A matching Lean statement is needed for verification.',
+                      )}
+                    </p>
+                  ) : null}
+
                   <p className="dependency-detail-links">
                     {sourcePaper ? (
                       <button
@@ -621,12 +704,7 @@ export function DependencyGraphView({
                     ) : null}
                     {selected.work ? (
                       <Link
-                        to={
-                          selected.kind === 'contribution' ||
-                          (selected.claim && (!selected.collected || selected.target))
-                            ? { kind: 'result', record: selected.work, claim: selected.claim! }
-                            : { kind: 'paper', record: selected.work, version: selected.version }
-                        }
+                        to={{ kind: 'paper', record: selected.work, version: selected.version }}
                       >
                         {sourcePaper ? (
                           <InlineLatex source={sourcePaper.title} />
@@ -635,39 +713,117 @@ export function DependencyGraphView({
                         )}
                       </Link>
                     ) : null}
+                    {selected.work && selected.claim ? (
+                      <Link
+                        to={{
+                          kind: 'result',
+                          record: selected.work,
+                          claim: selected.claim,
+                          version: selected.collected ? selected.version : undefined,
+                        }}
+                      >
+                        {t('Read result')}
+                      </Link>
+                    ) : null}
                     {selected.url && safeHttpUrl(selected.url) ? (
                       <a href={safeHttpUrl(selected.url)!}>{t('Original source')}</a>
                     ) : null}
                     {lean ? <a href={lean}>{t('Published Lean source for this paper')}</a> : null}
                     {selected.target ? (
-                      <Link to={{ kind: 'result', record: selected.work!, claim: selected.claim! }}>
-                        {t('Contribute a formal proof')}
+                      <Link
+                        to={{
+                          kind: 'submit',
+                          intake: 'lean',
+                          record: selected.work!,
+                          claim: selected.claim!,
+                          version: selected.collected ? selected.version : undefined,
+                        }}
+                      >
+                        {t(
+                          selected.verified || selected.disproved
+                            ? 'Add another proof'
+                            : 'Contribute a formal proof',
+                        )}
                       </Link>
-                    ) : selected.kind === 'result' && !selected.verified ? (
-                      <Link to={{ kind: 'submit', intake: 'lean' }}>
+                    ) : selected.kind === 'result' && !selected.verified && !selected.disproved ? (
+                      <Link
+                        to={{
+                          kind: 'submit',
+                          intake: 'lean',
+                          record: selected.work,
+                          claim: selected.claim,
+                          version: selected.collected ? selected.version : undefined,
+                        }}
+                      >
                         {t('Contribute Lean work')}
                       </Link>
                     ) : null}
+                    {selected.kind === 'result' ? (
+                      <Link to={{ kind: 'formalizations', focus: selected.id }}>
+                        {t('Link to this result')}
+                      </Link>
+                    ) : null}
+                    {selected.proof && selected.work && selected.claim ? (
+                      <a
+                        href={`/api/v1/papers/${encodeURIComponent(selected.work)}/statements/${encodeURIComponent(selected.claim)}/attempts/${encodeURIComponent(selected.proof.id)}/bundle`}
+                      >
+                        {t('Read the checked proof and its sources')}
+                      </a>
+                    ) : null}
                   </p>
-                  {related.length ? (
-                    <ul className="dependency-reading-links">
-                      {related.map((edge) => {
-                        const node = byId.get(edge.from === selected.id ? edge.to : edge.from)!;
-                        return (
-                          <li key={JSON.stringify(edge)}>
-                            <button
-                              type="button"
-                              className="text-button"
-                              onClick={() => choose(node.id)}
-                            >
-                              <InlineLatex source={label(node)} />
-                            </button>
-                            <span>{t(relationLabel[edge.relation])}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
+                  {[
+                    {
+                      label: 'Builds on',
+                      edges: incoming.filter((e) =>
+                        ['checked_use', 'declared_dependency'].includes(e.relation),
+                      ),
+                    },
+                    {
+                      label: 'Earlier references',
+                      edges: incoming.filter((e) =>
+                        ['manuscript_reference', 'cites'].includes(e.relation),
+                      ),
+                    },
+                    {
+                      label: 'A stepping stone for',
+                      edges: outgoing.filter((e) =>
+                        ['checked_use', 'declared_dependency'].includes(e.relation),
+                      ),
+                    },
+                    {
+                      label: 'Referenced by',
+                      edges: outgoing.filter((e) =>
+                        ['manuscript_reference', 'cites'].includes(e.relation),
+                      ),
+                    },
+                    {
+                      label: 'Results in this paper',
+                      edges: outgoing.filter((e) => e.relation === 'contains'),
+                    },
+                  ]
+                    .filter((group) => group.edges.length)
+                    .map((group) => (
+                      <div className="dependency-connections" key={group.label}>
+                        <h3>{t(group.label)}</h3>
+                        <ul className="dependency-reading-links">
+                          {group.edges.map((edge) => {
+                            const node = byId.get(edge.from === selected.id ? edge.to : edge.from)!;
+                            return (
+                              <li key={JSON.stringify(edge)}>
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  onClick={() => choose(node.id)}
+                                >
+                                  <InlineLatex source={label(node)} />
+                                </button>
+                                <span>{t(relationLabel[edge.relation])}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
                   {uses.state.status === 'error' ? (
                     <p>
                       <button type="button" className="text-button" onClick={uses.reload}>
@@ -694,14 +850,19 @@ export function DependencyGraphView({
                 >
                   {t('Explore another result')}
                 </button>
-                <Link to={{ kind: 'formalizations' }}>{t('Find work awaiting formalization')}</Link>
+                <Link to={{ kind: 'formalizations', view: 'list' }}>
+                  {t('Find work awaiting formalization')}
+                </Link>
               </nav>
             ) : null}
           </>
         ) : (
           <p>
             {t(
-              'No indexed results in this field have been loaded yet. Load more research or browse its existing theory.',
+              chosen
+                ? 'This result is not available in the current public graph.'
+                : (empty ??
+                    'No indexed results in this field have been loaded yet. Load more research or browse its existing theory.'),
             )}
           </p>
         )}

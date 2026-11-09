@@ -17,35 +17,37 @@ import type {
 import { useSession } from '../auth/session';
 import { Async, Field, InlineError, DateText } from './ui';
 import { Pager } from './Pager';
+import { loadCollectedResult } from '../lib/publicResult';
+import { routePath } from '../routing/routes';
 
 export function LeanDepositForm({
   targetRecord,
   targetClaim,
+  targetVersion,
 }: {
   targetRecord?: string;
   targetClaim?: string;
+  targetVersion?: string;
 }) {
   const api = useApi();
   const load = useCallback(
     async (signal: AbortSignal) => {
       if (!targetRecord || !targetClaim) return null;
-      const statement = await api.getStatement(targetRecord, targetClaim, { signal });
-      const authors = targetRecord.startsWith('WP-')
-        ? (await api.getPaper(targetRecord, { signal })).summary.authors
-        : (
-            await api.getCollectedPaper(
-              targetRecord,
-              statement.publication ? String(statement.publication.version) : undefined,
-              { signal },
-            )
-          ).authors;
-      if (!statement.target)
-        throw new Error(
-          'This statement no longer has a confirmed target. Choose a current statement.',
+      if (!targetRecord.startsWith('WP-')) {
+        const { paper, result } = await loadCollectedResult(
+          api,
+          targetRecord,
+          targetClaim,
+          targetVersion,
+          signal,
         );
+        return { statement: result, authors: paper.authors.map((a) => a.name) };
+      }
+      const statement = await api.getStatement(targetRecord, targetClaim, { signal });
+      const authors = (await api.getPaper(targetRecord, { signal })).summary.authors;
       return { statement, authors: authors.map((a) => a.name) };
     },
-    [api, targetRecord, targetClaim],
+    [api, targetRecord, targetClaim, targetVersion],
   );
   const context = useAsync(load);
   return (
@@ -89,7 +91,15 @@ function DepositForm({
   const [authors, setAuthors] = useState(originalAuthors?.join('\n') ?? person?.display_name ?? '');
   const [statement, setStatement] = useState(target?.claim.statement ?? '');
   const [reference, setReference] = useState(
-    target ? `${window.location.origin}/papers/${encodeURIComponent(target.record)}` : '',
+    target
+      ? window.location.origin +
+          routePath({
+            kind: 'result',
+            record: target.record,
+            claim: target.claim.id,
+            version: target.publication ? String(target.publication.version) : undefined,
+          })
+      : '',
   );
   const [toolchain, setToolchain] = useState(target?.target?.toolchain ?? '');
   const [formalizers, setFormalizers] = useState(person?.display_name ?? '');
@@ -263,7 +273,9 @@ function DepositForm({
           </strong>
           <p>
             {t(
-              'The author confirmed this exact target. Your submission will request independent verification against it.',
+              target.record.startsWith('WP-')
+                ? 'The author confirmed this exact target. Your submission will request independent verification against it.'
+                : 'This Lean statement was checked against the published result. Your submission will request independent verification against it.',
             )}
           </p>
           <a
@@ -277,6 +289,12 @@ function DepositForm({
             {target.target.toolchain}
           </p>
         </div>
+      ) : target ? (
+        <p className="hint">
+          {t(
+            'The result and its original authors are filled in below. You can save Lean work privately now; verification and public credit require a matching Lean statement.',
+          )}
+        </p>
       ) : (
         <p className="hint">
           {t(

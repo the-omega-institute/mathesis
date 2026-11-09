@@ -73,9 +73,8 @@ export function ContributePage() {
             )}
           </p>
           <p>
-            <Link to={{ kind: 'conjectures' }}>{t('Find a conjecture')}</Link> ·{' '}
-            <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link> ·{' '}
-            <Link to={{ kind: 'bindings' }}>{t('Binding discussions')}</Link>
+            <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link> ·{' '}
+            <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
           </p>
         </div>
       </header>

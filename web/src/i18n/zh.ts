@@ -1,5 +1,21 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'All formalization results ({count})': '全部形式化结果（{count}）',
+
+  'Earlier references': '早期参考文献',
+  'Results in this paper': '本文结果',
+  'This Lean statement was checked against the published result. Your submission will request independent verification against it.':
+    '这一 Lean 命题已与公开结果核对。提交后将针对该命题进行独立验证。',
+  'The result and its original authors are filled in below. You can save Lean work privately now; verification and public credit require a matching Lean statement.':
+    '下方已填入数学结果和原作者。你现在可以私密保存 Lean 工作；验证和公开贡献记录需要与结果对应的 Lean 命题。',
+  'This result is not available in the requested paper version.':
+    '所选论文版本中没有这个公开结果。',
+  'provided a checked counterexample to this Lean statement.':
+    '为这个 Lean 命题提供了已验证的反例。',
+  'A matching Lean statement is being prepared. You can read the mathematical result and contribute existing Lean work in the meantime.':
+    '对应的 Lean 命题正在准备中。你可以先阅读数学结果，或提交已有的 Lean 工作。',
+  'Submit a proof adapter directly': '直接提交证明适配代码',
+
   'On this page': '本文导航',
   'Publication details': '论文信息',
   'Citation and versions': '引用与版本',
@@ -2088,4 +2104,27 @@ export const zh: Record<string, string> = {
   'this exact Lean statement.': '这一精确的 Lean 陈述。',
   'A checked counterexample is available for this Lean statement.':
     '这一 Lean 陈述有已通过核验的反例。',
+  'Build on existing mathematics. Make the next proof a shared foundation.':
+    '立足已有数学，让新的证明成为共同的基础。',
+  'Explore how results connect, find a missing formal proof, and contribute Lean work with credit for the mathematics and its formalization.':
+    '探索结果之间的依赖，寻找尚缺的形式化证明，并贡献 Lean 工作。数学成果与形式化贡献分别署名。',
+  'Formalization contributions': '形式化贡献',
+  'Formalization views': '形式化视图',
+  'Work to formalize': '待形式化工作',
+  'Formalization work': '形式化工作',
+  'Read the result and its proof. When its Lean statement is ready, you can submit a proof directly; existing Lean projects and source links are also welcome.':
+    '阅读结果与证明。Lean 命题就绪后，即可直接提交形式化证明；也欢迎提交已有 Lean 项目或源码链接。',
+  'Node meanings': '节点含义',
+  'Formalized in Lean': '已完成 Lean 形式化',
+  'Awaiting a formal proof': '等待形式化证明',
+  'All results': '全部结果',
+  'No independently verified formalizations yet. Explore the open results and contribute a proof.':
+    '目前尚无通过独立验证的形式化结果。欢迎浏览待完成的结果并贡献证明。',
+  'This result is ready for a Lean proof. Your verified contribution will be credited here.':
+    '这个结果的 Lean 命题已就绪。证明通过验证后，你的贡献将在这里署名。',
+  'This result is awaiting a formal proof. Read the argument, build on its prerequisites, and share your Lean work. A matching Lean statement is needed for verification.':
+    '这个结果等待形式化证明。欢迎阅读论证、利用已有基础并分享 Lean 工作；核验前需要确定与原结果一致的 Lean 命题。',
+  'This result is not available in the current public graph.': '当前公开关系图中没有这个结果。',
+  'The Lean statement is not ready for proof verification yet. Read the result or choose a ready target from Formalizations.':
+    '这个结果的 Lean 命题尚未就绪。请先阅读结果，或在形式化页面选择已经就绪的命题。',
 };

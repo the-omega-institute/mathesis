@@ -5,9 +5,15 @@ import { texToText } from '../lib/texText';
 import { ExternalLink } from './ui';
 import { Link } from '../routing/router';
 
-export function AuthorLine({ authors }: { authors: readonly Author[] }) {
+export function AuthorLine({
+  authors,
+  compact = false,
+}: {
+  authors: readonly Author[];
+  compact?: boolean;
+}) {
   return (
-    <ul className="author-line">
+    <ul className={compact ? 'author-line is-compact' : 'author-line'}>
       {authors.map((a, i) => {
         const orcid = a.orcid ? orcidHref(a.orcid) : null;
         const scholar = a.google_scholar ? safeHttpUrl(a.google_scholar) : null;
@@ -17,7 +23,7 @@ export function AuthorLine({ authors }: { authors: readonly Author[] }) {
             <Link className="author-name" to={{ kind: 'papers', author: a.name }}>
               {texToText(a.name)}
             </Link>
-            {orcid ? (
+            {orcid && !compact ? (
               <>
                 {' '}
                 <ExternalLink href={orcid}>
@@ -27,14 +33,16 @@ export function AuthorLine({ authors }: { authors: readonly Author[] }) {
                 </ExternalLink>
               </>
             ) : null}
-            {a.affiliation ? <span className="affiliation">{a.affiliation}</span> : null}
-            {scholar ? (
+            {a.affiliation && !compact ? (
+              <span className="affiliation">{a.affiliation}</span>
+            ) : null}
+            {scholar && !compact ? (
               <>
                 {' · '}
                 <ExternalLink href={scholar}>{t('Google Scholar')}</ExternalLink>
               </>
             ) : null}
-            {website ? (
+            {website && !compact ? (
               <>
                 {' · '}
                 <ExternalLink href={website}>{t('website')}</ExternalLink>
