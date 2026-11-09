@@ -35,6 +35,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let router = Router::new()
             .route("/healthz", get(|| async { axum::http::StatusCode::OK }))
             .route(
+                "/environment",
+                get({
+                    let checker = checker.clone();
+                    move || {
+                        let checker = checker.clone();
+                        async move {
+                            mathesis_verifier::workspace_ready(&checker.workspace)
+                                .and_then(|_| {
+                                    mathesis_verifier::Environment::read(&checker.workspace)
+                                })
+                                .map(Json)
+                                .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)
+                        }
+                    }
+                }),
+            )
+            .route(
                 "/readyz",
                 get({
                     let checker = checker.clone();

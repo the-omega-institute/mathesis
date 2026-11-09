@@ -1014,8 +1014,9 @@ Lean proof use, bibliography and paper membership. Only proof-term inspection ad
 checked-use arrows; paper Lean links, subject placement and Mathlib paths cannot.
 Source references may cycle; condense cycles for layout without claiming they form
 a proof DAG. Retain original mathematical authorship and formalizer credit separately.
-This interface queues no review or proof jobs. Mathlib declaration dependencies and
-the collected-statement-to-confirmed-target bridge remain separate unfinished work.
+This graph interface queues no review or proof jobs. Collected statements now use
+the separate automatic proof pipeline below; extracting Mathlib declaration
+dependencies remains separate work.
 
 ## Published collected-paper DOI
 
@@ -1027,3 +1028,18 @@ without changing delivery digests, files, receipts, publication dates or queues.
 Public citation/search projections expose the checked exact DOI and a separate
 concept DOI, never raw verification data. Collection does not register a DOI or
 imply Mathesis acceptance. See docs/PRE_REVIEWED_COLLECTION.md.
+
+## Automatic collected-paper formalization
+
+Internal collected publications automatically enter one durable proof job per
+current paper version. Reconciliation backfills historical indexed results and
+repairs interrupted admission. No manuscript re-review or Oracle is involved.
+New jobs read the independent verifier's ready `/environment`, pin the exact
+Lean/Mathlib pair before provider admission, and instruct CMA to reuse or prepare
+a matching version-specific environment with a compiled-cache/import check.
+Keep old environments and exact prompt bytes for already admitted work. Never
+upgrade a shared proof directory in place or rewrite targets and receipts.
+An optional legacy verifier URL routes historical pins to the prior service.
+CMA outages retain the original job and remote identities without spending a
+proof generation. A second semantic assessment admits exact translations;
+independent kernel verification alone grants checked status and proof credit.

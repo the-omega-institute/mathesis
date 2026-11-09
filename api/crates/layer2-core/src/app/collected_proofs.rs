@@ -217,6 +217,7 @@ impl App {
         if self.ports.solving.get(&id).await?.is_none() {
             let file = SolveFile {
                 collected: Some(CollectedProof {
+                    toolchain: None,
                     source_sha256: saved.source.sha256.clone(),
                     statement_sha256: hash(&c.statement),
                     requested_by: saved.owner.clone(),
@@ -297,6 +298,49 @@ impl App {
     }
 
     pub(crate) async fn reconcile_collected_proofs(&self) -> CoreResult<()> {
+        // Repair historical intake and interrupted queue admission without an
+        // operator having to POST every old publication again.
+        let mut before = None;
+        loop {
+            let page = self
+                .ports
+                .collected
+                .list(&PaperSearch::default(), 100, before)
+                .await?;
+            for saved in page.items {
+                if !self.is_internal_account(&saved.owner) {
+                    continue;
+                }
+                let Some(results) = saved
+                    .source_index
+                    .as_ref()
+                    .filter(|i| i.source_sha256 == saved.source.sha256)
+                    .and_then(|i| i.results.as_ref())
+                else {
+                    continue;
+                };
+                let mut missing = false;
+                for statement in results.statements.iter().filter(|s| !s.kind.is_open()) {
+                    missing |= self
+                        .ports
+                        .solving
+                        .get(&file_id(
+                            &saved.delivery.work_id,
+                            saved.delivery.version,
+                            &statement.id.clone().into(),
+                        ))
+                        .await?
+                        .is_none();
+                }
+                if missing {
+                    self.enqueue_collected_formalizations(&saved).await?;
+                }
+            }
+            before = page.next_before;
+            if before.is_none() {
+                break;
+            }
+        }
         for file in self.ports.solving.all().await? {
             let Some(proof) = &file.collected else {
                 continue;
@@ -323,6 +367,42 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    pub async fn verification_toolchain(&self) -> CoreResult<String> {
+        self.ports.verifier.toolchain().await
+    }
+
+    pub async fn pin_collected_toolchain(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+        claim: &ClaimId,
+        toolchain: String,
+    ) -> CoreResult<String> {
+        caller.require(Role::Reviewer)?;
+        require_text("toolchain", &toolchain, 200)?;
+        let mut file = self
+            .collected_proof_file(caller, work, version, claim)
+            .await?;
+        let proof = file.collected.as_mut().unwrap();
+        if let Some(saved) = &proof.toolchain {
+            if saved != &toolchain {
+                return Err(CoreError::conflict(
+                    "proof work retains its admitted verifier environment",
+                ));
+            }
+            return Ok(saved.clone());
+        }
+        if !proof.runs.is_empty() || proof.proposal.is_some() {
+            return Err(CoreError::conflict(
+                "an admitted proof run retains its original environment",
+            ));
+        }
+        proof.toolchain = Some(toolchain.clone());
+        self.save_solve_file(&mut file).await?;
+        Ok(toolchain)
     }
 
     /// Composition-only state, including historical runs so stale-version cleanup can finish.
@@ -422,6 +502,15 @@ impl App {
         }
         let mut file = self.collected_solve_file(&work.into(), claim).await?;
         let proof = file.collected.as_mut().unwrap();
+        if proof
+            .toolchain
+            .as_ref()
+            .is_some_and(|pin| pin != &proposal.toolchain)
+        {
+            return Err(CoreError::invalid(
+                "proposal must use the admitted verifier environment",
+            ));
+        }
         if proof.proposal.as_ref().is_some_and(|p| p != &proposal) {
             return Err(CoreError::conflict(
                 "proposal is already fixed for this run",

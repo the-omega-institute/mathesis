@@ -386,6 +386,11 @@ pub trait SolvingStore: Send + Sync {
 }
 #[async_trait]
 pub trait Verifier: Send + Sync {
+    async fn toolchain(&self) -> CoreResult<String> {
+        Err(crate::CoreError::Unavailable(
+            "verifier environment is unavailable".into(),
+        ))
+    }
     async fn verify(
         &self,
         request: &crate::model::VerificationRequest,

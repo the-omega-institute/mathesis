@@ -35,8 +35,11 @@ subscription supplies the model. Model access, resource ownership and usage/quot
 attribution are separate facts. Confirm the company's actual resources and
 quota configuration before claiming the complete review service is available.
 
-Current CMA cleanup retires an Agent through its lifecycle DELETE and waits for
-observed deletion; it does not call the removed `/stop` route. Legacy CMA cleanup
+Current CMA cleanup first requests lifecycle DELETE and waits for observed
+deletion. If the deployment explicitly requires a stopped Agent, it persists that
+prerequisite, calls the documented `/stop`, and waits for a terminal read before
+deleting with a distinct post-stop key; the earlier rejection can be cached.
+Legacy CMA cleanup
 retains each Agent until deletion is observed. A fresh `stopped`
 or `failed` Agent state permits the existing deletion request; a stop acknowledgement
 alone does not. Failed startup Agents can refuse stop with `agent_not_ready` but
@@ -146,8 +149,8 @@ margin, not a substitute for stopping writers.
 ## Prepared Lean verifier
 
 The verifier runs without credentials and does not install submitted dependencies.
-The checked-in reference base pins Lean 4.33.0 and Mathlib
-`db584cd6d46c92f209a44c0f1c829460d327499d`. For Linux amd64:
+The checked-in reference base pins stable Lean 4.35.0 and matching Mathlib
+`56a005855ea17e0b0958f73ec801ae140b0a1679`. For Linux amd64:
 
 ```sh
 docker build --platform linux/amd64 -f infra/verifier/Lean.Dockerfile -t mathesis-lean:local .
@@ -163,7 +166,12 @@ bundles must remain reproducible. Download/build requires network access and
 substantial disk space; runtime verification has no egress.
 
 `/readyz` checks the pinned manifest, installed Lean executable and built Mathlib
-artifact. `/healthz` only checks that the process is serving. Ordinary Rust tests
+artifact. `/environment` returns those resolved pins only after that readiness
+check succeeds. New collected proof jobs pin this response before CMA admission
+and automatically prepare a separate matching CMA workspace directory. Keep the
+previous service available through `WISHPOOL_VERIFIER_LEGACY_URL` before changing
+the primary verifier; historical targets and active conversations keep their
+original environment. `/healthz` only checks that the process is serving. Ordinary Rust tests
 explicitly mark real Lean cases ignored; selecting them without
 `WISHPOOL_TEST_LEAN_WORKSPACE` fails instead of silently passing. CI builds the
 verifier image and validates its Kubernetes manifests alongside API/web/worker.

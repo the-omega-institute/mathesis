@@ -94,6 +94,75 @@ fn faithful() -> FaithfulnessCheck {
 }
 
 #[tokio::test]
+async fn historical_internal_papers_enter_the_pool_without_a_manual_request() {
+    let (w, _, reviewer) = world().await;
+    assert!(
+        w.app
+            .collected_proofs("a-note", 1)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let first = w.app.collected_proofs("a-note", 1).await.unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].state, "preparing");
+    let claim = "s1".into();
+    let before = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let after = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    assert_eq!(before, after);
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn admitted_environment_survives_reconciliation_and_rejects_a_different_proposal() {
+    let (w, _, reviewer) = world().await;
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let claim = "s1".into();
+    w.app
+        .pin_collected_toolchain(&reviewer, "a-note", 1, &claim, "original-pin".into())
+        .await
+        .unwrap();
+    w.app.reconcile_collected_proofs().await.unwrap();
+    assert!(
+        w.app
+            .pin_collected_toolchain(&reviewer, "a-note", 1, &claim, "new-pin".into())
+            .await
+            .is_err()
+    );
+    assert!(
+        w.app
+            .save_collected_proposal(&reviewer, "a-note", &claim, proposal())
+            .await
+            .is_err()
+    );
+    let file = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    assert_eq!(
+        file.collected.unwrap().toolchain.as_deref(),
+        Some("original-pin")
+    );
+}
+
+#[tokio::test]
 async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_without_referee() {
     let (w, owner, reviewer) = world().await;
     let outsider = w.person("outsider", &[]).await;

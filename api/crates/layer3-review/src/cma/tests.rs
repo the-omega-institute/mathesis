@@ -5,9 +5,13 @@ use tokio::sync::Mutex;
 struct Memory {
     state: Mutex<Option<Value>>,
     history: Mutex<Vec<Value>>,
+    retain_pending: bool,
 }
 #[async_trait]
 impl RunStore for Memory {
+    fn retain_pending(&self) -> bool {
+        self.retain_pending
+    }
     fn key(&self) -> &str {
         "wishpool:paper:r1:audit:a0"
     }
@@ -1181,6 +1185,120 @@ async fn restart_keeps_the_original_deadline_and_cancels_expired_work() {
         fake.calls
             .lock()
             .await
+            .iter()
+            .all(|c| !c.1.ends_with("/responses") && !c.1.ends_with("/agents"))
+    );
+}
+
+#[tokio::test]
+async fn proof_observation_resumes_an_expired_window_without_recreating_or_cancelling_work() {
+    let store = Memory {
+        retain_pending: true,
+        ..Default::default()
+    };
+    let prompt = "unchanged proof task";
+    store
+        .save(
+            serde_json::to_value(RunState {
+                agent_id: Some("agt_retained".into()),
+                lifecycle_id: Some("op_retained".into()),
+                create_intent: Some(("api/v1/agents".into(), json!({}))),
+                response_id: Some("resp_retained".into()),
+                input: format!("{:x}", Sha256::digest(prompt.as_bytes())),
+                next_chunk: 1,
+                deadline: now().saturating_sub(60),
+                ..Default::default()
+            })
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let (client, fake) = client(vec![
+        completed("{\"proof\":\"ready\"}"),
+        accepted(),
+        accepted(),
+    ]);
+    assert_eq!(
+        client
+            .answer(&store, prompt.into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        "{\"proof\":\"ready\"}"
+    );
+    let calls = fake.calls.lock().await;
+    assert_eq!(calls[0].0, "GET");
+    assert_eq!(calls[0].1, "api/v2/responses/resp_retained");
+    assert!(calls.iter().all(|c| c.0 == "GET" || c.0 == "DELETE"));
+    let saved: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert_eq!(saved.agent_id.as_deref(), Some("agt_retained"));
+    assert_eq!(saved.response_id.as_deref(), Some("resp_retained"));
+    assert!(saved.failure.is_none() && saved.deleted);
+}
+
+#[tokio::test]
+async fn deployed_stop_prerequisite_is_retained_until_actual_agent_deletion() {
+    let store = Memory::default();
+    let prompt = "completed proof work";
+    store
+        .save(
+            serde_json::to_value(RunState {
+                agent_id: Some("agt_stop_first".into()),
+                create_intent: Some(("api/v1/agents".into(), json!({}))),
+                input: format!("{:x}", Sha256::digest(prompt.as_bytes())),
+                answer: Some("{}".into()),
+                ..Default::default()
+            })
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let (client, fake) = client(vec![
+        Err(ReviewError::Provider {
+            status: 409,
+            body: "agent_not_stopped".into(),
+        }),
+        accepted(),
+        accepted(),
+    ]);
+    fake.agent_observations.lock().await.extend([
+        reply(json!({"status":"ready"})),
+        reply(json!({"status":"stopped"})),
+        Err(ReviewError::Provider {
+            status: 404,
+            body: "not_found".into(),
+        }),
+    ]);
+    assert_eq!(
+        client
+            .answer(&store, prompt.into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        "{}"
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(state.stop_before_delete && !state.deleted);
+    assert_eq!(
+        client
+            .answer(&store, prompt.into(), Duration::from_secs(60))
+            .await
+            .unwrap(),
+        "{}"
+    );
+    let state: RunState = serde_json::from_value(store.load().await.unwrap().unwrap()).unwrap();
+    assert!(state.deleted);
+    let calls = fake.calls.lock().await;
+    let stops: Vec<_> = calls
+        .iter()
+        .filter(|c| c.0 == "POST" && c.1.ends_with("/stop"))
+        .collect();
+    assert_eq!(stops.len(), 1);
+    let deletes: Vec<_> = calls.iter().filter(|c| c.0 == "DELETE").collect();
+    assert_eq!(deletes.len(), 2);
+    assert_eq!(deletes[0].1, deletes[1].1);
+    assert_ne!(deletes[0].3, deletes[1].3);
+    assert!(deletes[1].3.as_deref().unwrap().ends_with(":after-stop"));
+    assert!(
+        calls
             .iter()
             .all(|c| !c.1.ends_with("/responses") && !c.1.ends_with("/agents"))
     );

@@ -1142,8 +1142,9 @@ fn persist_progress(
     next: serde_json::Value,
     cleanup: bool,
 ) -> CoreResult<()> {
-    const CLEANUP_FIELDS: [&str; 5] = [
+    const CLEANUP_FIELDS: [&str; 6] = [
         "stopped",
+        "stop_before_delete",
         "deleted",
         "cancel_intent",
         "stop_intent",
@@ -1215,7 +1216,7 @@ fn persist_progress(
                 old[field] = next[field].clone();
             }
         }
-        for field in ["stopped", "deleted"] {
+        for field in ["stopped", "stop_before_delete", "deleted"] {
             if next[field] == true {
                 old[field] = serde_json::Value::Bool(true);
             }
@@ -1228,7 +1229,26 @@ fn persist_progress(
 
 #[cfg(test)]
 mod letter_tests {
-    use super::with_decision;
+    use super::{persist_progress, with_decision};
+
+    #[test]
+    fn terminal_cleanup_retains_stop_prerequisite_without_changing_the_answer() {
+        let mut saved =
+            serde_json::json!({"agent_id":"agt_1", "input":"original", "answer":"saved report"});
+        let mut next = saved.clone();
+        next["stop_before_delete"] = true.into();
+        persist_progress(&mut saved, next, false).unwrap();
+        assert_eq!(saved["stop_before_delete"], true);
+        // A new owner must observe the stop prerequisite even after a cleanup save.
+        let mut next = saved.clone();
+        next["stop_before_delete"] = false.into();
+        next["answer"] = "replacement".into();
+        assert!(persist_progress(&mut saved, next.clone(), false).is_err());
+        persist_progress(&mut saved, next, true).unwrap();
+        assert_eq!(saved["stop_before_delete"], true);
+        assert_eq!(saved["answer"], "saved report");
+        assert_eq!(saved["input"], "original");
+    }
 
     #[test]
     fn decision_follows_the_salutation() {
