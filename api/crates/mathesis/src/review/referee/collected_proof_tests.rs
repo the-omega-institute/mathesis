@@ -15,6 +15,7 @@ struct CollectedTransport {
     empty_first: AtomicBool,
     delay_delete: AtomicBool,
     uncertain: AtomicBool,
+    unavailable: AtomicBool,
     admitted: tokio::sync::Notify,
 }
 #[async_trait]
@@ -49,7 +50,7 @@ impl Transport for CollectedTransport {
                 let proposal = |prop: &str| {
                     json!({
                         "lean":format!("import Mathlib\ndef wishpool_target_prop : Prop := {prop}\n"),
-                        "toolchain":"pinned-fixture", "reading":"Exact fixture statement.",
+                        "toolchain":"leanprover/lean4:v4.35.0, Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679", "reading":"Exact fixture statement.",
                         "solution":"import Target\ntheorem wishpool_solution : wishpool_target_prop := by simp [wishpool_target_prop]\n",
                         "modules":{},"reused_from":{"url":format!("https://github.com/example/research/blob/{}/Proof.lean", "a".repeat(40)),"revision":"a".repeat(40)},
                         "formalizers":["Existing Formalizer"],"license":"Apache-2.0"
@@ -83,6 +84,15 @@ impl Transport for CollectedTransport {
                 .unwrap()
                 .clone();
             json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":answer}]}]})
+        } else if path.starts_with("api/v1/workspaces/") && method == "GET" {
+            json!({"sandbox_id":"sbx_proofs","status":"ready"})
+        } else if path.starts_with("api/v1/sandboxes/") && method == "GET" {
+            let status = if self.unavailable.load(Ordering::SeqCst) {
+                "credential_rotating"
+            } else {
+                "active"
+            };
+            json!({"owner":"publisher","status":status,"model_access":"managed","profile":{"id":"sbp_fixture","revision":1}})
         } else if method == "DELETE" {
             self.deleted.lock().await.insert(path.into());
             json!({})
@@ -112,6 +122,9 @@ impl Transport for CollectedTransport {
 struct CollectedVerifier;
 #[async_trait]
 impl Verifier for CollectedVerifier {
+    async fn toolchain(&self) -> mathesis_core::CoreResult<String> {
+        Ok("leanprover/lean4:v4.35.0, Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679".into())
+    }
     async fn verify(
         &self,
         request: &VerificationRequest,
@@ -175,7 +188,7 @@ async fn collected_world() -> (World, Arc<CollectedTransport>) {
         client: Arc::new(mathesis_review::cma::Client {
             transport: mock.clone(),
             workspace: "wks_review".into(),
-            profile: None,
+            profile: Some(json!({"id":"agp_fixture","revision":1})),
             poll: Duration::from_millis(1),
         }),
         timeout: Duration::from_secs(60),
@@ -233,6 +246,37 @@ async fn collected_batch_runs_through_the_worker_dispatch_and_verification_lanes
     );
     assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
     assert!(w.file().await.rounds.is_empty());
+    let calls = mock.calls.lock().await;
+    let preparation = calls
+        .iter()
+        .filter_map(|(_, _, body, _)| body.as_ref())
+        .find_map(|body| {
+            body["input"]
+                .as_str()
+                .filter(|s| s.contains("Prepare exact Lean translations"))
+        })
+        .unwrap();
+    assert!(preparation.contains("v4.35.0"));
+    assert!(preparation.contains("56a005855ea17e0b0958f73ec801ae140b0a1679"));
+    assert!(!preparation.contains("db584cd6"));
+}
+
+#[tokio::test]
+async fn unavailable_sandbox_leaves_the_pool_open_without_creating_an_agent_or_failed_proof() {
+    let (w, mock) = collected_world().await;
+    mock.unavailable.store(true, Ordering::SeqCst);
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert!(matches!(
+        w.worker.collected_proof_job(&job).await,
+        Err(Failure::Transient(_))
+    ));
+    assert_eq!(mock.created.load(Ordering::SeqCst), 0);
+    for claim in ["s1", "s2"] {
+        let file = proof_file(&w, claim).await;
+        let proof = file.collected.unwrap();
+        assert!(proof.blocked.is_none() && proof.runs.is_empty());
+        assert!(file.attempts.is_empty());
+    }
 }
 
 #[tokio::test]

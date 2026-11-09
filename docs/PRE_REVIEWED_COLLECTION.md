@@ -98,7 +98,10 @@ link the exact DOI. Archive search also accepts the DOI.
 ## Lean proof work and the knowledge graph
 
 For internal collection operators, a new delivery or exact retry also queues one
-formalization job per paper/version. The worker inspects the existing pinned Lean
+formalization job per paper/version. The periodic reconciler automatically adds
+historical indexed papers and repairs interrupted queue admission; operators do
+not need to resubmit papers or request each old result. Only the current version
+and its matching source index are eligible. The worker inspects the existing pinned Lean
 source first, preparing proposals for its indexed results together. It preserves
 original proof provenance and license, ports compatible proofs to the independent
 verifier's pins, and attempts genuine gaps. This is separate from manuscript
@@ -107,8 +110,13 @@ review: the PASS record and published scientific files are unchanged.
 A second CMA conversation compares the translations to the manuscript, including
 all definitions and hypotheses. Target elaboration checks well-typedness only; it
 creates no proof receipt. Each submitted proof subsequently passes the ordinary
-credential-free Lean verifier against its exact target. The verifier pins currently
-are Lean 4.33.0 and Mathlib db584cd6d46c92f209a44c0f1c829460d327499d. A source link,
+credential-free Lean verifier against its exact target. Before a new paper starts,
+the worker reads the prepared verifier's `/environment` and durably pins its Lean
+and resolved Mathlib revision. The current prepared inputs select stable Lean
+4.35.0 and Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679, the matching release.
+CMA automatically reuses or prepares a version-specific environment, downloads
+the exact compiled cache, and checks `import Mathlib` before proof work. Existing
+conversations keep their original prompt and environment. A source link,
 CMA's compilation claim, semantic assessment or unrelated auxiliary lemma cannot
 award verified status. Semantic correspondence remains a separate assessment from
 kernel proof checking.
@@ -130,7 +138,7 @@ Public operations:
 - `POST /api/v1/collected-papers/<work>/results/<claim>/formalization?version=N`
   lets the owning internal operator (or internal administrator) idempotently queue
   the exact current paper's indexed results. Select any non-open indexed claim.
-  This is the backfill operation for papers collected before proof work existed.
+  This also permits an explicit backfill; the reconciler normally does it automatically.
   It neither resubmits files nor restarts manuscript review. No API token belongs
   in the URL or recorded evidence.
 
@@ -141,6 +149,18 @@ Use a ready sandbox and verify its actual model/profile; a workspace name does n
 establish either the Lean pins or the available memory. Proof work must inspect
 memory and active Lean/Lake executables before compiling and reuse built caches.
 There is no requirement for Lean on the ordinary web/API worker.
+
+Unavailable CMA resources leave the pool queued. Provider interruptions extend
+the observation window under the original command/Agent identities; they neither
+consume proof generations nor restart conversations. A failed Sandbox runtime is
+distinct from a missing Lean toolchain: dependency bootstrap cannot repair a CMA
+runtime that cannot execute commands.
+
+`WISHPOOL_VERIFIER_LEGACY_URL` optionally retains the previous credential-free
+verifier service when the primary verifier is upgraded. Configure the old service
+before switching the primary image. Requests whose pins differ from the primary
+are sent to that service, which still enforces its own exact pins. Do not replace
+the old prepared workspace in place or rewrite historical targets and receipts.
 
 Each paper shares its preparation and independent translation inspection; each
 result has its own source-bound target and receipt. Verifier rejection resumes

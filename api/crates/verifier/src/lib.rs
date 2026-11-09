@@ -13,6 +13,57 @@ use tokio::{io::AsyncReadExt, process::Command};
 pub const STANDARD_AXIOMS: [&str; 3] = ["propext", "Classical.choice", "Quot.sound"];
 pub const OUTPUT_CAP: usize = 64 * 1024;
 
+/// The prepared verifier is authoritative for new proof work. Published
+/// receipts continue to name their own immutable environment.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Environment {
+    pub lean_toolchain: String,
+    pub mathlib_revision: String,
+}
+impl Environment {
+    pub fn label(&self) -> String {
+        format!("{}, Mathlib {}", self.lean_toolchain, self.mathlib_revision)
+    }
+    pub fn parse(label: &str) -> Result<Self, String> {
+        let (lean, rev) = label
+            .split_once(", Mathlib ")
+            .ok_or("invalid Lean environment")?;
+        let version = lean
+            .strip_prefix("leanprover/lean4:v")
+            .ok_or("invalid Lean toolchain")?;
+        if version.is_empty()
+            || version.len() > 80
+            || !version
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b".-".contains(&b))
+            || rev.len() != 40
+            || !rev.bytes().all(|b| b.is_ascii_hexdigit())
+        {
+            return Err("invalid pinned Lean environment".into());
+        }
+        Ok(Self {
+            lean_toolchain: lean.into(),
+            mathlib_revision: rev.into(),
+        })
+    }
+    pub fn read(workspace: &Path) -> Result<Self, String> {
+        let lean = std::fs::read_to_string(workspace.join("lean-toolchain"))
+            .map_err(|_| "Lean toolchain pin is missing")?;
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(workspace.join("lake-manifest.json"))
+                .map_err(|_| "dependency manifest is missing")?,
+        )
+        .map_err(|_| "dependency manifest is invalid")?;
+        let rev = manifest["packages"]
+            .as_array()
+            .and_then(|p| p.iter().find(|p| p["name"] == "mathlib"))
+            .and_then(|p| p["rev"].as_str())
+            .ok_or("Mathlib revision is missing")?;
+        Self::parse(&format!("{}, Mathlib {rev}", lean.trim()))
+    }
+}
+
 pub fn workspace_ready(workspace: &Path) -> Result<(), String> {
     let toolchain = std::fs::read_to_string(workspace.join("lean-toolchain"))
         .map_err(|_| "Lean toolchain pin is missing")?;

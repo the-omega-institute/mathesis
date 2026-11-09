@@ -207,7 +207,13 @@ impl Worker {
             }
             Err(Failure::Transient(reason)) => {
                 tracing::warn!(reason, "job will be retried");
-                self.jobs.retry(&job, &reason).await
+                if job.kind == JobKind::CollectedFormalization {
+                    // Provider recovery is an ordinary wait, not a failed proof
+                    // generation. Keep the same durable job and remote handles.
+                    self.jobs.defer(&job, Duration::from_secs(60)).await
+                } else {
+                    self.jobs.retry(&job, &reason).await
+                }
             }
             Err(Failure::LeaseLost) => {
                 tracing::warn!("job lease lost; pending result discarded");

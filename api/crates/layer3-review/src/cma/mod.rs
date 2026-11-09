@@ -21,6 +21,10 @@ const CHUNK: usize = 200 * 1024;
 #[async_trait]
 pub trait RunStore: Send + Sync {
     fn key(&self) -> &str;
+    /// Venue proof work survives provider outages under the same admitted IDs.
+    fn retain_pending(&self) -> bool {
+        false
+    }
     async fn execution(&self) -> ReviewResult<Option<Execution>> {
         Ok(None)
     }
@@ -114,6 +118,9 @@ struct ExecutionStore<'a> {
 impl RunStore for ExecutionStore<'_> {
     fn key(&self) -> &str {
         &self.key
+    }
+    fn retain_pending(&self) -> bool {
+        self.inner.retain_pending()
     }
     async fn active(&self) -> ReviewResult<bool> {
         self.inner.active().await
@@ -349,6 +356,14 @@ impl Client {
             },
         };
         let chunks = delivery_inputs(&prompt, state.delivery_contract);
+        if store.retain_pending()
+            && state.answer.is_none()
+            && state.failure.is_none()
+            && state.deadline <= now()
+        {
+            // Extend observation, never replace the command or reset proof rounds.
+            state.deadline = now() + timeout.as_secs().saturating_sub(cleanup_reserve).max(1);
+        }
         Self::save(store, &state).await?;
         let remaining = Duration::from_secs(state.deadline.saturating_sub(now()));
         let result = if state.input != format!("{:x}", Sha256::digest(prompt.as_bytes())) {
@@ -372,6 +387,11 @@ impl Client {
             }
         };
         if let Err(error) = result {
+            if store.retain_pending() && matches!(&error, ReviewError::Transport(_)) {
+                state.waiting_since.get_or_insert_with(now);
+                Self::save(store, &state).await?;
+                return Err(error);
+            }
             // A failed persistence fence leaves the admitted turn for the next worker.
             if matches!(&error, ReviewError::PersistenceFence) {
                 return Err(error);
@@ -417,7 +437,13 @@ impl Client {
                 _ => {}
             }
         }
-        Err(invalid("CMA step deadline exceeded"))
+        if store.retain_pending() {
+            Err(ReviewError::Transport(
+                "CMA proof work remains pending under its original identity".into(),
+            ))
+        } else {
+            Err(invalid("CMA step deadline exceeded"))
+        }
     }
     async fn run(
         &self,
@@ -437,7 +463,12 @@ impl Client {
                 Ok(true) => return Ok(()),
                 Ok(false) => {}
                 Err(e @ ReviewError::PersistenceFence) => return Err(e),
-                Err(e) if transient(&e) => {
+                Err(e)
+                    if transient(&e)
+                        || (store.retain_pending()
+                            && matches!(&e,
+                    ReviewError::Provider { status: 409, body } if matches!(body.as_str(), "workspace_not_ready" | "sandbox_not_ready" | "agent_runtime_unavailable"))) =>
+                {
                     if state.waiting_since.is_none() {
                         state.waiting_since = Some(now());
                         Self::save(store, state).await?;

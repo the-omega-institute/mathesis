@@ -1,4 +1,32 @@
 use super::*;
+
+#[test]
+fn environment_reads_resolved_dependencies_and_rejects_unpinned_or_unsafe_labels() {
+    let workspace = tempfile::tempdir().unwrap();
+    let root = workspace.path();
+    let pin = "56a005855ea17e0b0958f73ec801ae140b0a1679";
+    std::fs::write(root.join("lean-toolchain"), "leanprover/lean4:v4.35.0\n").unwrap();
+    std::fs::write(
+        root.join("lake-manifest.json"),
+        serde_json::json!({"packages":[{"name":"mathlib","rev":pin}]}).to_string(),
+    )
+    .unwrap();
+    let environment = Environment::read(root).unwrap();
+    assert_eq!(
+        environment.label(),
+        format!("leanprover/lean4:v4.35.0, Mathlib {pin}")
+    );
+    for label in [
+        "latest",
+        "leanprover/lean4:v4.35.0, Mathlib master",
+        &format!("leanprover/lean4:v../../bin, Mathlib {pin}"),
+    ] {
+        assert!(Environment::parse(label).is_err(), "{label}");
+    }
+    std::fs::write(root.join("lake-manifest.json"), r#"{"packages":[]}"#).unwrap();
+    assert!(Environment::read(root).is_err());
+}
+
 #[test]
 fn rejects_all_escape_hatches_and_wrong_module_formats() {
     let good = "import Target\ntheorem wishpool_solution : wishpool_target_prop := by trivial\n";

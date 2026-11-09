@@ -20,6 +20,7 @@ pub mod cma;
 pub mod computation;
 pub mod knowledge;
 pub mod lean;
+pub mod lean_environment;
 pub mod openai_compat;
 pub mod oracle;
 pub mod referee_prompts;

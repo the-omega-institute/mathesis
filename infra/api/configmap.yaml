@@ -86,6 +86,7 @@ data:
   WISHPOOL_FORMAL_TIMEOUT_SECS: "1200"
   # Isolated verifier; empty URL uses a local credential-free subprocess.
   WISHPOOL_VERIFIER_URL: "http://wishpool-verifier:8081"
+  WISHPOOL_VERIFIER_LEGACY_URL: ""
   WISHPOOL_VERIFIER_PROGRAM: "mathesis-verifier"
   WISHPOOL_VERIFIER_TIMEOUT_SECS: "1200"
   WISHPOOL_ATTEMPTS_PER_DAY: "20"

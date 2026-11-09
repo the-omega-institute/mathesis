@@ -97,6 +97,7 @@ impl Composition {
         if let Some(url) = &config.verifier_url {
             ports.verifier = Arc::new(crate::verifier::HttpVerifier {
                 url: url.clone(),
+                legacy_url: config.verifier_legacy_url.clone(),
                 timeout,
             });
         } else if let Some(workspace) = &config.lean_workspace {

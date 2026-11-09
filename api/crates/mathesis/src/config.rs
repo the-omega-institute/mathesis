@@ -133,6 +133,8 @@ pub struct Config {
     pub cma_byok: Option<CmaByokConfig>,
     pub verifier_program: String,
     pub verifier_url: Option<String>,
+    /// Keep the prior prepared verifier available for historical targets.
+    pub verifier_legacy_url: Option<String>,
     pub verifier_timeout_secs: u64,
     pub attempts_per_day: usize,
     pub bind: SocketAddr,
@@ -618,6 +620,7 @@ impl Config {
             verifier_program: get("WISHPOOL_VERIFIER_PROGRAM")
                 .unwrap_or_else(|| "mathesis-verifier".into()),
             verifier_url: get("WISHPOOL_VERIFIER_URL"),
+            verifier_legacy_url: get("WISHPOOL_VERIFIER_LEGACY_URL"),
             verifier_timeout_secs: get("WISHPOOL_VERIFIER_TIMEOUT_SECS")
                 .map(|v| v.parse::<u64>())
                 .transpose()?

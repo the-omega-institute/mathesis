@@ -427,6 +427,9 @@ mod tests {
 /// Mutable proof work is stored in SolveFile, never in the immutable publication.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CollectedProof {
+    /// Pinned when preparation starts, not changed under an admitted conversation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub toolchain: Option<String>,
     pub source_sha256: String,
     pub statement_sha256: String,
     pub requested_by: PersonId,
