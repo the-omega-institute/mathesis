@@ -37,9 +37,6 @@ export function FormalizationsPage({
         <div>
           <h1>{t('Formalizations')}</h1>
           <p className="lede">
-            {t('Build on existing mathematics. Make the next proof a shared foundation.')}
-          </p>
-          <p>
             {t(
               'Explore how results connect, find a missing formal proof, and contribute Lean work with credit for the mathematics and its formalization.',
             )}

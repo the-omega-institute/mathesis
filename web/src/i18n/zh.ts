@@ -1,5 +1,8 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'Add author': '添加作者',
+  'Add contributor': '添加贡献者',
+
   'All formalization results ({count})': '全部形式化结果（{count}）',
 
   'Earlier references': '早期参考文献',

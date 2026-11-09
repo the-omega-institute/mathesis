@@ -323,9 +323,9 @@ function DepositForm({
               onChange={(e) => setTitle(e.target.value)}
             />
           </Field>
-          <NameEntries label={t('Original authors')} value={authors} onChange={setAuthors} />
+          <NameEntries label="Original authors" value={authors} onChange={setAuthors} />
           <NameEntries
-            label={t('Formalization contributors')}
+            label="Formalization contributors"
             value={formalizers}
             onChange={setFormalizers}
           />
@@ -835,7 +835,7 @@ function NameEntries({
             <button
               type="button"
               className="button button-quiet button-small"
-              aria-label={`Remove ${label.toLowerCase()} ${index + 1}`}
+              aria-label={`${t('Remove')} ${t(label)} ${index + 1}`}
               onClick={() => onChange(names.filter((_, i) => i !== index).join('\n'))}
             >
               {t('Remove')}
@@ -848,8 +848,7 @@ function NameEntries({
         className="button button-quiet button-small"
         onClick={() => onChange([...names, ''].join('\n'))}
       >
-        {t('Add ')}
-        {label === 'Original authors' ? 'author' : 'contributor'}
+        {t(label === 'Original authors' ? 'Add author' : 'Add contributor')}
       </button>
     </fieldset>
   );

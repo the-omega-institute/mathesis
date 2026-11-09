@@ -287,7 +287,7 @@ export function DependencyGraphView({
   if (!overview && selected) {
     points.set(selected.id, {
       x: compact ? Math.max(20, (availableWidth - 240) / 2) : 360,
-      y: compact ? 200 : 260,
+      y: compact ? 200 : 170,
     });
     const left = visibleNodes.filter(
       (node) =>
@@ -308,8 +308,8 @@ export function DependencyGraphView({
               ? 40
               : 360
             : nodes.length === 1
-              ? 260
-              : 70 + index * (380 / Math.max(1, nodes.length - 1)),
+              ? 170
+              : 50 + index * (300 / Math.max(1, nodes.length - 1)),
         }),
       );
     }
@@ -327,7 +327,7 @@ export function DependencyGraphView({
       ? overviewLayout.height
       : compact
         ? 480
-        : 600;
+        : 420;
   const fit = atlas
     ? 1
     : overview
@@ -466,7 +466,7 @@ export function DependencyGraphView({
             >
               <div
                 className="dependency-viewport"
-                style={atlas ? { height } : undefined}
+                style={atlas || !overview ? { height } : undefined}
                 ref={measureViewport}
                 role="region"
                 tabIndex={0}
