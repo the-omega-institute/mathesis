@@ -163,6 +163,7 @@ pub struct RunState {
     /// Legacy wire name: stop was acknowledged; actual stopping is asynchronous.
     pub stopped: bool,
     /// Some deployed lifecycle versions require explicit stop before deletion.
+    #[serde(skip_serializing_if = "is_false")]
     pub stop_before_delete: bool,
     pub deleted: bool,
     /// Original revision-bound control intent survives an uncertain POST.
@@ -178,6 +179,10 @@ pub struct QueueExpiration {
 
 fn legacy_delivery_contract(contract: &u8) -> bool {
     *contract == 0
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 pub struct Client {
