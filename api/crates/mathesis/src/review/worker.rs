@@ -223,6 +223,11 @@ impl Worker {
         if job.kind == JobKind::CollectedExplanation {
             return self.collected_explanation_job(job).await;
         }
+        if job.kind == JobKind::CollectedFormalization {
+            // Collected work owns its proof runs and cleanup outside the
+            // ordinary submission/referee aggregate.
+            return self.collected_proof_job(job).await;
+        }
         if job.kind == JobKind::VerifyResearch {
             self.app
                 .verify_research_leased(&self.reviewer, job, self.jobs.as_ref())
@@ -247,9 +252,6 @@ impl Worker {
         }
         if job.kind == JobKind::ErrorReports {
             return self.error_reports_job(job).await;
-        }
-        if job.kind == JobKind::CollectedFormalization {
-            return self.collected_proof_job(job).await;
         }
         if job.kind == JobKind::AgentAttempt {
             return self.agent_attempt_job(job).await;

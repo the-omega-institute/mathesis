@@ -195,6 +195,47 @@ async fn proof_file(w: &World, claim: &str) -> SolveFile {
 }
 
 #[tokio::test]
+async fn collected_batch_runs_through_the_worker_dispatch_and_verification_lanes() {
+    let (w, mock) = collected_world().await;
+    let job = w
+        .jobs
+        .claim_in(Some(JobLane::Review))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(job.kind, JobKind::CollectedFormalization);
+
+    w.worker.handle(job).await;
+
+    assert_eq!(mock.created.load(Ordering::SeqCst), 2);
+    for claim in ["s1", "s2"] {
+        let file = proof_file(&w, claim).await;
+        assert!(file.collected.as_ref().unwrap().target.is_some());
+        assert_eq!(file.attempts.len(), 1);
+        assert!(file.attempts[0].receipt.is_none());
+        let verification = w
+            .jobs
+            .claim_in(Some(JobLane::Verify))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(verification.kind, JobKind::VerifyAttempt);
+        w.worker.handle(verification).await;
+    }
+    assert!(
+        w.worker
+            .app
+            .collected_proofs("a-note", 1)
+            .await
+            .unwrap()
+            .iter()
+            .all(|p| p.state == "verified")
+    );
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
+    assert!(w.file().await.rounds.is_empty());
+}
+
+#[tokio::test]
 async fn paper_batch_reuses_inspection_across_results_and_recovers_cleanup_without_new_model_work()
 {
     let (w, mock) = collected_world().await;
