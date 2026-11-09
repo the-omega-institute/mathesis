@@ -6,6 +6,7 @@ import { hasRole, useSession } from '../auth/session';
 import { Link, useRouter } from '../routing/router';
 import type { Route } from '../routing/routes';
 import { BrandMark } from './BrandMark';
+import { GitHubLink } from './GitHubLink';
 
 function NavLink({ to, label, active }: { to: Route; label: string; active: boolean }) {
   return (
@@ -76,6 +77,7 @@ export function Header() {
           ) : null}
         </nav>
         <ArchiveSearch />
+        <GitHubLink compact />
         <div className="language-choice" role="group" aria-label={t('Language')}>
           <button
             type="button"

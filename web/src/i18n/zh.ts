@@ -96,6 +96,13 @@ export const zh: Record<string, string> = {
   Supporters: '支持者',
   Contact: '联系我们',
   'Collaborate with Mathesis': '与 Mathesis 合作',
+  'Help us build this better': '一起把 Mathesis 做得更好',
+  'Mathesis on GitHub': 'Mathesis 的 GitHub 仓库',
+  'Contribute on GitHub': '在 GitHub 上参与建设',
+  'Help improve mathematical review, formalization and the way research is shared. Ideas, bug reports and code contributions are welcome.':
+    '一起改进数学审稿、形式化与研究成果的分享方式。欢迎提出建议、反馈问题或贡献代码。',
+  'For research collaborations and other enquiries, please get in touch.':
+    '如希望开展研究合作或有其他问题，欢迎来信联系。',
   'We welcome collaboration on mathematical research and formalization.':
     '我们欢迎围绕数学研究与形式化证明开展合作。',
   'If you would like to explore a research project, contribute to Mathesis, or support our work, please get in touch.':

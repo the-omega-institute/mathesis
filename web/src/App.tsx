@@ -6,6 +6,7 @@ import { BindingsPage, BindingPage, BindingProfilePage } from './pages/Bindings'
 import { FormalizationsPage } from './pages/Formalizations';
 import { useEffect } from 'react';
 import { SupportersPage, StatementPage } from './pages/Contributions';
+import { GitHubLink } from './components/GitHubLink';
 import { ConjecturePage } from './pages/Conjecture';
 import { LeaderboardPage, EntrantPage } from './pages/Leaderboard';
 import { Link } from './routing/router';
@@ -229,6 +230,7 @@ export function App() {
             <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
             <Link to={{ kind: 'policy' }}>{t('Policy')}</Link>
             <Link to={{ kind: 'supporters' }}>{t('Contact')}</Link>
+            <GitHubLink />
           </nav>
           <span className="footer-note">
             {t('Read research. Share results. Publish questions.')}
