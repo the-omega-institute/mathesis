@@ -78,3 +78,20 @@ it('keeps a public historical statement readable if it has been removed from the
   expect(value.result.claim.statement).toBe(dependencyKnowledge.statements[0]!.statement);
   expect(value.current).toBe(false);
 });
+
+it('uses the published section when an extracted result has no descriptive title', async () => {
+  const api = apiForVersion();
+  const statement = {
+    ...dependencyKnowledge.statements[0]!,
+    title: null,
+    section: 'The conjecture and its counterexample',
+  };
+  api.collectedKnowledge = vi.fn(async () => ({ ...dependencyKnowledge, statements: [statement] }));
+  api.getStatement = vi.fn(async () => ({
+    ...current,
+    publication: { version: 2, claims_revision: 1 },
+    claim: { ...current.claim, statement: statement.statement },
+  }));
+  const result = await loadCollectedResult(api, 'gap-note', 's1', '2', signal());
+  expect(result.result.claim.label).toBe('Lemma: The conjecture and its counterexample');
+});

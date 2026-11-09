@@ -23,8 +23,16 @@ export async function loadCollectedResult(
     api.collectedKnowledge(record, version, { signal }),
   ]);
   const statement = knowledge.statements.find((item) => item.id === claim);
-  if (paper.revision !== version || String(knowledge.version) !== version || !statement)
+  if (
+    paper.id !== record ||
+    knowledge.work !== record ||
+    paper.revision !== version ||
+    String(knowledge.version) !== version ||
+    !statement
+  )
     throw new Error('This result is not available in the requested paper version.');
+  const description = statement.title || statement.section;
+  const label = description ? `${statement.name}: ${description}` : statement.name;
   try {
     const current = await api.getStatement(record, claim, { signal });
     if (
@@ -37,7 +45,7 @@ export async function loadCollectedResult(
           ...current,
           claim: {
             ...current.claim,
-            label: statement.title ? `${statement.name}: ${statement.title}` : current.claim.label,
+            label: description ? label : current.claim.label,
           },
         },
         current: true,
@@ -54,7 +62,7 @@ export async function loadCollectedResult(
       id: statement.id,
       kind: statement.kind,
       role: 'main',
-      label: statement.title ? `${statement.name}: ${statement.title}` : statement.name,
+      label,
       statement: statement.statement,
       section: statement.section ?? undefined,
       depends_on: [],
