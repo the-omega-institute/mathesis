@@ -9,7 +9,7 @@
       "en": "Propositions, sets, cardinality and mathematical structures.",
       "zh": "命题、集合、基数及数学结构。"
     },
-    "roots": ["Logic", "SetTheory", "ModelTheory"],
+    "roots": ["Logic", "SetTheory", "ModelTheory", "Basic"],
     "msc": ["03"],
     "related": ["data", "order", "categories"],
     "topics": [
@@ -22,7 +22,7 @@
           "en": "Logical connectives, implications and quantified propositions.",
           "zh": "逻辑联结、蕴含与量化命题。"
         },
-        "module": "Mathlib.Logic.Basic"
+        "module": "Mathlib.Basic.Logic.Basic"
       },
       {
         "title": {
@@ -678,7 +678,7 @@
           "en": "A formal model of computation.",
           "zh": "计算的形式模型。"
         },
-        "module": "Mathlib.Computability.TuringMachine"
+        "module": "Mathlib.Computability.TuringMachine.Config"
       },
       {
         "title": {
