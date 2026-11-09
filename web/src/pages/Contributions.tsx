@@ -1,4 +1,5 @@
 import { t } from '../i18n/locale';
+import { GitHubLink } from '../components/GitHubLink';
 import { ProofWork } from '../components/ProofWork';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { useCallback } from 'react';
@@ -16,15 +17,19 @@ export function SupportersPage() {
     <div className="page narrow-page">
       <header className="page-head">
         <div>
-          <h1>{t('Collaborate with Mathesis')}</h1>
+          <h1>{t('Help us build this better')}</h1>
           <p className="lede">
             {t('We welcome collaboration on mathematical research and formalization.')}
           </p>
           <p>
             {t(
-              'If you would like to explore a research project, contribute to Mathesis, or support our work, please get in touch.',
+              'Help improve mathematical review, formalization and the way research is shared. Ideas, bug reports and code contributions are welcome.',
             )}
           </p>
+          <p>
+            <GitHubLink label="Contribute on GitHub" />
+          </p>
+          <p>{t('For research collaborations and other enquiries, please get in touch.')}</p>
           <p>
             <a href="mailto:contact@chrono-ai.fun">contact@chrono-ai.fun</a>
           </p>

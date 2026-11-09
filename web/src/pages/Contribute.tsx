@@ -1,4 +1,5 @@
 import { t } from '../i18n/locale';
+import { GitHubLink } from '../components/GitHubLink';
 import { MyCma } from '../components/MyCma';
 import { useCallback, useState, type FormEvent } from 'react';
 import { donateHref, isApiError } from '../api/client';
@@ -120,6 +121,20 @@ export function ContributePage() {
           {t(
             'Use “Report an error” on an accepted item. Send a Lean disproof or a precise argument. Confirmed findings earn Errors found credit.',
           )}
+        </p>
+      </section>
+      <section aria-labelledby="build-h">
+        <h2 id="build-h">{t('Help us build this better')}</h2>
+        <p>
+          {t(
+            'Help improve mathematical review, formalization and the way research is shared. Ideas, bug reports and code contributions are welcome.',
+          )}
+        </p>
+        <p>
+          <GitHubLink label="Contribute on GitHub" />
+        </p>
+        <p>
+          <Link to={{ kind: 'supporters' }}>{t('Collaborate with Mathesis')}</Link>
         </p>
       </section>
       <details className="history">
