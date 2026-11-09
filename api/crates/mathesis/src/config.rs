@@ -159,6 +159,8 @@ pub struct Config {
     /// A Lean project with Mathlib built; with the Codex advisor, rounds
     /// try a private formalization probe in it.
     pub lean_workspace: Option<String>,
+    /// Prepared remote CMA environment for venue-funded collected proof work.
+    pub cma_formalization_workspace: Option<String>,
     pub formal_timeout_secs: u64,
     /// The TeX Live bin directory (`pdflatex`, `xelatex`, `lualatex`,
     /// `bibtex`) that compiles uploaded sources.
@@ -489,6 +491,13 @@ impl Config {
             bail!("WISHPOOL_FORMAL_TIMEOUT_SECS must be at most 3600 seconds");
         }
         let lean_workspace = get("WISHPOOL_LEAN_WORKSPACE");
+        let cma_formalization_workspace = get("WISHPOOL_CMA_FORMALIZATION_WORKSPACE");
+        if cma_formalization_workspace
+            .as_ref()
+            .is_some_and(|s| !s.starts_with("wks_") || s.len() > 100)
+        {
+            bail!("WISHPOOL_CMA_FORMALIZATION_WORKSPACE requires a CMA workspace identity");
+        }
         if lean_workspace.is_some()
             && !matches!(
                 advisor,
@@ -625,6 +634,7 @@ impl Config {
             advisor_work_dir: get("WISHPOOL_ADVISOR_WORK_DIR")
                 .unwrap_or_else(|| "/tmp/wishpool-advisor".into()),
             lean_workspace,
+            cma_formalization_workspace,
             formal_timeout_secs,
             review_account,
             hosted,

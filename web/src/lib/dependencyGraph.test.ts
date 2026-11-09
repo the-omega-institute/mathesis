@@ -181,3 +181,45 @@ it('keeps every exact result visible once in the field overview and adds no subj
   const mobile = dependencyAtlasLayout(graph, 350);
   expect([...mobile.points.values()].every((point) => point.x >= 0 && point.x < 350)).toBe(true);
 });
+
+it('projects collected verification only from the version-bound proof service, never from a source link', async () => {
+  const graph = await loadDependencyGraph(
+    fakeApi({
+      researchGraph: async () => dependencySource,
+      getCollectedPaper: async () => dependencyPaper,
+      collectedKnowledge: async () => ({
+        ...dependencyKnowledge,
+        formalizations: [
+          {
+            claim: 's2',
+            version: 2,
+            state: 'verified',
+            target_digest: 'exact-target',
+            reading: 'Full statement.',
+            next_step: 'Read proof.',
+            proofs: [],
+          },
+          {
+            claim: 's1',
+            version: 2,
+            state: 'open',
+            target_digest: 'open-target',
+            next_step: 'Contribute.',
+            proofs: [],
+          },
+        ],
+      }),
+    }),
+    undefined,
+    signal(),
+  );
+  expect(graph.nodes.find((n) => n.claim === 's2')).toMatchObject({ verified: true, target: true });
+  expect(graph.nodes.find((n) => n.claim === 's1')).toMatchObject({
+    verified: false,
+    target: true,
+  });
+  expect(graph.nodes.find((n) => n.claim === 's3')).toMatchObject({
+    verified: false,
+    target: false,
+  });
+});

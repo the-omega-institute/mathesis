@@ -165,3 +165,74 @@ describe('source contribution history', () => {
     ).toHaveAttribute('href', 'https://example.org/proof.pdf');
   });
 });
+
+it('shows a checked collected proof with original credit and retrieves the exact paper version', async () => {
+  const { dependencyPaper } = await import('../test/dependencyFixtures');
+  const proof = {
+    id: 'checked-existing-proof',
+    entrant: {
+      id: 'wishpool-agent',
+      name: 'Mathesis',
+      kind: 'agent' as const,
+      retired: false,
+      revision: 0,
+    },
+    receipt: {
+      verdict: 'proved' as const,
+      reason: 'Kernel checked.',
+      target_digest: 'target',
+      solution_digest: 'solution',
+      toolchain: 'pinned',
+      axioms: [],
+      checked_at: '2026-11-09T00:00:00Z',
+      duration: 1,
+    },
+    solution:
+      'import Target\ntheorem wishpool_solution : wishpool_target_prop := by exact old_proof',
+    also_verified: false,
+    attribution: {
+      authors: ['Original Author'],
+      formalizers: ['Original Formalizer'],
+      source_reference: { kind: 'url' as const, locator: dependencyPaper.lean!.url },
+      license: 'Apache-2.0',
+      deposit: '',
+      source_revision: dependencyPaper.lean!.revision,
+    },
+  };
+  const api = fakeApi({
+    getCollectedPaper: vi.fn(async () => dependencyPaper),
+    getStatement: vi.fn(async () => ({
+      record: 'gap-note',
+      title: dependencyPaper.title,
+      publication: { version: 2, claims_revision: 0 },
+      claim: {
+        id: 's2',
+        kind: 'theorem' as const,
+        role: 'main' as const,
+        label: 'The uniform bound',
+        statement: 'Every gap is bounded.',
+        depends_on: [],
+        verified: proof,
+      },
+      target: {
+        claim: 's2',
+        lean: 'import Mathlib\ndef wishpool_target_prop : Prop := True',
+        digest: 'target',
+        toolchain: 'pinned',
+      },
+      verified_attempts: [proof],
+      macros: {},
+    })),
+  });
+  renderWithApp(<ResultPage record="gap-note" claim="s2" />, api);
+  expect(await screen.findByRole('heading', { name: 'The uniform bound', level: 1 })).toBeVisible();
+  expect(screen.getByText(/Original Formalizer/)).toBeVisible();
+  expect(
+    screen.getByRole('link', { name: 'Download proof and verification details' }),
+  ).toHaveAttribute(
+    'href',
+    '/api/v1/papers/gap-note/statements/s2/attempts/checked-existing-proof/bundle',
+  );
+  expect(api.getCollectedPaper).toHaveBeenCalledWith('gap-note', '2', expect.any(Object));
+  expect(api.getPaper).not.toHaveBeenCalled();
+});

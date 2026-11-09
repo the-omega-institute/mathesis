@@ -15,7 +15,7 @@ impl App {
         record: &RecordId,
         new: NewErrorReport,
     ) -> CoreResult<ErrorReportView> {
-        let source = self.conjecture_source(record).await?;
+        let source = self.submission_proof_source(record).await?;
         if new.text.chars().count() > 20_000
             || (new.text.trim().is_empty() && new.solution.is_none())
         {

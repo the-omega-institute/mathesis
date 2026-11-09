@@ -134,7 +134,10 @@ impl App {
         Ok((owner, agent))
     }
 
-    pub(crate) async fn conjecture_source(&self, record: &RecordId) -> CoreResult<Submission> {
+    pub(crate) async fn submission_proof_source(
+        &self,
+        record: &RecordId,
+    ) -> CoreResult<Submission> {
         let record = self
             .ports
             .records
@@ -221,7 +224,10 @@ impl App {
         record: &RecordId,
         claim: &ClaimId,
     ) -> CoreResult<SolveFile> {
-        let s = self.conjecture_source(record).await?;
+        if !record.as_str().starts_with("WP-") {
+            return self.collected_solve_file(record, claim).await;
+        }
+        let s = self.submission_proof_source(record).await?;
         if !s.approved_statement(claim)
             && !s.claim(claim).is_some_and(|c| {
                 c.kind.is_open()
@@ -237,6 +243,7 @@ impl App {
             return Ok(file);
         }
         let file = SolveFile {
+            collected: None,
             referee_backend: if self.is_internal_account(&s.submitter) {
                 RefereeBackend::Cma
             } else {
@@ -427,7 +434,19 @@ impl App {
         if !file.admitted {
             return Err(CoreError::not_found("conjecture", claim.as_str()));
         }
-        self.conjecture_source(record)
+        if let Some(proof) = &file.collected {
+            let t = proof
+                .target
+                .as_ref()
+                .ok_or_else(|| CoreError::conflict("the exact Lean statement is being prepared"))?;
+            return Ok(super::records::PublicLeanStatement {
+                claim: claim.clone(),
+                lean: t.lean.clone(),
+                digest: t.digest.clone(),
+                toolchain: t.toolchain.clone(),
+            });
+        }
+        self.submission_proof_source(record)
             .await?
             .lean_statements
             .into_iter()
@@ -572,12 +591,16 @@ impl App {
                 return self.attempt(Some(caller), &existing.id).await;
             }
             let now = self.ports.clock.now();
-            if file
-                .attempts
-                .iter()
-                .filter(|a| a.entrant.id == entrant.id && a.submitted_at > now - Duration::days(1))
-                .count()
-                >= self.attempts_per_day
+            let collected_venue_work = file.collected.is_some() && entrant.id == "wishpool-agent";
+            if !collected_venue_work
+                && file
+                    .attempts
+                    .iter()
+                    .filter(|a| {
+                        a.entrant.id == entrant.id && a.submitted_at > now - Duration::days(1)
+                    })
+                    .count()
+                    >= self.attempts_per_day
             {
                 return Err(CoreError::conflict(
                     "daily attempt limit reached for this entrant and conjecture",
@@ -877,6 +900,9 @@ impl App {
         let Some(receipt) = &attempt.receipt else {
             return Ok(());
         };
+        if file.collected.is_some() {
+            return Ok(());
+        }
         let submission = self.load(&file.submission).await?;
         if submission.analysis_visibility != Visibility::Public
             || !submission.approved_statement(&file.claim)
@@ -941,7 +967,8 @@ impl App {
         file: &SolveFile,
         attempt: &Attempt,
     ) -> CoreResult<()> {
-        if attempt.intermediate.is_none()
+        if file.collected.is_none()
+            && attempt.intermediate.is_none()
             && attempt
                 .receipt
                 .as_ref()
@@ -1002,6 +1029,17 @@ impl App {
                 continue;
             };
             if !self.reuse_inputs_public(winner).await? {
+                continue;
+            }
+            // Recompiling existing published work preserves its original formalizers;
+            // importing it must never award a fresh venue-agent leaderboard event.
+            if winner.entrant.id == "wishpool-agent"
+                && file
+                    .collected
+                    .as_ref()
+                    .and_then(|p| p.proposal.as_ref())
+                    .is_some_and(|p| p.reused_from.is_some())
+            {
                 continue;
             }
             let source = self.conjecture_source(&file.record).await?;
@@ -1162,7 +1200,7 @@ impl App {
         let mut out = vec![];
         for (_, credit) in self.solve_credits().await? {
             let (file, attempt) = self.find_attempt(&credit.attempt).await?;
-            if self.load(&file.submission).await?.submitter == caller.person {
+            if self.conjecture_source(&file.record).await?.submitter == caller.person {
                 out.push(SolveNotification {
                     attempt: attempt.id,
                     record: file.record,
@@ -1237,6 +1275,7 @@ impl App {
         Ok(())
     }
     pub async fn reconcile_attempts(&self) -> CoreResult<()> {
+        self.reconcile_collected_proofs().await?;
         self.reconcile_private_rechecks().await?;
         let mut cursor = None;
         loop {

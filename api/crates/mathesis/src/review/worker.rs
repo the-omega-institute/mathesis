@@ -32,6 +32,7 @@ pub struct Worker {
     pub oracle: Option<Arc<dyn mathesis_review::oracle::Oracle>>,
     pub advisor: Option<Arc<dyn mathesis_review::advisor::Advisor>>,
     pub formalizer: Option<Arc<dyn mathesis_review::lean::Formalizer>>,
+    pub cma_formalization_workspace: Option<String>,
     pub oracle_poll: Duration,
     pub advisor_work_dir: std::path::PathBuf,
     pub audit_budget: Duration,
@@ -247,6 +248,9 @@ impl Worker {
         if job.kind == JobKind::ErrorReports {
             return self.error_reports_job(job).await;
         }
+        if job.kind == JobKind::CollectedFormalization {
+            return self.collected_proof_job(job).await;
+        }
         if job.kind == JobKind::AgentAttempt {
             return self.agent_attempt_job(job).await;
         }
@@ -271,7 +275,8 @@ impl Worker {
             Err(error) => return Err(error.into()),
         };
         match job.kind {
-            JobKind::CollectedExplanation
+            JobKind::CollectedFormalization
+            | JobKind::CollectedExplanation
             | JobKind::PaperExplanation
             | JobKind::ErrorReports
             | JobKind::AgentAttempt

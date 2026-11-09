@@ -36,6 +36,9 @@ use crate::{
 #[path = "proof_lifecycle_tests.rs"]
 mod proof_lifecycle;
 
+#[path = "collected_proof_tests.rs"]
+mod collected_proofs;
+
 const SOURCE: &str = r"\documentclass{article}
 \newtheorem{theorem}{Theorem}
 \newtheorem{conjecture}{Conjecture}
@@ -612,6 +615,7 @@ impl World {
             oracle: Some(oracle.clone()),
             advisor: Some(advisor.clone()),
             formalizer: Some(formalizer.clone()),
+            cma_formalization_workspace: None,
             oracle_poll: Duration::ZERO,
             advisor_work_dir: work.path().into(),
             audit_budget: Duration::from_secs(3900),

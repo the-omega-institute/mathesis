@@ -1326,6 +1326,7 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
         &std::collections::BTreeMap::from([("Saved.Work".into(), helper_source.into())]),
     );
     let file = SolveFile {
+        collected: None,
         referee_backend: Default::default(),
         authorization: Some(FormalizationAuthorization {
             target_digest: "target-pin".into(),

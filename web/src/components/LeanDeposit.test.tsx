@@ -210,3 +210,39 @@ it('deposits a linked Lean source with its revision and separate author credits'
     fetchSource.mockRestore();
   }
 });
+
+it('opens community proof contribution for a collected result and preserves its exact original authors', async () => {
+  const { dependencyPaper } = await import('../test/dependencyFixtures');
+  const api = fakeApi(
+    {
+      getStatement: vi.fn(async () => ({
+        record: 'gap-note',
+        title: dependencyPaper.title,
+        publication: { version: 2, claims_revision: 0 },
+        claim: {
+          id: 's2',
+          label: 'Theorem 2',
+          kind: 'theorem' as const,
+          role: 'main' as const,
+          statement: 'A precise bound.',
+          depends_on: [],
+        },
+        target: {
+          claim: 's2',
+          lean: 'import Mathlib',
+          digest: 'exact-target',
+          toolchain: 'pinned-toolchain',
+        },
+        verified_attempts: [],
+        macros: {},
+      })),
+      getCollectedPaper: vi.fn(async () => dependencyPaper),
+    },
+    author,
+  );
+  renderWithApp(<SubmitPage initialIntake="lean" targetRecord="gap-note" targetClaim="s2" />, api);
+  expect(await screen.findByLabelText('Original authors 1')).toHaveValue('Original Author');
+  expect(screen.getByLabelText('Mathematical statement')).toHaveValue('A precise bound.');
+  expect(api.getCollectedPaper).toHaveBeenCalledWith('gap-note', '2', expect.any(Object));
+  expect(api.getPaper).not.toHaveBeenCalled();
+});

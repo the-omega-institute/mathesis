@@ -2,8 +2,9 @@
 
 The collection channel is for a trusted publisher that has already completed its
 own review and has selected a public version. It is separate from an ordinary
-Mathesis submission: it does not enqueue referee, Oracle, audit or Lean jobs, and it
-does not create a Mathesis admission record. The public result is a paper in the
+Mathesis submission: it does not enqueue referee, Oracle or manuscript-audit jobs,
+and it does not create a Mathesis admission record. Separately, indexed proved
+results enter venue-funded Lean proof work. The public result is a paper in the
 same archive, with its authors, abstract, sources, exact PDF and source archive.
 
 The endpoint is `POST /api/v1/pre-reviewed-deliveries` as an authenticated
@@ -93,3 +94,61 @@ Public collection responses optionally include
 input metadata. Existing clients and deliveries without DOI remain compatible.
 The archive, paper sidebar, plain-text citation and reference-manager metadata
 link the exact DOI. Archive search also accepts the DOI.
+
+## Lean proof work and the knowledge graph
+
+For internal collection operators, a new delivery or exact retry also queues one
+formalization job per paper/version. The worker inspects the existing pinned Lean
+source first, preparing proposals for its indexed results together. It preserves
+original proof provenance and license, ports compatible proofs to the independent
+verifier's pins, and attempts genuine gaps. This is separate from manuscript
+review: the PASS record and published scientific files are unchanged.
+
+A second CMA conversation compares the translations to the manuscript, including
+all definitions and hypotheses. Target elaboration checks well-typedness only; it
+creates no proof receipt. Each submitted proof subsequently passes the ordinary
+credential-free Lean verifier against its exact target. The verifier pins currently
+are Lean 4.33.0 and Mathlib db584cd6d46c92f209a44c0f1c829460d327499d. A source link,
+CMA's compilation claim, semantic assessment or unrelated auxiliary lemma cannot
+award verified status. Semantic correspondence remains a separate assessment from
+kernel proof checking.
+
+The paper and result pages expose named results, exact proof scope, checked proof
+bundles and original attribution. Rechecking or porting an existing proof does not
+mint fresh Mathesis-agent leaderboard points. New independent contributions use
+the existing proof submission, verifier and credit system. A manuscript reference
+or import alone never becomes a checked dependency edge. The default knowledge
+view contains independently checked results; the wider view also offers results
+awaiting formalization, with manuscript references labelled separately.
+
+Public operations:
+
+- `GET /api/v1/collected-papers/<work>/proofs?version=N`
+- `GET /api/v1/collected-papers/<work>/knowledge?version=N` includes `formalizations`.
+- Existing `/papers/<work>/statements/<claim>` target, attempts, contribution,
+  reuse and bundle endpoints work for current collected results too.
+- `POST /api/v1/collected-papers/<work>/results/<claim>/formalization?version=N`
+  lets the owning internal operator (or internal administrator) idempotently queue
+  the exact current paper's indexed results. Select any non-open indexed claim.
+  This is the backfill operation for papers collected before proof work existed.
+  It neither resubmits files nor restarts manuscript review. No API token belongs
+  in the URL or recorded evidence.
+
+`WISHPOOL_CMA_FORMALIZATION_WORKSPACE` optionally selects an existing prepared CMA
+workspace for this work while leaving ordinary review jobs on their current
+workspace. The profile and transport remain the venue's configured CMA identity.
+Use a ready sandbox and verify its actual model/profile; a workspace name does not
+establish either the Lean pins or the available memory. Proof work must inspect
+memory and active Lean/Lake executables before compiling and reuse built caches.
+There is no requirement for Lean on the ordinary web/API worker.
+
+Each paper shares its preparation and independent translation inspection; each
+result has its own source-bound target and receipt. Verifier rejection resumes
+only that exact proof, using saved feedback. Worker restarts reuse persisted
+conversation identities and answers, and retain cleanup ownership until agents
+are actually deleted. Malformed translations, missing outputs or a continuation
+without a new proof pause automatic work rather than repeatedly spending tokens.
+An empty initial proof starts focused gap work; a run without a new proof leaves
+the checked target open to contributors. A newer paper
+version cannot inherit an older target or proof receipt. Old evidence stays saved;
+stale jobs finish cleanup under their original identities.

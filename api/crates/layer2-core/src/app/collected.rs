@@ -62,6 +62,7 @@ pub struct CollectionReceipt {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CollectedKnowledge {
+    pub formalizations: Vec<super::CollectedProofView>,
     pub work: String,
     pub version: u32,
     #[serde(flatten)]
@@ -235,7 +236,13 @@ impl App {
             );
         }
         limitations.push("Connections are literal references in statements and attached proofs. They are not independently checked proof dependencies; unlabelled, indirect and deferred references may be missing.".into());
+        let formalizations = if results.statements.is_empty() {
+            vec![]
+        } else {
+            self.collected_proofs(work, version).await?
+        };
         Ok(CollectedKnowledge {
+            formalizations,
             work: work.into(),
             version,
             results,
@@ -307,6 +314,7 @@ impl App {
                     ));
                 }
                 self.enqueue_collected_explanation(&existing).await?;
+                self.enqueue_collected_formalizations(&existing).await?;
                 return Ok(receipt(&existing));
             }
             if delivery.previous_version != Some(current.delivery.version) {
@@ -374,12 +382,14 @@ impl App {
                     && saved.request_digest == version.request_digest
                 {
                     self.enqueue_collected_explanation(&saved).await?;
+                    self.enqueue_collected_formalizations(&saved).await?;
                     return Ok(receipt(&saved));
                 }
             }
             return Err(error);
         }
         self.enqueue_collected_explanation(&version).await?;
+        self.enqueue_collected_formalizations(&version).await?;
         Ok(receipt(&version))
     }
 

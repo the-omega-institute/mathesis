@@ -588,7 +588,6 @@ export const zh: Record<string, string> = {
   ', or disprove it with': '，或使用以下声明反驳',
   'Submit from the command line': '通过命令行提交',
   'Checked in Lean on': 'Lean 核验日期',
-  'View Lean proof': '查看 Lean 证明',
   'Verified attempts': '已核验的尝试',
   'Download proof and verification details': '下载证明与核验详情',
   'No verified attempts yet.': '暂无已核验的尝试。',
@@ -2057,4 +2056,21 @@ export const zh: Record<string, string> = {
     '浏览各数学领域的结果及其联系，点选领域或具体结果继续阅读。',
   'Each point is a result. Select a field or a point to explore its connections.':
     '每个点代表一条数学结果。点选领域或节点，进一步探索它们的关系。',
+  'Knowledge and formalization': '知识与形式化',
+  'Verified knowledge': '已核验的知识',
+  'All results and open targets': '全部结果与待形式化目标',
+  'Verified results will appear here after their Lean proofs have been checked. Explore all results to find work awaiting formalization.':
+    'Lean 证明通过核验后，结果会显示在这里。浏览全部结果，可找到等待形式化的内容。',
+  'Further proof work is needed': '尚需推进形式化证明',
+  'Verified in Lean': '已通过 Lean 核验',
+  'Open for formalization': '等待形式化贡献',
+  'Formalization in progress': '形式化推进中',
+  'Contribute a proof of this exact statement.': '欢迎为这一精确陈述贡献形式化证明。',
+  'View Lean proof': '查看 Lean 证明',
+  'proved this exact Lean statement.': '证明了这一精确的 Lean 陈述。',
+  'This Lean statement was checked against the published result.':
+    '这一 Lean 陈述已经与公开结果逐项比对。',
+  'this exact Lean statement.': '这一精确的 Lean 陈述。',
+  'A checked counterexample is available for this Lean statement.':
+    '这一 Lean 陈述有已通过核验的反例。',
 };

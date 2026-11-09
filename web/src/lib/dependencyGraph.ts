@@ -94,6 +94,14 @@ export async function loadDependencyGraph(
             section: claim.section ?? undefined,
             areas: node.areas,
             macros: knowledge.macros,
+            verified: knowledge.formalizations?.some(
+              (p) =>
+                p.claim === claim.id && String(p.version) === version && p.state === 'verified',
+            ),
+            target: knowledge.formalizations?.some(
+              (p) =>
+                p.claim === claim.id && String(p.version) === version && Boolean(p.target_digest),
+            ),
           });
           edges.push({ from: node.id, to: id, relation: 'contains' });
         }
@@ -154,6 +162,19 @@ export function cleanSnapshot(graph: DependencySnapshot): DependencySnapshot {
     nodes: nodes.sort((a, b) => a.id.localeCompare(b.id)),
     edges: [...new Map(edges.map((e) => [JSON.stringify(e), e])).values()],
   };
+}
+
+/** The knowledge view contains checked results; manuscript references stay in the wider view. */
+export function verifiedKnowledge(graph: DependencySnapshot): DependencySnapshot {
+  const results = graph.nodes.filter((node) => node.kind === 'result' && node.verified);
+  const ids = new Set(results.flatMap((node) => [node.id, ...(node.paper ? [node.paper] : [])]));
+  return cleanSnapshot({
+    ...graph,
+    nodes: graph.nodes.filter((node) => ids.has(node.id)),
+    edges: graph.edges.filter(
+      (edge) => edge.relation === 'contains' || edge.relation === 'checked_use',
+    ),
+  });
 }
 
 /** Only the existing proof-term inspection API may add checked-use arrows. */

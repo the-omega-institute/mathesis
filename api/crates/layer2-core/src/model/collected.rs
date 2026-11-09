@@ -423,3 +423,43 @@ mod tests {
         assert!(!v.matches(&q));
     }
 }
+
+/// Mutable proof work is stored in SolveFile, never in the immutable publication.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedProof {
+    pub source_sha256: String,
+    pub statement_sha256: String,
+    pub requested_by: PersonId,
+    pub target: Option<CollectedTarget>,
+    pub proposal: Option<CollectedProofProposal>,
+    pub faithfulness: Option<super::FaithfulnessCheck>,
+    pub blocked: Option<String>,
+    #[serde(default)]
+    pub runs: std::collections::BTreeMap<String, serde_json::Value>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CollectedProofProposal {
+    pub lean: String,
+    pub toolchain: String,
+    pub reading: String,
+    #[serde(default)]
+    pub solution: String,
+    #[serde(default)]
+    pub modules: std::collections::BTreeMap<String, String>,
+    /// Reused work retains its published origin; a new proof is credited separately.
+    #[serde(default)]
+    pub reused_from: Option<CollectedLean>,
+    #[serde(default)]
+    pub formalizers: Vec<String>,
+    pub license: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectedTarget {
+    pub lean: String,
+    pub digest: String,
+    pub toolchain: String,
+    pub reading: String,
+    pub confirmed_by: PersonId,
+    pub confirmed_at: DateTime<Utc>,
+}

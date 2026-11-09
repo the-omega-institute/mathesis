@@ -14,6 +14,7 @@ import {
   dependencyAtlasLayout,
   loadDependencyGraph,
   resultDegree,
+  verifiedKnowledge,
   type DependencyNode,
   type DependencyRelation,
   type DependencySnapshot,
@@ -29,9 +30,16 @@ const relationLabel: Record<DependencyRelation, string> = {
   contains: 'Result in this paper',
 };
 
-export function DependencyGraph({ area }: { area?: string }) {
+export function DependencyGraph({
+  area,
+  initialScope = 'verified',
+}: {
+  area?: string;
+  initialScope?: 'verified' | 'all';
+}) {
   const api = useApi();
   const [pages, setPages] = useState(2);
+  const [scope, setScope] = useState(initialScope);
   const load = useCallback(
     async (signal: AbortSignal) => {
       let graph: DependencySnapshot = { nodes: [], edges: [], next: null };
@@ -56,7 +64,41 @@ export function DependencyGraph({ area }: { area?: string }) {
     <Async state={data.state} onRetry={data.reload}>
       {(graph) => (
         <>
-          <DependencyGraphView graph={graph} initialArea={area} />
+          <div
+            role="group"
+            aria-label={t('Knowledge and formalization')}
+            className="dependency-toolbar"
+          >
+            <button
+              type="button"
+              className="text-button"
+              aria-pressed={scope === 'verified'}
+              onClick={() => setScope('verified')}
+            >
+              {t('Verified knowledge')}
+            </button>
+            <button
+              type="button"
+              className="text-button"
+              aria-pressed={scope === 'all'}
+              onClick={() => setScope('all')}
+            >
+              {t('All results and open targets')}
+            </button>
+          </div>
+          {scope === 'verified' &&
+          !graph.nodes.some((node) => node.kind === 'result' && node.verified) ? (
+            <p>
+              {t(
+                'Verified results will appear here after their Lean proofs have been checked. Explore all results to find work awaiting formalization.',
+              )}
+            </p>
+          ) : null}
+          <DependencyGraphView
+            key={scope}
+            graph={scope === 'verified' ? verifiedKnowledge(graph) : graph}
+            initialArea={area}
+          />
           {graph.next ? (
             <p className="dependency-more">
               <button
@@ -129,9 +171,7 @@ export function DependencyGraphView({
     (signal: AbortSignal) => api.resultUses(usesWork!, usesClaim!, { signal }),
     [api, usesWork, usesClaim],
   );
-  const uses = useAsync(
-    selection?.kind === 'result' && selection.verified && !selection.collected ? loadUses : null,
-  );
+  const uses = useAsync(selection?.kind === 'result' && selection.verified ? loadUses : null);
   const graph = useMemo(() => addCheckedUses(source, uses.value ?? []), [source, uses.value]);
   const selected = graph.nodes.find((node) => node.id === chosen) ?? initialResult(graph, area);
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
@@ -583,7 +623,7 @@ export function DependencyGraphView({
                       <Link
                         to={
                           selected.kind === 'contribution' ||
-                          (!selected.collected && selected.claim)
+                          (selected.claim && (!selected.collected || selected.target))
                             ? { kind: 'result', record: selected.work, claim: selected.claim! }
                             : { kind: 'paper', record: selected.work, version: selected.version }
                         }

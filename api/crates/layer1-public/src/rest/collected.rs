@@ -25,6 +25,11 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/collected-papers/{id}/archive", post(attach_archive))
         .route("/collected-papers/{id}/index", post(index))
         .route("/collected-papers/{id}/knowledge", get(knowledge))
+        .route("/collected-papers/{id}/proofs", get(proofs))
+        .route(
+            "/collected-papers/{id}/results/{claim}/formalization",
+            post(request_proof),
+        )
         .route(
             "/collected-papers/{id}/plain-language/request",
             post(request_explanation),
@@ -185,4 +190,28 @@ async fn file(
         .ok_or_else(|| Problem(CoreError::invalid("file requests require an exact version")))?;
     let file = app.collected_file(&id, version, &kind).await?;
     Ok(super::papers::file_response(file, kind == "pdf"))
+}
+
+async fn proofs(
+    State(app): AppState,
+    Path(id): Path<String>,
+    Query(q): Query<Version>,
+) -> ApiResult<impl IntoResponse> {
+    let version = q
+        .version
+        .ok_or_else(|| Problem(CoreError::invalid("name the exact publication version")))?;
+    Ok(Json(app.collected_proofs(&id, version).await?))
+}
+async fn request_proof(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path((id, claim)): Path<(String, String)>,
+    Query(q): Query<Version>,
+) -> ApiResult<impl IntoResponse> {
+    let version = q
+        .version
+        .ok_or_else(|| Problem(CoreError::invalid("name the exact publication version")))?;
+    app.request_collected_proof(&caller, &id, version, &claim.into())
+        .await?;
+    Ok(axum::http::StatusCode::ACCEPTED)
 }
