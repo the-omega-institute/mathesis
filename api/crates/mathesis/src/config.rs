@@ -434,24 +434,42 @@ impl Config {
                 let profile = get("WISHPOOL_CMA_AGENT_PROFILE")
                     .map(|text| serde_json::from_str::<serde_json::Value>(&text))
                     .transpose()
-                    .context("CMA agent profile must be JSON {id,revision}")?;
+                    .context("CMA agent profile must be JSON")?;
                 if profile.is_none() {
                     bail!(
-                        "WISHPOOL_CMA_AGENT_PROFILE must pin a published profile with id and revision"
+                        "WISHPOOL_CMA_AGENT_PROFILE must specify an explicit inline model profile or a legacy id and revision"
                     );
                 }
-                if profile.as_ref().is_some_and(|v| {
-                    v.as_object().is_none_or(|o| o.len() != 2)
-                        || v["id"].as_str().is_none_or(|id| {
-                            id.is_empty()
-                                || id.len() > 200
-                                || !id
-                                    .bytes()
-                                    .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
-                        })
-                        || v["revision"].as_u64().is_none_or(|r| r == 0)
-                }) {
-                    bail!("CMA agent profile requires exactly id and positive revision");
+                let legacy_profile = profile.as_ref().is_some_and(|v| {
+                    v.get("id").is_some()
+                        && !(v.as_object().is_none_or(|o| o.len() != 2)
+                            || v["id"].as_str().is_none_or(|id| {
+                                id.is_empty()
+                                    || id.len() > 200
+                                    || !id
+                                        .bytes()
+                                        .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
+                            })
+                            || v["revision"].as_u64().is_none_or(|r| r == 0))
+                });
+                let inline_profile = profile.as_ref().is_some_and(|v| {
+                    v.as_object().is_some_and(|o| o.len() == 3)
+                        && v["model"]
+                            .as_str()
+                            .is_some_and(|s| !s.trim().is_empty() && s.len() <= 200)
+                        && matches!(
+                            v["reasoning_effort"].as_str(),
+                            Some("low" | "medium" | "high" | "xhigh")
+                        )
+                        && matches!(
+                            v["permission_mode"].as_str(),
+                            Some("autonomous" | "read-only" | "default")
+                        )
+                });
+                if !legacy_profile && !inline_profile {
+                    bail!(
+                        "CMA agent profile requires exactly model, reasoning_effort and permission_mode, or legacy id and positive revision"
+                    );
                 }
                 advisor = Some(AdvisorConfig::Cma(CmaConfig {
                     workspace,
@@ -771,6 +789,14 @@ mod referee_tests {
         assert!(
             matches!(c.advisor,Some(AdvisorConfig::Cma(CmaConfig{profile:Some(_),transport,..})) if transport=="http")
         );
+        let c = local(&[
+            ("WISHPOOL_CMA_WORKSPACE", "wks_example"),
+            ("WISHPOOL_CMA_TRANSPORT", "cli"),
+            ("WISHPOOL_CMA_AGENT_PROFILE", r#"{"model":"gpt-6.1-sol","reasoning_effort":"high","permission_mode":"autonomous"}"#),
+        ]).unwrap();
+        assert!(
+            matches!(c.advisor,Some(AdvisorConfig::Cma(CmaConfig{profile:Some(p),..})) if p["model"]=="gpt-6.1-sol")
+        );
         for extra in [
             ("WISHPOOL_CMA_TRANSPORT", "other"),
             ("WISHPOOL_CMA_POLL_SECS", "0"),
@@ -782,6 +808,14 @@ mod referee_tests {
             (
                 "WISHPOOL_CMA_AGENT_PROFILE",
                 r#"{"id":"agp_example","revision":2,"token":"forbidden"}"#,
+            ),
+            (
+                "WISHPOOL_CMA_AGENT_PROFILE",
+                r#"{"model":"gpt-6.1-sol","reasoning_effort":"high"}"#,
+            ),
+            (
+                "WISHPOOL_CMA_AGENT_PROFILE",
+                r#"{"model":"gpt-6.1-sol","reasoning_effort":"high","permission_mode":"autonomous","token":"forbidden"}"#,
             ),
             ("WISHPOOL_CMA_BASE_URL", "https://user:secret@example.org"),
             ("WISHPOOL_CMA_BASE_URL", "http://example.org"),

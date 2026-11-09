@@ -829,10 +829,12 @@ receive `not_found`. A recorded operator successor explicitly identifies the
 account/auth/setup/credential/quota refusal or `cause_unknown` agent failure;
 legacy attempts are operator-funded with reason `legacy_unknown`.
 
-Author CMA execution requires `WISHPOOL_CMA_AGENT_PROFILE` with an exact
-`{"id":"agp_…","revision":1}` pin to a published agent profile readable by
-both the operator and author accounts. The exact pin is retained in each
-creation intent for retries. Workspace facts are fetched and decoded in Layer 3;
+Author CMA execution requires an explicit `WISHPOOL_CMA_AGENT_PROFILE`, normally
+`{"model":"gpt-6.1-sol","reasoning_effort":"high","permission_mode":"autonomous"}`
+for the current CMA lifecycle API. The exact inline profile and workspace are
+retained in each creation intent; the asynchronous lifecycle receipt is persisted
+before polling for its Agent. Saved legacy profile pins and creation intents
+continue to replay their original route and bytes. Workspace facts are fetched and decoded in Layer 3;
 Layer 2 checks ownership, readiness and `own_credentials` before saving the
 binding under its source revision. Refresh throttling, outages, ambiguous
 refusals and concurrent token rotation remain transient, with the same payer.
