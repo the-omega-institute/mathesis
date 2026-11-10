@@ -6,6 +6,11 @@ reuse, community help and a first Mathesis contribution. It does not require an
 account. The Formalizations tabs, contribution guide and site footer link to it;
 the main navigation remains focused on research and submission.
 
+The page uses one continuous reading column aligned with the heading and compact
+wrapping contents links. Browser practice opens the official Lean Web editor with
+the complete sample prefilled; tutorial exercises do not start a CMA job. CMA
+remains the research and formalization execution service.
+
 The introduction explains Lean before recommending tutorials: it is free,
 open-source software, a programming language and a proof assistant. It describes
 formalization and reuse, gives a complete browser example, and explains VS Code
