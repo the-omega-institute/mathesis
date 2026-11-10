@@ -1743,3 +1743,91 @@ async fn collected_archive_enrichment_requires_authentication_and_an_explicit_ve
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn collected_work_links_its_named_problem_to_the_documented_problem_page() {
+    let stores = Arc::new(MemoryStores::default());
+    let app = App::with_internal_accounts(
+        stores.ports(Arc::new(SystemClock), Arc::new(OneTheorem)),
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from(["publisher".into()]),
+    );
+    let router = crate::router(app.clone()).layer(middleware::from_fn_with_state(app, test_auth));
+    // SHA-256 of the two fixed fixture files below.
+    let metadata = serde_json::json!({
+        "schema":"mathesis.pre-reviewed-delivery.v1", "producer":"outreach", "work_id":"a-note",
+        "version":1, "previous_version":null, "authorize_publication":true,
+        "paper":{"title":"A note", "abstract":"A bound on gaps", "authors":[{"name":"Original Author"}],
+            "license":"CC-BY-4.0",
+            "problems":[{"name":"A poser's conjecture in OEIS A123456","source":{"kind":"oeis","locator":"A123456"}}]},
+        "review":{"verdict":"PASS",
+            "pdf_sha256":"ab6c67525cb3c15f71bed0438abfcf1370a624c4681040f404f534fb43e4e371",
+            "source_sha256":"f00b7b51a5898bc58816f335115a28cc3bb1ef28dee51d0513517182fe30b686",
+            "record":{"checked":true}}
+    })
+    .to_string();
+    let request = Request::builder()
+        .method("POST")
+        .uri("/pre-reviewed-deliveries")
+        .header("x-test-subject", "publisher")
+        .header(
+            header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={BOUNDARY}"),
+        )
+        .body(Body::from(multipart(&[
+            ("metadata", None, metadata.as_bytes()),
+            ("pdf", Some("note.pdf"), b"%PDF-reviewed"),
+            ("source", Some("source.zip"), b"PK\x03\x04reviewed"),
+        ])))
+        .unwrap();
+    assert_eq!(send(&router, request).await.0, StatusCode::OK);
+
+    let (status, paper, _) = call(&router, "GET", "/collected-papers/a-note", None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(paper["problem_links"].as_array().unwrap().len(), 1);
+    let id = paper["problem_links"][0]["id"].as_str().unwrap();
+    assert_eq!(
+        paper["problem_links"][0]["title"],
+        paper["problems"][0]["name"]
+    );
+    let (_, listing, _) = call(&router, "GET", "/research-problems", None, None).await;
+    assert_eq!(listing["items"][0]["id"], id);
+    assert_eq!(listing["items"][0]["notes"], 1);
+    let (status, problem, _) = call(
+        &router,
+        "GET",
+        &format!("/research-problems/{id}"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        problem["summary"]["source"],
+        serde_json::json!({"kind":"oeis","locator":"A123456"})
+    );
+    assert_eq!(problem["notes"], serde_json::json!([]));
+    let note = &problem["collected_notes"][0];
+    assert_eq!(note["work"], "a-note");
+    assert_eq!(note["version"], 1);
+    assert_eq!(note["public_path"], "/papers/a-note?version=1");
+
+    // Every returned field is declared by the closed OpenAPI schemas.
+    let (_, spec, _) = call(&router, "GET", "/openapi.json", None, None).await;
+    for (schema, value) in [
+        ("ResearchProblemSummary", &listing["items"][0]),
+        ("ResearchProblem", &problem),
+        ("CollectedProblemNote", note),
+    ] {
+        let schema = &spec["components"]["schemas"][schema];
+        assert_eq!(schema["additionalProperties"], false);
+        for key in value.as_object().unwrap().keys() {
+            assert!(schema["properties"][key].is_object(), "undeclared {key}");
+        }
+        for key in schema["required"].as_array().unwrap() {
+            assert!(!value[key.as_str().unwrap()].is_null() || key == "next_before");
+        }
+    }
+}

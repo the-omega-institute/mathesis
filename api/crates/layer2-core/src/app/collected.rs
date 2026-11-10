@@ -19,6 +19,10 @@ pub struct PublicCollectedPaper {
     pub source: CollectedFileLink,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub archive: Option<ArchiveCitation>,
+    /// One entry per `problems` entry, in order: its lasting problem page, or null on
+    /// an earlier version once the work's current version no longer names that problem.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub problem_links: Vec<Option<super::ResearchProblemLink>>,
 }
 impl From<&CollectedVersion> for PublicCollectedPaper {
     fn from(v: &CollectedVersion) -> Self {
@@ -46,6 +50,10 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             pdf: file("pdf"),
             source: file("source"),
             archive: v.archive_citation().cloned(),
+            problem_links: super::problem_library::collected_problem_links(v)
+                .into_iter()
+                .map(Some)
+                .collect(),
         }
     }
 }
@@ -84,6 +92,25 @@ fn receipt(v: &CollectedVersion) -> CollectionReceipt {
     }
 }
 impl App {
+    /// A problem page lists a work at its current version. An earlier version therefore
+    /// links only the problems that current version still names.
+    async fn public_collected(&self, v: &CollectedVersion) -> CoreResult<PublicCollectedPaper> {
+        let mut public = PublicCollectedPaper::from(v);
+        if public.problem_links.is_empty() {
+            return Ok(public);
+        }
+        let current = self.ports.collected.get(&v.delivery.work_id, None).await?;
+        if let Some(current) = current.filter(|c| c.delivery.version != v.delivery.version) {
+            let named = super::problem_library::collected_problem_links(&current);
+            for link in &mut public.problem_links {
+                if link.as_ref().is_some_and(|l| !named.contains(l)) {
+                    *link = None;
+                }
+            }
+        }
+        Ok(public)
+    }
+
     fn read_collected_index(
         &self,
         bytes: &[u8],
@@ -455,7 +482,7 @@ impl App {
                     "this version already has a different archive DOI",
                 ));
             }
-            return Ok((&saved).into());
+            return self.public_collected(&saved).await;
         }
         let archive = self
             .check_collected_archive(&input.doi, &saved.pdf, &saved.source)
@@ -495,7 +522,7 @@ impl App {
             .collected_explanation_input(caller, work, version)
             .await?;
         self.enqueue_collected_explanation(&v).await?;
-        Ok((&v).into())
+        self.public_collected(&v).await
     }
 
     pub async fn collected_explanation_input(
@@ -550,7 +577,11 @@ impl App {
             .get(id, version)
             .await?
             .ok_or_else(|| CoreError::not_found("paper", id))?;
-        Ok((&v).into())
+        match version {
+            Some(_) => self.public_collected(&v).await,
+            // Without a version the store returned the current one.
+            None => Ok((&v).into()),
+        }
     }
     pub async fn collected_papers(
         &self,

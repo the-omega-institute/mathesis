@@ -273,3 +273,28 @@ it('preserves a live exact-version DOI through archive, paper citation and refer
     `/papers/${old.id}?version=${old.revision}`,
   );
 });
+
+it('links each named problem of a live collected work to its lasting problem page', async () => {
+  const old = projectNotes.find((note) => note.id === 'wang-conjecture326')!;
+  const [first, second] = old.problems;
+  const live: CollectedPaper = {
+    ...liveVersion(old),
+    // The second problem has no page: an earlier version whose work no longer names it.
+    problem_links: [{ id: 'first-problem', title: first!.name }, null],
+  };
+  const api = fakeApi({ getCollectedPaper: vi.fn(async () => live) });
+  renderWithApp(<PaperPage record={live.id} />, api);
+  await screen.findByRole('heading', { name: live.title });
+  const questions = screen
+    .getByText('Sources and related questions', { selector: 'summary' })
+    .closest('details')!;
+  expect(within(questions).getByRole('link', { name: first!.name, hidden: true })).toHaveAttribute(
+    'href',
+    '/problems/first-problem',
+  );
+  expect(within(questions).queryByRole('link', { name: second!.name, hidden: true })).toBeNull();
+  expect(within(questions).getByText(second!.name)).toBeInTheDocument();
+  expect(
+    within(questions).getAllByRole('link', { name: 'arXiv:2509.18724v1', hidden: true }),
+  ).toHaveLength(2);
+});

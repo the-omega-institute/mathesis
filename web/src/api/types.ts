@@ -702,6 +702,8 @@ export type CollectedPaper = {
   license: string;
   msc: string[];
   problems: Settles[];
+  /** One entry per `problems` entry, in order; null when that problem has no page. */
+  problem_links?: (ResearchProblemLink | null)[];
   published_on: string;
   plain_language?: PlainLanguageText;
   lean?: { url: string; revision: string };
@@ -1655,6 +1657,8 @@ export type ManuscriptProblem = {
 export type ResearchProblemLink = { id: string; title: string };
 export type ResearchProblemSummary = ResearchProblemLink & {
   source_id: string;
+  /** Present for a problem named by collected works. */
+  source?: Source;
   status: 'related_research' | 'settled' | 'partial' | 'conflicting';
   notes: number;
   updated_at: string;
@@ -1684,4 +1688,16 @@ export type ResearchProblem = {
     contributions: SourceContribution[];
     evidence: ManuscriptOrigin['evidence'];
   }[];
+  collected_notes?: CollectedProblemNote[];
+};
+/** A collected work at its current public version; `lean` is a source link, not a receipt. */
+export type CollectedProblemNote = {
+  work: string;
+  title: string;
+  authors: Author[];
+  version: number;
+  published_on: string;
+  license: string;
+  public_path: string;
+  lean?: { url: string; revision: string };
 };

@@ -1,10 +1,11 @@
-//! Problems are stable; accepted notes and their versions are evidence about them.
+//! Problems are stable; accepted notes, collected works and their versions are
+//! evidence about them.
 use super::{App, clamp};
 use crate::{CoreError, CoreResult, ids::*, model::*, ports::Listing};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -25,7 +26,11 @@ pub struct ResearchProblemLink {
 pub struct ResearchProblemSummary {
     pub id: String,
     pub title: String,
+    /// The producer's problem ID; the source locator for a problem named by collected works.
     pub source_id: String,
+    /// Where a problem named by collected works was published.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<Source>,
     pub status: ResearchProblemStatus,
     pub notes: usize,
     pub updated_at: DateTime<Utc>,
@@ -37,6 +42,26 @@ pub struct ResearchProblem {
     pub summary: ResearchProblemSummary,
     pub descriptions: Vec<ManuscriptProblem>,
     pub notes: Vec<ProblemNote>,
+    /// Trusted collected works naming this problem. They carry no Mathesis
+    /// acceptance, so they stay apart from `notes`.
+    #[serde(default)]
+    pub collected_notes: Vec<CollectedProblemNote>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectedProblemNote {
+    pub work: String,
+    pub title: String,
+    pub authors: Vec<Author>,
+    /// The work's current public version. Earlier versions stay reachable through the work.
+    pub version: u32,
+    pub published_on: DateTime<Utc>,
+    pub license: String,
+    /// Reader address of this exact version.
+    pub public_path: String,
+    /// Pinned public Lean source of this exact version: a link, never a verifier receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lean: Option<CollectedLean>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +99,39 @@ fn key(s: &Submission, source_id: &str) -> Option<String> {
         "{:x}",
         Sha256::digest(serde_json::to_vec(&(&s.submitter, &manuscript.producer, source_id)).ok()?)
     ))
+}
+
+/// A collected delivery names its problems by source and name, without a producer
+/// problem ID. Its key is that exact named question at that source, scoped to the
+/// trusted operator and producer. One source can carry several questions, so the
+/// name is part of the identity. The leading tag keeps this family apart from
+/// delivery keys: no evidence relates a producer's problem ID to a named source.
+pub(crate) fn collected_problem_key(v: &CollectedVersion, problem: &CollectedProblem) -> String {
+    let identity = (
+        "collected-problem",
+        &v.owner,
+        &v.delivery.producer,
+        problem.source.kind,
+        problem.source.locator.trim(),
+        problem.name.trim(),
+    );
+    format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&identity).expect("serializable identity"))
+    )
+}
+
+/// Links for this version's own problems, in their delivered order.
+pub(crate) fn collected_problem_links(v: &CollectedVersion) -> Vec<ResearchProblemLink> {
+    v.delivery
+        .paper
+        .problems
+        .iter()
+        .map(|problem| ResearchProblemLink {
+            id: collected_problem_key(v, problem),
+            title: problem.name.trim().to_owned(),
+        })
+        .collect()
 }
 
 fn problem_title<'a>(s: &'a Submission, origin: &'a ManuscriptOrigin, id: &'a str) -> &'a str {
@@ -220,12 +278,14 @@ impl App {
                                         id,
                                         title: title.to_owned(),
                                         source_id: source_id.clone(),
+                                        source: None,
                                         status: ResearchProblemStatus::RelatedResearch,
                                         notes: 0,
                                         updated_at: updated,
                                     },
                                     descriptions: vec![],
                                     notes: vec![],
+                                    collected_notes: vec![],
                                 },
                                 vec![],
                                 description.is_some(),
@@ -287,6 +347,78 @@ impl App {
                 break;
             }
         }
+        // The collection store lists each work at its latest version, which is its
+        // public one. Reading it here keeps no derived copy of a problem description.
+        let mut cursor = None;
+        loop {
+            let page = self
+                .ports
+                .collected
+                .list(&PaperSearch::default(), 100, cursor)
+                .await?;
+            for v in page.items {
+                let d = &v.delivery;
+                let mut named = BTreeSet::new();
+                for problem in &d.paper.problems {
+                    let id = collected_problem_key(&v, problem);
+                    // A work counts once per problem, even when its metadata repeats one.
+                    if focus.is_some_and(|wanted| wanted != id) || !named.insert(id.clone()) {
+                        continue;
+                    }
+                    let (item, _, _) = items.entry(id.clone()).or_insert_with(|| {
+                        (
+                            ResearchProblem {
+                                next_before: None,
+                                summary: ResearchProblemSummary {
+                                    id,
+                                    title: problem.name.trim().to_owned(),
+                                    source_id: problem.source.locator.trim().to_owned(),
+                                    // A work's source year is descriptive, not identity.
+                                    source: Some(Source {
+                                        kind: problem.source.kind,
+                                        locator: problem.source.locator.trim().to_owned(),
+                                        year: None,
+                                    }),
+                                    // A collected work has no Mathesis source audit, so it
+                                    // cannot establish a settlement.
+                                    status: ResearchProblemStatus::RelatedResearch,
+                                    notes: 0,
+                                    updated_at: v.published_on,
+                                },
+                                descriptions: vec![],
+                                notes: vec![],
+                                collected_notes: vec![],
+                            },
+                            vec![],
+                            true,
+                        )
+                    });
+                    item.summary.notes += 1;
+                    item.summary.updated_at = item.summary.updated_at.max(v.published_on);
+                    if focus.is_some() && before.is_none_or(|b| d.work_id.as_str() < b) {
+                        item.collected_notes.push(CollectedProblemNote {
+                            work: d.work_id.clone(),
+                            title: d.paper.title.clone(),
+                            authors: d.paper.authors.clone(),
+                            version: d.version,
+                            published_on: v.published_on,
+                            license: d.paper.license.clone(),
+                            public_path: format!("/papers/{}?version={}", d.work_id, d.version),
+                            lean: d.paper.lean.clone(),
+                        });
+                        // The store pages by version identity; retain only this note page.
+                        if item.collected_notes.len() > 26 {
+                            item.collected_notes.sort_by(|a, b| b.work.cmp(&a.work));
+                            item.collected_notes.truncate(26);
+                        }
+                    }
+                }
+            }
+            cursor = page.next_before;
+            if cursor.is_none() {
+                break;
+            }
+        }
         Ok(items
             .into_iter()
             .map(|(id, (mut item, outcomes, _))| {
@@ -297,6 +429,13 @@ impl App {
                 if item.notes.len() > 25 {
                     item.notes.truncate(25);
                     item.next_before = item.notes.last().map(|n| n.record.to_string());
+                }
+                // A key belongs to one family, so a problem pages either accepted notes
+                // or collected works. Work identity is stable across versions.
+                item.collected_notes.sort_by(|a, b| b.work.cmp(&a.work));
+                if item.collected_notes.len() > 25 {
+                    item.collected_notes.truncate(25);
+                    item.next_before = item.collected_notes.last().map(|n| n.work.clone());
                 }
                 (id, item)
             })

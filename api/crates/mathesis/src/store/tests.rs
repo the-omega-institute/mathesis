@@ -2823,3 +2823,82 @@ async fn collected_exposition_cas_upgrades_legacy_records_without_touching_deliv
     assert_eq!(enriched, version);
     db.drop().await;
 }
+
+#[tokio::test]
+async fn collected_problems_read_each_work_at_its_latest_stored_version_across_pages() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let memory = Arc::new(mathesis_core::memory::MemoryStores::default());
+    let mut ports = memory.ports(Arc::new(SystemClock), Arc::new(LatexReader));
+    ports.collected = Arc::new(db.store.clone());
+    let app = App::new(ports, Policy::default(), BTreeSet::new());
+    fn version(sequence: u32, work: &str, n: u32, named: bool) -> CollectedVersion {
+        let problems = if named {
+            serde_json::json!([{"name":"A poser's conjecture in OEIS A123456","source":{"kind":"oeis","locator":"A123456"}}])
+        } else {
+            serde_json::json!([])
+        };
+        serde_json::from_value(serde_json::json!({
+            "id":format!("version-{sequence:04}"), "owner":"publisher",
+            "request_digest":format!("request-{sequence}"), "published_on":Utc::now(),
+            "pdf":{"id":"pdf", "bytes":10,"sha256":"a".repeat(64)},
+            "source":{"id":"source", "bytes":20,"sha256":"b".repeat(64)},
+            "delivery":{"schema":"mathesis.pre-reviewed-delivery.v1", "producer":"outreach", "work_id":work, "version":n,
+              "previous_version":(n > 1).then(|| n - 1),"authorize_publication":true,
+              "paper":{"title":format!("{work} v{n}"), "abstract":"A bound on gaps", "authors":[{"name":"Original Author"}],
+                "license":"CC-BY-4.0", "problems":problems},
+              "review":{"verdict":"PASS","pdf_sha256":"a".repeat(64),"source_sha256":"b".repeat(64),"record":{"private_review":"preserved"}}}
+        })).unwrap()
+    }
+    // More works than one store page, stored in an order unrelated to their identities.
+    for i in 0..101 {
+        let work = format!("note-{:03}", (i * 37) % 101 + 1);
+        CollectedPaperStore::insert(&db.store, &version(i, &work, 1, true))
+            .await
+            .unwrap();
+    }
+    CollectedPaperStore::insert(&db.store, &version(200, "note-001", 2, true))
+        .await
+        .unwrap();
+    CollectedPaperStore::insert(&db.store, &version(201, "note-002", 2, false))
+        .await
+        .unwrap();
+
+    let listing = app.list_research_problems(None, None).await.unwrap();
+    assert_eq!(listing.items.len(), 1);
+    assert_eq!(listing.items[0].notes, 100);
+    let id = &listing.items[0].id;
+    let mut works = vec![];
+    let mut before = None;
+    loop {
+        let page = app
+            .research_problem_page(id, before.as_deref())
+            .await
+            .unwrap();
+        assert_eq!(page.summary.notes, 100);
+        assert!(page.collected_notes.len() <= 25);
+        works.extend(
+            page.collected_notes
+                .into_iter()
+                .map(|n| (n.work, n.version)),
+        );
+        before = page.next_before;
+        if before.is_none() {
+            break;
+        }
+    }
+    let expected: Vec<_> = (1..=101)
+        .rev()
+        .filter(|n| *n != 2)
+        .map(|n| (format!("note-{n:03}"), if n == 1 { 2 } else { 1 }))
+        .collect();
+    assert_eq!(works, expected);
+    // Earlier versions stay readable; only a still-named problem keeps its link.
+    let kept = app.collected_paper("note-001", Some(1)).await.unwrap();
+    assert_eq!(&kept.problem_links[0].as_ref().unwrap().id, id);
+    let dropped = app.collected_paper("note-002", Some(1)).await.unwrap();
+    assert_eq!(dropped.paper.problems.len(), 1);
+    assert_eq!(dropped.problem_links, vec![None]);
+    db.drop().await;
+}

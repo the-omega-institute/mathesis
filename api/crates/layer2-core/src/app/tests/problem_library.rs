@@ -21,7 +21,12 @@ fn upload() -> Upload {
     }
 }
 
-async fn publish(w: &World, author: &Caller, work: &str, n: u32) -> (RecordId, Submission) {
+pub(super) async fn publish(
+    w: &World,
+    author: &Caller,
+    work: &str,
+    n: u32,
+) -> (RecordId, Submission) {
     let receipt = w
         .app
         .deliver_manuscript(author, delivery(work, "1", None), upload())
