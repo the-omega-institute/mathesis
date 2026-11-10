@@ -2152,4 +2152,76 @@ export const zh: Record<string, string> = {
     '这篇论文已有 Lean 形式化。请先阅读源码中的证明范围；当前这条文字命题尚未逐条关联到代码中的定理。',
   'Read the mathematics and its existing Lean sources. Contribute additional proofs where an exact target is available, or share existing Lean work with its original attribution.':
     '阅读数学结果及其已有 Lean 源码。你可以为已确定的命题补充证明，也可以分享已有 Lean 成果并保留原有署名。',
+  'Learn Lean': '学习 Lean',
+  'New to Lean?': '刚开始接触 Lean？',
+  'Follow the learning guide': '查看学习指南',
+  'A path from your first checked proof to contributing mathematical formalizations, with selected tutorials, tools and community resources.':
+    '从写出第一个通过检查的证明，到参与数学形式化：这里按学习顺序整理了教程、工具与社区资源。',
+  'New to proof assistants? Start with the Natural Number Game, then work through Mathematics in Lean. If you already write Lean, go straight to Mathlib and contribution resources.':
+    '第一次使用证明助手，可以先玩自然数游戏，再配合练习阅读 Mathematics in Lean。已经会写 Lean，可以直接查看 Mathlib 与贡献资源。',
+  'Learning path': '学习路线',
+  'Try your first proof': '尝试第一个证明',
+  'Begin in your browser. Learn to read the current goal, use a hypothesis, and check each step of a short proof.':
+    '从浏览器开始，学习如何阅读当前证明目标、使用假设，并逐步检查一个简短的证明。',
+  'Natural Number Game': '自然数游戏（Natural Number Game）',
+  'Interactive game · Lean community · Multiple languages': '交互游戏 · Lean 社区 · 多种语言',
+  'A gentle introduction through arithmetic puzzles. Practice rewriting, induction and basic proof tactics with immediate feedback. Start here if you have never used a proof assistant.':
+    '通过算术小题入门，练习改写、归纳和基本证明策略，每一步都有即时反馈。如果从未使用过证明助手，建议从这里开始。',
+  'Browser editor · Lean · English interface': '浏览器编辑器 · Lean · 英文界面',
+  'Run small Lean examples without a local installation. Change a hypothesis or proof step and watch how the goal changes; use it alongside the books below.':
+    '无需本地安装就能运行简短的 Lean 示例。试着修改假设或某个证明步骤，观察目标如何变化；也可以配合下面的教材使用。',
+  'Write mathematical proofs in Lean': '用 Lean 写数学证明',
+  'Move from guided puzzles to ordinary mathematics. Work through exercises as you read; a small proof that you can explain is a useful first milestone.':
+    '从有引导的小题进入通常的数学表述，边读边做练习。先完成一个自己能解释清楚的小证明，就是很好的起点。',
+  'Mathematics in Lean': 'Mathematics in Lean（Lean 数学入门）',
+  'Textbook with exercises · Lean community · English': '教材与配套练习 · Lean 社区 · 英文',
+  'The main starting point for mathematicians. Learn tactic proofs using familiar examples from logic, sets, functions, algebra and analysis, with exercises in a companion Lean project.':
+    '适合数学研究者的主要入门教材。从熟悉的逻辑、集合、函数、代数和分析例子学习证明策略，并在配套 Lean 项目中完成练习。',
+  'Theorem Proving in Lean 4': 'Theorem Proving in Lean 4（Lean 4 定理证明）',
+  'Foundations textbook · Lean · English': '基础教材 · Lean · 英文',
+  'Understand the language behind the tactics: propositions, dependent types, quantifiers, equality and inductive definitions. Read the relevant chapters when you want to understand why a proof works.':
+    '理解证明策略背后的语言：命题、依赖类型、量词、等式与归纳定义。想进一步理解一个证明为什么成立时，可以查阅对应章节。',
+  'Install Lean': '安装 Lean',
+  'Installation guide · Lean · English': '安装指南 · Lean · 英文',
+  'Set up Lean and its VS Code extension when you are ready to work on larger examples. Open a tutorial or an existing project and use the Lean version that project specifies.':
+    '准备处理更完整的例子时，安装 Lean 和 VS Code 扩展。打开教程或已有项目，使用该项目指定的 Lean 版本。',
+  'Build on Mathlib': '在 Mathlib 基础上推进',
+  'Most research formalizations reuse existing definitions and lemmas. Learn to find a suitable theorem, read its assumptions, and adapt it to your problem.':
+    '研究中的形式化通常会复用已有定义和引理。学习如何找到合适的定理、读清假设，并把它用到自己的问题中。',
+  'Mathlib documentation': 'Mathlib 文档',
+  'Mathematical library reference · Lean community · English': '数学库参考文档 · Lean 社区 · 英文',
+  'Browse definitions, theorem statements and source files across the library. Follow the source of a nearby result to see its imports and how its proof uses earlier mathematics.':
+    '浏览数学库的定义、定理陈述和源码。找到与问题接近的结果，沿着源码查看所需的导入，以及证明怎样使用已有数学。',
+  'Theorem search · Lean community · English interface': '定理检索 · Lean 社区 · 英文界面',
+  'Search by the shape of a theorem or part of its type when you do not know its name. Check the returned statement and hypotheses before using it in your proof.':
+    '不知道定理名称时，可以按命题的形状或类型的一部分搜索。使用搜索结果前，先确认完整陈述与假设符合自己的问题。',
+  'Working with Lean projects': '使用 Lean 项目',
+  'Project guide · Lean community · English': '项目使用指南 · Lean 社区 · 英文',
+  'Learn how to open an existing project, obtain its Mathlib dependencies and keep a working environment. Use the project’s pinned versions so examples and imports agree.':
+    '学习如何打开已有项目、获取对应的 Mathlib 依赖并维护可用环境。沿用项目固定的版本，让示例与导入保持一致。',
+  'Ask questions and contribute': '提问与参与贡献',
+  'You can start with a supporting lemma, a clearer statement or a small extension. Share a minimal example when asking for help so others can reproduce the question.':
+    '可以从一个辅助引理、更清晰的命题表述或小的拓展开始。提问时附上最小示例，方便他人复现问题。',
+  'Lean community on Zulip': 'Lean 社区 Zulip',
+  'Questions and discussion · Lean community · Mainly English':
+    '提问与讨论 · Lean 社区 · 主要使用英文',
+  'Ask beginner questions, discuss formalizations and find people working in your area. Read the community guidance and include your Lean code, error message and project version when you need help.':
+    '向社区请教入门问题、讨论形式化，并寻找同领域的参与者。先阅读社区指引；求助时附上 Lean 代码、错误信息与项目版本。',
+  'Contributing to Mathlib': '向 Mathlib 贡献',
+  'Contribution guide · Lean community · English': '贡献指南 · Lean 社区 · 英文',
+  'Learn the library’s conventions and review process when a result could be useful beyond one project. This is the guide for contributing to Mathlib itself.':
+    '当一个结果也可能对其他项目有用时，可以了解数学库的规范与审阅流程。这份指南讲解如何向 Mathlib 本身贡献。',
+  'All resources below are for Lean 4. Most written material is in English; the game offers a language selector.':
+    '以下资源均面向 Lean 4。文字教程大多为英文；自然数游戏可以切换语言。',
+  'Official Lean learning directory': 'Lean 官方学习资源目录',
+  'Your first Mathesis contribution': '在 Mathesis 完成第一次贡献',
+  'Choose a result you understand. Read its mathematical statement and any existing Lean source, then look for a small, precise piece of proof work you can add.':
+    '选择一个自己理解的结果，阅读数学陈述和已有 Lean 源码，再找一项范围明确、可以补充的证明工作。',
+  'Explore the dependency graph and distinguish existing formalizations from open proof work.':
+    '浏览依赖关系图，区分已有形式化成果与尚待推进的证明工作。',
+  'For a confirmed target, keep its assumptions and prove the exact statement. You can also share an existing Lean project or a permanent source link with its original attribution.':
+    '对于已确认的目标，保留原有假设并证明准确的命题。也可以分享已有 Lean 项目或固定版本的源码链接，并保留原有署名。',
+  'Submit your contribution with the corresponding result. Independently verified proof contributions receive credit; the original mathematical authors remain credited separately.':
+    '把贡献关联到对应结果后提交。经过独立核验的证明贡献会得到署名记录；原始数学成果的作者也会单独保留署名。',
+  'Explore formalizations': '浏览形式化成果',
 };

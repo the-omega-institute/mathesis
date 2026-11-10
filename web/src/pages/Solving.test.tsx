@@ -370,7 +370,7 @@ describe('solving pages', () => {
         .map((a) => a.textContent),
     ).toEqual(['Papers', 'Conjectures', 'Formalizations', 'Submit', 'My work']);
     expect(within(nav).queryByRole('link', { name: 'Policy' })).not.toBeInTheDocument();
-    for (const name of ['Leaderboard', 'Contribute']) {
+    for (const name of ['Leaderboard', 'Contribute', 'Learn Lean']) {
       expect(within(nav).queryByRole('link', { name })).not.toBeInTheDocument();
       expect(
         within(screen.getByRole('navigation', { name: 'Footer' })).getByRole('link', { name }),

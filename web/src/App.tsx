@@ -3,6 +3,7 @@ import { ResearchProblemPage } from './pages/ResearchProblems';
 import { FeedbackPage } from './pages/Feedback';
 import { BindingsPage, BindingPage, BindingProfilePage } from './pages/Bindings';
 import { FormalizationsPage } from './pages/Formalizations';
+import { LearnLeanPage } from './pages/LearnLean';
 import { useEffect } from 'react';
 import { SupportersPage, StatementPage } from './pages/Contributions';
 import { GitHubLink } from './components/GitHubLink';
@@ -60,6 +61,8 @@ function titleFor(route: Route): string {
       return route.record;
     case 'formalizations':
       return 'Formalizations';
+    case 'learn_lean':
+      return 'Learn Lean';
     case 'research_problem':
       return 'Research problem';
     case 'conjectures':
@@ -158,6 +161,8 @@ function Page({ route }: { route: Route }) {
       return <PaperPage key={routePath(route)} record={route.record} version={route.version} />;
     case 'policy':
       return <PolicyPage />;
+    case 'learn_lean':
+      return <LearnLeanPage />;
     case 'formalizations':
       return (
         <FormalizationsPage
@@ -242,6 +247,7 @@ export function App() {
           </div>
           <nav aria-label={t('Footer')}>
             <Link to={{ kind: 'contribute' }}>{t('Contribute')}</Link>
+            <Link to={{ kind: 'learn_lean' }}>{t('Learn Lean')}</Link>
             <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
             <Link to={{ kind: 'policy' }}>{t('Policy')}</Link>
             <Link to={{ kind: 'supporters' }}>{t('Contact')}</Link>

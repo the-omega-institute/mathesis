@@ -10,6 +10,7 @@ const ROUTES: Route[] = [
   { kind: 'papers', q: 'Ada Example' },
   { kind: 'submission', id: 'sub-1', staff: true },
   { kind: 'formalizations' },
+  { kind: 'learn_lean' },
   { kind: 'formalizations', view: 'list', q: 'gaps' },
   { kind: 'leaderboard', category: 'formalization' },
   { kind: 'result', record: 'a-note', claim: 's1', version: '2' },

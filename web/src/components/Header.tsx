@@ -50,7 +50,12 @@ export function Header() {
           <NavLink
             to={{ kind: 'formalizations' }}
             label={t('Formalizations')}
-            active={k === 'formalizations' || k === 'research_graph' || k === 'statement'}
+            active={
+              k === 'formalizations' ||
+              k === 'research_graph' ||
+              k === 'statement' ||
+              k === 'learn_lean'
+            }
           />
           <NavLink to={{ kind: 'submit' }} label={t('Submit')} active={k === 'submit'} />
           {person ? (

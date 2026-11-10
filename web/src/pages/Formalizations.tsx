@@ -61,6 +61,7 @@ export function FormalizationsPage({
         >
           {t('Results and proof work')}
         </Link>
+        <Link to={{ kind: 'learn_lean' }}>{t('Learn Lean')}</Link>
       </nav>
       {view === 'list' ? (
         <FormalizationOpportunities initialQuery={q} />

@@ -112,7 +112,13 @@ export function ContributePage() {
             'Build on an author-approved statement, or contribute a useful intermediate lemma. Upload a Lean project or import a permanent link to existing code. Independently verified proofs connect to the original result, crediting both the mathematics and its formalizers.',
           )}
         </p>
-        <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link>
+        <p>
+          <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link>
+        </p>
+        <p>
+          {t('New to Lean?')}{' '}
+          <Link to={{ kind: 'learn_lean' }}>{t('Follow the learning guide')}</Link>
+        </p>
       </section>
       <section>
         <h2>{t('Report errors')}</h2>
