@@ -3,6 +3,7 @@ import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
+import { publishedLeanSource } from '../lib/publishedLean';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperExplanation } from '../components/PaperExplanation';
 import { InlineLatex, LatexText } from '../components/Markdown';
@@ -121,7 +122,11 @@ export function PublishedNotePage({
             <LatexText source={note.abstract} className="abstract" />
           </section>
           <PaperExplanation text={note.plain_language} />
-          <PublishedFormalizations work={note.id} version={note.revision} />
+          <PublishedFormalizations
+            work={note.id}
+            version={note.revision}
+            leanSource={publishedLeanSource(note)}
+          />
           {note.problems.length ? (
             <details className="paper-details" id="related-questions">
               <summary>{t('Sources and related questions')}</summary>
@@ -205,7 +210,15 @@ export function PublishedNotePage({
   );
 }
 
-function PublishedFormalizations({ work, version }: { work: string; version: string }) {
+function PublishedFormalizations({
+  work,
+  version,
+  leanSource,
+}: {
+  work: string;
+  version: string;
+  leanSource?: string;
+}) {
   const api = useApi();
   const load = useCallback(
     (signal: AbortSignal) => api.collectedKnowledge(work, version, { signal }),
@@ -213,13 +226,22 @@ function PublishedFormalizations({ work, version }: { work: string; version: str
   );
   const knowledge = useAsync(load);
   const rows = knowledge.value?.formalizations ?? [];
-  if (!rows.length) return null;
+  if (!rows.length && !leanSource) return null;
   return (
     <section aria-labelledby="formalization-h">
       <h2 id="formalization-h">{t('Formalization')}</h2>
+      {leanSource ? (
+        <p>
+          {t('Published Lean formalization is available with this paper.')}{' '}
+          <ExternalLink href={leanSource}>{t('Read the Lean source')}</ExternalLink>
+        </p>
+      ) : null}
       <p>
         <Link
-          to={{ kind: 'formalizations', focus: `statement:${work}:${version}:${rows[0]!.claim}` }}
+          to={{
+            kind: 'formalizations',
+            focus: rows[0] ? `statement:${work}:${version}:${rows[0].claim}` : `paper:${work}`,
+          }}
         >
           {t('Explore mathematical results')}
         </Link>
@@ -242,9 +264,11 @@ function PublishedFormalizations({ work, version }: { work: string; version: str
                       ? 'Disproved in Lean'
                       : row.state === 'open'
                         ? 'Open for formalization'
-                        : row.state === 'needs_attention'
-                          ? 'Further proof work is needed'
-                          : 'Awaiting a formal proof',
+                        : leanSource
+                          ? 'Lean source available'
+                          : row.state === 'needs_attention'
+                            ? 'Formalization progress unavailable'
+                            : 'Awaiting a formal proof',
                 )}
               </li>
             );
@@ -267,7 +291,9 @@ function PublishedFormalizations({ work, version }: { work: string; version: str
                         ? 'Verified in Lean'
                         : row.state === 'disproved'
                           ? 'Disproved in Lean'
-                          : 'Awaiting a formal proof',
+                          : leanSource
+                            ? 'Lean source available'
+                            : 'Awaiting a formal proof',
                     )}
                   </li>
                 ) : null;

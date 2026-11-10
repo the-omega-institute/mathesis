@@ -443,6 +443,15 @@
 .formalization-mark.is-verified {
   background: var(--accent);
 }
+.formalization-mark.is-source,
+.dependency-node.is-source .dependency-dot,
+.dependency-canvas.is-atlas .dependency-node.is-source .dependency-dot {
+  background: var(--accent);
+  border-radius: 1px;
+}
+.dependency-legend .is-published_source::before {
+  border-top-style: dotted;
+}
 .formalization-mark.is-disproved {
   background: var(--bad);
   border-color: var(--bad);

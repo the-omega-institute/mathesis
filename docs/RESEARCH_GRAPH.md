@@ -1,5 +1,18 @@
 # Mathematical knowledge and its sources
 
+Published Lean sources and checked proposition receipts are distinct evidence.
+The primary Formalizations view includes one filled-square source node per exact
+collected paper version with a pinned Lean file. It links directly to the source
+and original attribution. A paper-to-source edge records publication membership,
+not theorem implication. These sources have their own filter and count.
+Paper-backed statements without an exact declaration correspondence display
+“Lean source available”, not “Awaiting formalization”. A separate filled-circle
+state still requires an exact matching checked proof receipt. Such source-backed
+statements are excluded from proof opportunities unless a confirmed target is
+available. Existing source is visible without re-running CMA or awarding fresh
+Mathesis-agent credit. Reader and directory source links retain the exact public
+paper version; no statement inherits a later source or another result's receipt.
+
 Mathesis indexes the references actually cited by an accepted manuscript as a
 shared bibliographic foundation. Two manuscripts citing the same supported DOI
 lead to one literature identity; opening that literature node finds both citing

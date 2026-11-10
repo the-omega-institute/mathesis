@@ -45,6 +45,17 @@ describe('public dependency projection', () => {
       graph.edges.some((e) => e.relation === 'checked_use' || e.relation === 'declared_dependency'),
     ).toBe(false);
     expect(graph.nodes.some((n) => n.verified)).toBe(false);
+    expect(graph.nodes.find((n) => n.kind === 'source')).toMatchObject({
+      id: 'lean-source:gap-note:2',
+      authors: ['Original Author'],
+      leanSource: dependencyPaper.lean!.url,
+    });
+    expect(graph.nodes.find((n) => n.claim === 's2')!.publishedLean).toBe(
+      dependencyPaper.lean!.url,
+    );
+    expect(graph.edges.filter((e) => e.relation === 'published_source')).toEqual([
+      { from: 'paper:gap-note:2', to: 'lean-source:gap-note:2', relation: 'published_source' },
+    ]);
     expect(graph.nodes.find((n) => n.kind === 'paper')!.leanSource).toBe(dependencyPaper.lean!.url);
   });
   it('keeps author-stated dependencies separate and never exposes claims from absent or changed publication snapshots', async () => {
@@ -174,9 +185,10 @@ it('keeps every exact result visible once in the field overview and adds no subj
   const base = graph.nodes.find((node) => node.kind === 'result')!;
   graph.nodes.push({ ...base, id: 'other-result', areas: ['algebra', 'number-theory'] });
   const layout = dependencyAtlasLayout(graph, 1050);
-  expect(layout.points.size).toBe(4);
+  expect(layout.points.size).toBe(5);
   expect(layout.fields.map((field) => field.id)).toEqual(['algebra', 'number-theory']);
   expect(layout.fields.reduce((count, field) => count + field.count, 0)).toBe(4);
+  expect(layout.fields.reduce((count, field) => count + field.sourceCount, 0)).toBe(1);
   expect(graph.edges.some((edge) => edge.relation === 'declared_dependency')).toBe(false);
   const mobile = dependencyAtlasLayout(graph, 350);
   expect([...mobile.points.values()].every((point) => point.x >= 0 && point.x < 350)).toBe(true);

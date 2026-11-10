@@ -128,18 +128,18 @@ it('shows results from every loaded field first and restores the whole overview 
   let map = screen.getByRole('figure');
   expect(within(map).getByRole('button', { name: /Algebra\s*1 results/ })).toBeVisible();
   expect(within(map).getByRole('button', { name: /Number theory\s*3 results/ })).toBeVisible();
-  expect(map.querySelectorAll('.dependency-node')).toHaveLength(4);
+  expect(map.querySelectorAll('.dependency-node')).toHaveLength(5);
   expect(map.querySelectorAll('[data-relation="declared_dependency"]')).toHaveLength(1);
   expect(screen.queryByRole('region', { name: 'Selected result and its dependencies' })).toBeNull();
   await userEvent.click(within(map).getByRole('button', { name: /An algebraic consequence/ }));
   expect(screen.getByRole('heading', { name: 'An algebraic consequence' })).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'All fields' }));
   map = screen.getByRole('figure');
-  expect(map.querySelectorAll('.dependency-node')).toHaveLength(4);
+  expect(map.querySelectorAll('.dependency-node')).toHaveLength(5);
   expect(within(map).getByRole('button', { name: /Number theory\s*3 results/ })).toBeVisible();
 });
 
-it('shows verified and awaiting nodes together by default, and filters without changing their meaning', async () => {
+it('shows published sources without labelling every manuscript statement as missing a proof or awarding new proof credit', async () => {
   renderWithApp(<DependencyGraph />, makeApi());
   await screen.findByRole('figure');
   expect(screen.getByRole('button', { name: /^All results/ })).toHaveAttribute(
@@ -147,10 +147,23 @@ it('shows verified and awaiting nodes together by default, and filters without c
     'true',
   );
   const pending = screen.getByRole('button', { name: /Theorem: The uniform bound/ });
-  expect(pending).toHaveAttribute('data-verification', 'pending');
+  expect(pending).toHaveAttribute('data-verification', 'source_available');
   await userEvent.click(pending);
   expect(pending).not.toHaveClass('is-verified');
-  await userEvent.click(screen.getByRole('button', { name: /^Formalized in Lean/ }));
+  expect(screen.getByText(/Read its scope before proposing additional proof work/)).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /^Published Lean sources/ }));
+  const source = screen.getByRole('button', { name: /Published Lean source: Bounds on gaps/ });
+  expect(source).toHaveAttribute('data-verification', 'source_available');
+  expect(source).not.toHaveClass('is-verified');
+  await userEvent.click(source);
+  expect(
+    screen.getByRole('link', { name: 'Published Lean source for this paper' }),
+  ).toHaveAttribute('href', dependencyPaper.lean!.url);
+  expect(screen.getByText(/Original attribution is retained in the source/)).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /^Proof opportunities/ }));
+  expect(screen.queryByRole('button', { name: /Theorem: The uniform bound/ })).toBeNull();
+  expect(screen.getByText(/No confirmed proof gaps are listed/)).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /^Checked statements/ }));
   expect(screen.queryByRole('button', { name: /Theorem: The uniform bound/ })).toBeNull();
   expect(screen.getByText(/No independently verified formalizations yet/)).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: /^All results/ }));
