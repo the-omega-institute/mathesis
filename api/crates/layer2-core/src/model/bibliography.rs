@@ -260,10 +260,15 @@ impl ResearchSearch {
         match self {
             Self::All => true,
             Self::Identity(id) => id == &format!("paper:{record}"),
-            Self::Text(q) => std::iter::once(record.as_str())
-                .chain([source.title.as_str()])
-                .chain(source.authors.iter().map(|a| a.name.as_str()))
-                .any(|v| v.to_lowercase().contains(q)),
+            Self::Text(q) => {
+                [record.as_str(), source.title.as_str()]
+                    .iter()
+                    .any(|v| v.to_lowercase().contains(q))
+                    || source
+                        .authors
+                        .iter()
+                        .any(|a| super::author_name_matches(&a.name, q))
+            }
         }
     }
     pub fn matches_reference(

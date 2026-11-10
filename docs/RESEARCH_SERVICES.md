@@ -63,7 +63,11 @@ parallel database, identity provider or proof-acceptance mechanism.
 archive, not the currently displayed page. `q` is plain words; matching any
 word selects a candidate. It searches title, author names, accepted abstract
 and DOI. An exact `WP-…` query selects that record. Author matching is a literal,
-case-insensitive substring; Mongo regex metacharacters are escaped. MSC is a
+case-insensitive substring of one author's name, as stored or in the canonical
+`Given Family` form, so `Ma, Haobo` and `Haobo Ma` select the same works (see
+[ACADEMIC_ARCHIVE.md](ACADEMIC_ARCHIVE.md)). MongoDB preselects candidates by
+the query's literal terms, with regex metacharacters escaped, and the Layer 2
+rule decides each match, as in the memory adapter. MSC is a
 classification prefix. Results use descending record ids and `next_before`.
 Keep the same filters when following a cursor.
 

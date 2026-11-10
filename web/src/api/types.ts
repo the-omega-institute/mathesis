@@ -290,6 +290,10 @@ export type NewPaper = {
   open_to_contributors?: boolean;
 };
 export type Author = {
+  /**
+   * Reader projections write the name as "Given Family": a stored single-comma
+   * "Family, Given" is shown reordered; every other name is as stored.
+   */
   name: string;
   person?: string;
   orcid?: string;

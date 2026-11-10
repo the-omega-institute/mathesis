@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setLocale, useLocale } from '../i18n/locale';
+import snapshot from '../data/project-notes.json';
 import { findProjectNotes, projectNotes, projectNoteVersions } from '../lib/projectNotes';
 import { fakeApi, renderWithApp } from '../test/render';
 import { PublishedNotePage } from './PublishedNote';
@@ -272,6 +273,69 @@ it('preserves a live exact-version DOI through archive, paper citation and refer
   expect(document.getElementById('citation')).toHaveTextContent(
     `/papers/${old.id}?version=${old.revision}`,
   );
+});
+
+describe('author names delivered in two written forms', () => {
+  const delivered = (id: string) =>
+    snapshot.works.find((work) => work.id === id)!.authors.map((a) => a.name);
+
+  it('finds and lists every manuscript under one name, whichever form is asked for', async () => {
+    // The shipped snapshot keeps the names exactly as each producer delivered them.
+    expect(new Set(snapshot.works.flatMap((work) => work.authors.map((a) => a.name)))).toEqual(
+      new Set(['Ma, Haobo', 'Zhang, Wenlin', 'Haobo Ma', 'Wenlin Zhang']),
+    );
+    expect(new Set(projectNoteVersions.flatMap((n) => n.authors.map((a) => a.name)))).toEqual(
+      new Set(['Haobo Ma', 'Wenlin Zhang']),
+    );
+    const all = projectNotes.map((note) => note.id).sort();
+    for (const author of ['Haobo Ma', 'Ma, Haobo', 'haobo ma', 'Wenlin Zhang', 'Zhang, Wenlin']) {
+      expect(
+        findProjectNotes({ author })
+          .map((note) => note.id)
+          .sort(),
+        author,
+      ).toEqual(all);
+    }
+    // A name is neither reordered without its comma nor matched across two authors.
+    expect(findProjectNotes({ author: 'Ma Haobo' })).toEqual([]);
+    expect(findProjectNotes({ author: 'Haobo Ma Wenlin' })).toEqual([]);
+    // The search box takes a name in either form as well.
+    for (const q of ['Haobo Ma', 'Ma, Haobo']) {
+      expect(
+        findProjectNotes({ q })
+          .map((note) => note.id)
+          .sort(),
+        q,
+      ).toEqual(all);
+    }
+
+    const { container } = renderWithApp(
+      <PapersPage initialFilters={{ author: 'Ma, Haobo' }} />,
+      fakeApi(),
+    );
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+    const names = [...container.querySelectorAll('.paper-entry .author-name')];
+    expect(names).toHaveLength(20);
+    for (const [index, link] of names.entries()) {
+      const name = index % 2 ? 'Wenlin Zhang' : 'Haobo Ma';
+      expect(link).toHaveTextContent(name);
+      expect(link).toHaveAttribute('href', `/papers?author=${name.replace(' ', '+')}`);
+    }
+  });
+
+  it('cites a manuscript and describes it to reference managers in the canonical form', () => {
+    const note = projectNotes.find((note) => delivered(note.id)[0] === 'Ma, Haobo')!;
+    expect(delivered(note.id)).toEqual(['Ma, Haobo', 'Zhang, Wenlin']);
+    renderWithApp(<PublishedNotePage id={note.id} />, fakeApi());
+    expect(document.getElementById('citation')).toHaveTextContent(
+      `Haobo Ma; Wenlin Zhang. ${note.title}`,
+    );
+    expect(
+      [...document.querySelectorAll('meta[name="citation_author"]')].map((meta) =>
+        meta.getAttribute('content'),
+      ),
+    ).toEqual(['Haobo Ma', 'Wenlin Zhang']);
+  });
 });
 
 it('links each named problem of a live collected work to its lasting problem page', async () => {

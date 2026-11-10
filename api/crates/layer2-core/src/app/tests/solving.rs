@@ -3014,3 +3014,96 @@ async fn checked_auxiliary_exports_reject_changed_type_source_pin_and_receipt() 
         assert!(w.app.checked_contributions(&record, &claim).await.is_err());
     }
 }
+
+#[tokio::test]
+async fn source_author_names_are_canonical_for_readers_and_stored_in_evidence_and_provider_input() {
+    let stores = Arc::new(MemoryStores::default());
+    let mut ports = stores.ports(Arc::new(SystemClock), Arc::new(FamilyFirstReader));
+    ports.verifier = Arc::new(InspectionFixtureVerifier);
+    let w = World {
+        stores,
+        app: App::with_attempt_limit(
+            ports,
+            Policy::default(),
+            BTreeSet::from([PersonId::from("admin")]),
+            20,
+        ),
+    };
+    let author = w.person("author", &[]).await;
+    let author2 = w.person("author2", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let contributor = w.person("contributor", &[]).await;
+    let consumer = w.person("consumer", &[]).await;
+    let (paper, record) = paper_target(&w, &author, &reviewer).await;
+    let (_, record2) = paper_target(&w, &author2, &reviewer).await;
+    assert_eq!(paper.authors[0].name, "Ma, Haobo");
+    let claim = ClaimId::from("C1");
+    let name = |authors: &[Author]| authors[0].name.clone();
+    let directory = w
+        .app
+        .formalization_opportunities(Default::default())
+        .await
+        .unwrap();
+    assert_eq!(directory.items.len(), 2);
+    for item in &directory.items {
+        assert_eq!(name(&item.authors), "Haobo Ma");
+    }
+    let target = w.app.target(&record, &claim).await.unwrap();
+    let helper = w
+        .app
+        .submit_intermediate(
+            &contributor,
+            &record,
+            &claim,
+            intermediate_input(&target.digest),
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &helper.id).await.unwrap();
+    let shown = w.app.checked_contribution(&helper.id).await.unwrap();
+    assert_eq!(name(&shown.authors), "Haobo Ma");
+    let listed = w.app.checked_contributions(&record, &claim).await.unwrap();
+    assert_eq!(name(&listed[0].authors), "Haobo Ma");
+    // Admitted provider input keeps its bytes.
+    let input = w
+        .app
+        .checked_contribution_input(&reviewer, &helper.id)
+        .await
+        .unwrap();
+    assert_eq!(name(&input.authors), "Ma, Haobo");
+    let target2 = w.app.target(&record2, &claim).await.unwrap();
+    let used = w
+        .app
+        .submit_reusing_attempt(
+            &consumer,
+            &record2,
+            &claim,
+            ReusingAttempt {
+                expected_target: target2.digest.clone(),
+                solution: "fixture_checked_use".into(),
+                contributions: vec![helper.id.clone()],
+                modules: BTreeMap::new(),
+                as_agent: None,
+                note: String::new(),
+            },
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &used.id).await.unwrap();
+    let uses = w.app.result_uses(&record2, &claim).await.unwrap();
+    assert_eq!(name(&uses[0].result.authors), "Haobo Ma");
+    assert_eq!(name(&uses[0].used_result.authors), "Haobo Ma");
+    let profile = w
+        .app
+        .entrant_profile(&contributor.person.to_string())
+        .await
+        .unwrap();
+    assert_eq!(name(&profile.contributions[0].source_authors), "Haobo Ma");
+    // A verification bundle is evidence bound into feedback digests.
+    let bundle = w
+        .app
+        .verification_bundle(&record2, &claim, &used.id)
+        .await
+        .unwrap();
+    assert_eq!(name(&bundle.reused_contributions[0].authors), "Ma, Haobo");
+}

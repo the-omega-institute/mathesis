@@ -1831,3 +1831,236 @@ async fn collected_work_links_its_named_problem_to_the_documented_problem_page()
         }
     }
 }
+
+#[tokio::test]
+async fn author_queries_in_either_written_form_return_the_same_works_under_one_public_name() {
+    use mathesis_core::{
+        ids::{RecordId, SubmissionId},
+        model::*,
+        ports::{RecordStore, SubmissionStore},
+    };
+    let stores = Arc::new(MemoryStores::default());
+    let app = App::with_internal_accounts(
+        stores.ports(Arc::new(SystemClock), Arc::new(OneTheorem)),
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from(["publisher".into()]),
+    );
+    let router =
+        crate::router(app.clone()).layer(middleware::from_fn_with_state(app.clone(), test_auth));
+    let named = |names: &[&str]| -> serde_json::Value {
+        names
+            .iter()
+            .map(|name| serde_json::json!({ "name": name }))
+            .collect()
+    };
+    let works = [
+        vec!["Ma, Haobo", "Zhang, Wenlin"],
+        vec!["Haobo Ma", "Wenlin Zhang"],
+        vec!["Smith, John, Jr."],
+        vec!["张文林"],
+    ];
+    // Ordinary accepted papers, and collected works delivered by a trusted producer.
+    for (n, names) in works.iter().enumerate() {
+        let (_, uploaded, _) = upload(&router, "author", b"paper").await;
+        let id = SubmissionId::from(uploaded["id"].as_str().unwrap());
+        let mut p = SubmissionStore::get(stores.as_ref(), &id)
+            .await
+            .unwrap()
+            .unwrap();
+        let record = RecordId::format(2026, n as u64 + 1);
+        p.status = SubmissionStatus::Accepted {
+            record: record.clone(),
+        };
+        p.analysis_visibility = Visibility::Public;
+        p.authors = serde_json::from_value(named(names)).unwrap();
+        SubmissionStore::replace(stores.as_ref(), &p, p.revision)
+            .await
+            .unwrap();
+        RecordStore::insert(
+            stores.as_ref(),
+            &Record {
+                kind: p.kind,
+                id: record,
+                publication: None,
+                submission: id,
+                title: p.title.clone(),
+                authors: p.authors.clone(),
+                basis: mathesis_core::policy::AdmissionBasis::EscapeWitness,
+                accepted_by: "fixture-editor".into(),
+                accepted_at: mathesis_core::ports::Clock::now(&SystemClock),
+            },
+        )
+        .await
+        .unwrap();
+        let metadata = serde_json::json!({
+            "schema": "mathesis.pre-reviewed-delivery.v1", "producer": "publisher",
+            "work_id": format!("note-{}", n + 1), "version": 1, "previous_version": null,
+            "authorize_publication": true,
+            "paper": {"title": "A note", "abstract": "A bound on gaps", "authors": named(names), "license": "CC-BY-4.0"},
+            "review": {"verdict": "PASS",
+                "pdf_sha256": "ab6c67525cb3c15f71bed0438abfcf1370a624c4681040f404f534fb43e4e371",
+                "source_sha256": "f00b7b51a5898bc58816f335115a28cc3bb1ef28dee51d0513517182fe30b686",
+                "record": {"checked": true}}
+        })
+        .to_string();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/pre-reviewed-deliveries")
+            .header("x-test-subject", "publisher")
+            .header(
+                header::CONTENT_TYPE,
+                format!("multipart/form-data; boundary={BOUNDARY}"),
+            )
+            .body(Body::from(multipart(&[
+                ("metadata", None, metadata.as_bytes()),
+                ("pdf", Some("note.pdf"), b"%PDF-reviewed"),
+                ("source", Some("source.zip"), b"PK\x03\x04reviewed"),
+            ])))
+            .unwrap();
+        let (status, receipt, _) = send(&router, request).await;
+        assert_eq!(status, StatusCode::OK, "{receipt}");
+    }
+    let found = async |path: &str, author: &str| {
+        let author: String = author
+            .bytes()
+            .map(|b| {
+                if b.is_ascii_alphanumeric() {
+                    (b as char).to_string()
+                } else {
+                    format!("%{b:02X}")
+                }
+            })
+            .collect();
+        let (status, page, _) = call(
+            &router,
+            "GET",
+            &format!("{path}?author={author}"),
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{page}");
+        let mut items = page["items"].as_array().unwrap().clone();
+        items.sort_by_key(|item| {
+            item.get("record")
+                .or(item.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap()
+                .to_owned()
+        });
+        items
+    };
+    let names = |item: &serde_json::Value| -> Vec<String> {
+        item["authors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a["name"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    for (path, key, first, second, suffix, cjk) in [
+        (
+            "/papers",
+            "record",
+            "WP-2026-0001",
+            "WP-2026-0002",
+            "WP-2026-0003",
+            "WP-2026-0004",
+        ),
+        (
+            "/collected-papers",
+            "id",
+            "note-1",
+            "note-2",
+            "note-3",
+            "note-4",
+        ),
+    ] {
+        let both = found(path, "Haobo Ma").await;
+        assert_eq!(both.len(), 2, "{path}");
+        assert_eq!(
+            (&both[0][key], &both[1][key]),
+            (&first.into(), &second.into())
+        );
+        for query in ["Ma, Haobo", "haobo ma", "Zhang, Wenlin", "Wenlin Zhang"] {
+            assert_eq!(found(path, query).await, both, "{path} {query}");
+        }
+        // One written form for readers, whichever form was stored.
+        for item in &both {
+            assert_eq!(names(item), ["Haobo Ma", "Wenlin Zhang"], "{path}");
+        }
+        // Other names are neither reordered nor merged.
+        assert!(found(path, "John Smith").await.is_empty(), "{path}");
+        let stored = found(path, "Smith, John").await;
+        assert_eq!(stored.len(), 1, "{path}");
+        assert_eq!(stored[0][key], suffix);
+        assert_eq!(names(&stored[0]), ["Smith, John, Jr."]);
+        let stored = found(path, "文林").await;
+        assert_eq!(stored.len(), 1, "{path}");
+        assert_eq!(stored[0][key], cjk);
+        assert_eq!(names(&stored[0]), ["张文林"]);
+        assert!(found(path, "Ma Haobo").await.is_empty(), "{path}");
+        assert!(found(path, ".*").await.is_empty(), "{path}");
+    }
+    let (_, paper, _) = call(&router, "GET", "/papers/WP-2026-0001", None, None).await;
+    assert_eq!(names(&paper["summary"]), ["Haobo Ma", "Wenlin Zhang"]);
+    let (_, note, _) = call(&router, "GET", "/collected-papers/note-1", None, None).await;
+    assert_eq!(names(&note), ["Haobo Ma", "Wenlin Zhang"]);
+    // The free-text query takes a name in either written form as well.
+    for q in ["Haobo%20Ma", "Ma%2C%20Haobo"] {
+        let (_, page, _) = call(
+            &router,
+            "GET",
+            &format!("/collected-papers?q={q}"),
+            None,
+            None,
+        )
+        .await;
+        let mut ids: Vec<_> = page["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["id"].as_str().unwrap().to_owned())
+            .collect();
+        ids.sort();
+        assert_eq!(ids, ["note-1", "note-2"], "{q}");
+    }
+    // Scholar metadata carries the same names as the reader.
+    let landing = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/papers/WP-2026-0001/landing.html")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(landing.status(), StatusCode::OK);
+    let html = String::from_utf8(
+        axum::body::to_bytes(landing.into_body(), 1 << 20)
+            .await
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(html.contains(
+        "<meta name=\"citation_author\" content=\"Haobo Ma\"><meta name=\"citation_author\" content=\"Wenlin Zhang\">"
+    ));
+    assert!(html.contains("<p class=\"authors\">Haobo Ma, Wenlin Zhang</p>"));
+    assert!(!html.contains("Ma, Haobo"));
+    // Stored publication inputs and deliveries keep the names as delivered.
+    let stored = RecordStore::get(stores.as_ref(), &RecordId::format(2026, 1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.authors[0].name, "Ma, Haobo");
+    let delivered =
+        mathesis_core::ports::CollectedPaperStore::get(stores.as_ref(), "note-1", Some(1))
+            .await
+            .unwrap()
+            .unwrap();
+    assert_eq!(delivered.delivery.paper.authors[0].name, "Ma, Haobo");
+}

@@ -277,11 +277,18 @@ impl RecordStore for MongoStore {
                 })
                 .collect::<String>()
         };
+        // Preselect one author carrying every literal term of the name. The
+        // shared domain rule below decides the match, as in the memory adapter,
+        // so either written form of a name finds both.
         if let Some(author) = &search.author {
-            filter.insert(
-                "authors.name",
-                doc! {"$regex": literal(author), "$options": "i"},
-            );
+            let terms: Vec<Document> = mathesis_core::model::author_name_terms(author)
+                .iter()
+                .take(8)
+                .map(|term| doc! {"name": {"$regex": literal(term), "$options": "i"}})
+                .collect();
+            if !terms.is_empty() {
+                filter.insert("authors", doc! {"$elemMatch": {"$and": terms}});
+            }
         }
         if let Some(msc) = &search.msc {
             filter.insert(
@@ -294,30 +301,49 @@ impl RecordStore for MongoStore {
         }
         // Gate candidates against authoritative live visibility before limiting the page.
         // The application checks it again when producing the public projection.
-        let mut documents: Vec<Document> = self.raw(RECORDS).aggregate(vec![
+        let mut pipeline = vec![
             doc! {"$match": filter},
             doc! {"$sort": {"id": -1}},
             doc! {"$lookup": {"from": SUBMISSIONS, "localField": "submission", "foreignField": "id", "pipeline": [{"$match": {"analysis_visibility": "public"}}, {"$project": {"_id": 1}}], "as": "search_visibility"}},
             doc! {"$match": {"search_visibility.0": {"$exists": true}}},
             doc! {"$unset": "search_visibility"},
-            doc! {"$limit": i64::from(limit) + 1},
-        ]).max_time(std::time::Duration::from_secs(10)).await.map_err(unavailable)?.try_collect().await.map_err(unavailable)?;
-        let next_before = if documents.len() > limit as usize {
-            documents.pop();
-            documents
-                .last()
-                .and_then(|d| d.get_str("id").ok())
-                .map(str::to_owned)
-        } else {
-            None
-        };
-        Ok(Listing {
-            items: documents
-                .into_iter()
-                .map(from_document)
-                .collect::<CoreResult<_>>()?,
-            next_before,
+        ];
+        // Preselected author candidates are cut to a page after the domain rule.
+        if search.author.is_none() {
+            pipeline.push(doc! {"$limit": i64::from(limit) + 1});
+        }
+        // Bound elapsed work including getMore batches; a timeout is never an empty page.
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            let mut cursor = self
+                .raw(RECORDS)
+                .aggregate(pipeline)
+                .max_time(std::time::Duration::from_secs(10))
+                .batch_size(limit.saturating_add(1))
+                .await
+                .map_err(unavailable)?;
+            let limit = limit as usize;
+            let mut items: Vec<Record> = Vec::new();
+            while let Some(document) = cursor.try_next().await.map_err(unavailable)? {
+                let record: Record = from_document(document)?;
+                if search.matches_author(&record.authors) {
+                    items.push(record);
+                    if items.len() > limit {
+                        break;
+                    }
+                }
+            }
+            let next_before = if items.len() > limit {
+                items.pop();
+                items.last().map(|r| r.id.to_string())
+            } else {
+                None
+            };
+            Ok(Listing { items, next_before })
         })
+        .await
+        .map_err(|_| {
+            CoreError::Unavailable("archive search exceeded its 10-second deadline".into())
+        })?
     }
 
     async fn for_submission(&self, id: &SubmissionId) -> CoreResult<Option<Record>> {

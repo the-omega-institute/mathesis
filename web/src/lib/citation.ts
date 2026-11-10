@@ -1,4 +1,5 @@
 import type { PaperSummary, PublicClaim } from '../api/types';
+import { canonicalAuthorName } from './authorName';
 import { formatDate } from './format';
 import { formatAuthors } from './labels';
 import { sourceHref } from './links';
@@ -92,7 +93,14 @@ export function paperBibtex(
     .filter(Boolean)
     .join('; ');
   const fields = [
-    ['author', paper.authors.map((author) => `{${bibtexValue(author.name)}}`).join(' and '), true],
+    [
+      'author',
+      // One brace-protected name per author; the canonical form carries no separating comma.
+      paper.authors
+        .map((author) => `{${bibtexValue(canonicalAuthorName(author.name))}}`)
+        .join(' and '),
+      true,
+    ],
     ['title', paper.title],
     ['year', year],
     ['doi', paper.doi],

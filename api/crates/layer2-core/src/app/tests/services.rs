@@ -940,3 +940,128 @@ async fn deposit_cleanup_preserves_sources_after_an_uncertain_committed_insert()
         );
     }
 }
+
+#[tokio::test]
+async fn author_search_and_public_names_treat_both_written_forms_alike() {
+    let w = World::new().await;
+    let author = w.person("author", &[]).await;
+    let named = |names: &[&str]| -> Vec<Author> {
+        names
+            .iter()
+            .map(|name| Author {
+                name: (*name).into(),
+                person: None,
+                orcid: None,
+                affiliation: None,
+                google_scholar: None,
+                website: None,
+            })
+            .collect()
+    };
+    for (n, names) in [
+        vec!["Ma, Haobo", "Zhang, Wenlin"],
+        vec!["Haobo Ma"],
+        vec!["Smith, John, Jr."],
+        vec!["张文林"],
+    ]
+    .iter()
+    .enumerate()
+    {
+        let mut s = w.submit(&author, "t", false).await;
+        s.authors = named(names);
+        s.analysis_visibility = Visibility::Public;
+        let id = RecordId::format(2026, n as u64 + 1);
+        s.status = SubmissionStatus::Accepted { record: id.clone() };
+        w.app.save(&mut s).await.unwrap();
+        w.app
+            .ports
+            .records
+            .insert(&Record {
+                kind: s.kind,
+                id,
+                submission: s.id.clone(),
+                title: s.title.clone(),
+                authors: s.authors.clone(),
+                publication: Some(Box::new(s.clone())),
+                basis: AdmissionBasis::EscapeWitness,
+                accepted_by: author.person.clone(),
+                accepted_at: w.app.ports.clock.now(),
+            })
+            .await
+            .unwrap();
+    }
+    let found = async |name: &str| {
+        w.app
+            .search_papers(
+                PaperSearch {
+                    author: Some(name.into()),
+                    ..Default::default()
+                },
+                None,
+                None,
+            )
+            .await
+            .unwrap()
+            .items
+    };
+    let records = |items: &[PaperSummary]| -> Vec<String> {
+        items.iter().map(|p| p.record.to_string()).collect()
+    };
+    let both = found("Haobo Ma").await;
+    assert_eq!(records(&both), ["WP-2026-0002", "WP-2026-0001"]);
+    for query in ["Ma, Haobo", "haobo ma", "MA,HAOBO"] {
+        assert_eq!(found(query).await, both, "{query}");
+    }
+    assert_eq!(records(&found("Wenlin Zhang").await), ["WP-2026-0001"]);
+    assert_eq!(records(&found("Zhang, Wenlin").await), ["WP-2026-0001"]);
+    // Names outside the single-comma form are neither reordered nor merged.
+    assert!(found("John Smith").await.is_empty());
+    assert_eq!(records(&found("Smith, John").await), ["WP-2026-0003"]);
+    assert_eq!(records(&found("文林").await), ["WP-2026-0004"]);
+    assert!(found("Ma Haobo").await.is_empty());
+
+    // One written form in reader projections; the accepted inputs stay as stored.
+    let names =
+        |authors: &[Author]| -> Vec<String> { authors.iter().map(|a| a.name.clone()).collect() };
+    assert_eq!(names(&both[1].authors), ["Haobo Ma", "Wenlin Zhang"]);
+    assert_eq!(names(&both[0].authors), ["Haobo Ma"]);
+    let listed = w.app.list_papers(None, None).await.unwrap().items;
+    assert_eq!(names(&listed[3].authors), ["Haobo Ma", "Wenlin Zhang"]);
+    assert_eq!(names(&listed[1].authors), ["Smith, John, Jr."]);
+    assert_eq!(names(&listed[0].authors), ["张文林"]);
+    let first = RecordId::format(2026, 1);
+    assert_eq!(
+        names(&w.app.paper(&first).await.unwrap().summary.authors),
+        ["Haobo Ma", "Wenlin Zhang"]
+    );
+    let stored = w.app.ports.records.get(&first).await.unwrap().unwrap();
+    assert_eq!(names(&stored.authors), ["Ma, Haobo", "Zhang, Wenlin"]);
+    assert_eq!(
+        names(&stored.publication.unwrap().authors),
+        ["Ma, Haobo", "Zhang, Wenlin"]
+    );
+    for q in ["Haobo Ma", "Ma, Haobo"] {
+        let graph = w
+            .app
+            .research_graph(ResearchGraphQuery {
+                q: Some(q.into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let mut papers: Vec<_> = graph
+            .nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n.authors.join("; ")))
+            .collect();
+        papers.sort();
+        assert_eq!(
+            papers,
+            [
+                ("paper:WP-2026-0001", "Haobo Ma; Wenlin Zhang".to_owned()),
+                ("paper:WP-2026-0002", "Haobo Ma".to_owned())
+            ],
+            "{q}"
+        );
+    }
+}

@@ -178,7 +178,7 @@ impl App {
                     title: source.title.clone(),
                     label: claim.label.clone(),
                     statement: claim.statement.clone(),
-                    authors: source.authors.clone(),
+                    authors: canonical_authors(&source.authors),
                     kind: kind.into(),
                     status: status.into(),
                     macros: source.macros.clone(),

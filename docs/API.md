@@ -192,6 +192,8 @@ type NewPaper = {
   doi?: string | null;         // persistent identifier, when the paper already has one
   open_to_contributors?: boolean;
 };
+// Reader projections write `name` as "Given Family": a stored single-comma "Family, Given"
+// is shown reordered; every other name, and every stored or submitted value, is unchanged.
 type Author = { name: string; person?: string; orcid?: string; affiliation?: string; google_scholar?: string; website?: string };
 
 type ClaimKind = "theorem" | "proposition" | "lemma" | "corollary" | "claim" | "conjecture" | "question";
@@ -931,7 +933,7 @@ identity configuration, verification boundaries and current limitations.
 
 | Method | Path (under `/api/v1`) | Access | Result |
 |---|---|---|---|
-| GET | `/papers?q=&author=&msc=&kind=&limit=&before=` | Public | Indexed public archive search; plain words, author substring, MSC prefix and type; newest record first |
+| GET | `/papers?q=&author=&msc=&kind=&limit=&before=` | Public | Indexed public archive search; plain words, author substring (`Family, Given` and `Given Family` select the same works, also on `/collected-papers`), MSC prefix and type; newest record first |
 | GET | `/submissions/{id}/review` | Authors/staff | Downloadable Orchestra review dossier, current source digest and version, safe projected rounds and letters |
 | POST | `/formalizations` | Signed in | Store attributed Lean source; returns a deposit, never a verification receipt |
 | GET | `/formalizations?limit=&before=` | Owner | Cursor page of own deposits |
