@@ -2256,6 +2256,7 @@ export const zh: Record<string, string> = {
   'Lean is free, open-source software that checks mathematical proofs step by step. Explore how results build on one another, find a proof to contribute, and receive credit for your work.':
     'Lean 是免费、开源的数学证明软件，能逐步检查证明的逻辑。在这里，你可以查看结果之间的依赖关系、寻找可参与的证明工作，并获得贡献署名。',
   'Get familiar with Lean formalization': '了解 Lean 与数学形式化',
+  'Submit a paper': '提交论文',
   'Download and install Lean': '下载与安装 Lean',
   'Try Lean in your browser': '无需安装，在线试用',
   'Where to download Lean': 'Lean 在哪里下载',

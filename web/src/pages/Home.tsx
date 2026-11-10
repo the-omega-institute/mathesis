@@ -37,6 +37,11 @@ export function HomePage() {
               'Bring a paper, a conjecture or a formal proof. Mathesis brings people and AI together to review new mathematics and build a connected body of knowledge, grounded in Lean.',
             )}
           </p>
+          <p className="home-primary-action">
+            <Link className="button home-submit" to={{ kind: 'submit' }}>
+              {t('Submit a paper')}
+            </Link>
+          </p>
           <p className="home-reading">
             {t(
               'Papers and written conjectures are compared with existing knowledge. Accepted work receives credit and a path toward formalization; reusable Lean proofs become foundations for what comes next.',
