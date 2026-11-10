@@ -162,6 +162,12 @@ before switching the primary image. Requests whose pins differ from the primary
 are sent to that service, which still enforces its own exact pins. Do not replace
 the old prepared workspace in place or rewrite historical targets and receipts.
 
+New jobs pin the verifier's prepared libraries together with the Lean/Mathlib
+pair. When a library is pinned, the preparation and proof prompts instruct the
+agent to prove the target from an existing library declaration first and to port
+or newly prove only what the library lacks. Work admitted without a library pin
+keeps its exact prompts. See [LIBRARY_BINDING.md](LIBRARY_BINDING.md).
+
 Each paper shares its preparation and independent translation inspection; each
 result has its own source-bound target and receipt. Verifier rejection resumes
 only that exact proof, using saved feedback. Worker restarts reuse persisted

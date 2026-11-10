@@ -394,6 +394,11 @@ pub trait Verifier: Send + Sync {
             "verifier environment is unavailable".into(),
         ))
     }
+    /// Libraries beyond Mathlib prepared in the verifier workspace, which
+    /// solutions and supporting modules may import. Default: none.
+    async fn libraries(&self) -> CoreResult<Vec<crate::model::PreparedLibrary>> {
+        Ok(vec![])
+    }
     async fn verify(
         &self,
         request: &crate::model::VerificationRequest,

@@ -221,6 +221,7 @@ impl App {
             let file = SolveFile {
                 collected: Some(CollectedProof {
                     toolchain: None,
+                    libraries: vec![],
                     source_sha256: saved.source.sha256.clone(),
                     statement_sha256: hash(&c.statement),
                     requested_by: saved.owner.clone(),
@@ -384,8 +385,29 @@ impl App {
         claim: &ClaimId,
         toolchain: String,
     ) -> CoreResult<String> {
+        self.pin_collected_environment(caller, work, version, claim, toolchain, vec![])
+            .await
+            .map(|(toolchain, _)| toolchain)
+    }
+
+    /// Pin the verifier environment of new proof work: the Lean/Mathlib pair and
+    /// the prepared libraries, in one revision-fenced write before any provider
+    /// admission. A saved pin is returned unchanged, so work admitted without a
+    /// library never acquires one and every retry renders the same prompts.
+    pub async fn pin_collected_environment(
+        &self,
+        caller: &Caller,
+        work: &str,
+        version: u32,
+        claim: &ClaimId,
+        toolchain: String,
+        libraries: Vec<PreparedLibrary>,
+    ) -> CoreResult<(String, Vec<PreparedLibrary>)> {
         caller.require(Role::Reviewer)?;
         require_text("toolchain", &toolchain, 200)?;
+        if libraries.len() > 8 || !libraries.iter().all(PreparedLibrary::valid) {
+            return Err(CoreError::invalid("invalid prepared library pin"));
+        }
         let mut file = self
             .collected_proof_file(caller, work, version, claim)
             .await?;
@@ -396,7 +418,7 @@ impl App {
                     "proof work retains its admitted verifier environment",
                 ));
             }
-            return Ok(saved.clone());
+            return Ok((saved.clone(), proof.libraries.clone()));
         }
         if !proof.runs.is_empty() || proof.proposal.is_some() {
             return Err(CoreError::conflict(
@@ -404,8 +426,9 @@ impl App {
             ));
         }
         proof.toolchain = Some(toolchain.clone());
+        proof.libraries = libraries.clone();
         self.save_solve_file(&mut file).await?;
-        Ok(toolchain)
+        Ok((toolchain, libraries))
     }
 
     /// Composition-only state, including historical runs so stale-version cleanup can finish.
@@ -492,7 +515,11 @@ impl App {
         require_text("target reading", &proposal.reading, 20_000)?;
         require_text("toolchain", &proposal.toolchain, 200)?;
         require_text("proof license", &proposal.license, 200)?;
-        validate_lean_modules(&proposal.solution, &proposal.modules)?;
+        validate_lean_modules_with(
+            &proposal.solution,
+            &proposal.modules,
+            &self.prepared_libraries().await,
+        )?;
         if proposal.formalizers.len() > 50
             || proposal
                 .formalizers
@@ -623,6 +650,7 @@ impl App {
             || receipt.solution_digest != hash(&request.solution)
             || receipt.toolchain != request.toolchain
             || !receipt.used_constants.is_empty()
+            || receipt.library_use.is_some()
             || receipt
                 .axioms
                 .iter()
@@ -723,7 +751,7 @@ impl App {
         modules: BTreeMap<String, String>,
     ) -> CoreResult<()> {
         caller.require(Role::Reviewer)?;
-        validate_lean_modules(&solution, &modules)?;
+        validate_lean_modules_with(&solution, &modules, &self.prepared_libraries().await)?;
         let mut file = self.collected_solve_file(&work.into(), claim).await?;
         let proof = file.collected.as_mut().unwrap();
         let proposal = proof

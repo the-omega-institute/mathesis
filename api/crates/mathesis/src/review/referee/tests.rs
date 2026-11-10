@@ -5816,6 +5816,7 @@ impl mathesis_core::ports::Verifier for RejectedProofFixture {
     ) -> mathesis_core::CoreResult<mathesis_core::model::VerificationReceipt> {
         Ok(mathesis_core::model::VerificationReceipt {
             used_constants: vec![],
+            library_use: None,
             verdict: mathesis_core::model::Verdict::Rejected,
             reason: "Fixture rejection only".into(),
             target_digest: r.target_digest.clone(),

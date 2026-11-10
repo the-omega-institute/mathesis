@@ -469,7 +469,7 @@ export interface ApiClient {
   notifications(options?: RequestOptions): Promise<SolveNotification[]>;
 
   formalizationOpportunities(
-    query?: PageParams & { q?: string; kind?: string; status?: string },
+    query?: PageParams & { q?: string; kind?: string; status?: string; basis?: string },
     options?: RequestOptions,
   ): Promise<Listing<FormalizationOpportunity>>;
   submitFormalization(body: NewLeanDeposit): Promise<LeanDeposit>;
@@ -729,7 +729,7 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
       request(
         'GET',
         api(
-          `/formalizations/opportunities${buildQuery({ ...page(p), q: p.q, kind: p.kind, status: p.status })}`,
+          `/formalizations/opportunities${buildQuery({ ...page(p), q: p.q, kind: p.kind, status: p.status, basis: p.basis })}`,
         ),
         undefined,
         o,

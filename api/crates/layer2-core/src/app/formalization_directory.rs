@@ -14,6 +14,8 @@ pub struct FormalizationQuery {
     pub q: Option<String>,
     pub kind: Option<String>,
     pub status: Option<String>,
+    /// Among verified rows: `library_declarations` or `new_lean`.
+    pub basis: Option<String>,
     pub limit: Option<u32>,
     pub before: Option<String>,
 }
@@ -35,6 +37,9 @@ pub struct FormalizationOpportunity {
     pub contributor: Option<Entrant>,
     pub attribution: Option<FormalizationAttribution>,
     pub receipt: Option<VerificationReceipt>,
+    /// Reading of the winning receipt: the checked proof references declarations
+    /// of a prepared library, or is new Lean. Absent until a proof is verified.
+    pub proof_basis: Option<ProofBasis>,
 }
 impl App {
     pub async fn formalization_opportunities(
@@ -48,6 +53,10 @@ impl App {
             || query.status.as_deref().is_some_and(|s| {
                 !["unverified", "preparing", "open", "verified", "disproved"].contains(&s)
             })
+            || query
+                .basis
+                .as_deref()
+                .is_some_and(|b| !["library_declarations", "new_lean"].contains(&b))
             || query.q.as_ref().is_some_and(|s| s.chars().count() > 200)
             || query.before.as_ref().is_some_and(|s| s.len() > 250)
         {
@@ -159,6 +168,16 @@ impl App {
                 }) {
                     continue;
                 }
+                let proof_basis = winner
+                    .and_then(|a| a.receipt.as_ref())
+                    .and_then(ProofBasis::of);
+                if query
+                    .basis
+                    .as_deref()
+                    .is_some_and(|b| proof_basis.as_ref().map(ProofBasis::kind) != Some(b))
+                {
+                    continue;
+                }
                 // Only matching public rows contribute to cursors and counts.
                 if items.len() == limit {
                     return Ok(Listing {
@@ -198,6 +217,7 @@ impl App {
                     contributor,
                     attribution: winner.and_then(|a| a.attribution.clone()),
                     receipt: winner.and_then(|a| a.receipt.clone()),
+                    proof_basis,
                 });
             }
             cursor = page.next_before;

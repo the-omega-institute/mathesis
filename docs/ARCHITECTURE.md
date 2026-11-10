@@ -410,7 +410,9 @@ HOME, copies the pinned prepared workspace, verifies toolchain/Mathlib identity,
 and builds Target, Solution, then Check as separate modules. Generated `--setup`
 files resolve only pinned artifacts without inherited LEAN_PATH. Check uses the
 imported root target constant, typed `#check`, and `#print axioms`; only the
-three standard axioms pass. All subprocess output is capped, the whole check
+three standard axioms pass. When the workspace declares prepared libraries and
+a solution imports one, Check also reports the library declarations the proof
+references ([LIBRARY_BINDING.md](LIBRARY_BINDING.md)). All subprocess output is capped, the whole check
 has a deadline, and Lean concurrency is at most two. The service accepts no
 credentials and serializes checks. Its Deployment has no secrets or service
 account token; NetworkPolicy denies every egress destination.

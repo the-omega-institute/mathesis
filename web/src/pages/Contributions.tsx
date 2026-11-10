@@ -2,6 +2,7 @@ import { t } from '../i18n/locale';
 import { GitHubLink } from '../components/GitHubLink';
 import { ProofWork } from '../components/ProofWork';
 import { ProofAttribution } from '../components/ProofAttribution';
+import { ProofBasisNote } from '../components/ProofBasis';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -174,6 +175,10 @@ export function StatementPage({ record, claim }: { record: string; claim: string
                       <li key={a.id}>
                         <EntrantName entrant={a.entrant} />
                         <ProofAttribution attribution={a.attribution} />
+                        <ProofBasisNote
+                          basis={a.proof_basis}
+                          verdict={a.receipt.verdict === 'disproved' ? 'disproved' : 'proved'}
+                        />
                         <a
                           href={`/api/v1/papers/${encodeURIComponent(record)}/statements/${encodeURIComponent(claim)}/attempts/${encodeURIComponent(a.id)}/bundle`}
                         >

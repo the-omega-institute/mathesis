@@ -21,6 +21,9 @@ pub struct VerificationBundle {
     pub verification_request: VerificationRequest,
     pub instructions: &'static str,
 }
+const INSTRUCTIONS: &str = "Extract verification_request as JSON and pass it on stdin to mathesis-verifier with WISHPOOL_LEAN_WORKSPACE pointing to a prepared workspace matching the pinned Lean/Mathlib toolchain. Supporting modules map flat module names to complete source. Do not run contributor Lake scripts. The original receipt records the prior check; a new check produces its own receipt. This bundle proves or disproves the author-confirmed Lean target, not an independent guarantee of the natural-language statement. The historical verifier binary revision is not recorded.";
+/// The submitted sources alone do not contain the library declarations they import.
+const LIBRARY_INSTRUCTIONS: &str = "Extract verification_request as JSON and pass it on stdin to mathesis-verifier with WISHPOOL_LEAN_WORKSPACE pointing to a prepared workspace matching the pinned Lean/Mathlib toolchain. This proof imports prepared libraries: the workspace must also declare and contain each library in attempt.receipt.library_use.libraries, built at exactly that revision; the library sources are not part of this bundle. attempt.receipt.library_use lists the library declarations that the checked local statements and proof terms reference directly at those revisions. It is not a statement of semantic equivalence or a coverage certificate. Supporting modules map flat module names to complete source. Do not run contributor Lake scripts. The original receipt records the prior check; a new check produces its own receipt. This bundle proves or disproves the author-confirmed Lean target, not an independent guarantee of the natural-language statement. The historical verifier binary revision is not recorded.";
 impl App {
     pub async fn verification_bundle(
         &self,
@@ -81,8 +84,12 @@ impl App {
                 toolchain: target.toolchain,
                 solution: proof.solution.clone(),
             },
+            instructions: if proof.receipt.library_use.is_some() {
+                LIBRARY_INSTRUCTIONS
+            } else {
+                INSTRUCTIONS
+            },
             attempt: proof,
-            instructions: "Extract verification_request as JSON and pass it on stdin to mathesis-verifier with WISHPOOL_LEAN_WORKSPACE pointing to a prepared workspace matching the pinned Lean/Mathlib toolchain. Supporting modules map flat module names to complete source. Do not run contributor Lake scripts. The original receipt records the prior check; a new check produces its own receipt. This bundle proves or disproves the author-confirmed Lean target, not an independent guarantee of the natural-language statement. The historical verifier binary revision is not recorded.",
         })
     }
 }

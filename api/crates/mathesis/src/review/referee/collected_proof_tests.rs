@@ -119,11 +119,28 @@ impl Transport for CollectedTransport {
     }
 }
 
-struct CollectedVerifier;
+const ENVIRONMENT: &str =
+    "leanprover/lean4:v4.35.0, Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679";
+/// The prepared libraries the verifier currently declares; a deployment may change them.
+#[derive(Default)]
+struct CollectedVerifier {
+    libraries: std::sync::Mutex<Vec<PreparedLibrary>>,
+}
+fn library(revision: &str) -> PreparedLibrary {
+    PreparedLibrary {
+        name: "trureturing".into(),
+        revision: revision.repeat(40),
+        roots: vec!["D5".into(), "Trureturing".into()],
+        url: Some("https://github.com/example/library".into()),
+    }
+}
 #[async_trait]
 impl Verifier for CollectedVerifier {
     async fn toolchain(&self) -> mathesis_core::CoreResult<String> {
-        Ok("leanprover/lean4:v4.35.0, Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679".into())
+        Ok(ENVIRONMENT.into())
+    }
+    async fn libraries(&self) -> mathesis_core::CoreResult<Vec<PreparedLibrary>> {
+        Ok(self.libraries.lock().unwrap().clone())
     }
     async fn verify(
         &self,
@@ -137,16 +154,26 @@ impl Verifier for CollectedVerifier {
             toolchain: request.toolchain.clone(),
             axioms: vec![],
             used_constants: vec![],
+            library_use: None,
             checked_at: chrono::Utc::now(),
             duration: 1,
         })
     }
 }
 async fn collected_world() -> (World, Arc<CollectedTransport>) {
+    let (w, mock, _) = collected_world_with(vec![]).await;
+    (w, mock)
+}
+async fn collected_world_with(
+    libraries: Vec<PreparedLibrary>,
+) -> (World, Arc<CollectedTransport>, Arc<CollectedVerifier>) {
     use base64::Engine;
     let mut w = World::new(vec![], true).await;
     let mut ports = w.stores.ports(Arc::new(SystemClock), Arc::new(LatexReader));
-    ports.verifier = Arc::new(CollectedVerifier);
+    let verifier = Arc::new(CollectedVerifier {
+        libraries: std::sync::Mutex::new(libraries),
+    });
+    ports.verifier = verifier.clone();
     w.worker.app = App::with_internal_accounts(
         ports,
         Policy::default(),
@@ -197,7 +224,7 @@ async fn collected_world() -> (World, Arc<CollectedTransport>) {
     w.worker.cma_formalization_workspace = Some("wks_proofs".into());
     w.worker.formal_budget = Duration::from_secs(60);
     w.worker.audit_budget = Duration::from_secs(60);
-    (w, mock)
+    (w, mock, verifier)
 }
 async fn proof_file(w: &World, claim: &str) -> SolveFile {
     w.worker
@@ -433,4 +460,209 @@ async fn missing_proof_gets_focused_gap_work_then_stays_open_without_endless_ret
         .unwrap();
     assert!(!w.worker.collected_proof_job(&resumed).await.unwrap());
     assert_eq!(mock.created.load(Ordering::SeqCst), 3);
+}
+
+/// Exact provider inputs of the model requests carrying `marker`, in order.
+async fn model_inputs(mock: &CollectedTransport, marker: &str) -> Vec<String> {
+    mock.calls
+        .lock()
+        .await
+        .iter()
+        .filter(|(method, path, _, _)| method == "POST" && path.ends_with("/responses"))
+        .filter_map(|(_, _, body, _)| body.as_ref()?["input"].as_str().map(str::to_owned))
+        .filter(|input| input.contains(marker))
+        .collect()
+}
+/// The admitted prompt inside a framed provider input, and its durable digest.
+fn admitted_digest(framed: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let (_, rest) = framed.split_once("<chunk>\n").unwrap();
+    let (prompt, _) = rest.rsplit_once("\n</chunk>").unwrap();
+    format!("{:x}", Sha256::digest(prompt.as_bytes()))
+}
+async fn run_digest(w: &World, claim: &str, step: &str) -> String {
+    let state = proof_file(w, claim).await.collected.unwrap().runs[step].clone();
+    serde_json::from_value::<RunState>(state).unwrap().input
+}
+/// A run admitted earlier: its digest fences every later rendering of the prompt.
+async fn admit_run(w: &World, claim: &str, step: &str, framed: &str) {
+    let file = proof_file(w, claim).await;
+    let state = RunState {
+        deadline: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 60,
+        input: admitted_digest(framed),
+        delivery_contract: 1,
+        ..Default::default()
+    };
+    w.worker
+        .app
+        .save_collected_proof_run(
+            &w.worker.reviewer,
+            "a-note",
+            1,
+            &claim.into(),
+            step,
+            serde_json::to_value(state).unwrap(),
+            file.revision,
+        )
+        .await
+        .unwrap();
+}
+const PREPARE: &str = "Prepare exact Lean translations";
+const PROVE: &str = "Complete this exact Lean proof";
+// Bytes captured from the renderer that admitted existing work (develop f55b01b). They are
+// never regenerated. The fixture delivery's author was "Original Author" at capture; when it
+// became "Ma, Haobo" that one name was substituted in the two preparation files, the only
+// bytes that differed.
+const PREPARE_LEGACY: &str = include_str!("fixtures/collected-prepare-legacy.txt");
+const PROOF_LEGACY: &str = include_str!("fixtures/collected-proof-legacy.txt");
+const PREPARE_PINNED: &str = include_str!("fixtures/collected-prepare-pinned.txt");
+const PROOF_PINNED: &str = include_str!("fixtures/collected-proof-pinned.txt");
+
+#[tokio::test]
+async fn new_work_without_a_prepared_library_renders_the_historical_pinned_prompt_bytes() {
+    let (w, mock) = collected_world().await;
+    mock.empty_first.store(true, Ordering::SeqCst);
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    assert!(w.worker.collected_proof_job(&job).await.unwrap());
+    assert_eq!(model_inputs(&mock, PREPARE).await, [PREPARE_PINNED]);
+    assert_eq!(model_inputs(&mock, PROVE).await, [PROOF_PINNED]);
+    assert_eq!(
+        run_digest(&w, "s1", "prepare:batch").await,
+        admitted_digest(PREPARE_PINNED)
+    );
+    assert_eq!(
+        run_digest(&w, "s1", "proof:0").await,
+        admitted_digest(PROOF_PINNED)
+    );
+}
+
+// The two tests below also run against a verifier that has since begun to declare
+// a prepared library: work admitted before that keeps its prompts and gains no pin.
+#[tokio::test]
+async fn work_admitted_with_an_environment_pin_resumes_with_its_exact_prompt_bytes() {
+    for declared in [vec![], vec![library("b")]] {
+        let (w, mock, _) = collected_world_with(declared).await;
+        mock.empty_first.store(true, Ordering::SeqCst);
+        for claim in ["s1", "s2"] {
+            w.worker
+                .app
+                .pin_collected_toolchain(
+                    &w.worker.reviewer,
+                    "a-note",
+                    1,
+                    &claim.into(),
+                    ENVIRONMENT.into(),
+                )
+                .await
+                .unwrap();
+        }
+        admit_run(&w, "s1", "prepare:batch", PREPARE_PINNED).await;
+        let job = w.jobs.claim().await.unwrap().unwrap();
+        // A changed rendering would fail here with "CMA inputs changed after admission".
+        assert!(w.worker.collected_proof_job(&job).await.unwrap());
+        assert_eq!(model_inputs(&mock, PREPARE).await, [PREPARE_PINNED]);
+        assert_eq!(model_inputs(&mock, PROVE).await, [PROOF_PINNED]);
+        for claim in ["s1", "s2"] {
+            let proof = proof_file(&w, claim).await.collected.unwrap();
+            assert_eq!(proof.toolchain.as_deref(), Some(ENVIRONMENT));
+            assert!(proof.libraries.is_empty());
+        }
+    }
+}
+
+#[tokio::test]
+async fn legacy_work_without_an_environment_pin_resumes_with_its_exact_prompt_bytes() {
+    for declared in [vec![], vec![library("b")]] {
+        let (w, mock, _) = collected_world_with(declared).await;
+        mock.empty_first.store(true, Ordering::SeqCst);
+        admit_run(&w, "s1", "prepare:batch", PREPARE_LEGACY).await;
+        let job = w.jobs.claim().await.unwrap().unwrap();
+        assert!(w.worker.collected_proof_job(&job).await.unwrap());
+        assert_eq!(model_inputs(&mock, PREPARE).await, [PREPARE_LEGACY]);
+        assert_eq!(model_inputs(&mock, PROVE).await, [PROOF_LEGACY]);
+        assert_eq!(
+            run_digest(&w, "s1", "proof:0").await,
+            admitted_digest(PROOF_LEGACY)
+        );
+        for claim in ["s1", "s2"] {
+            let proof = proof_file(&w, claim).await.collected.unwrap();
+            assert!(proof.toolchain.is_none() && proof.libraries.is_empty());
+        }
+    }
+}
+
+/// The admitted prompt inside a framed provider input.
+fn admitted_prompt(framed: &str) -> &str {
+    let (_, rest) = framed.split_once("<chunk>\n").unwrap();
+    rest.rsplit_once("\n</chunk>").unwrap().0
+}
+
+#[tokio::test]
+async fn new_work_on_a_library_enabled_verifier_pins_the_library_and_proves_library_first() {
+    let (w, mock, verifier) = collected_world_with(vec![library("b")]).await;
+    mock.empty_first.store(true, Ordering::SeqCst);
+    mock.uncertain.store(true, Ordering::SeqCst);
+    let job = w.jobs.claim().await.unwrap().unwrap();
+    // Admission is interrupted after the durable pin and the first provider write.
+    let mut task = Box::pin(w.worker.collected_proof_job(&job));
+    tokio::select! { result=&mut task=>panic!("unexpected completion: {result:?}"), _=mock.admitted.notified()=>{} }
+    drop(task);
+    for claim in ["s1", "s2"] {
+        let proof = proof_file(&w, claim).await.collected.unwrap();
+        assert_eq!(proof.toolchain.as_deref(), Some(ENVIRONMENT));
+        assert_eq!(proof.libraries, [library("b")]);
+    }
+    let admitted = run_digest(&w, "s1", "prepare:batch").await;
+    // The verifier is redeployed with another library revision before the retry.
+    *verifier.libraries.lock().unwrap() = vec![library("c")];
+    assert!(w.worker.collected_proof_job(&job).await.unwrap());
+    assert_eq!(run_digest(&w, "s1", "prepare:batch").await, admitted);
+    for claim in ["s1", "s2"] {
+        assert_eq!(
+            proof_file(&w, claim).await.collected.unwrap().libraries,
+            [library("b")]
+        );
+    }
+
+    let prepare = model_inputs(&mock, PREPARE).await;
+    let prove = model_inputs(&mock, PROVE).await;
+    assert_eq!((prepare.len(), prove.len()), (1, 1));
+    assert_eq!(admitted_digest(&prepare[0]), admitted);
+    for (rendered, historical) in [(&prepare[0], PREPARE_PINNED), (&prove[0], PROOF_PINNED)] {
+        let (rendered, historical) = (admitted_prompt(rendered), admitted_prompt(historical));
+        // Environment preparation, then the library rules, then the historical
+        // instructions and data, each on its own line.
+        let lines: Vec<_> = rendered.split('\n').collect();
+        let expected: Vec<_> = historical.split('\n').collect();
+        assert_eq!(lines.len(), expected.len() + 1);
+        assert_eq!(lines[0], expected[0]);
+        assert_eq!(lines[2..], expected[1..]);
+        let rules = lines[1];
+        assert!(rules.starts_with("PREPARED LIBRARIES OF THE INDEPENDENT VERIFIER: "));
+        for required in [
+            format!(
+                "trureturing at full Git revision {} (source https://github.com/example/library), module roots D5, Trureturing",
+                "b".repeat(40)
+            ),
+            "LIBRARY FIRST, THEN PROVE".into(),
+            "existing_lean".into(),
+            "importing that library module and applying its existing declaration".into(),
+            "unfolding both definitions".into(),
+            "rfl alone may fail".into(),
+            "only what the library lacks at that revision".into(),
+            "never named below a library root".into(),
+        ] {
+            assert!(rules.contains(&required), "{required}: {rules}");
+        }
+        assert!(!rules.contains(&"c".repeat(40)));
+        // The report names references; it is never described as an equivalence.
+        assert!(!rules.to_lowercase().contains("equivalent"));
+    }
+    let rules = admitted_prompt(&prepare[0]).split('\n').nth(1).unwrap();
+    assert!(rules.contains("Set reused_from to the exact existing_lean object"));
+    assert!(rules.contains("A Target never imports a library"));
 }

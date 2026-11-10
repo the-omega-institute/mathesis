@@ -167,7 +167,9 @@ legacy single files; with modules it hashes the compact JSON tuple
 `["mathesis-project-v1", solution, modules]` with module keys sorted. Replay,
 quotas, leased jobs, current-input checks and credit all use that bound digest.
 
-Supported imports are prepared Mathlib modules, Target and submitted modules, including nested module paths. This is
+Supported imports are prepared Mathlib modules, Target and submitted modules, including nested module paths, and
+modules of prepared libraries that the verifier workspace declares (none by default; see
+[LIBRARY_BINDING.md](LIBRARY_BINDING.md)). This is
 a bounded source-project format, not execution of arbitrary Lake projects:
 custom packages, user build scripts, network installs and
 unsupported Lean metaprogramming are not run. Dependencies come from the trusted

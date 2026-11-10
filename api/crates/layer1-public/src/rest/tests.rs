@@ -964,6 +964,39 @@ async fn project_export_preserves_sources_and_never_exposes_private_deposits() {
         .1["id"],
         deposit["id"]
     );
+    // Preflight is the Layer 2 service. With no prepared library declared it
+    // reports a library import exactly as before.
+    let mut importing = input.clone();
+    importing["solution"] = serde_json::json!(
+        "import Target\nimport D5.S3.Result\ntheorem wishpool_solution : wishpool_target_prop := helper"
+    );
+    let (status, report, _) = call(
+        &app,
+        "POST",
+        "/formalizations/preflight",
+        Some("owner"),
+        Some(importing),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        report["errors"],
+        serde_json::json!([
+            "Solution: missing import D5.S3.Result; include its source module. Custom dependencies are not fetched."
+        ])
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/formalizations/preflight",
+            None,
+            Some(input.clone())
+        )
+        .await
+        .0,
+        StatusCode::UNAUTHORIZED
+    );
     let directory = call(&app, "GET", "/formalizations/opportunities", None, None).await;
     assert_eq!(directory.0, StatusCode::OK);
     assert_eq!(directory.1["items"], serde_json::json!([]));
@@ -979,6 +1012,63 @@ async fn project_export_preserves_sources_and_never_exposes_private_deposits() {
         .0,
         StatusCode::UNPROCESSABLE_ENTITY
     );
+    // The proof-basis filter is the same Layer 2 projection; unknown values are refused.
+    for basis in ["library_declarations", "new_lean"] {
+        let filtered = call(
+            &app,
+            "GET",
+            &format!("/formalizations/opportunities?status=verified&basis={basis}"),
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(filtered.0, StatusCode::OK);
+        assert_eq!(filtered.1["items"], serde_json::json!([]));
+    }
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            "/formalizations/opportunities?basis=equivalent",
+            None,
+            None
+        )
+        .await
+        .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    let (_, spec, _) = call(&app, "GET", "/openapi.json", None, None).await;
+    let schemas = &spec["components"]["schemas"];
+    assert_eq!(
+        schemas["VerificationReceipt"]["properties"]["library_use"]["$ref"],
+        "#/components/schemas/LibraryUse"
+    );
+    assert!(
+        !schemas["VerificationReceipt"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("library_use"))
+    );
+    assert_eq!(
+        schemas["PublicAttempt"]["properties"]["proof_basis"]["$ref"],
+        "#/components/schemas/ProofBasis"
+    );
+    assert_eq!(
+        schemas["ProofBasis"]["oneOf"][1]["properties"]["kind"]["const"],
+        "new_lean"
+    );
+    assert!(
+        spec["paths"]["/api/v1/formalizations/opportunities"]["get"]["parameters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|parameter| parameter["name"] == "basis")
+    );
+    // No part of the contract describes the library report as an equivalence.
+    for name in ["LibraryUse", "ProofBasis"] {
+        let text = schemas[name].to_string().to_lowercase();
+        assert!(!text.contains("equivalent"), "{name}");
+    }
 }
 
 #[tokio::test]

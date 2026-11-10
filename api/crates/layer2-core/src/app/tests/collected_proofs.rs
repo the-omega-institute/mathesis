@@ -13,6 +13,7 @@ impl Verifier for CheckExact {
             toolchain: r.toolchain.clone(),
             axioms: vec![],
             used_constants: vec![],
+            library_use: None,
             checked_at: chrono::Utc::now(),
             duration: 1,
         })
@@ -208,6 +209,7 @@ async fn pending_pool_paginates_after_filters_and_rejects_stale_statement_pins()
                 status: Some("unverified".into()),
                 kind: Some("paper".into()),
                 q: Some("selected Original Author".into()),
+                basis: None,
                 limit: Some(7),
                 before: cursor,
             })
@@ -307,6 +309,158 @@ async fn admitted_environment_survives_reconciliation_and_rejects_a_different_pr
         file.collected.unwrap().toolchain.as_deref(),
         Some("original-pin")
     );
+}
+
+#[tokio::test]
+async fn library_pin_is_set_once_with_the_environment_and_never_added_to_admitted_work() {
+    let (w, _, reviewer) = world().await;
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let claim: ClaimId = "s1".into();
+    let library = |revision: &str| PreparedLibrary {
+        name: "trureturing".into(),
+        revision: revision.repeat(40),
+        roots: vec!["D5".into()],
+        url: Some("https://github.com/example/library".into()),
+    };
+    let pinned = |w: &World| {
+        let (app, reviewer, claim) = (w.app.clone(), reviewer.clone(), claim.clone());
+        async move {
+            let file = app
+                .collected_proof_file(&reviewer, "a-note", 1, &claim)
+                .await
+                .unwrap();
+            let proof = file.collected.unwrap();
+            (proof.toolchain, proof.libraries, file.revision)
+        }
+    };
+    // Nothing is pinned by an invalid declaration.
+    let mut invalid = library("b");
+    invalid.roots = vec!["D5.S3".into()];
+    assert!(matches!(
+        w.app
+            .pin_collected_environment(&reviewer, "a-note", 1, &claim, "pin".into(), vec![invalid])
+            .await,
+        Err(CoreError::Invalid(_))
+    ));
+    assert_eq!(pinned(&w).await.0, None);
+
+    let admitted = w
+        .app
+        .pin_collected_environment(
+            &reviewer,
+            "a-note",
+            1,
+            &claim,
+            "pin".into(),
+            vec![library("b")],
+        )
+        .await
+        .unwrap();
+    assert_eq!(admitted, ("pin".to_string(), vec![library("b")]));
+    let saved = pinned(&w).await;
+    // A retry with another declaration reads the saved pin and writes nothing.
+    for libraries in [vec![library("c")], vec![]] {
+        assert_eq!(
+            w.app
+                .pin_collected_environment(&reviewer, "a-note", 1, &claim, "pin".into(), libraries)
+                .await
+                .unwrap(),
+            admitted
+        );
+    }
+    assert_eq!(
+        w.app
+            .pin_collected_toolchain(&reviewer, "a-note", 1, &claim, "pin".into())
+            .await
+            .unwrap(),
+        "pin"
+    );
+    assert_eq!(pinned(&w).await, saved);
+    assert!(matches!(
+        w.app
+            .pin_collected_environment(
+                &reviewer,
+                "a-note",
+                1,
+                &claim,
+                "other".into(),
+                vec![library("b")]
+            )
+            .await,
+        Err(CoreError::Conflict(_))
+    ));
+
+    // Work pinned without a library keeps none.
+    let (w, _, reviewer) = world().await;
+    w.app.reconcile_collected_proofs().await.unwrap();
+    w.app
+        .pin_collected_toolchain(&reviewer, "a-note", 1, &claim, "pin".into())
+        .await
+        .unwrap();
+    assert_eq!(
+        w.app
+            .pin_collected_environment(
+                &reviewer,
+                "a-note",
+                1,
+                &claim,
+                "pin".into(),
+                vec![library("b")]
+            )
+            .await
+            .unwrap(),
+        ("pin".to_string(), vec![])
+    );
+    let file = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    // The stored state of library-free work is byte-identical to before.
+    let stored = serde_json::to_value(file.collected.as_ref().unwrap()).unwrap();
+    assert!(stored.get("libraries").is_none());
+    assert_eq!(stored["toolchain"], "pin");
+
+    // Legacy work admitted before any pin accepts neither.
+    let (w, _, reviewer) = world().await;
+    w.app.reconcile_collected_proofs().await.unwrap();
+    let file = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    w.app
+        .save_collected_proof_run(
+            &reviewer,
+            "a-note",
+            1,
+            &claim,
+            "prepare:batch",
+            serde_json::json!({"input":"admitted"}),
+            file.revision,
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        w.app
+            .pin_collected_environment(
+                &reviewer,
+                "a-note",
+                1,
+                &claim,
+                "pin".into(),
+                vec![library("b")]
+            )
+            .await,
+        Err(CoreError::Conflict(_))
+    ));
+    let file = w
+        .app
+        .collected_proof_file(&reviewer, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    let proof = file.collected.unwrap();
+    assert!(proof.toolchain.is_none() && proof.libraries.is_empty());
 }
 
 #[tokio::test]

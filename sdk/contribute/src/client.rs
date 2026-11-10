@@ -166,7 +166,7 @@ impl Client {
 
     pub fn formalization_opportunities(&self, args: &Value) -> ApiResult<Value> {
         let mut query = vec![];
-        for key in ["q", "kind", "status", "before"] {
+        for key in ["q", "kind", "status", "basis", "before"] {
             if let Some(value) = args[key].as_str() {
                 query.push(format!("{key}={}", segment(value)));
             }
@@ -737,6 +737,11 @@ mod solving_tests {
                 ),
                 (
                     "GET",
+                    "/api/v1/formalizations/opportunities?status=verified&basis=library_declarations",
+                    json!({"items":[{"status":"verified","proof_basis":{"kind":"library_declarations","libraries":[{"name":"trureturing","revision":"b".repeat(40)}],"declarations":[{"library":"trureturing","module":"D5.S3.Result","name":"D5.S3.Result.result"}],"total":1,"complete":true}}], "next_before": null}),
+                ),
+                (
+                    "GET",
                     "/api/v1/submissions/sub1/review",
                     json!({"schema_version":1,"source_sha256":"pinned-source","service":"Orchestra"}),
                 ),
@@ -871,6 +876,17 @@ mod solving_tests {
                 .unwrap()["next_before"],
             "cursor"
         );
+        // The proof basis is the server's projection, passed through unchanged.
+        let from_library = client
+            .formalization_opportunities(
+                &json!({"status":"verified", "basis":"library_declarations"}),
+            )
+            .unwrap();
+        assert_eq!(
+            from_library["items"][0]["proof_basis"]["declarations"][0]["name"],
+            "D5.S3.Result.result"
+        );
+        assert_eq!(from_library["items"][0]["proof_basis"]["total"], 1);
         assert_eq!(
             client.review("sub1").unwrap()["source_sha256"],
             "pinned-source"

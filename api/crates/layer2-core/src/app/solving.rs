@@ -551,7 +551,7 @@ impl App {
             ));
         }
         let entrant = self.resolve_entrant(caller, as_agent).await?;
-        validate_lean_modules(&solution, &modules)?;
+        validate_lean_modules_with(&solution, &modules, &self.prepared_libraries().await)?;
         let hash = lean_solution_digest(&solution, &modules);
         let mut module_blobs = BTreeMap::new();
         for (name, text) in &modules {
@@ -633,6 +633,22 @@ impl App {
                 .await?;
             return self.attempt(Some(caller), &attempt.id).await;
         }
+    }
+    /// Prepared libraries for admission rules. A verifier that declares none,
+    /// cannot be read or reports an invalid declaration leaves the historical
+    /// rules in force; the verifier itself still decides every check.
+    pub(crate) async fn prepared_libraries(&self) -> Vec<PreparedLibrary> {
+        self.verification_libraries().await.unwrap_or_default()
+    }
+    /// Prepared libraries for new proof work, which must not start on a guess.
+    pub async fn verification_libraries(&self) -> CoreResult<Vec<PreparedLibrary>> {
+        let libraries = self.ports.verifier.libraries().await?;
+        if libraries.len() > 8 || !libraries.iter().all(PreparedLibrary::valid) {
+            return Err(CoreError::Unavailable(
+                "verifier reported an invalid library declaration".into(),
+            ));
+        }
+        Ok(libraries)
     }
     pub(crate) async fn current_entrant(&self, snapshot: &Entrant) -> CoreResult<Entrant> {
         let mut entrant = if snapshot.kind == EntrantKind::Agent {
@@ -754,6 +770,7 @@ impl App {
                     },
                 )
                 .into(),
+            proof_basis: attempt.receipt.as_ref().and_then(ProofBasis::of),
             receipt: attempt.receipt.clone(),
             solution: self.solution_text(&attempt).await?,
             note: owner.then_some(attempt.note),
@@ -847,6 +864,10 @@ impl App {
                 .axioms
                 .iter()
                 .any(|a| !["propext", "Classical.choice", "Quot.sound"].contains(&a.as_str()))
+            || receipt
+                .library_use
+                .as_ref()
+                .is_some_and(|report| !report.valid())
         {
             return Err(CoreError::Unavailable("invalid verifier receipt".into()));
         }
@@ -1003,6 +1024,11 @@ impl App {
                 attribution: a.attribution.clone(),
                 id: a.id.clone(),
                 entrant: self.current_entrant(&a.entrant).await?,
+                proof_basis: a
+                    .receipt
+                    .as_ref()
+                    .and_then(ProofBasis::of)
+                    .unwrap_or(ProofBasis::NewLean),
                 receipt: a.receipt.clone().unwrap(),
                 solution: self.solution_text(a).await?,
                 also_verified: winner != Some(a.id.as_str()),

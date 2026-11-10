@@ -895,8 +895,33 @@ export type Entrant = {
   retired: boolean;
   revision: number;
 };
+/** Library declarations that a checked proof references directly, at pinned revisions. */
+export type LibraryUse = {
+  libraries: LibraryPin[];
+  /** Sorted; at most 64 are listed, `total` counts all of them. */
+  declarations: { library: string; module: string; name: string }[];
+  total: number;
+  /** False when the bounded inspection stopped early. */
+  complete: boolean;
+};
+export type LibraryPin = { name: string; revision: string; url?: string };
+/**
+ * Reading of a verified receipt: the checked proof references declarations of a
+ * prepared library, or is new Lean. A record of references, not a comparison of meaning.
+ */
+export type ProofBasis =
+  | {
+      kind: 'library_declarations';
+      libraries: LibraryPin[];
+      declarations: { library: string; module: string; name: string; source?: string }[];
+      total: number;
+      complete: boolean;
+    }
+  | { kind: 'new_lean' };
 export type VerificationReceipt = {
   used_constants?: string[];
+  /** Present only when the checked project imported a prepared library. */
+  library_use?: LibraryUse;
   verdict: 'proved' | 'disproved' | 'rejected';
   reason: string;
   target_digest: string;
@@ -913,6 +938,7 @@ export type VerifiedAttempt = {
   id: string;
   entrant: Entrant;
   receipt: VerificationReceipt;
+  proof_basis?: ProofBasis;
   solution: string;
   also_verified: boolean;
 };
@@ -928,6 +954,7 @@ export type AttemptView = {
   state: 'queued' | 'proved' | 'disproved' | 'rejected' | 'superseded';
   reason?: string | null;
   receipt: VerificationReceipt | null;
+  proof_basis?: ProofBasis;
   solution: string;
   note?: string;
 };
@@ -1119,6 +1146,8 @@ export interface FormalizationOpportunity {
   contributor: Entrant | null;
   attribution: FormalizationAttribution | null;
   receipt: VerificationReceipt | null;
+  /** Absent until a proof is verified. */
+  proof_basis?: ProofBasis | null;
 }
 
 export interface LeanPreflight {

@@ -1377,6 +1377,7 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
             invalidated: None,
             receipt: Some(VerificationReceipt {
                 used_constants: vec![],
+                library_use: None,
                 verdict: Verdict::Proved,
                 reason: "fixture receipt, not a proof assertion".into(),
                 target_digest: lean_solution_digest(
@@ -1453,7 +1454,13 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
     pending.id = "collected:s1:v1:c0".into();
     pending.admitted = false;
     pending.collected = Some(CollectedProof {
-        toolchain: None,
+        toolchain: Some("fixture-pin".into()),
+        libraries: vec![PreparedLibrary {
+            name: "trureturing".into(),
+            revision: "c".repeat(40),
+            roots: vec!["D5".into(), "Trureturing".into()],
+            url: Some("https://github.com/example/library".into()),
+        }],
         source_sha256: "a".repeat(64),
         statement_sha256: "b".repeat(64),
         requested_by: "owner".into(),
@@ -1463,7 +1470,36 @@ async fn solving_aggregates_and_agent_names_are_unique_and_revision_fenced() {
         blocked: None,
         runs: Default::default(),
     });
+    // A library report is stored with its receipt; receipts without one are unchanged.
+    pending.attempts[0].receipt.as_mut().unwrap().library_use = Some(LibraryUse {
+        libraries: vec![LibraryPin {
+            name: "trureturing".into(),
+            revision: "c".repeat(40),
+            url: None,
+        }],
+        declarations: vec![LibraryDeclaration {
+            library: "trureturing".into(),
+            module: "D5.S3.Result".into(),
+            name: "D5.S3.Result.result".into(),
+        }],
+        total: 70,
+        complete: false,
+    });
     SolvingStore::insert(store, &pending).await.unwrap();
+    let saved = SolvingStore::get(store, &pending.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.collected, pending.collected);
+    assert_eq!(saved.attempts, pending.attempts);
+    assert!(
+        stored.attempts[0]
+            .receipt
+            .as_ref()
+            .unwrap()
+            .library_use
+            .is_none()
+    );
     let legacy = SolvingStore::list_formalization_candidates(store, 20, None, false)
         .await
         .unwrap();

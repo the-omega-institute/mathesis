@@ -588,3 +588,414 @@ async fn auxiliary_context_is_explicit_and_cannot_import_back_into_target() {
         receipt.reason
     );
 }
+
+fn library_workspace(root: &Path, declaration: &str, packages: serde_json::Value) {
+    std::fs::write(root.join("lean-toolchain"), "leanprover/lean4:v4.35.0\n").unwrap();
+    std::fs::write(
+        root.join("lake-manifest.json"),
+        serde_json::json!({ "packages": packages }).to_string(),
+    )
+    .unwrap();
+    std::fs::write(root.join(LIBRARIES_FILE), declaration).unwrap();
+}
+
+#[test]
+fn libraries_bind_declared_roots_to_manifest_revisions_and_refuse_reserved_roots() {
+    let workspace = tempfile::tempdir().unwrap();
+    let root = workspace.path();
+    let mathlib = "56a005855ea17e0b0958f73ec801ae140b0a1679";
+    let demo = "0123456789abcdef0123456789abcdef01234567";
+    let packages = serde_json::json!([
+        {"name": "mathlib", "rev": mathlib},
+        {"name": "demo", "rev": demo, "url": "https://example.org/demo.git"}
+    ]);
+    library_workspace(
+        root,
+        r#"{"libraries":[{"package":"demo","roots":["Demo","DemoExtra"]}]}"#,
+        packages.clone(),
+    );
+    let environment = Environment::read(root).unwrap();
+    assert_eq!(
+        environment.libraries,
+        vec![Library {
+            name: "demo".into(),
+            revision: demo.into(),
+            roots: vec!["Demo".into(), "DemoExtra".into()],
+            url: Some("https://example.org/demo".into()),
+        }]
+    );
+    // Targets keep carrying the Lean/Mathlib pin alone.
+    assert_eq!(
+        environment.label(),
+        format!("leanprover/lean4:v4.35.0, Mathlib {mathlib}")
+    );
+    assert!(
+        serde_json::to_string(&environment)
+            .unwrap()
+            .contains(r#""libraries":[{"name":"demo""#)
+    );
+    // A workspace without the declaration reports the historical shape.
+    std::fs::remove_file(root.join(LIBRARIES_FILE)).unwrap();
+    let plain = Environment::read(root).unwrap();
+    assert!(plain.libraries.is_empty());
+    assert!(!serde_json::to_string(&plain).unwrap().contains("libraries"));
+    for declaration in [
+        r#"{"libraries":[{"package":"demo","roots":["Mathlib"]}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":["target"]}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":["Batteries"]}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":["Demo","demo"]}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":["Demo.Sub"]}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":[]}]}"#,
+        r#"{"libraries":[{"package":"mathlib","roots":["Demo"]}]}"#,
+        r#"{"libraries":[{"package":"absent","roots":["Demo"]}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":["Demo"],"trusted":true}]}"#,
+        r#"{"libraries":[{"package":"demo","roots":["Demo"]},{"package":"demo","roots":["Other"]}]}"#,
+        "not json",
+    ] {
+        library_workspace(root, declaration, packages.clone());
+        assert!(Environment::read(root).is_err(), "{declaration}");
+        assert!(libraries(root).is_err(), "{declaration}");
+    }
+    // A branch name or a short hash is not a pin.
+    library_workspace(
+        root,
+        r#"{"libraries":[{"package":"demo","roots":["Demo"]}]}"#,
+        serde_json::json!([{"name": "mathlib", "rev": mathlib}, {"name": "demo", "rev": "main"}]),
+    );
+    assert!(libraries(root).is_err());
+}
+
+#[test]
+fn library_imports_follow_declared_roots_and_never_reach_targets_or_module_names() {
+    let solution = "import Target\nimport Demo.Basic\ntheorem wishpool_solution : wishpool_target_prop := Demo.fact";
+    let none = BTreeMap::new();
+    assert!(validate_project_with(solution, &none, &["Demo"]).is_ok());
+    // Without a declared library the historical rule and message stand.
+    assert_eq!(
+        validate_project_with(solution, &none, &[]).unwrap_err(),
+        "import must resolve to Mathlib, Target or a submitted module"
+    );
+    // A root matches whole name components only.
+    for import in ["DemoX.Basic", "Demo..Basic", "Demo.Bas-ic", "demo.Basic"] {
+        let text = solution.replace("Demo.Basic", import);
+        assert!(
+            validate_project_with(&text, &none, &["Demo"]).is_err(),
+            "{import}"
+        );
+    }
+    // Supporting modules may import the library and can never be named below its roots.
+    let helper = BTreeMap::from([(
+        "Helper".to_string(),
+        "import Demo.Basic\ntheorem helper : True := True.intro".to_string(),
+    )]);
+    let with_helper =
+        "import Target\nimport Helper\ntheorem wishpool_solution : wishpool_target_prop := helper";
+    assert!(validate_project_with(with_helper, &helper, &["Demo"]).is_ok());
+    for name in ["Demo.Fake", "demo.Fake", "Demo"] {
+        let masquerade = BTreeMap::from([(
+            name.to_string(),
+            "import Mathlib\ntheorem fake : True := True.intro".to_string(),
+        )]);
+        assert!(
+            validate_project_with(solution, &masquerade, &["Demo"]).is_err(),
+            "{name}"
+        );
+        // The same name is an ordinary module where no library owns the root.
+        if name != "Demo" {
+            let plain =
+                "import Target\ntheorem wishpool_solution : wishpool_target_prop := by trivial";
+            assert!(
+                validate_project_with(plain, &masquerade, &[]).is_ok(),
+                "{name}"
+            );
+        }
+    }
+    let target = "import Mathlib\nimport Demo.Basic\ndef wishpool_target_prop : Prop := True\n";
+    assert!(validate_target(target).is_err());
+    assert!(validate_target_imports(target, &["Mathlib"]).is_err());
+}
+
+#[test]
+fn library_use_reports_declared_libraries_with_explicit_totals() {
+    let libraries = vec![
+        Library {
+            name: "demo".into(),
+            revision: "0123456789abcdef0123456789abcdef01234567".into(),
+            roots: vec!["Demo".into()],
+            url: Some("https://example.org/demo".into()),
+        },
+        Library {
+            name: "unused".into(),
+            revision: "89abcdef0123456789abcdef0123456789abcdef".into(),
+            roots: vec!["Unused".into()],
+            url: None,
+        },
+    ];
+    let imported = BTreeSet::from(["demo".to_string()]);
+    let text = "Check.lean:9:0: info: MATHESIS_LIBRARY_USE_TOTAL:3:true\n\
+                Check.lean:9:0: info: MATHESIS_LIBRARY_USE:Demo.Basic:Demo.fact\n\
+                Check.lean:9:0: info: MATHESIS_LIBRARY_USE:Demo.Basic:Demo.fact\n\
+                Check.lean:9:0: info: MATHESIS_LIBRARY_USE:Demo.Basic:Demo.«odd name»\n\
+                Check.lean:9:0: info: MATHESIS_LIBRARY_USE:Demo.Algebra:Demo.φ_lemma\n";
+    let report = library_use(text, &libraries, &imported).unwrap();
+    assert_eq!(
+        report.libraries,
+        vec![LibraryPin {
+            name: "demo".into(),
+            revision: libraries[0].revision.clone(),
+            url: Some("https://example.org/demo".into()),
+        }]
+    );
+    assert_eq!(
+        report
+            .declarations
+            .iter()
+            .map(|d| (d.library.as_str(), d.module.as_str(), d.name.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("demo", "Demo.Algebra", "Demo.φ_lemma"),
+            ("demo", "Demo.Basic", "Demo.fact"),
+        ]
+    );
+    // The unprintable name stays counted.
+    assert_eq!((report.total, report.complete), (3, true));
+    let stopped = library_use(
+        "info: MATHESIS_LIBRARY_USE_TOTAL:0:false\n",
+        &libraries,
+        &imported,
+    )
+    .unwrap();
+    assert_eq!((stopped.total, stopped.complete), (0, false));
+    assert!(stopped.declarations.is_empty());
+    for bad in [
+        "no report at all",
+        "info: MATHESIS_LIBRARY_USE_TOTAL:many:true\n",
+        "info: MATHESIS_LIBRARY_USE_TOTAL:1:true\ninfo: MATHESIS_LIBRARY_USE:Other.Basic:Other.fact\n",
+        "info: MATHESIS_LIBRARY_USE_TOTAL:0:true\ninfo: MATHESIS_LIBRARY_USE:Demo.Basic:Demo.fact\n",
+    ] {
+        assert!(library_use(bad, &libraries, &imported).is_err(), "{bad}");
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn fake_pipeline_admits_only_modules_built_by_the_declaring_library() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join("workspace");
+    let built =
+        |package: &str| workspace.join(format!(".lake/packages/{package}/.lake/build/lib/lean"));
+    std::fs::create_dir_all(built("demo").join("Demo")).unwrap();
+    std::fs::create_dir_all(built("other").join("Demo")).unwrap();
+    std::fs::write(built("demo").join("Demo/Basic.olean"), "").unwrap();
+    // Another package ships a module below the library's root.
+    std::fs::write(built("other").join("Demo/Planted.olean"), "").unwrap();
+    library_workspace(
+        &workspace,
+        r#"{"libraries":[{"package":"demo","roots":["Demo"]}]}"#,
+        serde_json::json!([
+            {"name": "mathlib", "rev": "0123456789"},
+            {"name": "demo", "rev": "0123456789abcdef0123456789abcdef01234567"}
+        ]),
+    );
+    std::fs::write(workspace.join("lean-toolchain"), "fake").unwrap();
+    let binary = dir.path().join("fake-lean");
+    std::fs::write(
+        &binary,
+        r##"#!/usr/bin/python3
+import sys
+name = sys.argv[-1]
+if name == 'Check.lean':
+    text = open(name).read()
+    print("'wishpool_solution' depends on axioms: [propext]")
+    if 'libraryRoots' in text:
+        assert 'let libraryRoots : List Lean.Name := [`Demo]' in text
+        assert 'let localModules : List Lean.Name := [`Solution, `Target, `Helper]' in text
+        print('Check.lean:5:0: info: MATHESIS_LIBRARY_USE_TOTAL:1:true')
+        print('Check.lean:5:0: info: MATHESIS_LIBRARY_USE:Demo.Basic:Demo.fact')
+output = sys.argv[sys.argv.index('-o')+1]
+open(output, 'w').close()
+"##,
+    )
+    .unwrap();
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let checker = Checker {
+        workspace: workspace.clone(),
+        scratch: dir.path().into(),
+        timeout: Duration::from_secs(5),
+    };
+    let target = "import Mathlib\ndef wishpool_target_prop : Prop := True\n".to_string();
+    let request = |solution: &str, helper: &str| Request {
+        required_declaration: None,
+        inspect_constants: vec![],
+        modules: BTreeMap::from([("Helper".to_string(), helper.to_string())]),
+        target_digest: digest(&target),
+        target: target.clone(),
+        toolchain: "fake".into(),
+        solution: solution.into(),
+    };
+    let plain_helper = "import Mathlib\ntheorem helper : True := True.intro";
+    let bound = "import Target\nimport Helper\nimport Demo.Basic\ntheorem wishpool_solution : wishpool_target_prop := Demo.fact";
+    let checked = checker
+        .check_using(&request(bound, plain_helper), Some(&binary))
+        .await
+        .unwrap();
+    let report = checked.4.expect("an imported library is reported");
+    assert_eq!(report.libraries[0].name, "demo");
+    assert_eq!(report.declarations[0].name, "Demo.fact");
+    assert_eq!((report.total, report.complete), (1, true));
+    // A library reached through a supporting module is reported as well.
+    let through_helper =
+        "import Target\nimport Helper\ntheorem wishpool_solution : wishpool_target_prop := helper";
+    let checked = checker
+        .check_using(
+            &request(
+                through_helper,
+                "import Demo.Basic\ntheorem helper : True := True.intro",
+            ),
+            Some(&binary),
+        )
+        .await
+        .unwrap();
+    assert!(checked.4.is_some());
+    // No library import: the receipt keeps its historical shape.
+    let checked = checker
+        .check_using(&request(through_helper, plain_helper), Some(&binary))
+        .await
+        .unwrap();
+    assert_eq!(checked.4, None);
+    for missing in ["Demo.Absent", "Demo.Planted"] {
+        let solution = bound.replace("Demo.Basic", missing);
+        let error = checker
+            .check_using(&request(&solution, plain_helper), Some(&binary))
+            .await
+            .unwrap_err();
+        assert_eq!(error, format!("missing prepared dependency: {missing}"));
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires WISHPOOL_TEST_LEAN_WORKSPACE with pinned Lean and built Mathlib"]
+async fn real_lean_library_binding_reports_the_library_declaration_and_ignores_mimicry() {
+    let prepared = PathBuf::from(
+        std::env::var("WISHPOOL_TEST_LEAN_WORKSPACE")
+            .expect("real Lean tests require WISHPOOL_TEST_LEAN_WORKSPACE"),
+    );
+    let dir = tempfile::tempdir().unwrap();
+    // A fresh workspace: the prepared packages by reference plus one small library
+    // compiled here with the pinned Lean binary.
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir_all(workspace.join(".lake/packages")).unwrap();
+    for entry in std::fs::read_dir(prepared.join(".lake/packages")).unwrap() {
+        let entry = entry.unwrap();
+        std::os::unix::fs::symlink(
+            entry.path(),
+            workspace.join(".lake/packages").join(entry.file_name()),
+        )
+        .unwrap();
+    }
+    let toolchain = std::fs::read_to_string(prepared.join("lean-toolchain")).unwrap();
+    std::fs::write(workspace.join("lean-toolchain"), &toolchain).unwrap();
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(prepared.join("lake-manifest.json")).unwrap())
+            .unwrap();
+    let revision = "0123456789abcdef0123456789abcdef01234567";
+    manifest["packages"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"name": "demo", "rev": revision}));
+    std::fs::write(workspace.join("lake-manifest.json"), manifest.to_string()).unwrap();
+    std::fs::write(
+        workspace.join(LIBRARIES_FILE),
+        r#"{"libraries":[{"package":"demo","roots":["Demo"]}]}"#,
+    )
+    .unwrap();
+    let built = workspace.join(".lake/packages/demo/.lake/build/lib/lean/Demo");
+    std::fs::create_dir_all(&built).unwrap();
+    let source = dir.path().join("Basic.lean");
+    std::fs::write(
+        &source,
+        "theorem Demo.two_add_two : (2 : Nat) + 2 = 4 := rfl\n",
+    )
+    .unwrap();
+    let lean = PathBuf::from(std::env::var_os("HOME").unwrap())
+        .join(".elan/toolchains")
+        .join(toolchain.trim().replace('/', "--").replace(':', "---"))
+        .join("bin/lean");
+    // Lean accepts an input file only below its working directory.
+    let compiled = std::process::Command::new(&lean)
+        .current_dir(dir.path())
+        .arg("-o")
+        .arg(built.join("Basic.olean"))
+        .arg("Basic.lean")
+        .output()
+        .unwrap();
+    assert!(compiled.status.success(), "{compiled:?}");
+    assert!(workspace_ready(&workspace).is_ok());
+    let checker = Checker {
+        workspace,
+        scratch: dir.path().join("scratch"),
+        timeout: Duration::from_secs(900),
+    };
+    let target =
+        "import Mathlib\ndef wishpool_target_prop : Prop := (2 : Nat) + 2 = 4\n".to_string();
+    let request = |solution: &str, modules: BTreeMap<String, String>| Request {
+        required_declaration: None,
+        inspect_constants: vec![],
+        modules,
+        target_digest: digest(&target),
+        target: target.clone(),
+        toolchain: toolchain.trim().to_owned(),
+        solution: solution.into(),
+    };
+    let bound = checker
+        .verify(&request(
+            "import Target\nimport Demo.Basic\ntheorem wishpool_solution : wishpool_target_prop := Demo.two_add_two\n",
+            BTreeMap::new(),
+        ))
+        .await;
+    assert_eq!(bound.verdict, Verdict::Proved, "{}", bound.reason);
+    let report = bound.library_use.expect("the library binding is reported");
+    assert_eq!(
+        report.libraries,
+        vec![LibraryPin {
+            name: "demo".into(),
+            revision: revision.into(),
+            url: None,
+        }]
+    );
+    assert_eq!(
+        report.declarations,
+        vec![LibraryDeclaration {
+            library: "demo".into(),
+            module: "Demo.Basic".into(),
+            name: "Demo.two_add_two".into(),
+        }]
+    );
+    assert_eq!((report.total, report.complete), (1, true));
+    // A local declaration carrying a library-looking name proves the target
+    // without the library; the receipt reports no library at all.
+    let mimic = checker
+        .verify(&request(
+            "import Target\nimport Helper\ntheorem wishpool_solution : wishpool_target_prop := Demo.two_add_two\n",
+            BTreeMap::from([(
+                "Helper".to_string(),
+                "import Mathlib\ntheorem Demo.two_add_two : (2 : Nat) + 2 = 4 := rfl\n".to_string(),
+            )]),
+        ))
+        .await;
+    assert_eq!(mimic.verdict, Verdict::Proved, "{}", mimic.reason);
+    assert_eq!(mimic.library_use, None);
+    // Importing the library while proving with a local copy lists nothing from it.
+    let unused = checker
+        .verify(&request(
+            "import Target\nimport Demo.Basic\ntheorem wishpool_solution : wishpool_target_prop := rfl\n",
+            BTreeMap::new(),
+        ))
+        .await;
+    assert_eq!(unused.verdict, Verdict::Proved, "{}", unused.reason);
+    let report = unused.library_use.expect("the import itself is reported");
+    assert_eq!(report.libraries.len(), 1);
+    assert!(report.declarations.is_empty());
+    assert_eq!((report.total, report.complete), (0, true));
+}

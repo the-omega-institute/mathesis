@@ -9,6 +9,7 @@ import { Citation } from '../components/Citation';
 import { ErrorReports, ReportError } from '../components/ErrorReports';
 import { InlineLatex, LatexText, MacrosProvider } from '../components/Markdown';
 import { ProofAttribution } from '../components/ProofAttribution';
+import { ProofBasisNote } from '../components/ProofBasis';
 import { Async } from '../components/ui';
 import { ResultConnections, CheckedResultUses } from '../components/ResultConnections';
 import { ResultProvenance, matchesResult } from '../components/ResultProvenance';
@@ -116,6 +117,7 @@ export function ResultView({ paper, claimId }: { paper: PublicPaper; claimId: st
                 {t(' proved the author-confirmed statement in Lean.')}
               </p>
               <ProofAttribution attribution={claim.verified.attribution} />
+              <ProofBasisNote basis={claim.verified.proof_basis} />
             </>
           ) : sourceProofHref && !claim.lean ? (
             <p>
@@ -204,6 +206,10 @@ function CollectedResultPage({
                           <EntrantName entrant={proof.entrant} />
                         </p>
                       )}
+                      <ProofBasisNote
+                        basis={proof.proof_basis}
+                        verdict={proof.receipt.verdict === 'disproved' ? 'disproved' : 'proved'}
+                      />
                       <a
                         href={`/api/v1/papers/${encodeURIComponent(record)}/statements/${encodeURIComponent(claim)}/attempts/${encodeURIComponent(proof.id)}/bundle`}
                       >
