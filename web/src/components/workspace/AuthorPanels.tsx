@@ -8,9 +8,12 @@ import { useSession } from '../../auth/session';
 import { VISIBILITY_LABELS } from '../../lib/labels';
 import { SOURCE_ACCEPT, sourceFileProblem } from '../../lib/upload';
 import { Link } from '../../routing/router';
-import { ItemStateBadge } from '../badges';
-import { ClaimRef, StatementView } from '../claims';
-import { Field, InlineError } from '../ui';
+import { formalizationStatus } from '../../lib/formalizationStatus';
+import { InlineLatex } from '../Markdown';
+import { LeanBadge } from '../badges';
+import { ProofAttribution } from '../ProofAttribution';
+import { StatementView } from '../claims';
+import { Badge, Field, InlineError } from '../ui';
 
 type OnChange = (s: Submission) => void;
 
@@ -269,61 +272,97 @@ export function FormalizationForAuthor({
   submission: Submission;
   onChange: OnChange;
 }) {
-  const items = [
-    ...submission.formalization.items,
-    ...submission.claims
-      .filter(
-        (c) =>
-          c.has_proof &&
-          c.kind !== 'conjecture' &&
-          c.kind !== 'question' &&
-          !submission.formalization.items.some((i) => i.claim === c.id),
-      )
-      .map((c) => ({
-        claim: c.id,
-        reason: 'Prepare a Lean target for this statement.',
-        state: { state: 'proposed' as const },
-        updated_at: submission.updated_at,
-      })),
-  ];
-  if (items.length === 0) {
-    return <p className="muted">The editors have not proposed any statement for formalization.</p>;
-  }
+  const { person } = useSession();
+  const items = submission.formalization.items;
+  const canRequest =
+    person?.id === submission.submitter && submission.analysis_visibility === 'public';
+  const available = submission.claims.filter(
+    (claim) =>
+      claim.has_proof &&
+      claim.kind !== 'conjecture' &&
+      claim.kind !== 'question' &&
+      !items.some((item) => item.claim === claim.id),
+  );
+
   return (
-    <ul className="formal-list">
-      {items.map((item) => {
-        const claim = submission.claims.find((c) => c.id === item.claim);
-        return (
-          <li key={item.claim}>
-            <div className="claim-head">
-              <ClaimRef id={item.claim} claims={submission.claims} scope="ws" />
-              <ItemStateBadge state={item.state} />
-            </div>
-            <p className="small">
-              <strong>Editors’ reason:</strong> {item.reason}
-            </p>
-            {item.state.state === 'declined' ? (
-              <p className="small muted">You declined: {item.state.reason}</p>
-            ) : null}
-            {item.state.state === 'proposed' ? (
-              <>
-                {claim ? (
-                  <details>
-                    <summary>Statement</summary>
-                    <StatementView claim={claim} claims={submission.claims} scope="proposal" />
-                  </details>
-                ) : null}
+    <>
+      {items.length === 0 ? <p className="muted">No formalization is scheduled.</p> : null}
+      {submission.analysis_visibility !== 'public' ? (
+        <p className="small">
+          Make the accepted manuscript public in Manuscript settings to request formalization.
+        </p>
+      ) : null}
+      <ul className="formal-list">
+        {items.map((item) => {
+          const claim = submission.claims.find((c) => c.id === item.claim);
+          return (
+            <li key={item.claim}>
+              <div className="claim-head">
+                <strong>
+                  <InlineLatex source={claim?.label ?? item.claim} />
+                </strong>
+                <Badge tone={formalizationStatus(submission, item.claim).tone}>
+                  {formalizationStatus(submission, item.claim).label}
+                </Badge>
+              </div>
+              <p className="small">{item.reason}</p>
+              {item.state.state === 'verified' ? (
+                <div className="formal-credit">
+                  <LeanBadge artifact={item.state.artifact} />
+                  <ProofAttribution attribution={item.state.attribution} />
+                  {item.state.contribution ? (
+                    <p className="small">{item.state.contribution}</p>
+                  ) : null}
+                </div>
+              ) : null}
+              {item.state.state === 'declined' ? (
+                <p className="small muted">You declined: {item.state.reason}</p>
+              ) : null}
+              {item.state.state === 'proposed' && canRequest ? (
+                <>
+                  {claim ? (
+                    <details>
+                      <summary>Statement</summary>
+                      <StatementView claim={claim} claims={submission.claims} scope="proposal" />
+                    </details>
+                  ) : null}
+                  <FormalizationResponse
+                    submission={submission}
+                    claim={item.claim}
+                    onChange={onChange}
+                  />
+                </>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {canRequest && available.length ? (
+        <details className="formalization-request">
+          <summary>Choose a statement to formalize</summary>
+          <p className="small muted">
+            A request prepares a Lean target for your confirmation. A verified proof is recorded
+            only after it passes verification.
+          </p>
+          <ul className="formal-list">
+            {available.map((claim) => (
+              <li key={claim.id}>
+                <h3>
+                  <InlineLatex source={claim.label} />
+                </h3>
+                <StatementView claim={claim} claims={submission.claims} scope="request" />
                 <FormalizationResponse
                   submission={submission}
-                  claim={item.claim}
+                  claim={claim.id}
                   onChange={onChange}
+                  request
                 />
-              </>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </>
   );
 }
 
@@ -331,9 +370,11 @@ function FormalizationResponse({
   submission,
   claim,
   onChange,
+  request = false,
 }: {
   submission: Submission;
   claim: string;
+  request?: boolean;
   onChange: OnChange;
 }) {
   const api = useApi();
@@ -342,10 +383,12 @@ function FormalizationResponse({
   const id = `respond-${claim}`;
   return (
     <div className="inline-form">
-      <div className="field">
-        <label htmlFor={id}>Reason (needed when declining)</label>
-        <input id={id} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </div>
+      {!request ? (
+        <div className="field">
+          <label htmlFor={id}>Reason (needed when declining)</label>
+          <input id={id} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+      ) : null}
       <div className="button-row">
         <button
           type="button"
@@ -360,27 +403,29 @@ function FormalizationResponse({
             )
           }
         >
-          Approve formalization
+          {request ? 'Request formalization' : 'Approve formalization'}
         </button>
-        <button
-          type="button"
-          className="button button-quiet button-small"
-          disabled={m.busy}
-          onClick={() => {
-            if (reason.trim() === '') {
-              m.setError('Give a reason for declining.');
-              return;
-            }
-            m.run(() =>
-              api.respondFormalization(submission.id, claim, {
-                approve: false,
-                reason: reason.trim(),
-              }),
-            );
-          }}
-        >
-          Decline
-        </button>
+        {!request ? (
+          <button
+            type="button"
+            className="button button-quiet button-small"
+            disabled={m.busy}
+            onClick={() => {
+              if (reason.trim() === '') {
+                m.setError('Give a reason for declining.');
+                return;
+              }
+              m.run(() =>
+                api.respondFormalization(submission.id, claim, {
+                  approve: false,
+                  reason: reason.trim(),
+                }),
+              );
+            }}
+          >
+            Decline
+          </button>
+        ) : null}
       </div>
       <InlineError error={m.error} />
     </div>
@@ -402,7 +447,7 @@ export function LeanStatementCard({
   );
   return (
     <section className="lean-statement-card" aria-label="Lean statement">
-      <h2>Does this match your statement?</h2>
+      <h3>Confirm the formal statement</h3>
       <p>
         Lean checks that this statement is well formed. Confirm that its meaning matches your
         statement.
@@ -466,9 +511,12 @@ function LeanStatementResponse({
   return (
     <div>
       <p>{attempt.reading}</p>
-      <pre className="lean-source">
-        <code>{attempt.lean}</code>
-      </pre>
+      <details>
+        <summary>Read the Lean statement</summary>
+        <pre className="lean-source">
+          <code>{attempt.lean}</code>
+        </pre>
+      </details>
       {attempt.faithfulness ? (
         <div className="notice">
           <strong>Our check: {attempt.faithfulness.verdict}</strong>

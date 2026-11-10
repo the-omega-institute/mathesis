@@ -131,7 +131,12 @@ describe('paper standing', () => {
   });
 });
 
-function workspace(person = author, paper = accepted, overrides: Partial<ApiClient> = {}) {
+function workspace(
+  person = author,
+  paper = accepted,
+  overrides: Partial<ApiClient> = {},
+  staffOnly = false,
+) {
   const api = fakeApi(
     {
       getSubmission: vi.fn(async () => paper),
@@ -144,25 +149,23 @@ function workspace(person = author, paper = accepted, overrides: Partial<ApiClie
     },
     person,
   );
-  return { ...renderWithApp(<SubmissionDetailPage id={paper.id} />, api), api };
+  return {
+    ...renderWithApp(<SubmissionDetailPage id={paper.id} staffOnly={staffOnly} />, api),
+    api,
+  };
 }
 
 describe('standing in the workspace', () => {
-  it('places the standing card, statement lists and letters in order with one referee fetch', async () => {
+  it('shows the final report within the review tab with one referee fetch', async () => {
     const { api } = workspace();
-    const card = await screen.findByRole('region', { name: 'Paper standing' });
-    await within(card).findByText(refereeAudit.summary);
-    expect(card.previousElementSibling).toHaveClass('record-head');
-    expect(card.nextElementSibling).toHaveAccessibleName('Statements');
-    const statements = screen.getByRole('region', { name: 'Statements' });
-    expect(within(statements).getAllByRole('list')).toHaveLength(2);
-    expect(within(statements).queryByRole('table')).toBeNull();
-    expect(statements.nextElementSibling).toHaveAccessibleName('Orchestra review');
-    expect(
-      screen.getByText('Full referee report', { selector: 'summary' }).closest('details'),
-    ).not.toHaveAttribute('open');
-    expect(screen.queryByText('Analysis', { selector: 'summary' })).toBeNull();
-    expect(screen.queryByText('Publication decision', { selector: 'summary' })).toBeNull();
+    const report = await screen.findByRole('region', { name: 'AI review report' });
+    expect(report.closest('[role=tabpanel]')).toHaveAccessibleName('Review');
+    expect(within(report).getByRole('heading', { name: 'Review report' })).toBeVisible();
+    expect(within(report).getByText('Accepted', { selector: '.badge' })).toBeVisible();
+    expect(within(report).getByRole('heading', { name: 'Accepted statements' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Paper standing' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Statements' })).toBeNull();
+    expect(screen.queryByText('Source audit')).toBeNull();
     expect(api.referee).toHaveBeenCalledOnce();
   });
   it.each([accepted, notAccepted])('opens the existing revision upload flow', async (paper) => {
@@ -192,7 +195,7 @@ describe('standing in the workspace', () => {
       'Clarified the base case.',
       'ai-review-2026-10-11',
     );
-    expect(await screen.findByRole('form', { name: 'Confirm statements' })).toBeInTheDocument();
+    expect(await screen.findByRole('form', { name: 'Start review' })).toBeInTheDocument();
   });
   it('offers a linked co-author revision, while staff keep their tools', async () => {
     const { unmount } = workspace(author, {
@@ -204,10 +207,11 @@ describe('standing in the workspace', () => {
       await screen.findByRole('button', { name: 'Upload a revised version' }),
     ).toBeInTheDocument();
     unmount();
-    workspace(editor);
-    const card = await screen.findByRole('region', { name: 'Paper standing' });
-    await within(card).findByText(refereeAudit.summary);
-    expect(within(card).queryByRole('button')).toBeNull();
+    workspace(editor, accepted, {}, true);
+    const report = await screen.findByRole('region', { name: 'Review overview' });
+    expect(within(report).getByRole('heading', { name: 'What is complete' })).toBeInTheDocument();
+    expect(within(report).getByText('Accepted', { selector: '.badge' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Advanced' }));
     expect(screen.getByRole('heading', { name: 'Editor tools' })).toBeInTheDocument();
   });
   it('refreshes the applied paper decision with referee polling', async () => {
@@ -223,11 +227,11 @@ describe('standing in the workspace', () => {
       .mockResolvedValue({ ...accepted, revision: submission.revision + 1 });
     workspace(author, submission, { referee, getSubmission });
     await act(async () => {});
-    expect(screen.getByRole('heading', { name: 'Under review' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review report' })).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
-    expect(screen.getAllByRole('heading', { name: 'Accepted' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Accepted', { selector: '.badge' }).length).toBeGreaterThan(0);
     expect(referee).toHaveBeenCalledTimes(3);
     await act(async () => {
       fireEvent.focus(window);

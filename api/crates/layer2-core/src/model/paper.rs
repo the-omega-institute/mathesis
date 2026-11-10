@@ -267,9 +267,20 @@ pub struct PublishedProgress {
 }
 
 pub const AI_PROCESSING_CONSENT_VERSION: &str = "ai-review-2026-10-11";
+/// Consent for Mathesis to publish the work and expose durable bibliographic
+/// metadata to DOI registration agencies and other scholarly indexes.
+pub const PUBLICATION_METADATA_CONSENT_VERSION: &str = "publication-metadata-2026-11-05";
+
+pub const DEFAULT_PUBLICATION_LICENSE: &str = "all_rights_reserved";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProcessingConsent {
+    pub version: String,
+    pub at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicationMetadataConsent {
     pub version: String,
     pub at: DateTime<Utc>,
 }
@@ -283,6 +294,10 @@ pub struct Submission {
     pub review_scope: String,
     #[serde(default)]
     pub processing_consent: Option<ProcessingConsent>,
+    /// Explicit rights and metadata consent for publication submissions. Older
+    /// private records may not carry this field.
+    #[serde(default)]
+    pub publication_metadata_consent: Option<PublicationMetadataConsent>,
     /// Explicitly requested at new acceptance or by staff; legacy documents do
     /// not opt into a backfill merely because reconciliation visits them.
     #[serde(default)]
@@ -299,6 +314,12 @@ pub struct Submission {
     pub abstract_text: String,
     pub authors: Vec<Author>,
     pub ai_disclosure: AiDisclosure,
+    /// A stable, machine-readable choice for the public work's reuse terms.
+    /// This is separate from the author's existing DOI, which remains in `doi`.
+    #[serde(default = "default_publication_license")]
+    pub publication_license: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication_rights_holder: Option<String>,
     #[serde(default)]
     pub msc: Vec<String>,
     /// The paper's persistent identifier, when it already has one.
@@ -344,6 +365,10 @@ pub struct NewPaper {
     pub review_scope: String,
     #[serde(default)]
     pub processing_consent: Option<String>,
+    /// Required for every publication-purpose submission, including one that
+    /// starts private and may be made public after acceptance.
+    #[serde(default)]
+    pub publication_metadata_consent: Option<String>,
     #[serde(default)]
     pub kind: SubmissionKind,
     #[serde(default = "public_by_default")]
@@ -351,6 +376,10 @@ pub struct NewPaper {
     #[serde(default)]
     pub typed_conjecture: Option<TypedConjecture>,
     pub ai_disclosure: AiDisclosure,
+    #[serde(default = "default_publication_license")]
+    pub publication_license: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication_rights_holder: Option<String>,
     /// Overrides the authors read from `\author`.
     #[serde(default)]
     pub authors: Vec<Author>,
@@ -376,6 +405,23 @@ impl NewPaper {
             return Err(CoreError::invalid(
                 "agreement to third-party AI review is required",
             ));
+        }
+        if self.purpose == SubmissionPurpose::Publication {
+            if self.publication_metadata_consent.as_deref()
+                != Some(PUBLICATION_METADATA_CONSENT_VERSION)
+            {
+                return Err(CoreError::invalid(
+                    "explicit publication and DOI metadata consent is required",
+                ));
+            }
+            validate_publication_license(&self.publication_license)?;
+            if let Some(holder) = self.publication_rights_holder.as_deref()
+                && (holder.trim().is_empty() || holder.chars().count() > 300)
+            {
+                return Err(CoreError::invalid(
+                    "publication rights holder must be at most 300 characters",
+                ));
+            }
         }
         if self.typed_conjecture.is_some() && self.kind != SubmissionKind::Conjecture {
             return Err(CoreError::invalid("typed input is only for conjectures"));
@@ -434,6 +480,39 @@ impl NewPaper {
             .as_deref()
             .map(normalise_doi)
             .filter(|doi| !doi.is_empty());
+    }
+
+    pub fn normalise_publication_metadata(&mut self) {
+        self.publication_license = self.publication_license.trim().to_owned();
+        if self.publication_license.is_empty() {
+            self.publication_license = DEFAULT_PUBLICATION_LICENSE.into();
+        }
+        self.publication_rights_holder = self
+            .publication_rights_holder
+            .take()
+            .map(|holder| holder.trim().to_owned())
+            .filter(|holder| !holder.is_empty());
+    }
+}
+
+fn default_publication_license() -> String {
+    DEFAULT_PUBLICATION_LICENSE.into()
+}
+
+fn validate_publication_license(value: &str) -> CoreResult<()> {
+    if matches!(
+        value,
+        "all_rights_reserved"
+            | "cc_by_4_0"
+            | "cc_by_sa_4_0"
+            | "cc_by_nc_4_0"
+            | "cc_by_nc_sa_4_0"
+            | "cc_by_nd_4_0"
+            | "cc_by_nc_nd_4_0"
+    ) {
+        Ok(())
+    } else {
+        Err(CoreError::invalid("publication license is not supported"))
     }
 }
 
@@ -543,6 +622,7 @@ mod tests {
             purpose: Default::default(),
             review_scope: Default::default(),
             processing_consent: Some("ai-review-2026-10-11".into()),
+            publication_metadata_consent: Some(PUBLICATION_METADATA_CONSENT_VERSION.into()),
             kind: crate::model::SubmissionKind::Paper,
             make_public_after_acceptance: true,
             typed_conjecture: None,
@@ -550,6 +630,8 @@ mod tests {
                 level: AiUse::None,
                 statement: "No AI was used.".into(),
             },
+            publication_license: DEFAULT_PUBLICATION_LICENSE.into(),
+            publication_rights_holder: None,
             authors: vec![],
             msc: vec![],
             doi: doi.map(str::to_owned),
@@ -596,6 +678,50 @@ mod tests {
         json["arxiv"] = "2609.33421".into();
         let paper: NewPaper = serde_json::from_value(json).unwrap();
         assert_eq!(paper.doi, None);
+    }
+
+    #[test]
+    fn publication_metadata_consent_and_license_are_explicit() {
+        let mut paper = new_paper(None);
+        paper.publication_metadata_consent = None;
+        assert_eq!(
+            paper.validate(),
+            Err(CoreError::Invalid(
+                "explicit publication and DOI metadata consent is required".into()
+            ))
+        );
+
+        let mut review = new_paper(None);
+        review.purpose = SubmissionPurpose::ReviewOnly;
+        review.publication_metadata_consent = None;
+        review.publication_license = "unsupported".into();
+        assert!(review.validate().is_ok());
+
+        let mut unsupported = new_paper(None);
+        unsupported.publication_license = "unsupported".into();
+        assert_eq!(
+            unsupported.validate(),
+            Err(CoreError::Invalid(
+                "publication license is not supported".into()
+            ))
+        );
+    }
+
+    #[test]
+    fn publication_metadata_is_normalised_at_the_application_boundary() {
+        let mut paper = new_paper(None);
+        paper.publication_license = "  cc_by_4_0  ".into();
+        paper.publication_rights_holder = Some("  Omega Institute  ".into());
+        paper.normalise_publication_metadata();
+        assert_eq!(paper.publication_license, "cc_by_4_0");
+        assert_eq!(
+            paper.publication_rights_holder.as_deref(),
+            Some("Omega Institute")
+        );
+
+        paper.publication_rights_holder = Some("   ".into());
+        paper.normalise_publication_metadata();
+        assert_eq!(paper.publication_rights_holder, None);
     }
     #[test]
     fn upload_checkbox_defaults_public_and_all_kinds_round_trip() {

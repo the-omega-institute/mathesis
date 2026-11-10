@@ -6,7 +6,7 @@ use std::sync::Arc;
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Multipart, State},
-    http::{HeaderValue, StatusCode, header},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post, put},
 };
@@ -48,7 +48,10 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/submissions/{id}/evidence", get(evidence_file))
         .route("/papers", get(list_papers))
         .route("/conjectures", get(list_conjectures))
+        .route("/sitemap.xml", get(sitemap))
         .route("/papers/{id}", get(paper))
+        .route("/papers/{id}/landing.html", get(paper_landing))
+        .route("/papers/{id}/pdf", get(paper_pdf))
 }
 
 /// The parts of an upload form: `metadata` (JSON), `note` (text) and
@@ -350,6 +353,176 @@ async fn list_papers(
 
 async fn paper(State(app): AppState, Path(id): Path<String>) -> ApiResult<impl IntoResponse> {
     Ok(Json(app.paper(&RecordId(id)).await?))
+}
+
+/// A stable, browser-readable PDF URL for a public paper. The submission
+/// endpoint remains an implementation detail; this record-based alias keeps
+/// citations and Scholar metadata valid when submission storage changes.
+async fn paper_pdf(State(app): AppState, Path(id): Path<String>) -> ApiResult<Response> {
+    let paper = app.paper(&RecordId(id)).await?;
+    if !paper.summary.public {
+        return Err(Problem(CoreError::not_found(
+            "paper",
+            paper.summary.record.as_str(),
+        )));
+    }
+    let file = app
+        .paper_file(None, &paper.summary.submission, None, true)
+        .await?;
+    let mut response = file_response(file, true);
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=300"),
+    );
+    Ok(response)
+}
+
+/// A small HTML document with metadata in the initial response. The React
+/// application remains the interactive paper reader, while this document gives
+/// Scholar and other academic crawlers a stable, directly parseable article
+/// representation without requiring JavaScript execution.
+async fn paper_landing(
+    State(app): AppState,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Response> {
+    let paper = app.paper(&RecordId(id)).await?;
+    if !paper.summary.public {
+        return Err(Problem(CoreError::not_found(
+            "paper",
+            paper.summary.record.as_str(),
+        )));
+    }
+    let origin = request_origin(&headers);
+    let record = paper.summary.record.as_str();
+    let landing_url = format!("{origin}/papers/{record}/landing.html");
+    let pdf_url = format!("{origin}/papers/{record}/pdf");
+    let has_pdf = paper.versions.iter().any(|version| version.has_pdf);
+    let title = html_escape(&paper.summary.title);
+    let abstract_text = html_escape(&paper.summary.abstract_text);
+    let authors = paper
+        .summary
+        .authors
+        .iter()
+        .map(|author| {
+            let name = html_escape(&author.name);
+            format!("<meta name=\"citation_author\" content=\"{name}\"><li>{name}</li>")
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    let author_list = paper
+        .summary
+        .authors
+        .iter()
+        .map(|author| html_escape(&author.name))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let date = paper.summary.accepted_at.format("%Y-%m-%d");
+    let kind = match paper.summary.kind {
+        mathesis_core::model::SubmissionKind::Paper => "Research paper",
+        mathesis_core::model::SubmissionKind::Note => "Short note",
+        mathesis_core::model::SubmissionKind::Conjecture => "Conjecture",
+    };
+    let citation_pdf = if has_pdf {
+        format!("<meta name=\"citation_pdf_url\" content=\"{pdf_url}\">")
+    } else {
+        String::new()
+    };
+    let pdf_link = if has_pdf {
+        format!("<p><a href=\"{pdf_url}\">Download the PDF</a></p>")
+    } else {
+        String::new()
+    };
+    let body = format!(
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title} · Mathesis</title><meta name=\"description\" content=\"{abstract_text}\"><meta name=\"citation_title\" content=\"{title}\">{authors}<meta name=\"citation_publication_date\" content=\"{date}\">{citation_pdf}<meta name=\"citation_fulltext_html_url\" content=\"{landing_url}\"><meta name=\"citation_technical_report_institution\" content=\"Omega Institute · Mathesis\"><link rel=\"canonical\" href=\"{landing_url}\"></head><body><main><article><p>Mathesis record <code>{record}</code> · {kind}</p><h1>{title}</h1><p class=\"authors\">{author_list}</p><p>Published {date} by Omega Institute · Mathesis.</p><h2>Abstract</h2><p>{abstract_text}</p>{pdf_link}<p><a href=\"{origin}/papers/{record}\">Open the interactive Mathesis page</a></p></article></main></body></html>"
+    );
+    let mut response = body.into_response();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=300"),
+    );
+    Ok(response)
+}
+
+async fn sitemap(State(app): AppState, headers: HeaderMap) -> ApiResult<Response> {
+    let origin = request_origin(&headers);
+    let mut records = Vec::new();
+    let mut before = None;
+    loop {
+        let page = app
+            .list_papers(Some(mathesis_core::app::MAX_PAGE), before)
+            .await?;
+        records.extend(page.items.into_iter().filter(|paper| paper.public));
+        before = page.next_before;
+        if before.is_none() {
+            break;
+        }
+    }
+    let mut xml = String::from(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+    );
+    xml.push_str(&format!(
+        "<url><loc>{}</loc></url><url><loc>{}/papers</loc></url>",
+        html_escape(&origin),
+        html_escape(&origin)
+    ));
+    for paper in records {
+        let record = html_escape(paper.record.as_str());
+        let date = paper.accepted_at.format("%Y-%m-%d");
+        xml.push_str(&format!(
+            "<url><loc>{origin}/papers/{record}/landing.html</loc><lastmod>{date}</lastmod></url>",
+            origin = html_escape(&origin),
+            record = record,
+        ));
+    }
+    xml.push_str("</urlset>");
+    let mut response = xml.into_response();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/xml; charset=utf-8"),
+    );
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=300"),
+    );
+    Ok(response)
+}
+
+fn request_origin(headers: &HeaderMap) -> String {
+    let scheme = headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .filter(|value| matches!(*value, "http" | "https"))
+        .unwrap_or("https");
+    let host = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get(header::HOST))
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| {
+            !value.is_empty()
+                && value.chars().all(|character| {
+                    character.is_ascii_alphanumeric()
+                        || matches!(character, '.' | ':' | '-' | '[' | ']')
+                })
+        })
+        .unwrap_or("localhost");
+    format!("{scheme}://{host}")
+}
+
+fn html_escape(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 #[derive(Default, Deserialize)]

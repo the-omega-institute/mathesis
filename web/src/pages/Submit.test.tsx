@@ -7,6 +7,13 @@ import { author, draft } from '../test/fixtures';
 import { fakeApi, renderWithApp } from '../test/render';
 import { SubmitPage } from './Submit';
 
+async function agreeToPublication(user: ReturnType<typeof userEvent.setup>) {
+  const checkbox = screen.queryByRole('checkbox', {
+    name: /I confirm that I am authorized to submit this work/,
+  });
+  if (checkbox && !(checkbox as HTMLInputElement).checked) await user.click(checkbox);
+}
+
 describe('SubmitPage', () => {
   it('asks anonymous visitors to sign in', async () => {
     renderWithApp(<SubmitPage />, fakeApi());
@@ -38,6 +45,7 @@ describe('SubmitPage', () => {
         .checked
     )
       await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
 
     expect(createSubmission).toHaveBeenCalledWith(
@@ -53,6 +61,8 @@ describe('SubmitPage', () => {
         },
         msc: ['11B83', '05D10'],
         doi: '10.48550/arXiv.2609.33421',
+        publication_license: 'all_rights_reserved',
+        publication_metadata_consent: 'publication-metadata-2026-11-05',
         open_to_contributors: true,
       },
       file,
@@ -74,6 +84,7 @@ describe('SubmitPage', () => {
         .checked
     )
       await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('"2609.33421" is not a DOI');
     expect(createSubmission).not.toHaveBeenCalled();
@@ -92,6 +103,7 @@ describe('SubmitPage', () => {
       new File(['%PDF-1.7'], 'paper.pdf', { type: 'application/pdf' }),
     );
     await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
 
     const source = (createSubmission.mock.calls as unknown as [unknown, File][])[0]?.[1];
@@ -127,6 +139,7 @@ describe('SubmitPage', () => {
     await user.click(screen.getByRole('button', { name: 'Add another author' }));
     await user.type(screen.getAllByLabelText('Name')[1]!, 'Benoit Example');
     await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     expect(createSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -163,6 +176,7 @@ describe('SubmitPage', () => {
         .checked
     )
       await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Choose a \.tex file/);
     expect(createSubmission).not.toHaveBeenCalled();
@@ -173,6 +187,7 @@ describe('SubmitPage', () => {
         .checked
     )
       await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'no main file: the archive has no .tex file with \\documentclass',
@@ -193,6 +208,7 @@ describe('SubmitPage', () => {
         .checked
     )
       await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     expect(createSubmission).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'note', make_public_after_acceptance: false }),
@@ -220,6 +236,7 @@ describe('SubmitPage', () => {
         .checked
     )
       await user.click(screen.getByRole('checkbox', { name: /I agree that the source/ }));
+    await agreeToPublication(user);
     await user.click(screen.getByRole('button', { name: 'Upload and read statements' }));
     expect(createSubmission).toHaveBeenCalledWith(
       expect.objectContaining({

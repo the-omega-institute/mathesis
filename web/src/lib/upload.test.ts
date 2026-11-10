@@ -6,6 +6,8 @@ const base = {
   aiStatement: ' A model checked the algebra. ',
   msc: '',
   doi: '',
+  publicationLicense: 'all_rights_reserved' as const,
+  publicationRightsHolder: '',
   openToContributors: false,
 };
 
@@ -48,6 +50,7 @@ describe('buildNewPaper', () => {
         ai_disclosure: { level: 'assisted', statement: 'A model checked the algebra.' },
         msc: ['11B83', '05D10'],
         doi: '10.48550/arXiv.2609.33421',
+        publication_license: 'all_rights_reserved',
         open_to_contributors: true,
       },
     });

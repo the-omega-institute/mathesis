@@ -74,7 +74,7 @@ export const STEP_STATE_LABELS: { readonly [K in StepState<unknown>['state']]: s
 };
 
 export const SUBMISSION_STATE_LABELS: { readonly [K in SubmissionStatus['state']]: string } = {
-  draft: 'Draft — statements to confirm',
+  draft: 'Draft',
   in_review: 'In review',
   review_complete: 'Review ready',
   accepted: 'Accepted',

@@ -69,8 +69,13 @@ pipeline; only their labels differ.
 - **Consent**: every source upload, including revisions and typed conjectures,
   requires explicit, unchecked agreement to third-party AI processing (OpenAI
   ChatGPT via Oracle, Codex on CMA). Store version `ai-review-2026-10-11` and
-  server time; missing or outdated consent is refused. Legacy records load
-  without a fabricated consent receipt.
+  server time; missing or outdated consent is refused. Publication-purpose
+  submissions additionally require explicit, unchecked publication and
+  bibliographic-metadata rights consent, stored as
+  `publication-metadata-2026-11-05`, covering the accepted landing page,
+  public citation metadata and a future DOI registration with Crossref or
+  DataCite. Review-only submissions do not require this publication consent.
+  Legacy records load without a fabricated consent receipt.
 
 
 Review stages:

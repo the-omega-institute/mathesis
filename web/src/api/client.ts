@@ -714,6 +714,11 @@ export function pdfHref(submission: string, version?: number): string {
   return `${API_BASE}/submissions/${seg(submission)}/files/pdf${buildQuery({ version })}`;
 }
 
+/** Stable public PDF URL for an accepted record, independent of submission storage. */
+export function paperPdfHref(record: string): string {
+  return `/papers/${seg(record)}/pdf`;
+}
+
 /** `GET /submissions/{id}/files/source?version=N`: the uploaded archive. */
 export function sourceFileHref(submission: string, version?: number): string {
   return `${API_BASE}/submissions/${seg(submission)}/files/source${buildQuery({ version })}`;
@@ -722,11 +727,6 @@ export function sourceFileHref(submission: string, version?: number): string {
 /** Leave the app for the NyxID sign-in flow, coming back to `path`. */
 export function signInHref(path: string): string {
   return `/auth/login?return_to=${encodeURIComponent(path)}`;
-}
-
-/** Local development only: sign in as `dev:<name>` without a provider. */
-export function devSignInHref(name: string, path: string): string {
-  return `/auth/login${buildQuery({ as: name, return_to: path })}`;
 }
 
 /**

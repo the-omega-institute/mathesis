@@ -1,0 +1,101 @@
+{
+  "status": "all_images_published",
+  "source_repository": "https://github.com/the-omega-institute/mathesis",
+  "source_revision": "3e5441ad9c9971154be0a289aec1251987872955",
+  "build_run": "https://github.com/the-omega-institute/mathesis/actions/runs/39439640801",
+  "web_recovery_run": "https://github.com/the-omega-institute/mathesis/actions/runs/39440497289",
+  "images": [
+    {
+      "component": "web",
+      "tag": "ghcr.io/the-omega-institute/mathesis-web:beta-20261020-3e5441ad9c99",
+      "digest_ref": "ghcr.io/the-omega-institute/mathesis-web@sha256:9ae76863f616ad6062bec221d664452584636599c3426e2eca23c1d9ab1610e9",
+      "platform": "linux/amd64",
+      "runtime_user": "101",
+      "image_size_bytes": 50383819,
+      "source_revision": "3e5441ad9c9971154be0a289aec1251987872955",
+      "visibility": "private",
+      "repository": "the-omega-institute/mathesis",
+      "package_url": "https://github.com/orgs/the-omega-institute/packages/container/package/mathesis-web"
+    },
+    {
+      "component": "api",
+      "tag": "ghcr.io/the-omega-institute/mathesis-api:beta-20261020-3e5441ad9c99",
+      "digest_ref": "ghcr.io/the-omega-institute/mathesis-api@sha256:040f806d6337470fe8cae2b353bb9f2d32b3e7a57446d2d919fb3b791ff62df1",
+      "platform": "linux/amd64",
+      "runtime_user": "65532:65532",
+      "image_size_bytes": 2732048171,
+      "source_revision": "3e5441ad9c9971154be0a289aec1251987872955",
+      "visibility": "private",
+      "repository": "the-omega-institute/mathesis",
+      "package_url": "https://github.com/orgs/the-omega-institute/packages/container/package/mathesis-api"
+    },
+    {
+      "component": "lean",
+      "tag": "ghcr.io/the-omega-institute/mathesis-lean:beta-20261020-3e5441ad9c99",
+      "digest_ref": "ghcr.io/the-omega-institute/mathesis-lean@sha256:92b3f82e7065c1d2973b2264cc7d96d8824fef28aaa6da8d4d9c7ee369bac20e",
+      "platform": "linux/amd64",
+      "runtime_user": "65532:65532",
+      "image_size_bytes": 11275166121,
+      "source_revision": "3e5441ad9c9971154be0a289aec1251987872955",
+      "visibility": "private",
+      "repository": "the-omega-institute/mathesis",
+      "package_url": "https://github.com/orgs/the-omega-institute/packages/container/package/mathesis-lean"
+    },
+    {
+      "component": "verifier",
+      "tag": "ghcr.io/the-omega-institute/mathesis-verifier:beta-20261020-3e5441ad9c99",
+      "digest_ref": "ghcr.io/the-omega-institute/mathesis-verifier@sha256:910af55e98c983a11565daf00ab1f74f5ab0e47f74633995c4e2419b8341df91",
+      "platform": "linux/amd64",
+      "runtime_user": "65532:65532",
+      "image_size_bytes": 11277244465,
+      "source_revision": "3e5441ad9c9971154be0a289aec1251987872955",
+      "visibility": "private",
+      "repository": "the-omega-institute/mathesis",
+      "package_url": "https://github.com/orgs/the-omega-institute/packages/container/package/mathesis-verifier",
+      "base_digest_ref": "ghcr.io/the-omega-institute/mathesis-lean@sha256:92b3f82e7065c1d2973b2264cc7d96d8824fef28aaa6da8d4d9c7ee369bac20e"
+    }
+  ],
+  "validation": {
+    "source_gates": "all_passed",
+    "frontend_test_files": 46,
+    "frontend_tests_passed": 359,
+    "npm_vulnerabilities_reported": 0,
+    "web_routes": [
+      "/",
+      "/submissions/smoke",
+      "/staff/submissions/smoke"
+    ],
+    "web_document_language": "en",
+    "api_and_worker_startup_checks": "passed_in_isolated_development_configuration",
+    "pdf_compilation": "passed_one_page_14120_bytes",
+    "verifier_real_lean_tests_passed": 2,
+    "verifier_real_lean_tests_ignored": 0,
+    "verifier_readiness_without_network": "passed",
+    "image_architecture": "linux/amd64",
+    "all_images_non_root": true,
+    "platform_deployment": "not_created_private_registry_authentication_failed",
+    "live_ai_review": "not_exercised_by_this_publication_run"
+  },
+  "run_outcomes": {
+    "original_run": "failure_due_to_web_startup_smoke_race",
+    "api_job": "success",
+    "lean_and_verifier_job": "success",
+    "web_recovery_run": "success_same_source_revision"
+  },
+  "chrono_cd_registry_check": {
+    "skill_version": "1.2",
+    "cli_versions_tested": [
+      "0.7.1",
+      "0.71.0"
+    ],
+    "scope": "Omega Research",
+    "service_replicas_requested": 0,
+    "expose": "none",
+    "http_status": 400,
+    "error": "image_unauthorized",
+    "error_code": 13003,
+    "message": "private package: supply registry_credential",
+    "v0_71_0_process_exit": 1,
+    "project_list_after_check": []
+  }
+}

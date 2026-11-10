@@ -123,6 +123,9 @@ well-posed, open, content reading. Human-stage and endorsement gates are unchang
 | POST | `/submissions/{id}/tasks` | editors; the author opted in | → `{ created, existing }` |
 | GET | `/papers` | anyone | → `Listing<PaperSummary>` |
 | GET | `/papers/{record}` | anyone | → `PublicPaper` |
+| GET | `/papers/{record}/landing.html` | anyone | Stable HTML landing page with `citation_title`, repeated `citation_author`, `citation_publication_date`, `citation_pdf_url` (when a PDF exists), canonical URL and abstract for academic crawlers |
+| GET | `/papers/{record}/pdf` | anyone | Stable latest public PDF URL for the record |
+| GET | `/sitemap.xml` | anyone | XML sitemap containing the public archive and crawlable paper landing pages |
 | GET | `/conjectures?limit=&before=&status=open\|solved\|disproved` | anyone | → `Listing<ConjectureSummary>`; submitted conjectures and audited paper problems, newest record/claim first |
 | GET | `/tasks?kind=&status=&submission=&holder=` | signed in | → `Listing<Task>` |
 | GET | `/tasks/{id}` | staff; contributors while the author keeps the paper open | → `TaskContext` |
@@ -147,6 +150,16 @@ strips the prefix; an empty value is absent. The bare DOI must start with
 `10.`, have a slash with a non-empty suffix, contain no whitespace, and be at
 most 256 characters. Invalid values return `invalid` with `"<value>" is not a DOI`.
 
+Publication submissions also carry the rights and metadata needed for a future
+Mathesis DOI deposit. `publication_metadata_consent` must equal the current
+consent version below; review-only submissions do not need it. The consent
+authorises Mathesis to publish the accepted work, expose its bibliographic
+metadata to DOI agencies such as Crossref or DataCite, and maintain the
+landing page and DOI record. `publication_license` is a machine-readable
+choice from the seven values below, and `publication_rights_holder` is an
+optional rights-holder string. The future Mathesis DOI is exposed separately
+as `publication_doi` on a public accepted record after registration.
+
 ```ts
 type Role = "editor" | "endorser" | "reviewer" | "admin";
 type Person = { id: string; display_name: string; email?: string; picture?: string;
@@ -155,7 +168,12 @@ type Person = { id: string; display_name: string; email?: string; picture?: stri
 type SubmissionKind = "paper" | "note" | "conjecture";
 type TypedConjecture = { title: string; statement: string; background?: string; origin?: string };
 type NewPaper = {
+  purpose?: "publication" | "review_only"; // publication is the default
   processing_consent: "ai-review-2026-10-11"; // required explicit agreement
+  publication_metadata_consent?: "publication-metadata-2026-11-05"; // required for publication
+  publication_license?: "all_rights_reserved" | "cc_by_4_0" | "cc_by_sa_4_0"
+    | "cc_by_nc_4_0" | "cc_by_nc_sa_4_0" | "cc_by_nd_4_0" | "cc_by_nc_nd_4_0";
+  publication_rights_holder?: string;
   kind?: SubmissionKind;          // default paper; also defaults on stored submissions/records
   make_public_after_acceptance?: boolean; // default true, maps to public/private
   typed_conjecture?: TypedConjecture | null; // conjecture only, mutually exclusive with source file
@@ -177,11 +195,16 @@ type ClaimConfirmation = { id: string; kind: ClaimKind; role: "main" | "supporti
 type Source = { kind: "doi" | "arxiv" | "hexagon" | "zenodo" | "oeis" | "url" | "personal" | "named_work"; locator: string; year?: number };
 
 type Submission = {
+  purpose?: "publication" | "review_only";
   processing_consent?: {version: string; at: string} | null; // private; absent on legacy records
+  publication_metadata_consent?: {version: string; at: string} | null; // private
   kind: SubmissionKind;
   lean_statements: LeanStatementAttempt[]; // defaults empty on older documents
   id: string; submitter: string; title: string; abstract_text: string; authors: Author[];
-  ai_disclosure: NewPaper["ai_disclosure"]; msc: string[]; doi?: string;
+  ai_disclosure: NewPaper["ai_disclosure"];
+  publication_license?: NewPaper["publication_license"];
+  publication_rights_holder?: string | null;
+  msc: string[]; doi?: string;
   versions: PaperVersion[];   // the last is current
   extracted: Claim[];         // read from the current version, awaiting confirmation
   claims: Claim[];            // confirmed
@@ -249,7 +272,9 @@ type ConjectureFollowUp = { claim: string; state: ConjectureState; updated_at: s
 
 // Only record/title/authors/kind are present for private or undecided records.
 type PaperSummary = { record: string; title: string; authors: Author[]; kind: SubmissionKind;
-  submission?: string; abstract_text?: string; msc?: string[]; doi?: string | null;
+  submission?: string; abstract_text?: string; msc?: string[];
+  doi?: string | null; // author's existing DOI
+  publication_doi?: string | null; // Mathesis DOI after agency registration
   basis?: "escape_witness" | "open_problem_settlement" | "open_conjecture";
   accepted_at?: string; main_results?: number; lean_verified?: number };
 type PublicPaper = { summary: PaperSummary;

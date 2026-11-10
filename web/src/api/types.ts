@@ -248,6 +248,14 @@ export type AiUseLevel = 'none' | 'assisted' | 'substantial' | 'primarily';
 export type AiDisclosure = { level: AiUseLevel; statement: string };
 
 export type SubmissionKind = 'paper' | 'note' | 'conjecture';
+export type PublicationLicense =
+  | 'all_rights_reserved'
+  | 'cc_by_4_0'
+  | 'cc_by_sa_4_0'
+  | 'cc_by_nc_4_0'
+  | 'cc_by_nc_sa_4_0'
+  | 'cc_by_nd_4_0'
+  | 'cc_by_nc_nd_4_0';
 export type TypedConjecture = {
   title: string;
   statement: string;
@@ -258,6 +266,8 @@ export type NewPaper = {
   purpose?: 'publication' | 'review_only';
   review_scope?: string;
   processing_consent?: string;
+  /** Required for publication-purpose submissions. */
+  publication_metadata_consent?: string;
   kind?: SubmissionKind;
   make_public_after_acceptance?: boolean;
   typed_conjecture?: TypedConjecture;
@@ -268,6 +278,8 @@ export type NewPaper = {
   msc?: string[];
   /** The paper's persistent identifier, when it already has one. */
   doi?: string | null;
+  publication_license?: PublicationLicense;
+  publication_rights_holder?: string;
   open_to_contributors?: boolean;
 };
 export type Author = {
@@ -353,6 +365,9 @@ export type Submission = {
   abstract_text: string;
   authors: Author[];
   ai_disclosure: AiDisclosure;
+  publication_metadata_consent?: { version: string; at: string } | null;
+  publication_license?: PublicationLicense;
+  publication_rights_holder?: string | null;
   msc: string[];
   doi?: string;
   /** The last is current. */
@@ -556,7 +571,13 @@ export type ItemState =
   | { state: 'approved' }
   | { state: 'declined'; reason: string }
   | { state: 'in_progress' }
-  | { state: 'verified'; artifact: FormalArtifact; axioms: string[]; contribution?: string };
+  | {
+      state: 'verified';
+      artifact: FormalArtifact;
+      axioms: string[];
+      contribution?: string;
+      attribution?: FormalizationAttribution;
+    };
 export type FormalizationItem = {
   claim: string;
   reason: string;
@@ -634,7 +655,10 @@ export type PaperSummary = {
   submission?: string;
   abstract_text?: string;
   msc?: string[];
+  /** DOI supplied by the author, such as a Zenodo or arXiv DOI. */
   doi?: string;
+  /** Mathesis DOI after its agency registration succeeds. */
+  publication_doi?: string;
   basis?: AdmissionBasis;
   accepted_at?: string;
   main_results?: number;
@@ -886,6 +910,9 @@ export type CmaAttemptView = {
 export const PROCESSING_CONSENT_VERSION = 'ai-review-2026-10-11';
 export const PROCESSING_CONSENT_TEXT =
   'I agree that the source and statements may be processed by external AI systems for mathematical review.';
+export const PUBLICATION_METADATA_CONSENT_VERSION = 'publication-metadata-2026-11-05';
+export const PUBLICATION_METADATA_CONSENT_TEXT =
+  'I confirm that I am authorized to submit this work and allow Mathesis to publish it after acceptance, register its public bibliographic metadata with DOI services such as Crossref or DataCite, and maintain the publication page and DOI record.';
 export type ErrorSubject =
   | { kind: 'statement'; claim: string }
   | { kind: 'target'; claim: string; digest: string }

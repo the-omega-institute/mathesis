@@ -3,8 +3,13 @@ import { withEvidence, type EvidenceInput } from '../lib/sourceBundle';
 import { useState, type FormEvent } from 'react';
 import { LeanDepositForm } from '../components/LeanDeposit';
 import { useApi } from '../api/context';
-import { PROCESSING_CONSENT_VERSION, PROCESSING_CONSENT_TEXT } from '../api/types';
-import type { AiUseLevel, Author, SubmissionKind } from '../api/types';
+import {
+  PROCESSING_CONSENT_VERSION,
+  PROCESSING_CONSENT_TEXT,
+  PUBLICATION_METADATA_CONSENT_VERSION,
+  PUBLICATION_METADATA_CONSENT_TEXT,
+} from '../api/types';
+import type { AiUseLevel, Author, PublicationLicense, SubmissionKind } from '../api/types';
 import { useSession } from '../auth/session';
 import { Field, InlineError, Loading, SignInPrompt } from '../components/ui';
 import {
@@ -216,7 +221,10 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
   const [statement, setStatement] = useState('');
   const [background, setBackground] = useState('');
   const [origin, setOrigin] = useState('');
-  const [authorName, setAuthorName] = useState(person?.display_name ?? '');
+  const [typedAuthor, setTypedAuthor] = useState<AuthorDraft>(() => ({
+    ...emptyAuthor(),
+    name: person?.display_name ?? '',
+  }));
   const [authors, setAuthors] = useState<AuthorDraft[]>([emptyAuthor()]);
   const typed = kind === 'conjecture' && mode === 'type';
   const { navigate } = useRouter();
@@ -226,6 +234,10 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
   const [aiLevel, setAiLevel] = useState<AiUseLevel>('none');
   const [msc, setMsc] = useState('');
   const [doi, setDoi] = useState('');
+  const [publicationLicense, setPublicationLicense] =
+    useState<PublicationLicense>('all_rights_reserved');
+  const [publicationRightsHolder, setPublicationRightsHolder] = useState('');
+  const [publicationConsent, setPublicationConsent] = useState(false);
   const [openToContributors, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -253,6 +265,8 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
       aiStatement: AI_DISCLOSURE_STATEMENTS[aiLevel],
       msc,
       doi,
+      publicationLicense,
+      publicationRightsHolder,
       openToContributors,
     });
     if (!metadata.ok) {
@@ -264,12 +278,19 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
       return;
     }
     metadata.value.processing_consent = PROCESSING_CONSENT_VERSION;
+    if (!reviewOnly) {
+      if (!publicationConsent) {
+        setError('Confirm the publication and DOI metadata rights before submitting.');
+        return;
+      }
+      metadata.value.publication_metadata_consent = PUBLICATION_METADATA_CONSENT_VERSION;
+    }
     metadata.value.kind = kind;
     metadata.value.purpose = reviewOnly ? 'review_only' : 'publication';
     metadata.value.review_scope = reviewScope;
     metadata.value.make_public_after_acceptance = !reviewOnly && makePublic;
     if (typed) {
-      if (!title.trim() || !statement.trim() || !authorName.trim()) {
+      if (!title.trim() || !statement.trim() || !typedAuthor.name.trim()) {
         setError('Give a title, statement and author name.');
         return;
       }
@@ -278,7 +299,12 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
         return;
       }
       metadata.value.typed_conjecture = { title, statement, background, origin };
-      metadata.value.authors = [{ name: authorName, person: person?.id }];
+      const parsed = suppliedAuthors([typedAuthor]);
+      if (!parsed.ok) {
+        setError(parsed.error);
+        return;
+      }
+      metadata.value.authors = [{ ...parsed.value[0]!, person: person?.id }];
     } else {
       const supplied = authors.filter((author) => authorHasContent(author));
       if (supplied.length > 0) {
@@ -378,13 +404,19 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </Field>
-            <Field label="Author" htmlFor="conjecture-author">
-              <input
-                id="conjecture-author"
-                value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
+            <fieldset className="author-fields">
+              <legend>Author</legend>
+              <p className="hint">
+                These details are published with the work and used in its citation and DOI metadata.
+              </p>
+              <AuthorFields
+                index={0}
+                author={typedAuthor}
+                canRemove={false}
+                onChange={setTypedAuthor}
+                onRemove={() => undefined}
               />
-            </Field>
+            </fieldset>
             <Field
               label="Statement"
               htmlFor="conjecture-statement"
@@ -569,6 +601,52 @@ export function SubmitForm({ reviewOnly = false }: { reviewOnly?: boolean } = {}
               title and the abstract while the paper is in review. You can change this later.
             </span>
           </label>
+        ) : null}
+        {!reviewOnly ? (
+          <>
+            <Field
+              label="Public work license"
+              htmlFor="publication-license"
+              hint="Choose the terms you have authority to apply to the public work. Use All rights reserved if you do not grant reuse rights."
+            >
+              <select
+                id="publication-license"
+                value={publicationLicense}
+                onChange={(event) =>
+                  setPublicationLicense(event.target.value as PublicationLicense)
+                }
+              >
+                <option value="all_rights_reserved">All rights reserved</option>
+                <option value="cc_by_4_0">CC BY 4.0</option>
+                <option value="cc_by_sa_4_0">CC BY-SA 4.0</option>
+                <option value="cc_by_nc_4_0">CC BY-NC 4.0</option>
+                <option value="cc_by_nc_sa_4_0">CC BY-NC-SA 4.0</option>
+                <option value="cc_by_nd_4_0">CC BY-ND 4.0</option>
+                <option value="cc_by_nc_nd_4_0">CC BY-NC-ND 4.0</option>
+              </select>
+            </Field>
+            <Field
+              label="Rights holder (optional)"
+              htmlFor="publication-rights-holder"
+              hint="The person or organization that holds the publication rights, if different from the author list."
+            >
+              <input
+                id="publication-rights-holder"
+                maxLength={300}
+                value={publicationRightsHolder}
+                onChange={(event) => setPublicationRightsHolder(event.target.value)}
+              />
+            </Field>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={publicationConsent}
+                onChange={(event) => setPublicationConsent(event.target.checked)}
+                required
+              />
+              <span>{PUBLICATION_METADATA_CONSENT_TEXT}</span>
+            </label>
+          </>
         ) : null}
 
         <label className="checkbox">

@@ -37,7 +37,12 @@ describe('ContributePage', () => {
 
   it('meters the current grant and pauses it', async () => {
     const updateDonation = vi.fn(async () => ({ ...grant, status: 'paused' as const }));
-    const api = fakeApi({ getDonation: vi.fn(async () => grant), updateDonation }, donor);
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const api = fakeApi(
+      { getDonation: vi.fn(async () => ({ ...grant, period })), updateDonation },
+      donor,
+    );
     renderWithApp(<ContributePage />, api);
 
     const meter = await screen.findByLabelText('Used this month');

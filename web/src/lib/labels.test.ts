@@ -74,7 +74,7 @@ describe('labels', () => {
     expect(formatBytes(512)).toBe('512 B');
     expect(formatBytes(31_457_280)).toBe('30.0 MB');
     expect(paperCitation(paperSummary, 'https://wishpool.dev')).toBe(
-      'Ada Author and Ben Second. On sums of integers. Mathesis record WP-2026-0001, accepted 5 October 2026. doi:10.48550/arXiv.2609.33421 (https://doi.org/10.48550/arXiv.2609.33421). https://wishpool.dev/papers/WP-2026-0001',
+      'Ada Author and Ben Second. On sums of integers. Mathesis record WP-2026-0001, accepted 5 October 2026. author DOI: 10.48550/arXiv.2609.33421 (https://doi.org/10.48550/arXiv.2609.33421). https://wishpool.dev/papers/WP-2026-0001',
     );
   });
 });

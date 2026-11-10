@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <style>
-    svg { stroke: #285744; stroke-width: 1.6; }
-    @media (prefers-color-scheme: dark) { svg { stroke: #a0c9af; } }
+    svg { color: #773c36; stroke: currentColor; stroke-width: 1.6; }
+    @media (prefers-color-scheme: dark) { svg { color: #dda89b; } }
   </style>
   <path d="M5 25V7l11 13L27 7v18M5 25l11-5 11 5"/>
-  <circle cx="16" cy="20" r="2" fill="#285744" stroke="none"/>
+  <circle cx="16" cy="20" r="2" fill="currentColor" stroke="none"/>
 </svg>

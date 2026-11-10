@@ -25,6 +25,7 @@ async fn archive_search_filters_before_pagination_and_never_reads_private_revisi
                 kind: s.kind,
                 id: id.clone(),
                 submission: s.id.clone(),
+                publication_doi: None,
                 title: s.title.clone(),
                 authors: s.authors.clone(),
                 publication: Some(Box::new(s.clone())),

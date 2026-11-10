@@ -7,11 +7,20 @@ import { sourceHref } from './links';
 export function paperCitation(paper: PaperSummary, origin: string): string {
   const authors = formatAuthors(paper.authors);
   const title = paper.title.trim().replace(/\.$/, '');
-  const doiHref = paper.doi ? sourceHref({ kind: 'doi', locator: paper.doi }) : null;
+  const publicationDoiHref = paper.publication_doi
+    ? sourceHref({ kind: 'doi', locator: paper.publication_doi })
+    : null;
+  const authorDoiHref = paper.doi ? sourceHref({ kind: 'doi', locator: paper.doi }) : null;
+  const dois = [
+    paper.publication_doi
+      ? `doi:${paper.publication_doi}${publicationDoiHref ? ` (${publicationDoiHref})` : ''}.`
+      : null,
+    paper.doi ? `author DOI: ${paper.doi}${authorDoiHref ? ` (${authorDoiHref})` : ''}.` : null,
+  ];
   return [
     `${authors}. ${title}.`,
     `Mathesis record ${paper.record}${paper.accepted_at ? `, accepted ${formatDate(paper.accepted_at)}` : ''}.`,
-    paper.doi ? `doi:${paper.doi}${doiHref ? ` (${doiHref})` : ''}.` : null,
+    ...dois,
     `${origin}/papers/${encodeURIComponent(paper.record)}`,
   ]
     .filter((part) => part !== null)

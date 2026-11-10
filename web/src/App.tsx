@@ -65,6 +65,8 @@ function titleFor(route: Route): string {
       return 'Review queue';
     case 'submission':
       return 'Paper';
+    case 'staff_submission':
+      return 'Staff manuscript';
     case 'people':
       return 'People';
     case 'author':
@@ -131,6 +133,8 @@ function Page({ route }: { route: Route }) {
       return <SubmissionsPage key="queue" scope="queue" />;
     case 'submission':
       return <SubmissionDetailPage key={route.id} id={route.id} />;
+    case 'staff_submission':
+      return <SubmissionDetailPage key={`staff-${route.id}`} id={route.id} staffOnly />;
     case 'people':
       return <PeoplePage />;
     case 'author':

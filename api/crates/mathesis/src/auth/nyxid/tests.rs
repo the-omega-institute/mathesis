@@ -524,7 +524,8 @@ async fn donated_quota_retains_rotation_without_legacy_hosted_judgements() {
     use mathesis_core::{
         app::Upload,
         model::{
-            AiDisclosure, AiUse, ClaimConfirmation, NewPaper, Role, TaskKind, VerifiedIdentity,
+            AiDisclosure, AiUse, ClaimConfirmation, DEFAULT_PUBLICATION_LICENSE, NewPaper,
+            PUBLICATION_METADATA_CONSENT_VERSION, Role, TaskKind, VerifiedIdentity,
         },
         ports::TaskFilter,
     };
@@ -623,6 +624,7 @@ async fn donated_quota_retains_rotation_without_legacy_hosted_judgements() {
                 purpose: Default::default(),
                 review_scope: Default::default(),
                 processing_consent: Some("ai-review-2026-10-11".into()),
+                publication_metadata_consent: Some(PUBLICATION_METADATA_CONSENT_VERSION.into()),
                 kind: mathesis_core::model::SubmissionKind::Paper,
                 make_public_after_acceptance: true,
                 typed_conjecture: None,
@@ -630,6 +632,8 @@ async fn donated_quota_retains_rotation_without_legacy_hosted_judgements() {
                     level: AiUse::None,
                     statement: "No AI was used.".into(),
                 },
+                publication_license: DEFAULT_PUBLICATION_LICENSE.into(),
+                publication_rights_holder: None,
                 authors: vec![],
                 msc: vec![],
                 doi: None,
@@ -771,7 +775,7 @@ async fn lean_target_response_requires_cookie_provenance_even_with_a_valid_beare
             &author,
             serde_json::from_value(json!({
                 "kind":"conjecture", "authors":[{"name":"Ada Lovelace"}],
-                "processing_consent":"ai-review-2026-10-11", "ai_disclosure":{"level":"none","statement":"No AI used."},
+                "processing_consent":"ai-review-2026-10-11", "publication_metadata_consent":"publication-metadata-2026-11-05", "ai_disclosure":{"level":"none","statement":"No AI used."},
                 "typed_conjecture":{"title":"Target","statement":"An open mathematical assertion."}
             }))
             .unwrap(),
@@ -819,6 +823,7 @@ async fn lean_target_response_requires_cookie_provenance_even_with_a_valid_beare
             title: paper.title.clone(),
             authors: paper.authors.clone(),
             publication: Some(Box::new(paper.clone())),
+            publication_doi: None,
             basis: mathesis_core::policy::AdmissionBasis::OpenConjecture,
             accepted_by: author.person.clone(),
             accepted_at: chrono::Utc::now(),

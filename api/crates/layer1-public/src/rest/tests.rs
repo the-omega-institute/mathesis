@@ -148,7 +148,7 @@ async fn upload(
     source: &[u8],
 ) -> (StatusCode, serde_json::Value, String) {
     let metadata = serde_json::json!({
-        "processing_consent":"ai-review-2026-10-11", "ai_disclosure": { "level": "assisted", "statement": "A model proofread section 2." },
+        "processing_consent":"ai-review-2026-10-11", "publication_metadata_consent":"publication-metadata-2026-11-05", "ai_disclosure": { "level": "assisted", "statement": "A model proofread section 2." },
         "open_to_contributors": true
     })
     .to_string();
@@ -317,6 +317,134 @@ async fn malformed_input_is_unprocessable() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     let (status, _, _) = call(&router, "GET", "/submissions/x/files/zip", None, None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn public_papers_expose_crawlable_html_and_sitemap_entries() {
+    use mathesis_core::{
+        ids::SubmissionId,
+        model::{Record, Role, SubmissionStatus, Visibility},
+        policy::AdmissionBasis,
+        ports::{Clock, RecordStore, SubmissionStore},
+    };
+
+    let stores = Arc::new(MemoryStores::default());
+    let app = App::new(
+        stores.ports(Arc::new(SystemClock), Arc::new(OneTheorem)),
+        Policy::default(),
+        BTreeSet::new(),
+    );
+    let reviewer = app
+        .ensure_service_account(&"compiler".into(), "Compiler", Role::Reviewer)
+        .await
+        .unwrap();
+    let router =
+        crate::router(app.clone()).layer(middleware::from_fn_with_state(app.clone(), test_auth));
+    let (status, uploaded, _) = upload(&router, "author", b"paper").await;
+    assert_eq!(status, StatusCode::CREATED);
+    let submission_id = SubmissionId::from(uploaded["id"].as_str().unwrap());
+    app.record_compilation(&reviewer, &submission_id, 1, Ok(b"%PDF".to_vec()))
+        .await
+        .unwrap();
+    let mut submission = SubmissionStore::get(stores.as_ref(), &submission_id)
+        .await
+        .unwrap()
+        .unwrap();
+    submission.status = SubmissionStatus::Accepted {
+        record: "WP-2026-0001".into(),
+    };
+    submission.analysis_visibility = Visibility::Public;
+    SubmissionStore::replace(stores.as_ref(), &submission, submission.revision)
+        .await
+        .unwrap();
+    let accepted_at = Clock::now(&SystemClock);
+    RecordStore::insert(
+        stores.as_ref(),
+        &Record {
+            kind: submission.kind,
+            id: "WP-2026-0001".into(),
+            publication: None,
+            publication_doi: None,
+            submission: submission_id,
+            title: submission.title.clone(),
+            authors: submission.authors.clone(),
+            basis: AdmissionBasis::EscapeWitness,
+            accepted_by: "fixture-editor".into(),
+            accepted_at,
+        },
+    )
+    .await
+    .unwrap();
+
+    let html_request = Request::builder()
+        .method("GET")
+        .uri("/papers/WP-2026-0001/landing.html")
+        .header(header::HOST, "mathesis.example")
+        .header("x-forwarded-proto", "https")
+        .body(Body::empty())
+        .unwrap();
+    let html_response = router.clone().oneshot(html_request).await.unwrap();
+    assert_eq!(html_response.status(), StatusCode::OK);
+    assert_eq!(
+        html_response.headers()[header::CONTENT_TYPE],
+        "text/html; charset=utf-8"
+    );
+    let html = String::from_utf8(
+        axum::body::to_bytes(html_response.into_body(), 1 << 20)
+            .await
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(html.contains("name=\"citation_title\""));
+    assert!(html.contains("name=\"citation_author\""));
+    assert!(html.contains("https://mathesis.example/papers/WP-2026-0001/pdf"));
+    assert!(html.contains("We bound gaps."));
+
+    let pdf_request = Request::builder()
+        .method("GET")
+        .uri("/papers/WP-2026-0001/pdf")
+        .body(Body::empty())
+        .unwrap();
+    let pdf_response = router.clone().oneshot(pdf_request).await.unwrap();
+    assert_eq!(pdf_response.status(), StatusCode::OK);
+    assert_eq!(
+        pdf_response.headers()[header::CONTENT_TYPE],
+        "application/pdf"
+    );
+    assert_eq!(
+        pdf_response.headers()[header::CACHE_CONTROL],
+        "public, max-age=300"
+    );
+    assert_eq!(
+        axum::body::to_bytes(pdf_response.into_body(), 1 << 20)
+            .await
+            .unwrap()
+            .as_ref(),
+        b"%PDF"
+    );
+
+    let sitemap_request = Request::builder()
+        .method("GET")
+        .uri("/sitemap.xml")
+        .header(header::HOST, "mathesis.example")
+        .header("x-forwarded-proto", "https")
+        .body(Body::empty())
+        .unwrap();
+    let sitemap_response = router.oneshot(sitemap_request).await.unwrap();
+    assert_eq!(sitemap_response.status(), StatusCode::OK);
+    assert_eq!(
+        sitemap_response.headers()[header::CONTENT_TYPE],
+        "application/xml; charset=utf-8"
+    );
+    let sitemap = String::from_utf8(
+        axum::body::to_bytes(sitemap_response.into_body(), 1 << 20)
+            .await
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(sitemap.contains("https://mathesis.example/papers/WP-2026-0001/landing.html"));
 }
 
 #[tokio::test]
@@ -1278,6 +1406,7 @@ async fn feedback_routes_require_exact_rights_and_never_accept_an_observation_ve
             kind: p.kind,
             id: "WP-2026-0001".into(),
             publication: None,
+            publication_doi: None,
             submission: id.clone(),
             title: p.title.clone(),
             authors: p.authors.clone(),

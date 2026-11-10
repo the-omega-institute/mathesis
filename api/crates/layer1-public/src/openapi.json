@@ -158,6 +158,90 @@
         ]
       }
     },
+    "/api/v1/papers/{record}/landing.html": {
+      "get": {
+        "operationId": "paper_crawl_landing",
+        "summary": "Return a stable HTML landing page with academic citation metadata.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Public paper HTML landing page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable or not publicly visible"
+          }
+        },
+        "parameters": [
+          {
+            "name": "record",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/papers/{record}/pdf": {
+      "get": {
+        "operationId": "paper_pdf",
+        "summary": "Return the latest public PDF for a paper record.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Public PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable, not public, or no PDF exists"
+          }
+        },
+        "parameters": [
+          {
+            "name": "record",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/sitemap.xml": {
+      "get": {
+        "operationId": "public_sitemap",
+        "summary": "Return the XML sitemap for public research pages.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "XML sitemap",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/submissions": {
       "get": {
         "operationId": "my_submissions",
@@ -2925,6 +3009,14 @@
           },
           "affiliation": {
             "type": "string"
+          },
+          "google_scholar": {
+            "type": "string",
+            "format": "uri"
+          },
+          "website": {
+            "type": "string",
+            "format": "uri"
           }
         },
         "required": [
@@ -2970,6 +3062,13 @@
               "string",
               "null"
             ]
+          },
+          "publication_doi": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Mathesis DOI after agency registration; distinct from an author's existing DOI."
           },
           "accepted_at": {
             "type": "string",

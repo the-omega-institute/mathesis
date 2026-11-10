@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { currentPath, devSignInHref, errorMessage } from '../api/client';
+import { errorMessage } from '../api/client';
 import { hasRole, useSession } from '../auth/session';
 import { ROLE_LABELS } from '../lib/labels';
 import { Link, useRouter } from '../routing/router';
@@ -18,36 +18,9 @@ function NavLink({ to, label, active }: { to: Route; label: string; active: bool
   );
 }
 
-/** Local preview identities: one click signs in as `dev:<name>`. */
-const PREVIEW_IDENTITIES = [
-  { name: 'author', label: 'Author' },
-  { name: 'editor', label: 'Editor' },
-  { name: 'helper', label: 'Contributor' },
-  { name: 'bob', label: 'Second contributor' },
-] as const;
-
-function PreviewBar({ current }: { current: string | null }) {
-  return (
-    <div className="preview-bar" role="region" aria-label="Local preview">
-      <span>Local preview, view as:</span>
-      {PREVIEW_IDENTITIES.map(({ name, label }) =>
-        current === `dev:${name}` ? (
-          <strong key={name} aria-current="true">
-            {label}
-          </strong>
-        ) : (
-          <a key={name} href={devSignInHref(name, currentPath())}>
-            {label}
-          </a>
-        ),
-      )}
-    </div>
-  );
-}
-
 export function Header() {
   const { route } = useRouter();
-  const { session, person, devSignIn, signIn, signOut } = useSession();
+  const { session, person, signIn, signOut } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const k = route.kind;
@@ -55,12 +28,14 @@ export function Header() {
 
   return (
     <header className="site-header">
-      {devSignIn ? <PreviewBar current={person?.id ?? null} /> : null}
       <div className="site-header-inner">
-        <Link to={{ kind: 'home' }} className="wordmark">
-          <BrandMark />
-          Mathesis
-        </Link>
+        <div className="header-identity">
+          <Link to={{ kind: 'home' }} className="wordmark">
+            <BrandMark />
+            Mathesis
+          </Link>
+          <span className="header-description">Mathematical research &amp; formal proof</span>
+        </div>
         <nav className="site-nav" aria-label="Main">
           <NavLink
             to={{ kind: 'papers' }}
@@ -77,24 +52,19 @@ export function Header() {
             label="Formalizations"
             active={k === 'formalizations' || k === 'statement'}
           />
-          <NavLink
-            to={{ kind: 'authors' }}
-            label="Authors"
-            active={k === 'authors' || k === 'author'}
-          />
           <NavLink to={{ kind: 'submit' }} label="Submit" active={k === 'submit'} />
           {person ? (
             <NavLink
               to={{ kind: 'submissions' }}
               label="My work"
-              active={k === 'submissions' || (k === 'submission' && !staff)}
+              active={k === 'submissions' || k === 'submission'}
             />
           ) : null}
           {staff ? (
             <NavLink
               to={{ kind: 'queue' }}
               label="Review queue"
-              active={k === 'queue' || (k === 'submission' && staff)}
+              active={k === 'queue' || k === 'staff_submission'}
             />
           ) : null}
           {hasRole(person, 'admin') ? (

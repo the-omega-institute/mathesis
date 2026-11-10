@@ -137,6 +137,7 @@ impl App {
         mut upload: Upload,
     ) -> CoreResult<Submission> {
         new.normalise_doi();
+        new.normalise_publication_metadata();
         new.validate()?;
         let active = self.ports.submissions.active_count(&caller.person).await?;
         if active as usize >= self.policy.max_active_per_author {
@@ -214,6 +215,12 @@ impl App {
                 version: AI_PROCESSING_CONSENT_VERSION.into(),
                 at: now,
             }),
+            publication_metadata_consent: (new.purpose == SubmissionPurpose::Publication).then(
+                || PublicationMetadataConsent {
+                    version: PUBLICATION_METADATA_CONSENT_VERSION.into(),
+                    at: now,
+                },
+            ),
             problem_check_requested: false,
             conjecture_dependencies: vec![],
             kind: new.kind,
@@ -224,6 +231,8 @@ impl App {
             abstract_text: read.abstract_text.clone().unwrap_or_default(),
             authors,
             ai_disclosure: new.ai_disclosure,
+            publication_license: new.publication_license,
+            publication_rights_holder: new.publication_rights_holder,
             msc: new.msc,
             doi: new.doi,
             versions: vec![version],

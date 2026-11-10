@@ -1,4 +1,4 @@
-import type { AiUseLevel, NewPaper } from '../api/types';
+import type { AiUseLevel, NewPaper, PublicationLicense } from '../api/types';
 import { normaliseDoi } from './links';
 import { parseMsc } from './labels';
 import type { Parsed } from './parsed';
@@ -49,6 +49,8 @@ export interface PaperFields {
   aiStatement: string;
   msc: string;
   doi: string;
+  publicationLicense: PublicationLicense;
+  publicationRightsHolder: string;
   openToContributors: boolean;
 }
 
@@ -72,6 +74,10 @@ export function buildNewPaper(fields: PaperFields): Parsed<NewPaper> {
       ai_disclosure: { level: fields.aiLevel, statement },
       msc,
       doi,
+      publication_license: fields.publicationLicense,
+      ...(fields.publicationRightsHolder.trim()
+        ? { publication_rights_holder: fields.publicationRightsHolder.trim() }
+        : {}),
       open_to_contributors: fields.openToContributors,
     },
   };

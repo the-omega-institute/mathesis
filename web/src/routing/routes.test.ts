@@ -14,6 +14,7 @@ const ROUTES: Route[] = [
   { kind: 'submissions' },
   { kind: 'queue' },
   { kind: 'submission', id: 'sub-1' },
+  { kind: 'staff_submission', id: 'sub-1' },
   { kind: 'people' },
   { kind: 'authors' },
   { kind: 'author', name: 'Ada Lovelace' },

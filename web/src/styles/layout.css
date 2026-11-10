@@ -1,4 +1,30 @@
-/* Use desktop space for related content, keeping mobile in document order. */
+/* Keep reading, discovery, and working layouts proportional to their content. */
+.page {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+}
+
+.page.reading-page,
+.page.discovery-page {
+  max-width: var(--reading-page);
+  margin-inline: auto;
+}
+.entry-title {
+  display: block;
+  max-width: 54ch;
+}
+.entry-meta p {
+  margin-bottom: 0;
+}
+.page-head .lede {
+  max-width: 65ch;
+}
+.paper .citation .cite {
+  margin-top: var(--space-4);
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
 .submission-form,
 .lean-deposit-form {
   margin-top: var(--space-5);
@@ -37,7 +63,7 @@
 .referee-report .prose,
 .workspace .abstract,
 .paper .abstract {
-  max-width: 88ch;
+  max-width: 70ch;
 }
 .report-discussion {
   margin-block: var(--space-5);
@@ -53,8 +79,8 @@
   .submission-form,
   .lean-deposit-form {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(20rem, 1fr);
-    gap: var(--space-5) clamp(2rem, 4vw, 5rem);
+    grid-template-columns: minmax(0, 1.65fr) minmax(19rem, 1fr);
+    gap: var(--space-5) clamp(2rem, 3.5vw, 3rem);
     align-items: start;
   }
   .submission-form > .notice {
@@ -63,13 +89,13 @@
   }
   .submission-options {
     border-left: 1px solid var(--rule);
-    padding-left: clamp(1.5rem, 3vw, 3rem);
+    padding-left: clamp(1.5rem, 2.5vw, 2rem);
   }
   .workspace:has(> .standing),
   .paper:has(> .paper-abstract) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(19rem, 26%);
-    column-gap: clamp(2rem, 4vw, 4rem);
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 27%);
+    column-gap: clamp(2rem, 3.5vw, 3rem);
     align-items: start;
   }
   .workspace > *,
@@ -101,9 +127,196 @@
     padding-left: var(--space-5);
     border-left: 1px solid var(--rule);
   }
+  .paper:has(> .paper-abstract) > section:not(.citation) {
+    grid-column: 1;
+  }
   .report-discussion:has(> .report-strengths):has(> .report-concerns > div) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-    gap: clamp(2rem, 4vw, 4rem);
+    gap: clamp(2rem, 3vw, 3rem);
+  }
+}
+
+/* Wide working space, with a centered reading column for each manuscript. */
+.workspace {
+  max-width: 70rem;
+  margin-inline: auto;
+}
+.workspace .record-head,
+.paper .record-head {
+  border-bottom: 0;
+  padding-bottom: var(--space-3);
+}
+.workspace .record-head h1,
+.paper .record-head h1 {
+  max-width: 42ch;
+}
+.workspace h2,
+.paper h2 {
+  border-bottom: 0;
+}
+.workspace-switch {
+  margin: 0 0 var(--space-4);
+  font-size: 0.8125rem;
+}
+.workspace-tabs {
+  display: flex;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--space-7);
+  overflow-x: auto;
+}
+.workspace-tabs button {
+  appearance: none;
+  flex-shrink: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-3) 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.workspace-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.workspace-panel {
+  width: 100%;
+  max-width: 54rem;
+  margin-inline: auto;
+  min-width: 0;
+}
+.staff-workspace .workspace-panel,
+.workspace-panel:has(.confirm-table) {
+  max-width: 64rem;
+}
+.workspace-panel > section:first-child {
+  margin-top: 0;
+}
+.workspace-panel .final-review-report,
+.workspace-panel .formalization-next,
+.workspace-panel .submission-details {
+  max-width: none;
+  border: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+.workspace-panel .final-report-section,
+.workspace-panel .final-report-next {
+  max-width: none;
+  border: 0;
+  margin-top: var(--space-7);
+  padding-top: 0;
+}
+.final-report-body .prose,
+.workspace-panel .abstract {
+  max-width: none;
+  line-height: 1.8;
+}
+.accepted-statement-list,
+.accepted-statement,
+.formal-credit {
+  border: 0;
+}
+.accepted-statement + .accepted-statement {
+  margin-top: var(--space-4);
+}
+.final-report-downloads details {
+  margin-left: auto;
+  color: var(--muted);
+}
+.review-overview {
+  max-width: none;
+  border: 0;
+  padding: var(--space-4) 0 var(--space-5);
+}
+.review-overview-summary {
+  max-width: 80ch;
+  color: var(--ink-soft);
+}
+.review-overview-grid {
+  gap: var(--space-4) var(--space-5);
+}
+.review-overview .badge,
+.formal-list .badge {
+  max-width: 100%;
+  white-space: normal;
+}
+.staff-folds {
+  margin-top: var(--space-7);
+}
+.workspace .finding-card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding-inline: 0;
+}
+.formalization-request {
+  margin-block: var(--space-6);
+}
+.paper .public-results {
+  width: 100%;
+  max-width: 54rem;
+  margin-inline: auto;
+}
+.public-result {
+  padding: var(--space-6) 0;
+}
+.public-result + .public-result {
+  border-top: 1px solid var(--rule);
+}
+.public-result-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.public-result-heading h3 {
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+.public-result-heading .eyebrow {
+  margin-bottom: var(--space-2);
+}
+.public-result .statement {
+  line-height: 1.8;
+}
+.result-authors {
+  color: var(--ink-soft);
+  margin-block: var(--space-4);
+}
+.result-contribution {
+  margin-block: var(--space-5);
+}
+.result-contribution ul {
+  padding-left: 1.25rem;
+}
+.result-links,
+.result-details {
+  margin-top: var(--space-3);
+  font-size: 0.875rem;
+}
+@media (min-width: 64rem) {
+  .paper:has(> .paper-abstract) > section:not(.citation, .paper-abstract) {
+    grid-column: 1 / -1;
+  }
+  .paper:has(> .paper-abstract) > .citation {
+    border-left: 0;
+  }
+}
+@media (max-width: 40rem) {
+  .workspace-tabs {
+    gap: var(--space-5);
+    margin-bottom: var(--space-6);
+  }
+  .public-result-heading {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .final-report-downloads details {
+    margin-left: 0;
   }
 }

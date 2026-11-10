@@ -142,7 +142,10 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
             <ul className="entry-list">
               {listing.items.map((s) => (
                 <li key={s.id}>
-                  <Link to={{ kind: 'submission', id: s.id }} className="entry-title">
+                  <Link
+                    to={{ kind: scope === 'queue' ? 'staff_submission' : 'submission', id: s.id }}
+                    className="entry-title"
+                  >
                     <InlineLatex source={s.title} />
                   </Link>
                   <p className="entry-meta">

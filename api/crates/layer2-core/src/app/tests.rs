@@ -107,6 +107,7 @@ impl World {
             purpose: Default::default(),
             review_scope: Default::default(),
             processing_consent: Some("ai-review-2026-10-11".into()),
+            publication_metadata_consent: Some(PUBLICATION_METADATA_CONSENT_VERSION.into()),
             kind: crate::model::SubmissionKind::Paper,
             make_public_after_acceptance: true,
             typed_conjecture: None,
@@ -114,6 +115,8 @@ impl World {
                 level: AiUse::Assisted,
                 statement: "A model checked Lemma 2.".into(),
             },
+            publication_license: DEFAULT_PUBLICATION_LICENSE.into(),
+            publication_rights_holder: None,
             authors: vec![],
             msc: vec!["11B83".into()],
             doi: doi.map(str::to_owned),
@@ -623,6 +626,7 @@ async fn authority_and_limits() {
         purpose: Default::default(),
         review_scope: Default::default(),
         processing_consent: Some("ai-review-2026-10-11".into()),
+        publication_metadata_consent: Some(PUBLICATION_METADATA_CONSENT_VERSION.into()),
         kind: crate::model::SubmissionKind::Paper,
         make_public_after_acceptance: true,
         typed_conjecture: None,
@@ -630,6 +634,8 @@ async fn authority_and_limits() {
             level: AiUse::None,
             statement: "None.".into(),
         },
+        publication_license: DEFAULT_PUBLICATION_LICENSE.into(),
+        publication_rights_holder: None,
         authors: vec![],
         msc: vec![],
         doi: None,
@@ -1676,6 +1682,7 @@ async fn legacy_publication_can_be_revised_without_mutating_its_record() {
         kind: SubmissionKind::Paper,
         id: RecordId::from("WP-2026-0099"),
         publication: None,
+        publication_doi: None,
         submission: paper.id.clone(),
         title: paper.title.clone(),
         authors: paper.authors.clone(),
@@ -2459,7 +2466,7 @@ async fn upload_checkbox_maps_to_visibility() {
         let w = World::new().await;
         let author = w.person("author", &[]).await;
         let mut new: NewPaper = serde_json::from_value(
-            serde_json::json!({"processing_consent":"ai-review-2026-10-11", "ai_disclosure":{"level":"none","statement":"No AI used."}}),
+            serde_json::json!({"processing_consent":"ai-review-2026-10-11", "publication_metadata_consent":"publication-metadata-2026-11-05", "ai_disclosure":{"level":"none","statement":"No AI used."}}),
         )
         .unwrap();
         new.make_public_after_acceptance = checked;

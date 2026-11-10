@@ -384,6 +384,7 @@ impl App {
                     let proposed = Record {
                         kind: submission.kind,
                         publication: Some(Box::new(submission.clone())),
+                        publication_doi: Some(PublicationDoi::pending_crossref()),
                         id: RecordId::format(year, self.ports.records.next_sequence(year).await?),
                         submission: submission.id.clone(),
                         title: submission.title.clone(),

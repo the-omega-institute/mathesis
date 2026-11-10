@@ -25,6 +25,10 @@ pub struct PaperSummary {
     pub authors: Vec<Author>,
     pub abstract_text: String,
     pub msc: Vec<String>,
+    /// Mathesis' DOI, once its own registration worker succeeds. This is
+    /// separate from `doi`, which is supplied by the author.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication_doi: Option<String>,
     pub doi: Option<String>,
     pub basis: AdmissionBasis,
     pub accepted_at: DateTime<Utc>,
@@ -120,7 +124,8 @@ impl Serialize for PaperSummary {
         let mut value = serde_json::json!({"record": self.record, "title": self.title, "authors": self.authors, "kind": self.kind});
         if self.public {
             let fields = serde_json::json!({"submission": self.submission, "abstract_text": self.abstract_text,
-                "msc": self.msc, "doi": self.doi, "basis": self.basis, "accepted_at": self.accepted_at,
+                "msc": self.msc, "doi": self.doi, "publication_doi": self.publication_doi,
+                "basis": self.basis, "accepted_at": self.accepted_at,
                 "main_results": self.main_results, "new_results": self.new_results, "lean_verified": self.lean_verified});
             value
                 .as_object_mut()
@@ -165,6 +170,10 @@ fn summary(record: &Record, submission: &Submission) -> PaperSummary {
         authors: submission.authors.clone(),
         abstract_text: submission.abstract_text.clone(),
         msc: submission.msc.clone(),
+        publication_doi: record
+            .publication_doi
+            .as_ref()
+            .and_then(|registration| registration.doi.clone()),
         doi: submission.doi.clone(),
         basis: record.basis,
         accepted_at: record.accepted_at,

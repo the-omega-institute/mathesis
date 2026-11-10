@@ -48,6 +48,7 @@ async fn record(w: &World, p: &Submission) {
             kind: p.kind,
             id: record.clone(),
             publication: None,
+            publication_doi: None,
             submission: p.id.clone(),
             title: p.title.clone(),
             authors: p.authors.clone(),
