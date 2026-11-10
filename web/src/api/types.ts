@@ -1661,11 +1661,44 @@ export type ManuscriptProblem = {
 export type ResearchProblemLink = { id: string; title: string };
 export type ResearchProblemSummary = ResearchProblemLink & {
   source_id: string;
-  /** Present for a problem named by collected works. */
+  /** Present for a curated problem or a problem named by collected works. */
   source?: Source;
-  status: 'related_research' | 'settled' | 'partial' | 'conflicting';
+  /**
+   * `curated_*` is a curator's dated reading of a directly collected problem,
+   * never a Mathesis audit result; the other values come from source audits.
+   */
+  status:
+    | 'related_research'
+    | 'settled'
+    | 'partial'
+    | 'conflicting'
+    | 'curated_open'
+    | 'curated_partially_resolved';
+  /** Present exactly for a curated status: the day its evidence was last checked. */
+  status_as_of?: string;
   notes: number;
   updated_at: string;
+};
+/** One public page the curator opened, the day it was opened and what it showed. */
+export type StatusEvidence = { url: string; checked_on: string; observed: string };
+/** A directly collected curated problem at its current version. */
+export type CuratedProblem = {
+  name: string;
+  /** LaTeX. */
+  statement: string;
+  background?: string;
+  posers: { name: string; profile_url?: string }[];
+  posers_unknown?: string;
+  source: Source;
+  status: 'open' | 'partially_resolved';
+  status_as_of: string;
+  status_evidence: StatusEvidence[];
+  msc: string[];
+  directions: string[];
+  source_license: string;
+  license: string;
+  version: number;
+  published_on: string;
 };
 export type ResearchProblem = {
   next_before?: string | null;
@@ -1693,6 +1726,7 @@ export type ResearchProblem = {
     evidence: ManuscriptOrigin['evidence'];
   }[];
   collected_notes?: CollectedProblemNote[];
+  curated?: CuratedProblem;
 };
 /** A collected work at its current public version; `lean` is a source link, not a receipt. */
 export type CollectedProblemNote = {

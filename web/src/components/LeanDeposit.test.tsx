@@ -302,3 +302,56 @@ it('keeps pending result context and authors while saving Lean work without veri
   expect(api.verifyFormalization).not.toHaveBeenCalled();
   expect(await screen.findByRole('status')).toHaveTextContent('Verification has not run yet');
 });
+
+it('prefills Lean work for a curated open problem with its statement and original posers', async () => {
+  const getResearchProblem = vi.fn(async () => ({
+    next_before: null,
+    summary: {
+      id: 'curated-problem',
+      source_id: 'A391810',
+      title: 'An alternating-sum formula in OEIS A391810',
+      status: 'curated_open' as const,
+      status_as_of: '2026-11-10',
+      notes: 0,
+      updated_at: '2026-11-11T08:00:00Z',
+    },
+    descriptions: [],
+    notes: [],
+    collected_notes: [],
+    curated: {
+      name: 'An alternating-sum formula in OEIS A391810',
+      statement: 'For every $n$, the alternating sum equals $b(n)$.',
+      posers: [{ name: 'First Poser' }, { name: 'Second Poser' }],
+      source: { kind: 'oeis' as const, locator: 'A391810' },
+      status: 'open' as const,
+      status_as_of: '2026-11-10',
+      status_evidence: [],
+      msc: [],
+      directions: [],
+      source_license: 'CC BY-SA 4.0',
+      license: 'CC-BY-SA-4.0',
+      version: 1,
+      published_on: '2026-11-11T08:00:00Z',
+    },
+  }));
+  const api = fakeApi({ getResearchProblem }, author);
+  renderWithApp(<SubmitPage initialIntake="lean" targetProblem="curated-problem" />, api);
+  expect(await screen.findByLabelText('Title', { exact: true })).toHaveValue(
+    'An alternating-sum formula in OEIS A391810',
+  );
+  expect(getResearchProblem).toHaveBeenCalledWith('curated-problem', expect.any(Object));
+  expect(screen.getByLabelText('Original authors 1')).toHaveValue('First Poser');
+  expect(screen.getByLabelText('Original authors 2')).toHaveValue('Second Poser');
+  expect(screen.getByLabelText('Mathematical statement')).toHaveValue(
+    'For every $n$, the alternating sum equals $b(n)$.',
+  );
+  expect(screen.getByLabelText('Original research or source URL').getAttribute('value')).toMatch(
+    /\/problems\/curated-problem$/,
+  );
+  // No Lean statement exists for a collected problem: the work is saved, not verified.
+  expect(
+    screen.getByText(/verification and public credit require a matching Lean statement/),
+  ).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Submit formalization' })).toBeVisible();
+  expect(api.getStatement).not.toHaveBeenCalled();
+});

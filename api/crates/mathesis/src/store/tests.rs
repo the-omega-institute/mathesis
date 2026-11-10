@@ -7,7 +7,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use chrono::Utc;
 use mathesis_core::{
     CoreError,
-    app::{App, Upload},
+    app::{App, ResearchProblemStatus, Upload},
     ids::{ClaimId, PersonId, RecordId, SubmissionId},
     model::*,
     policy::Policy,
@@ -570,6 +570,7 @@ async fn paper_flow_against_mongo() {
     let ports = Ports {
         archives: Arc::new(mathesis_core::ports::UnavailableArchiveRegistry),
         collected: Arc::new(db.store.clone()),
+        collected_problems: Arc::new(db.store.clone()),
         deposits: Arc::new(db.store.clone()),
         cma_bindings: shared.clone(),
         cma_setup: Arc::new(mathesis_core::ports::UnavailableCmaSetup),
@@ -3071,5 +3072,205 @@ async fn author_search_matches_either_written_form_like_the_memory_adapter() {
         .unwrap()
         .unwrap();
     assert_eq!(first.authors[0].name, "Ma, Haobo");
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn collected_problem_versions_keep_one_unforked_chain_per_slug_and_library_entry() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    fn version(sequence: u32, slug: &str, key: &str, n: u32) -> CollectedProblemVersion {
+        serde_json::from_value(serde_json::json!({
+            "id":format!("version-{sequence:04}"), "owner":"curator", "key":key,
+            "request_digest":format!("request-{sequence}"), "published_on":Utc::now(),
+            "delivery":{"schema":"mathesis.collected-problem.v1", "producer":"outreach",
+              "problem_id":slug, "version":n, "previous_version":(n > 1).then(|| n - 1),
+              "authorize_publication":true,
+              "problem":{"name":format!("Question {slug}"), "statement":"Is $x = y$?",
+                "posers":[], "posers_unknown":"The source names no poser.",
+                "source":{"kind":"oeis","locator":"A123456"}, "status":"open",
+                "status_evidence":[{"url":"https://oeis.org/A123456","checked_on":"2026-11-10",
+                  "observed":"Marked as a conjecture."}],
+                "source_license":"CC BY-SA 4.0", "license":"CC-BY-SA-4.0"}}
+        }))
+        .unwrap()
+    }
+    let store = &db.store;
+    let first = version(1, "a-question", "key-a", 1);
+    CollectedProblemStore::insert(store, &first).await.unwrap();
+    // Dates and optional fields survive the BSON round trip unchanged.
+    assert_eq!(
+        CollectedProblemStore::get(store, "a-question", None)
+            .await
+            .unwrap(),
+        Some(first.clone())
+    );
+    // The same version, a fork of its predecessor, a second slug for the same
+    // library entry and a second library entry for the same slug are all refused.
+    let mut fork = version(2, "a-question", "key-a", 3);
+    fork.delivery.previous_version = None;
+    let mut second_entry = version(5, "a-question", "key-b", 2);
+    second_entry.delivery.previous_version = None;
+    for refused in [
+        version(3, "a-question", "key-a", 1),
+        fork,
+        version(4, "another-slug", "key-a", 1),
+        second_entry,
+    ] {
+        assert!(matches!(
+            CollectedProblemStore::insert(store, &refused).await,
+            Err(CoreError::Conflict(_))
+        ));
+    }
+    let second = version(6, "a-question", "key-a", 2);
+    CollectedProblemStore::insert(store, &second).await.unwrap();
+    // A later version cannot fork an already succeeded predecessor either.
+    let mut late_fork = version(7, "a-question", "key-a", 3);
+    late_fork.delivery.previous_version = Some(1);
+    assert!(matches!(
+        CollectedProblemStore::insert(store, &late_fork).await,
+        Err(CoreError::Conflict(_))
+    ));
+    // Reads return the exact version, or the current one by slug and by key.
+    for (version, expected) in [(Some(1), &first), (Some(2), &second), (None, &second)] {
+        assert_eq!(
+            CollectedProblemStore::get(store, "a-question", version)
+                .await
+                .unwrap()
+                .as_ref(),
+            Some(expected)
+        );
+    }
+    assert_eq!(
+        CollectedProblemStore::get_by_key(store, "key-a")
+            .await
+            .unwrap(),
+        Some(second.clone())
+    );
+    assert!(
+        CollectedProblemStore::get_by_key(store, "key-missing")
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        CollectedProblemStore::get(store, "a-question", Some(3))
+            .await
+            .unwrap()
+            .is_none()
+    );
+
+    // The listing pages every entry once, at its current version, by descending key.
+    for i in 0..30 {
+        let slug = format!("question-{:02}", (i * 7) % 30);
+        let key = format!("key-q{:02}", (i * 7) % 30);
+        CollectedProblemStore::insert(store, &version(100 + i, &slug, &key, 1))
+            .await
+            .unwrap();
+    }
+    let mut keys = vec![];
+    let mut before = None;
+    loop {
+        let page = CollectedProblemStore::list(store, 12, before)
+            .await
+            .unwrap();
+        assert!(page.items.len() <= 12);
+        keys.extend(page.items.into_iter().map(|v| (v.key, v.delivery.version)));
+        before = page.next_before;
+        if before.is_none() {
+            break;
+        }
+    }
+    let mut expected: Vec<_> = (0..30).map(|i| (format!("key-q{i:02}"), 1)).collect();
+    expected.push(("key-a".to_owned(), 2));
+    expected.sort();
+    expected.reverse();
+    assert_eq!(keys, expected);
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn curated_problem_collection_is_idempotent_and_public_against_mongo() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let memory = Arc::new(mathesis_core::memory::MemoryStores::default());
+    let mut ports = memory.ports(Arc::new(SystemClock), Arc::new(LatexReader));
+    ports.collected_problems = Arc::new(db.store.clone());
+    let app = App::with_internal_accounts(
+        ports,
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from([PersonId::from("curator")]),
+    );
+    let identity = VerifiedIdentity {
+        subject: "curator".into(),
+        name: Some("curator".into()),
+        email: None,
+        picture: None,
+    };
+    app.sign_in(&identity).await.unwrap();
+    let curator = app.caller(&identity).await.unwrap();
+    let delivery = |version: u32, status: &str| -> CollectedProblemDelivery {
+        serde_json::from_value(serde_json::json!({
+            "schema":"mathesis.collected-problem.v1", "producer":"outreach",
+            "problem_id":"gap-question", "version":version,
+            "previous_version":(version > 1).then(|| version - 1), "authorize_publication":true,
+            "problem":{"name":"The gap question", "statement":"Is every gap at most $2$?",
+              "background":"Asked after a computation up to $10^6$.",
+              "posers":[{"name":"A. Poser","profile_url":"https://example.org/~poser"}],
+              "source":{"kind":"arxiv","locator":"2401.12345","year":2024}, "status":status,
+              "status_evidence":[{"url":"https://arxiv.org/abs/2401.12345","checked_on":"2026-11-10",
+                "observed":"Conjecture 1.2 is stated as open in version 3."}],
+              "msc":["11B05"], "directions":["gap-bounds"],
+              "source_license":"arXiv non-exclusive distribution licence", "license":"CC-BY-4.0"}
+        }))
+        .unwrap()
+    };
+    let receipt = app
+        .collect_problem(&curator, delivery(1, "open"))
+        .await
+        .unwrap();
+    let retry = app
+        .collect_problem(&curator, delivery(1, "open"))
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&receipt).unwrap(),
+        serde_json::to_value(&retry).unwrap()
+    );
+    assert!(matches!(
+        app.collect_problem(&curator, delivery(1, "partially_resolved"))
+            .await,
+        Err(CoreError::Conflict(_))
+    ));
+    let listing = app.list_research_problems(None, None).await.unwrap();
+    assert_eq!(listing.items.len(), 1);
+    assert_eq!(listing.items[0].id, receipt.research_problem);
+    assert_eq!(listing.items[0].status, ResearchProblemStatus::CuratedOpen);
+    app.collect_problem(&curator, delivery(2, "partially_resolved"))
+        .await
+        .unwrap();
+    let detail = app
+        .research_problem(&receipt.research_problem)
+        .await
+        .unwrap();
+    assert_eq!(
+        detail.summary.status,
+        ResearchProblemStatus::CuratedPartiallyResolved
+    );
+    let curated = detail.curated.unwrap();
+    assert_eq!(curated.version, 2);
+    assert_eq!(curated.status_as_of.to_string(), "2026-11-10");
+    assert_eq!(
+        db.store
+            .raw("collected_problems")
+            .count_documents(doc! {})
+            .await
+            .unwrap(),
+        2
+    );
     db.drop().await;
 }

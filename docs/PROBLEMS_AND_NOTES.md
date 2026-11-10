@@ -52,7 +52,8 @@ entry does not create a target, a verified proof, an award or a leaderboard scor
 Private drafts, private reviews, refused manuscripts and private accepted
 details never create public problem entries. A visibility change also removes
 that work's problem description, source evidence and contribution history. A
-problem with no remaining public accepted or collected work returns 404.
+problem with no remaining public accepted or collected work returns 404,
+unless it was collected directly as a curated problem.
 
 ## Problems named by collected works
 
@@ -82,8 +83,9 @@ the work. `summary.notes` counts all currently public associated works. A key
 belongs to one family, so a detail page lists either accepted notes or
 collected works: at most 25 per page, collected works in descending work
 identity order, continued by `next_before`. A collected work carries no
-Mathesis source audit, so its problem stays **Reviewed research**, and its
-checked Lean results remain on `/collected-papers/{work}/proofs?version=N`.
+Mathesis source audit, so its problem stays **Reviewed research** (or keeps
+its curated reading, below), and its checked Lean results remain on
+`/collected-papers/{work}/proofs?version=N`.
 
 Public collected-paper responses add `problem_links`, aligned with `problems`:
 `{id, title}`, or `null` on an earlier version once the work's current version
@@ -91,6 +93,22 @@ no longer names that problem. The field is omitted when a work names no
 problem. The collected reader links each named problem to `/problems/{id}`.
 The problem page renders collected works in the same **Papers and notes**
 list as accepted notes, with their Lean source and checked-result counts.
+
+## Directly collected curated problems
+
+A trusted operator can also collect a curated open problem itself through
+`POST /api/v1/collected-problems`, before any work addresses it. Its library
+id is the same collected problem key, so a curated problem and a problem named
+by a collected work are one entry when operator, producer, source kind,
+locator and name agree: the page of a curated open problem lists the collected
+works that later name it. The entry carries the curated statement, the
+original posers, the source, and a status of **Open** or **Partially
+resolved** "as of" the day the curator last checked the listed evidence. That
+status is the curator's dated reading, shown with its evidence; it is not a
+Mathesis audit result and does not change because a work names the problem.
+The entry remains when no work names it. See
+[COLLECTED_PROBLEMS.md](COLLECTED_PROBLEMS.md) for the envelope, limits and
+what the channel does not do.
 
 ## Optional source descriptions
 

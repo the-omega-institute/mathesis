@@ -30,6 +30,7 @@ export function SubmitPage({
   targetRecord,
   targetClaim,
   targetVersion,
+  targetProblem,
   initialSubmission,
   onSubmitted,
 }: {
@@ -39,6 +40,7 @@ export function SubmitPage({
   targetRecord?: string;
   targetClaim?: string;
   targetVersion?: string;
+  targetProblem?: string;
 } = {}) {
   const [typedEntry, setTypedEntry] = useState(
     initialIntake === 'conjecture' && !initialSubmission,
@@ -94,6 +96,7 @@ export function SubmitPage({
             targetRecord={targetRecord}
             targetClaim={targetClaim}
             targetVersion={targetVersion}
+            targetProblem={targetProblem}
           />
         )
       ) : null}

@@ -58,6 +58,7 @@ impl Composition {
                 let ports = Ports {
                     archives: Arc::new(mathesis_core::ports::UnavailableArchiveRegistry),
                     collected: shared.clone(),
+                    collected_problems: shared.clone(),
                     deposits: shared.clone(),
                     cma_bindings: shared.clone(),
                     cma_setup: Arc::new(mathesis_core::ports::UnavailableCmaSetup),

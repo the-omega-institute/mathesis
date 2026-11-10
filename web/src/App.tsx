@@ -181,6 +181,7 @@ function Page({ route }: { route: Route }) {
           targetRecord={route.record}
           targetClaim={route.claim}
           targetVersion={route.version}
+          targetProblem={route.problem}
         />
       );
     case 'submissions':

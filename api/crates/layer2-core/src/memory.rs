@@ -67,6 +67,7 @@ pub fn display_name(identity: &VerifiedIdentity) -> String {
 pub struct MemoryStores {
     binding_admissions: Mutex<BTreeMap<PersonId, Vec<crate::model::BindingAdmission>>>,
     collected: Mutex<BTreeMap<String, CollectedVersion>>,
+    collected_problems: Mutex<BTreeMap<String, CollectedProblemVersion>>,
     deposits: Mutex<BTreeMap<String, LeanDeposit>>,
     cma_bindings: Mutex<BTreeMap<PersonId, CmaBinding>>,
     error_reports: Mutex<BTreeMap<String, ErrorReportFile>>,
@@ -91,6 +92,7 @@ impl MemoryStores {
         Ports {
             archives: Arc::new(UnavailableArchiveRegistry),
             collected: self.clone(),
+            collected_problems: self.clone(),
             deposits: self.clone(),
             cma_bindings: self.clone(),
             cma_setup: Arc::new(UnavailableCmaSetup),
@@ -1009,5 +1011,66 @@ impl CollectedPaperStore for MemoryStores {
         }
         let by_id = latest.into_values().map(|v| (v.id.clone(), v)).collect();
         Ok(page(&by_id, limit, before, |v| v.matches(search)))
+    }
+}
+
+#[async_trait]
+impl CollectedProblemStore for MemoryStores {
+    async fn get(
+        &self,
+        problem: &str,
+        version: Option<u32>,
+    ) -> CoreResult<Option<CollectedProblemVersion>> {
+        Ok(self
+            .collected_problems
+            .lock()
+            .await
+            .values()
+            .filter(|v| {
+                v.delivery.problem_id == problem && version.is_none_or(|n| n == v.delivery.version)
+            })
+            .max_by_key(|v| v.delivery.version)
+            .cloned())
+    }
+    async fn get_by_key(&self, key: &str) -> CoreResult<Option<CollectedProblemVersion>> {
+        Ok(self
+            .collected_problems
+            .lock()
+            .await
+            .values()
+            .filter(|v| v.key == key)
+            .max_by_key(|v| v.delivery.version)
+            .cloned())
+    }
+    async fn insert(&self, v: &CollectedProblemVersion) -> CoreResult<()> {
+        let mut versions = self.collected_problems.lock().await;
+        // The four unique pairs of the MongoDB adapter: slug or library entry,
+        // each with version or predecessor.
+        if versions.values().any(|c| {
+            (c.delivery.problem_id == v.delivery.problem_id || c.key == v.key)
+                && (c.delivery.version == v.delivery.version
+                    || c.delivery.previous_version == v.delivery.previous_version)
+        }) {
+            return Err(CoreError::conflict(
+                "collected problem version, predecessor or library entry already exists",
+            ));
+        }
+        versions.insert(v.id.clone(), v.clone());
+        Ok(())
+    }
+    async fn list(
+        &self,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<CollectedProblemVersion>> {
+        let versions = self.collected_problems.lock().await;
+        let mut current: BTreeMap<String, CollectedProblemVersion> = BTreeMap::new();
+        for v in versions.values() {
+            let entry = current.entry(v.key.clone()).or_insert_with(|| v.clone());
+            if entry.delivery.version < v.delivery.version {
+                *entry = v.clone();
+            }
+        }
+        Ok(page(&current, limit, before, |_| true))
     }
 }

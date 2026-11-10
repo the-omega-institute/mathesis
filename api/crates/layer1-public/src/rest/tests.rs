@@ -2064,3 +2064,174 @@ async fn author_queries_in_either_written_form_return_the_same_works_under_one_p
             .unwrap();
     assert_eq!(delivered.delivery.paper.authors[0].name, "Ma, Haobo");
 }
+
+#[tokio::test]
+async fn curated_problem_intake_is_operator_only_and_its_entry_matches_the_documented_schemas() {
+    let stores = Arc::new(MemoryStores::default());
+    let app = App::with_internal_accounts(
+        stores.ports(Arc::new(SystemClock), Arc::new(OneTheorem)),
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from(["curator".into()]),
+    );
+    let router = crate::router(app.clone()).layer(middleware::from_fn_with_state(app, test_auth));
+    let envelope = serde_json::json!({
+        "schema":"mathesis.collected-problem.v1", "producer":"outreach",
+        "problem_id":"gap-question", "version":1, "previous_version":null,
+        "authorize_publication":true,
+        "problem":{"name":"The gap question in OEIS A123456",
+            "statement":"Is every gap at most $2$?",
+            "background":"Asked after a computation up to $10^6$.",
+            "posers":[{"name":"A. Poser","profile_url":"https://example.org/~poser"}],
+            "source":{"kind":"oeis","locator":"A123456","year":2024}, "status":"open",
+            "status_evidence":[{"url":"https://oeis.org/A123456","checked_on":"2026-11-10",
+                "observed":"The comment is marked as a conjecture."}],
+            "msc":["11B05"], "directions":["gap-bounds"],
+            "source_license":"CC BY-SA 4.0", "license":"CC-BY-SA-4.0"}
+    });
+    // The collection channel's refusals: no caller, then no operator trust.
+    let (status, _, _) = call(
+        &router,
+        "POST",
+        "/collected-problems",
+        None,
+        Some(envelope.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, refusal, _) = call(
+        &router,
+        "POST",
+        "/collected-problems",
+        Some("reader"),
+        Some(envelope.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        refusal["detail"],
+        "forbidden: trusted collection operator required"
+    );
+    // A settlement cannot be asserted at intake, and unknown fields are refused.
+    for (pointer, key, value) in [
+        ("/problem", "status", "settled"),
+        ("/problem", "audit", "passed"),
+        ("", "review", "PASS"),
+    ] {
+        let mut changed = envelope.clone();
+        changed.pointer_mut(pointer).unwrap()[key] = value.into();
+        let (status, _, _) = call(
+            &router,
+            "POST",
+            "/collected-problems",
+            Some("curator"),
+            Some(changed),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{key}");
+    }
+    let (_, empty, _) = call(&router, "GET", "/research-problems", None, None).await;
+    assert_eq!(empty["items"], serde_json::json!([]));
+
+    let (status, receipt, _) = call(
+        &router,
+        "POST",
+        "/collected-problems",
+        Some("curator"),
+        Some(envelope.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(receipt["schema"], "mathesis.collected-problem-receipt.v1");
+    assert_eq!(receipt["status"], "collected");
+    let id = receipt["research_problem"].as_str().unwrap();
+    assert_eq!(receipt["public_path"], format!("/problems/{id}"));
+    let (status, retry, _) = call(
+        &router,
+        "POST",
+        "/collected-problems",
+        Some("curator"),
+        Some(envelope),
+    )
+    .await;
+    assert_eq!((status, &retry), (StatusCode::OK, &receipt));
+
+    // Public without a session, before any work names the problem.
+    let (_, listing, _) = call(&router, "GET", "/research-problems", None, None).await;
+    assert_eq!(listing["items"].as_array().unwrap().len(), 1);
+    let summary = &listing["items"][0];
+    assert_eq!(summary["id"], id);
+    assert_eq!(summary["status"], "curated_open");
+    assert_eq!(summary["status_as_of"], "2026-11-10");
+    assert_eq!(summary["notes"], 0);
+    let (status, problem, _) = call(
+        &router,
+        "GET",
+        &format!("/research-problems/{id}"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let curated = &problem["curated"];
+    assert_eq!(curated["statement"], "Is every gap at most $2$?");
+    assert_eq!(curated["posers"][0]["name"], "A. Poser");
+    assert_eq!(curated["status"], "open");
+    assert_eq!(
+        curated["status_evidence"][0]["url"],
+        "https://oeis.org/A123456"
+    );
+    assert_eq!(curated["version"], 1);
+    assert_eq!(problem["collected_notes"], serde_json::json!([]));
+
+    // Every returned field is declared by the closed OpenAPI schemas.
+    let (_, spec, _) = call(&router, "GET", "/openapi.json", None, None).await;
+    for (schema, value) in [
+        ("CollectedProblemReceipt", &receipt),
+        ("ResearchProblemSummary", summary),
+        ("ResearchProblem", &problem),
+        ("PublicCuratedProblem", curated),
+        ("StatusEvidence", &curated["status_evidence"][0]),
+    ] {
+        let name = schema;
+        let schema = &spec["components"]["schemas"][schema];
+        assert_eq!(schema["additionalProperties"], false, "{name}");
+        for key in value.as_object().unwrap().keys() {
+            assert!(
+                schema["properties"][key].is_object(),
+                "undeclared {name}.{key}"
+            );
+        }
+        for key in schema["required"].as_array().unwrap() {
+            assert!(
+                !value[key.as_str().unwrap()].is_null() || key == "next_before",
+                "missing {name}.{key}"
+            );
+        }
+    }
+    let statuses =
+        &spec["components"]["schemas"]["ResearchProblemSummary"]["properties"]["status"]["enum"];
+    for status in [
+        "related_research",
+        "settled",
+        "partial",
+        "conflicting",
+        "curated_open",
+        "curated_partially_resolved",
+    ] {
+        assert!(statuses.as_array().unwrap().contains(&status.into()));
+    }
+    let intake = &spec["paths"]["/api/v1/collected-problems"]["post"];
+    assert_eq!(intake["security"], serde_json::json!([{"nyxid": []}]));
+    let request = &spec["components"]["schemas"]["CollectedProblemDelivery"];
+    assert_eq!(request["additionalProperties"], false);
+    assert_eq!(
+        request["properties"]["problem"]["$ref"],
+        "#/components/schemas/CuratedProblem"
+    );
+    assert_eq!(
+        spec["components"]["schemas"]["CuratedProblem"]["properties"]["status"]["enum"],
+        serde_json::json!(["open", "partially_resolved"])
+    );
+}

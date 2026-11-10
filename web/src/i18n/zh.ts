@@ -524,6 +524,28 @@ export const zh: Record<string, string> = {
   'Follow a named result to read its statement, formal proofs and later contributions.':
     '查看具名结果的表述、形式化证明与后续贡献。',
   'Contribute a formal proof': '贡献形式化证明',
+  'Reviewed research': '已审阅的研究',
+  'Partial progress': '部分进展',
+  'Conflicting conclusions': '结论相互矛盾',
+  Curated: '整理收录',
+  'Open as of {date}': '截至 {date} 未解决',
+  'Partially resolved as of {date}': '截至 {date} 部分解决',
+  'Problem statement': '问题陈述',
+  'Original poser not recorded:': '未记录原始提出者：',
+  Background: '背景',
+  'This status is the curator’s reading of the sources below on the dates shown. It is not a Mathesis review or audit result.':
+    '该状态是整理者在所示日期查阅下列来源后的判读，不是 Mathesis 的审阅或审核结论。',
+  'Checked on': '查阅于',
+  'Work on this problem': '研究这个问题',
+  'A written solution goes through ordinary review. Lean work is saved with the original posers credited; no Lean statement has been prepared for this problem yet.':
+    '文字解答按常规流程审阅。保存 Lean 工作时会注明原始提出者；这个问题尚未准备对应的 Lean 命题。',
+  'Submit a written solution': '提交文字解答',
+  'Contribute a Lean formalization': '贡献 Lean 形式化',
+  'No paper or note addresses this problem yet.': '尚无论文或短文研究这个问题。',
+  'Statement text:': '陈述文本：',
+  'Source licence:': '来源许可：',
+  'The problem and its original posers are filled in below. You can save Lean work privately now; verification and public credit require a matching Lean statement.':
+    '下方已填入问题和原始提出者。你现在可以私密保存 Lean 工作；验证和公开贡献记录需要与问题对应的 Lean 命题。',
   'This result is not available publicly.': '此结果尚未公开。',
   From: '来自',
   'Read in the paper (PDF)': '在论文 PDF 中阅读',
