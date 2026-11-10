@@ -7,6 +7,7 @@ import { usePaged } from '../api/usePaged';
 import { Async, Badge } from '../components/ui';
 import { LatexText, MacrosProvider } from '../components/Markdown';
 import { ProofAttribution } from '../components/ProofAttribution';
+import { ProofBasisNote } from '../components/ProofBasis';
 import { Pager } from '../components/Pager';
 import { Link } from '../routing/router';
 import { AuthorLine } from '../components/AuthorLine';
@@ -75,13 +76,22 @@ export function FormalizationsPage({
 export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery?: string }) {
   const api = useApi();
   const [status, setStatus] = useState('unverified');
+  // Applies to verified proofs only: library declarations or new Lean.
+  const [basis, setBasis] = useState('');
   const [kind, setKind] = useState('');
   const [draft, setDraft] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const load = useCallback(
     async (before: string | null, signal: AbortSignal) => {
       const page = await api.formalizationOpportunities(
-        { before, limit: 20, status, kind: kind || undefined, q: query || undefined },
+        {
+          before,
+          limit: 20,
+          status,
+          basis: status === 'verified' ? basis || undefined : undefined,
+          kind: kind || undefined,
+          q: query || undefined,
+        },
         { signal },
       );
       const sources = new Map<string, Promise<string | undefined>>();
@@ -112,7 +122,7 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
       );
       return { ...page, items };
     },
-    [api, status, kind, query],
+    [api, status, basis, kind, query],
   );
   const paged = usePaged(load);
   const search = (event: FormEvent) => {
@@ -142,6 +152,24 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
           </button>
         ))}
       </div>
+      {status === 'verified' ? (
+        <div className="filter-row" role="group" aria-label={t('Proof basis')}>
+          {[
+            ['', 'All verified proofs'],
+            ['library_declarations', 'From library declarations'],
+            ['new_lean', 'New Lean proofs'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              className="filter-chip"
+              aria-pressed={basis === value}
+              onClick={() => setBasis(value!)}
+            >
+              {t(label ?? '')}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <form className="formalization-search" role="search" onSubmit={search}>
         <label htmlFor="formalization-query" className="visually-hidden">
           {t('Find a statement')}
@@ -221,6 +249,10 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
                         </p>
                       ) : null}
                       <ProofAttribution attribution={item.attribution ?? undefined} />
+                      <ProofBasisNote
+                        basis={item.proof_basis}
+                        verdict={item.status === 'disproved' ? 'disproved' : 'proved'}
+                      />
                       <div className="button-row">
                         {item.leanSource ? (
                           <a href={item.leanSource}>{t('Read the Lean source')}</a>

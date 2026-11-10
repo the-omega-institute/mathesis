@@ -149,6 +149,18 @@ impl App {
         }
         Ok(sources)
     }
+    /// Static compatibility report against the verifier's current import rule.
+    /// It stores nothing and is never a receipt.
+    pub async fn lean_preflight(&self, project: &NewLeanDeposit) -> CoreResult<LeanPreflight> {
+        project.validate()?;
+        Ok(lean_project_preflight_with(
+            &project.solution,
+            &project.modules,
+            &project.project_files,
+            &project.toolchain,
+            &self.prepared_libraries().await,
+        ))
+    }
     pub async fn verify_lean_deposit(
         &self,
         caller: &Caller,
@@ -202,8 +214,13 @@ impl App {
             None => self.lean_deposit_source(caller, id).await?,
         };
         let modules = self.lean_deposit_modules(caller, id).await?;
-        let report =
-            lean_project_preflight(&source, &modules, &deposit.project_files, &target.toolchain);
+        let report = lean_project_preflight_with(
+            &source,
+            &modules,
+            &deposit.project_files,
+            &target.toolchain,
+            &self.prepared_libraries().await,
+        );
         if !report.errors.is_empty() {
             return Err(CoreError::invalid(report.errors.join("; ")));
         }

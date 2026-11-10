@@ -969,7 +969,8 @@ an AI review or grant permission to publish it.
 
 `GET /api/v1/formalizations/opportunities` is anonymous. Optional query fields:
 `q` (at most 200 characters, all words), `kind=paper|conjecture`,
-`status=unverified|preparing|open|verified|disproved`, `limit` (1–100), `before` (returned cursor).
+`status=unverified|preparing|open|verified|disproved`,
+`basis=library_declarations|new_lean`, `limit` (1–100), `before` (returned cursor).
 `unverified` includes current public results in the collected formalization pool,
 even before a faithful Lean target is ready, plus confirmed open targets.
 `preparing` selects only those pending collected targets. Existing queries without
@@ -980,6 +981,21 @@ Preparing rows have status `preparing`, null target_digest/toolchain and no proo
 They link to the public mathematical result, not an unavailable proof submission form.
 Source/version/statement pins are checked before inclusion. Filters apply
 before pagination. No private source deposits or unverified attempts appear.
+
+Each row also carries nullable `proof_basis`, derived from the winning receipt.
+`{"kind":"library_declarations","libraries":[{name,revision,url?}],"declarations":[{library,module,name,source?}],"total","complete"}`
+means the checked Lean target follows from the listed declarations of a prepared
+library at the pinned revision, together with the submitted Lean.
+`{"kind":"new_lean"}` means the checked proof references no prepared-library
+declaration. It is null until a proof or disproof is verified, and `basis`
+selects rows by its kind. The same object is `proof_basis` on every public
+verified attempt, on `GET /attempts/{id}` once verified, and inside a
+verification bundle's `attempt`. A receipt whose project imported a prepared
+library carries `library_use` (`libraries`, at most 64 sorted `declarations`,
+`total`, `complete`); other receipts are unchanged. These fields record direct
+references at a pinned revision. They are not a semantic-equivalence or coverage
+certificate and change no admission or credit rule. See
+[LIBRARY_BINDING.md](LIBRARY_BINDING.md).
 
 Lean intake also accepts optional `formalizers: string[]`,
 `source_revision: string` (full 40/64-digit Git commit), and

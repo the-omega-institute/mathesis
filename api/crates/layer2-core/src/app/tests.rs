@@ -6,6 +6,7 @@ mod collected_problems;
 mod collected_proofs;
 mod explanations;
 mod knowledge;
+mod library_binding;
 mod manuscripts;
 mod preparation;
 mod problem_library;

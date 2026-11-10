@@ -2300,4 +2300,26 @@ export const zh: Record<string, string> = {
   'download and setup steps above': '上面的下载与安装步骤',
   'and open a .lean file inside a Lean project in VS Code. Lean checks the file as you edit; the information panel shows the current goal and any errors.':
     '完成设置，再用 VS Code 打开 Lean 项目里的 .lean 文件。编辑时 Lean 会自动检查，信息面板会显示当前证明目标和错误。',
+  'Proof basis': '证明依据',
+  'All verified proofs': '全部已验证证明',
+  'From library declarations': '由库中已有声明证明',
+  'New Lean proofs': '新写的 Lean 证明',
+  'Proved from library declarations': '由库中已有声明证明',
+  'Disproved from library declarations': '由库中已有声明否证',
+  'New Lean proof': '新写的 Lean 证明',
+  'New Lean disproof': '新写的 Lean 否证',
+  'The checked proof references no declaration of a prepared library.':
+    '经核验的证明没有引用预置库中的任何声明。',
+  'The Lean target follows from these library declarations together with the Lean submitted with the proof.':
+    '该 Lean 目标命题可由下列库声明连同随证明提交的 Lean 代码推出。',
+  'The negation of the Lean target follows from these library declarations together with the Lean submitted with the proof.':
+    '该 Lean 目标命题的否定可由下列库声明连同随证明提交的 Lean 代码推出。',
+  'The independent verifier lists the declarations that the proof’s own statements and proof terms reference directly, at the pinned library revision. This records references; it does not compare what those declarations state with the paper.':
+    '独立验证器列出该证明自身的命题与证明项在固定的库修订版本上直接引用的声明。这里记录的是引用关系，不比较这些声明的内容与论文的内容。',
+  '{library} at revision {revision}': '{library}，修订版本 {revision}',
+  'Library source of {name}': '{name} 的库源码',
+  'Showing {shown} of {total} referenced library declarations.':
+    '共引用 {total} 个库声明，此处列出 {shown} 个。',
+  'The inspection stopped at its bound, so further library declarations may be referenced.':
+    '检查在达到上限时停止，证明可能还引用了其他库声明。',
 };

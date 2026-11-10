@@ -106,6 +106,16 @@ pub struct FormalizationAttribution {
 
 /// Dotted module names preserve directories without allowing traversal or trusted roots.
 pub fn validate_lean_modules(solution: &str, modules: &BTreeMap<String, String>) -> CoreResult<()> {
+    validate_lean_modules_with(solution, modules, &[])
+}
+/// `libraries` are the verifier's prepared libraries. Their modules are imported,
+/// never resubmitted: a supporting module cannot be named below one of their
+/// roots. Without a library this is exactly `validate_lean_modules`.
+pub fn validate_lean_modules_with(
+    solution: &str,
+    modules: &BTreeMap<String, String>,
+    libraries: &[super::PreparedLibrary],
+) -> CoreResult<()> {
     if modules.len() > 512
         || solution.len() + modules.values().map(String::len).sum::<usize>() > 8 * 1_048_576
     {
@@ -122,6 +132,17 @@ pub fn validate_lean_modules(solution: &str, modules: &BTreeMap<String, String>)
             return Err(CoreError::invalid(
                 "supporting modules need distinct dotted Lean module names, nonempty sources, and cannot replace trusted modules",
             ));
+        }
+        // Case-insensitive, like every reserved root.
+        let root = name.split('.').next().unwrap_or_default();
+        if let Some(library) = libraries
+            .iter()
+            .find(|library| library.roots.iter().any(|r| r.eq_ignore_ascii_case(root)))
+        {
+            return Err(CoreError::invalid(format!(
+                "supporting module {name} is named below a root of the prepared library {}; import the library module instead of submitting it",
+                library.name
+            )));
         }
     }
     Ok(())

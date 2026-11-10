@@ -579,7 +579,11 @@ impl App {
                 "solution must be at most 1 MB and note at most 2,000 characters",
             ));
         }
-        validate_lean_modules(&input.solution, &input.modules)?;
+        validate_lean_modules_with(
+            &input.solution,
+            &input.modules,
+            &self.prepared_libraries().await,
+        )?;
         let solution_digest = lean_solution_digest(&input.solution, &input.modules);
         // Authorize before storing large payloads; repeat the checks at admission.
         let (file, _) = self.referee_file(id).await?;
@@ -797,6 +801,10 @@ impl App {
                     || result.axioms.iter().any(|a| {
                         !["propext", "Classical.choice", "Quot.sound"].contains(&a.as_str())
                     })
+                    || result
+                        .library_use
+                        .as_ref()
+                        .is_some_and(|report| !report.valid())
                 {
                     return Err(CoreError::Unavailable(
                         "invalid research verifier receipt".into(),

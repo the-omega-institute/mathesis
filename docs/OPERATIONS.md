@@ -176,6 +176,11 @@ explicitly mark real Lean cases ignored; selecting them without
 `WISHPOOL_TEST_LEAN_WORKSPACE` fails instead of silently passing. CI builds the
 verifier image and validates its Kubernetes manifests alongside API/web/worker.
 
+A workspace may declare further prepared libraries in `mathesis-libraries.json`;
+readiness then also requires their built artifacts and `/environment` lists them.
+The reference image declares none. Deploy the API and worker before a verifier
+that lists libraries. See [LIBRARY_BINDING.md](LIBRARY_BINDING.md).
+
 ## Scope that still needs product or infrastructure work
 
 - No automatic provisioning of a CMA workspace/profile/model connection is

@@ -3,6 +3,7 @@ import { ProofWork } from '../components/ProofWork';
 import { InlineLatex } from '../components/Markdown';
 import { Link } from '../routing/router';
 import { ProofAttribution } from '../components/ProofAttribution';
+import { ProofBasisNote } from '../components/ProofBasis';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -147,6 +148,10 @@ export function ConjectureView({ detail: c }: { detail: ConjectureDetail }) {
                 <li key={a.id}>
                   <EntrantName entrant={a.entrant} />
                   <ProofAttribution attribution={a.attribution} />
+                  <ProofBasisNote
+                    basis={a.proof_basis}
+                    verdict={a.receipt.verdict === 'disproved' ? 'disproved' : 'proved'}
+                  />
                   <a
                     href={`/api/v1/papers/${encodeURIComponent(s.record)}/statements/${encodeURIComponent(s.claim)}/attempts/${encodeURIComponent(a.id)}/bundle`}
                   >

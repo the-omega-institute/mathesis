@@ -8,6 +8,7 @@ impl Verifier for ResearchVerifier {
     async fn verify(&self, r: &VerificationRequest) -> CoreResult<VerificationReceipt> {
         Ok(VerificationReceipt {
             used_constants: vec![],
+            library_use: None,
             verdict: if r.solution.contains("reject") {
                 Verdict::Rejected
             } else {

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { screen, within, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { paperSummary, publicPaper, SHA } from '../test/fixtures';
+import type { VerifiedAttempt } from '../api/types';
 import { KATEX_ERROR, MACROS } from '../test/katex';
 import { fakeApi, renderWithApp } from '../test/render';
 import { ResultPage } from './Result';
@@ -76,6 +77,59 @@ describe('public paper page', () => {
 
     expect(screen.queryByRole('heading', { name: 'Analysis' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Conjecture follow-ups' })).toBeNull();
+  });
+
+  it('says which verified results were proved from library declarations', async () => {
+    const revision = 'b'.repeat(40);
+    const verified = (proof_basis: NonNullable<VerifiedAttempt['proof_basis']>) =>
+      ({
+        id: `attempt-${proof_basis.kind}`,
+        entrant: { id: 'solver', name: 'Solver', kind: 'person', retired: false, revision: 0 },
+        receipt: {
+          verdict: 'proved',
+          reason: 'Kernel checked.',
+          target_digest: 'target',
+          solution_digest: 'solution',
+          toolchain: 'pinned',
+          axioms: [],
+          checked_at: '2026-11-11T00:00:00Z',
+          duration: 1,
+        },
+        proof_basis,
+        solution: 'import Target',
+        also_verified: false,
+      }) satisfies VerifiedAttempt;
+    const [first, second, ...rest] = publicPaper.claims!;
+    const api = fakeApi({
+      getPaper: vi.fn(async () => ({
+        ...publicPaper,
+        claims: [
+          {
+            ...first!,
+            verified: verified({
+              kind: 'library_declarations',
+              libraries: [{ name: 'trureturing', revision }],
+              declarations: [
+                { library: 'trureturing', module: 'D5.S3.Result', name: 'D5.S3.Result.result' },
+              ],
+              total: 1,
+              complete: true,
+            }),
+          },
+          { ...second!, verified: verified({ kind: 'new_lean' }) },
+          ...rest,
+        ],
+      })),
+    });
+    renderWithApp(<PaperPage record="WP-2026-0001" />, api);
+    const statements = (await screen.findByRole('heading', { name: 'Results' })).closest(
+      'section',
+    ) as HTMLElement;
+    expect(within(statements).getByText('Proved from library declarations')).toBeInTheDocument();
+    expect(within(statements).getByText(`trureturing at revision ${revision}`)).toBeInTheDocument();
+    expect(within(statements).getByText('New Lean proof')).toBeInTheDocument();
+    // The declarations themselves are read on the result page.
+    expect(within(statements).queryByText('D5.S3.Result.result')).toBeNull();
   });
 
   it('shows dependencies and new lemmas without review labels or commentary', async () => {

@@ -12,6 +12,142 @@ use tokio::{io::AsyncReadExt, process::Command};
 
 pub const STANDARD_AXIOMS: [&str; 3] = ["propext", "Classical.choice", "Quot.sound"];
 pub const OUTPUT_CAP: usize = 64 * 1024;
+/// Workspace file declaring the prepared libraries, other than Mathlib, that a
+/// solution may import. Only the operator who prepares the workspace writes it.
+pub const LIBRARIES_FILE: &str = "mathesis-libraries.json";
+/// Library declarations listed in one receipt; the total is reported separately.
+pub const LIBRARY_DECLARATION_CAP: usize = 64;
+
+/// A prepared library whose compiled modules solutions and supporting modules
+/// may import. Targets never import it: a statement stays readable over Mathlib.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Library {
+    /// Lake package name in the prepared workspace.
+    pub name: String,
+    /// Full Git revision resolved in the workspace manifest.
+    pub revision: String,
+    /// Top-level module names owned by this library.
+    pub roots: Vec<String>,
+    /// HTTPS source repository recorded in the workspace manifest, when it has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LibraryDeclarations {
+    libraries: Vec<DeclaredLibrary>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeclaredLibrary {
+    package: String,
+    roots: Vec<String>,
+}
+fn identifier(text: &str) -> bool {
+    !text.is_empty()
+        && text.len() <= 64
+        && text.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+fn full_revision(text: &str) -> bool {
+    text.len() == 40 && text.bytes().all(|b| b.is_ascii_hexdigit())
+}
+/// Read the operator's library declaration and bind each library to the exact
+/// revision in the workspace manifest. A workspace without the file has none.
+pub fn libraries(workspace: &Path) -> Result<Vec<Library>, String> {
+    let bytes = match std::fs::read(workspace.join(LIBRARIES_FILE)) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(_) => return Err("library declaration is unreadable".into()),
+    };
+    if bytes.len() > 16 * 1024 {
+        return Err("library declaration is too large".into());
+    }
+    let declared: LibraryDeclarations =
+        serde_json::from_slice(&bytes).map_err(|_| "library declaration is invalid")?;
+    if declared.libraries.len() > 8 {
+        return Err("at most eight prepared libraries are supported".into());
+    }
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(workspace.join("lake-manifest.json"))
+            .map_err(|_| "dependency manifest is missing")?,
+    )
+    .map_err(|_| "dependency manifest is invalid")?;
+    let mut names = BTreeSet::new();
+    let mut roots = BTreeSet::new();
+    let mut libraries = vec![];
+    for library in declared.libraries {
+        let package = library.package;
+        if package.is_empty()
+            || package.len() > 64
+            || !package
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
+            || package.eq_ignore_ascii_case("mathlib")
+            || !names.insert(package.to_ascii_lowercase())
+        {
+            return Err("invalid or repeated library package".into());
+        }
+        if library.roots.is_empty() || library.roots.len() > 16 {
+            return Err(format!(
+                "library {package}: declare one to sixteen module roots"
+            ));
+        }
+        for root in &library.roots {
+            if !identifier(root)
+                || RESERVED_ROOTS.contains(&root.to_ascii_lowercase().as_str())
+                || !roots.insert(root.to_ascii_lowercase())
+            {
+                return Err(format!(
+                    "library {package}: invalid, reserved or repeated root"
+                ));
+            }
+        }
+        let entry = manifest["packages"]
+            .as_array()
+            .and_then(|p| p.iter().find(|p| p["name"] == package.as_str()));
+        let revision = entry
+            .and_then(|p| p["rev"].as_str())
+            .filter(|rev| full_revision(rev))
+            .ok_or_else(|| format!("library {package} must pin a full Git revision"))?;
+        // Reported for readers who follow a declaration to its source; never fetched.
+        let url = entry
+            .and_then(|p| p["url"].as_str())
+            .filter(|url| {
+                url.starts_with("https://")
+                    && url.len() <= 300
+                    && !url.chars().any(|c| c.is_whitespace() || c.is_control())
+            })
+            .map(|url| url.trim_end_matches(".git").to_owned());
+        libraries.push(Library {
+            name: package,
+            revision: revision.into(),
+            roots: library.roots,
+            url,
+        });
+    }
+    Ok(libraries)
+}
+/// Roots that belong to the checker, Lean or Mathlib's own dependency closure.
+const RESERVED_ROOTS: [&str; 16] = [
+    "target",
+    "solution",
+    "check",
+    "mathlib",
+    "init",
+    "lean",
+    "std",
+    "lake",
+    "batteries",
+    "aesop",
+    "qq",
+    "proofwidgets",
+    "plausible",
+    "importgraph",
+    "leansearchclient",
+    "cli",
+];
 
 /// The prepared verifier is authoritative for new proof work. Published
 /// receipts continue to name their own immutable environment.
@@ -20,6 +156,10 @@ pub const OUTPUT_CAP: usize = 64 * 1024;
 pub struct Environment {
     pub lean_toolchain: String,
     pub mathlib_revision: String,
+    /// Prepared libraries beyond Mathlib. The label below stays the Lean/Mathlib
+    /// pin that targets carry; a receipt names the library revision it used.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub libraries: Vec<Library>,
 }
 impl Environment {
     pub fn label(&self) -> String {
@@ -45,6 +185,7 @@ impl Environment {
         Ok(Self {
             lean_toolchain: lean.into(),
             mathlib_revision: rev.into(),
+            libraries: vec![],
         })
     }
     pub fn read(workspace: &Path) -> Result<Self, String> {
@@ -60,7 +201,9 @@ impl Environment {
             .and_then(|p| p.iter().find(|p| p["name"] == "mathlib"))
             .and_then(|p| p["rev"].as_str())
             .ok_or("Mathlib revision is missing")?;
-        Self::parse(&format!("{}, Mathlib {rev}", lean.trim()))
+        let mut environment = Self::parse(&format!("{}, Mathlib {rev}", lean.trim()))?;
+        environment.libraries = libraries(workspace)?;
+        Ok(environment)
     }
 }
 
@@ -93,6 +236,22 @@ pub fn workspace_ready(workspace: &Path) -> Result<(), String> {
     {
         return Err("pinned Lean binary or built Mathlib artifacts are missing".into());
     }
+    for library in libraries(workspace)? {
+        let built = workspace
+            .join(".lake/packages")
+            .join(&library.name)
+            .join(".lake/build/lib/lean");
+        if !library
+            .roots
+            .iter()
+            .all(|root| built.join(format!("{root}.olean")).is_file() || built.join(root).is_dir())
+        {
+            return Err(format!(
+                "built artifacts of library {} are missing",
+                library.name
+            ));
+        }
+    }
     Ok(())
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +279,9 @@ pub enum Verdict {
 pub struct Receipt {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub used_constants: Vec<String>,
+    /// Present only when the checked project imported a prepared library.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub library_use: Option<LibraryUse>,
     pub verdict: Verdict,
     pub reason: String,
     pub target_digest: String,
@@ -129,6 +291,33 @@ pub struct Receipt {
     pub checked_at: DateTime<Utc>,
     /// Milliseconds, including workspace preparation.
     pub duration: u64,
+}
+/// What a checked project took from prepared libraries, read from the
+/// elaborated environment by the trusted Check module.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LibraryUse {
+    /// Imported libraries with the exact revisions of this workspace.
+    pub libraries: Vec<LibraryPin>,
+    /// Library declarations that local statements or proof terms reference
+    /// directly; sorted, at most `LIBRARY_DECLARATION_CAP`.
+    pub declarations: Vec<LibraryDeclaration>,
+    /// Number of referenced declarations, including those not listed.
+    pub total: u32,
+    /// False when the bounded inspection stopped before every local constant.
+    pub complete: bool,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LibraryPin {
+    pub name: String,
+    pub revision: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LibraryDeclaration {
+    pub library: String,
+    pub module: String,
+    pub name: String,
 }
 pub fn digest(text: &str) -> String {
     format!("{:x}", Sha256::digest(text.as_bytes()))
@@ -227,25 +416,44 @@ fn forbidden_in(text: &str, library: bool) -> Option<String> {
     }
     None
 }
-fn allowed_import(name: &str, allowed: &[&str]) -> bool {
+/// The declared library root that owns a module name, if any.
+fn library_root<'a>(name: &str, roots: &[&'a str]) -> Option<&'a str> {
+    roots.iter().copied().find(|root| {
+        name == *root
+            || name
+                .strip_prefix(root)
+                .is_some_and(|rest| rest.starts_with('.'))
+    })
+}
+fn allowed_import(name: &str, allowed: &[&str], roots: &[&str]) -> bool {
     allowed.contains(&name)
-        || (name.starts_with("Mathlib.")
+        || ((name.starts_with("Mathlib.") || library_root(name, roots).is_some())
             && name.split('.').all(|p| {
                 !p.is_empty() && p.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
             }))
 }
-fn imports(text: &str, allowed: &[&str]) -> Result<(), String> {
+/// `roots` are prepared library roots; pass none where libraries are not importable.
+fn imports(text: &str, allowed: &[&str], roots: &[&str]) -> Result<(), String> {
     let words: Vec<_> = text.split_whitespace().collect();
     for (i, word) in words.iter().enumerate() {
-        if *word == "import" && words.get(i + 1).is_none_or(|m| !allowed_import(m, allowed)) {
-            return Err("import must resolve to Mathlib, Target or a submitted module".into());
+        if *word == "import"
+            && words
+                .get(i + 1)
+                .is_none_or(|m| !allowed_import(m, allowed, roots))
+        {
+            return Err(if roots.is_empty() {
+                "import must resolve to Mathlib, Target or a submitted module".into()
+            } else {
+                "import must resolve to Mathlib, Target, a submitted module or a prepared library"
+                    .into()
+            });
         }
     }
     // Imports must occupy their own line, one module per command. Reject
     // comment tricks and multi-module imports before invoking any compiler.
     for line in text.lines().filter(|l| l.contains("import")) {
         let parts: Vec<_> = line.split_whitespace().collect();
-        if parts.len() != 2 || parts[0] != "import" || !allowed_import(parts[1], allowed) {
+        if parts.len() != 2 || parts[0] != "import" || !allowed_import(parts[1], allowed, roots) {
             return Err("imports must be a single allowed module per line".into());
         }
     }
@@ -261,7 +469,8 @@ fn validate_target_imports(text: &str, allowed: &[&str]) -> Result<(), String> {
     if let Some(reason) = forbidden(text) {
         return Err(reason);
     }
-    imports(text, allowed)?;
+    // A target never imports a prepared library.
+    imports(text, allowed, &[])?;
     if !text.starts_with("import Mathlib\n") {
         return Err("Target.lean must import Mathlib first".into());
     }
@@ -304,16 +513,20 @@ pub fn convert_target(text: &str) -> Result<String, String> {
     Ok(converted)
 }
 pub fn validate_solution(text: &str) -> Result<Verdict, String> {
-    validate_solution_imports(text, &["Mathlib", "Target"])
+    validate_solution_imports(text, &["Mathlib", "Target"], &[])
 }
-fn validate_solution_imports(text: &str, allowed: &[&str]) -> Result<Verdict, String> {
+fn validate_solution_imports(
+    text: &str,
+    allowed: &[&str],
+    roots: &[&str],
+) -> Result<Verdict, String> {
     if text.len() > 1_048_576 {
         return Err("solution exceeds 1 MB".into());
     }
     if let Some(reason) = forbidden(text) {
         return Err(reason);
     }
-    imports(text, allowed)?;
+    imports(text, allowed, roots)?;
     if !text.lines().any(|l| l.trim() == "import Target") {
         return Err("import Target is required".into());
     }
@@ -473,6 +686,7 @@ impl Checker {
         let start = Instant::now();
         let mut receipt = Receipt {
             used_constants: vec![],
+            library_use: None,
             verdict: Verdict::Rejected,
             reason: String::new(),
             target_digest: digest(&request.target),
@@ -488,8 +702,9 @@ impl Checker {
         )
         .await
         {
-            Ok(Ok((verdict, toolchain, axioms, used_constants))) => {
+            Ok(Ok((verdict, toolchain, axioms, used_constants, library_use))) => {
                 receipt.used_constants = used_constants;
+                receipt.library_use = library_use;
                 receipt.verdict = verdict;
                 receipt.toolchain = toolchain;
                 receipt.axioms = axioms;
@@ -502,17 +717,14 @@ impl Checker {
         receipt.duration = start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
         receipt
     }
-    async fn check(
-        &self,
-        request: &Request,
-    ) -> Result<(Verdict, String, Vec<String>, Vec<String>), String> {
+    async fn check(&self, request: &Request) -> Result<Checked, String> {
         self.check_using(request, None).await
     }
     async fn check_using(
         &self,
         request: &Request,
         binary: Option<&Path>,
-    ) -> Result<(Verdict, String, Vec<String>, Vec<String>), String> {
+    ) -> Result<Checked, String> {
         if request
             .required_declaration
             .as_ref()
@@ -531,7 +743,14 @@ impl Checker {
         if digest(&request.target) != request.target_digest {
             return Err("target digest mismatch".into());
         }
-        let (verdict, modules) = validate_project(&request.solution, &request.modules)?;
+        // The workspace alone decides which libraries exist; a request cannot add one.
+        let libraries = libraries(&self.workspace)?;
+        let roots: Vec<&str> = libraries
+            .iter()
+            .flat_map(|library| library.roots.iter().map(String::as_str))
+            .collect();
+        let (verdict, modules) =
+            validate_project_with(&request.solution, &request.modules, &roots)?;
         let auxiliary = request.required_declaration.is_some();
         if auxiliary {
             if verdict != Verdict::Proved {
@@ -543,7 +762,7 @@ impl Checker {
                 .chain(request.modules.keys().map(String::as_str))
                 .collect();
             for source in request.modules.values() {
-                imports(source, &allowed)?;
+                imports(source, &allowed, &roots)?;
             }
             validate_target_imports(&request.target, &allowed)?;
         } else {
@@ -650,6 +869,7 @@ impl Checker {
         }) {
             return Err("project modules cannot shadow trusted library modules".into());
         }
+        let mut imported_libraries = BTreeSet::new();
         for text in [&request.target, &request.solution]
             .into_iter()
             .chain(request.modules.values())
@@ -661,6 +881,24 @@ impl Checker {
                 let imported = line.split_whitespace().nth(1).unwrap_or_default();
                 if imported.starts_with("Mathlib.") && !artifacts.contains_key(imported) {
                     return Err(format!("missing prepared dependency: {imported}"));
+                }
+                if let Some(root) = library_root(imported, &roots) {
+                    let library = libraries
+                        .iter()
+                        .find(|library| library.roots.iter().any(|r| r == root))
+                        .expect("root belongs to a declared library");
+                    // The module must be built by the declaring package itself,
+                    // never by another package that ships a module of that name.
+                    if !work
+                        .join(".lake/packages")
+                        .join(&library.name)
+                        .join(".lake/build/lib/lean")
+                        .join(format!("{}.olean", imported.replace('.', "/")))
+                        .is_file()
+                    {
+                        return Err(format!("missing prepared dependency: {imported}"));
+                    }
+                    imported_libraries.insert(library.name.clone());
                 }
             }
         }
@@ -688,17 +926,17 @@ impl Checker {
                 } else {
                     ("wishpool_disproof", "¬ _root_.wishpool_target_prop")
                 };
-                std::fs::write(
-                    work.join("Check.lean"),
-                    check_source(
-                        constant,
-                        ty,
-                        &request.inspect_constants,
-                        request.required_declaration.as_deref(),
-                        &request.modules,
-                    ),
-                )
-                .map_err(|e| e.to_string())?;
+                let mut source = check_source(
+                    constant,
+                    ty,
+                    &request.inspect_constants,
+                    request.required_declaration.as_deref(),
+                    &request.modules,
+                );
+                if !imported_libraries.is_empty() {
+                    source.push_str(&library_inspection(constant, &request.modules, &roots));
+                }
+                std::fs::write(work.join("Check.lean"), source).map_err(|e| e.to_string())?;
             }
             let mut cmd = command(&lean, &work);
             cmd.args(["-j", "2", "--setup"])
@@ -739,7 +977,12 @@ impl Checker {
                     })
                     .cloned()
                     .collect();
-                return Ok((verdict, toolchain, axioms, used_constants));
+                let library_use = if imported_libraries.is_empty() {
+                    None
+                } else {
+                    Some(library_use(&text, &libraries, &imported_libraries)?)
+                };
+                return Ok((verdict, toolchain, axioms, used_constants, library_use));
             }
             artifacts.insert(
                 name.into(),
@@ -765,10 +1008,29 @@ pub fn solution_digest(solution: &str, modules: &BTreeMap<String, String>) -> St
         )
     )
 }
+/// Verdict, environment label, axioms, inspected constants and library use.
+type Checked = (
+    Verdict,
+    String,
+    Vec<String>,
+    Vec<String>,
+    Option<LibraryUse>,
+);
+
 /// Independently validate all modules, including unused ones, before I/O.
+#[cfg(test)]
 fn validate_project(
     solution: &str,
     modules: &BTreeMap<String, String>,
+) -> Result<(Verdict, Vec<String>), String> {
+    validate_project_with(solution, modules, &[])
+}
+/// `roots` are the prepared library roots of the workspace. A submitted module
+/// may import below them and can never be named below them.
+fn validate_project_with(
+    solution: &str,
+    modules: &BTreeMap<String, String>,
+    roots: &[&str],
 ) -> Result<(Verdict, Vec<String>), String> {
     if modules.len() > 512
         || solution.len() + modules.values().map(String::len).sum::<usize>() > 8 * 1_048_576
@@ -795,6 +1057,9 @@ fn validate_project(
                     .to_ascii_lowercase()
                     .as_str(),
             )
+            || roots
+                .iter()
+                .any(|root| root.eq_ignore_ascii_case(name.split('.').next().unwrap_or_default()))
             || !seen.insert(name.to_ascii_lowercase())
             || text.trim().is_empty()
         {
@@ -818,10 +1083,10 @@ fn validate_project(
         .into_iter()
         .chain(modules.keys().map(String::as_str))
         .collect();
-    let verdict = validate_solution_imports(solution, &allowed)?;
+    let verdict = validate_solution_imports(solution, &allowed, roots)?;
     let mut dependencies = BTreeMap::new();
     for (name, text) in modules {
-        imports(text, &allowed)?;
+        imports(text, &allowed, roots)?;
         let deps: BTreeSet<String> = text
             .lines()
             .filter_map(|line| {
@@ -927,4 +1192,134 @@ fn check_source(
         separator = if module_names.is_empty() { "" } else { ", " }
     ));
     source
+}
+
+/// Appended to the trusted Check module when the project imports a prepared
+/// library. It walks the statements and proof terms of local declarations and
+/// reports every referenced constant whose declaring module belongs to a library
+/// root. Local modules cannot be named below those roots, so a local declaration
+/// that merely reuses a library name is never reported.
+fn library_inspection(
+    constant: &str,
+    modules: &BTreeMap<String, String>,
+    roots: &[&str],
+) -> String {
+    let names = |items: &mut dyn Iterator<Item = &str>| {
+        items
+            .map(|name| format!("`{name}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let local = names(
+        &mut ["Solution", "Target"]
+            .into_iter()
+            .chain(modules.keys().map(String::as_str)),
+    );
+    let roots = names(&mut roots.iter().copied());
+    format!(
+        r#"
+run_meta do
+  let env ← Lean.getEnv
+  let localModules : List Lean.Name := [{local}]
+  let libraryRoots : List Lean.Name := [{roots}]
+  let mut seen : Std.HashSet Lean.Name := {{}}
+  let mut pending : List Lean.Name := [`{constant}]
+  let mut found : Array String := #[]
+  let mut fuel : Nat := 200000
+  let mut complete := true
+  while !pending.isEmpty do
+    if fuel == 0 then
+      complete := false
+      break
+    fuel := fuel - 1
+    let name := pending.head!
+    pending := pending.tail!
+    if seen.contains name then continue
+    seen := seen.insert name
+    if let some idx := env.getModuleIdxFor? name then
+      let owner := env.header.moduleNames[idx]!
+      unless localModules.contains owner do
+        if libraryRoots.contains owner.getRoot then
+          found := found.push s!"{{owner}}:{{name}}"
+        continue
+    if let some info := env.find? name then
+      pending := info.type.getUsedConstants.toList ++ pending
+      if let some value := info.value? (allowOpaque := true) then
+        pending := value.getUsedConstants.toList ++ pending
+  let sorted := found.qsort (· < ·)
+  Lean.logInfo s!"MATHESIS_LIBRARY_USE_TOTAL:{{sorted.size}}:{{complete}}"
+  for entry in sorted.extract 0 {cap} do
+    Lean.logInfo s!"MATHESIS_LIBRARY_USE:{{entry}}"
+"#,
+        cap = LIBRARY_DECLARATION_CAP
+    )
+}
+
+/// Read the library report printed by the trusted Check module.
+fn library_use(
+    text: &str,
+    libraries: &[Library],
+    imported: &BTreeSet<String>,
+) -> Result<LibraryUse, String> {
+    let after = |line: &'_ str, marker: &str| -> Option<String> {
+        line.split_once(marker)
+            .map(|(_, rest)| rest.trim().to_owned())
+    };
+    let (total, complete) = text
+        .lines()
+        .find_map(|line| after(line, "MATHESIS_LIBRARY_USE_TOTAL:"))
+        .and_then(|rest| {
+            let (total, complete) = rest.split_once(':')?;
+            Some((total.parse::<u32>().ok()?, complete.parse::<bool>().ok()?))
+        })
+        .ok_or("missing library inspection receipt")?;
+    let mut declarations = vec![];
+    for entry in text
+        .lines()
+        .filter_map(|line| after(line, "MATHESIS_LIBRARY_USE:"))
+    {
+        let Some((module, name)) = entry.split_once(':') else {
+            continue;
+        };
+        let root = module.split('.').next().unwrap_or_default();
+        let Some(library) = libraries
+            .iter()
+            .find(|library| library.roots.iter().any(|r| r == root))
+        else {
+            return Err("library inspection named an undeclared library".into());
+        };
+        // Unusual names stay counted in `total` but are not carried as text.
+        if name.is_empty()
+            || name.len() > 240
+            || name.chars().any(|c| c.is_whitespace() || c.is_control())
+            || !module.split('.').all(identifier)
+        {
+            continue;
+        }
+        declarations.push(LibraryDeclaration {
+            library: library.name.clone(),
+            module: module.into(),
+            name: name.into(),
+        });
+    }
+    declarations.sort_by(|a, b| (&a.module, &a.name).cmp(&(&b.module, &b.name)));
+    declarations.dedup();
+    declarations.truncate(LIBRARY_DECLARATION_CAP);
+    if declarations.len() as u64 > u64::from(total) {
+        return Err("library inspection receipt is inconsistent".into());
+    }
+    Ok(LibraryUse {
+        libraries: libraries
+            .iter()
+            .filter(|library| imported.contains(&library.name))
+            .map(|library| LibraryPin {
+                name: library.name.clone(),
+                revision: library.revision.clone(),
+                url: library.url.clone(),
+            })
+            .collect(),
+        declarations,
+        total,
+        complete,
+    })
 }

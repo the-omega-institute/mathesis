@@ -438,6 +438,10 @@ pub struct CollectedProof {
     /// Pinned when preparation starts, not changed under an admitted conversation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub toolchain: Option<String>,
+    /// Prepared libraries of the verifier, pinned together with the toolchain.
+    /// Empty for work admitted without one; it then keeps its original prompts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub libraries: Vec<super::PreparedLibrary>,
     pub source_sha256: String,
     pub statement_sha256: String,
     pub requested_by: PersonId,

@@ -58,6 +58,20 @@ pub fn lean_project_preflight(
     files: &BTreeMap<String, String>,
     toolchain: &str,
 ) -> LeanPreflight {
+    lean_project_preflight_with(solution, modules, files, toolchain, &[])
+}
+
+/// `libraries` are the verifier's prepared libraries: imports below their roots
+/// resolve in the verifier workspace, and no submitted module may be named below
+/// them. Without a library this is exactly `lean_project_preflight`.
+pub fn lean_project_preflight_with(
+    solution: &str,
+    modules: &BTreeMap<String, String>,
+    files: &BTreeMap<String, String>,
+    toolchain: &str,
+    libraries: &[super::PreparedLibrary],
+) -> LeanPreflight {
+    let mut imported = BTreeSet::new();
     let mut report = LeanPreflight {
         modules: modules.len(),
         source_bytes: solution.len() + modules.values().map(String::len).sum::<usize>(),
@@ -72,7 +86,7 @@ pub fn lean_project_preflight(
             (1, 0) | (0, 1)
         ) || !solution.lines().any(|line| line.trim() == "import Target"),
     };
-    if let Err(error) = super::validate_lean_modules(solution, modules) {
+    if let Err(error) = super::validate_lean_modules_with(solution, modules, libraries) {
         report.errors.push(error.to_string());
     }
     if report.requires_adapter {
@@ -157,6 +171,14 @@ pub fn lean_project_preflight(
             for dep in words.iter().skip(1).take_while(|w| !w.starts_with("--")) {
                 if modules.contains_key(*dep) {
                     deps.insert((*dep).to_owned());
+                } else if let Some(library) = libraries.iter().find(|library| {
+                    library.owns(dep)
+                        && dep.split('.').all(|part| {
+                            !part.is_empty()
+                                && part.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                        })
+                }) {
+                    imported.insert(library.name.as_str());
                 } else if !["Mathlib", "Target"].contains(dep) && !dep.starts_with("Mathlib.") {
                     report.errors.push(format!("{name}: missing import {dep}; include its source module. Custom dependencies are not fetched."));
                 }
@@ -231,6 +253,17 @@ pub fn lean_project_preflight(
         report.errors.push(format!(
             "Cyclic imports: {}",
             graph.keys().cloned().collect::<Vec<_>>().join(", ")
+        ));
+    }
+    for library in libraries
+        .iter()
+        .filter(|l| imported.contains(l.name.as_str()))
+    {
+        report.warnings.push(format!(
+            "Imports below {} resolve to the prepared library {} at revision {} in the verifier workspace. Each imported module must exist there; this preflight does not check it.",
+            library.roots.join(", "),
+            library.name,
+            library.revision
         ));
     }
     report.warnings.push("Static preflight only. The independent verifier resolves imports in its prepared pinned workspace, checks the exact target and allowed axioms. Lake scripts are preserved as data and never executed; no dependencies are downloaded.".into());

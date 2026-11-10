@@ -139,14 +139,9 @@ async fn project(
 }
 
 async fn preflight(
+    State(app): State<Arc<App>>,
     AuthenticatedCaller(_): AuthenticatedCaller,
     Body(body): Body<NewLeanDeposit>,
 ) -> ApiResult<impl IntoResponse> {
-    body.validate()?;
-    Ok(Json(mathesis_core::model::lean_project_preflight(
-        &body.solution,
-        &body.modules,
-        &body.project_files,
-        &body.toolchain,
-    )))
+    Ok(Json(app.lean_preflight(&body).await?))
 }

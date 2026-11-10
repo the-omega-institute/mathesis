@@ -3,6 +3,7 @@ import type { PublicClaim, PublicPaper } from '../api/types';
 import { Link } from '../routing/router';
 import { resultLabel } from '../lib/statements';
 import { InlineLatex, LatexText } from './Markdown';
+import { ProofBasisNote } from './ProofBasis';
 
 export function PaperResults({ paper }: { paper: PublicPaper }) {
   const claims = paper.claims ?? [];
@@ -21,6 +22,11 @@ export function PaperResults({ paper }: { paper: PublicPaper }) {
           {claim.verified || claim.lean ? (
             <p className="small">{t('A verified formal proof is available.')}</p>
           ) : null}
+          <ProofBasisNote
+            basis={claim.verified?.proof_basis}
+            verdict={claim.verified?.receipt.verdict === 'disproved' ? 'disproved' : 'proved'}
+            compact
+          />
         </li>
       ))}
     </ul>

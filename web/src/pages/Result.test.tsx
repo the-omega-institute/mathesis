@@ -235,6 +235,93 @@ it('shows a checked collected proof with original credit and retrieves the exact
   );
   expect(api.getCollectedPaper).toHaveBeenCalledWith('gap-note', '2', expect.any(Object));
   expect(api.getPaper).not.toHaveBeenCalled();
+  // A receipt without a stated basis claims neither kind.
+  expect(screen.queryByText('New Lean proof')).toBeNull();
+  expect(screen.queryByText('Proved from library declarations')).toBeNull();
+});
+
+it('shows which library declarations a checked collected proof was proved from', async () => {
+  const { dependencyPaper } = await import('../test/dependencyFixtures');
+  const revision = 'b'.repeat(40);
+  const proof = {
+    id: 'library-proof',
+    entrant: {
+      id: 'wishpool-agent',
+      name: 'Mathesis',
+      kind: 'agent' as const,
+      retired: false,
+      revision: 0,
+    },
+    receipt: {
+      library_use: {
+        libraries: [{ name: 'trureturing', revision }],
+        declarations: [
+          { library: 'trureturing', module: 'D5.S3.Result', name: 'D5.S3.Result.result' },
+        ],
+        total: 1,
+        complete: true,
+      },
+      verdict: 'proved' as const,
+      reason: 'Kernel checked.',
+      target_digest: 'target',
+      solution_digest: 'solution',
+      toolchain: 'pinned',
+      axioms: [],
+      checked_at: '2026-11-11T00:00:00Z',
+      duration: 1,
+    },
+    proof_basis: {
+      kind: 'library_declarations' as const,
+      libraries: [{ name: 'trureturing', revision }],
+      declarations: [
+        { library: 'trureturing', module: 'D5.S3.Result', name: 'D5.S3.Result.result' },
+      ],
+      total: 1,
+      complete: true,
+    },
+    solution:
+      'import Target\nimport D5.S3.Result\ntheorem wishpool_solution : wishpool_target_prop := D5.S3.Result.result',
+    also_verified: false,
+  };
+  const later = {
+    ...proof,
+    id: 'new-proof',
+    receipt: { ...proof.receipt, library_use: undefined },
+    proof_basis: { kind: 'new_lean' as const },
+    also_verified: true,
+  };
+  const api = fakeApi({
+    getCollectedPaper: vi.fn(async () => dependencyPaper),
+    getStatement: vi.fn(async () => ({
+      record: 'gap-note',
+      title: dependencyPaper.title,
+      publication: { version: 2, claims_revision: 0 },
+      claim: {
+        id: 's2',
+        kind: 'theorem' as const,
+        role: 'main' as const,
+        label: 'The uniform bound',
+        statement: 'Every gap is bounded.',
+        depends_on: [],
+        verified: proof,
+      },
+      target: {
+        claim: 's2',
+        lean: 'import Mathlib\ndef wishpool_target_prop : Prop := True',
+        digest: 'target',
+        toolchain: 'pinned',
+      },
+      verified_attempts: [proof, later],
+      macros: {},
+    })),
+  });
+  renderWithApp(<ResultPage record="gap-note" claim="s2" />, api);
+  expect(await screen.findByText('Proved from library declarations')).toBeVisible();
+  expect(screen.getByText(`trureturing at revision ${revision}`)).toBeInTheDocument();
+  expect(screen.getByText('D5.S3.Result.result')).toBeInTheDocument();
+  // No repository address in the receipt: the declaration is named without a link.
+  expect(screen.queryByRole('link', { name: /Library source of/ })).toBeNull();
+  expect(screen.getByText('New Lean proof')).toBeVisible();
 });
 
 it("keeps the paper's published Lean source visible while exact statement coverage is being connected", async () => {

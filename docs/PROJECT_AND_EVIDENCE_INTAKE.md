@@ -48,6 +48,10 @@ operator-prepared workspace. Library modules may contain namespaces and import
 specific Mathlib modules. Such imports must resolve to existing prepared artifacts.
 Target and Solution remain strict root modules; all submitted modules, including
 unused modules and comments, undergo the conservative unsafe-construct scan.
+A verifier workspace may additionally declare prepared libraries whose modules
+solutions and supporting modules import; preflight then accepts those imports and
+reports a submitted module named below a library root
+([LIBRARY_BINDING.md](LIBRARY_BINDING.md)).
 The checker never runs uploaded Lake files or downloads dependencies. Custom
 metaprogramming and unresolved dependencies can therefore be deposited but need
 adaptation before verification. The exact target and standard axiom closure remain

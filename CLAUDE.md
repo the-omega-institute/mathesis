@@ -574,8 +574,9 @@ funded; local elaboration and proof verification carry no CMA payer.
   `Classical.choice`, and `Quot.sound` are allowed. Reject axioms, constants,
   opaque/unsafe declarations, sorry/admit, implementation overrides, extern,
   macros/notation/syntax/elaborators/initializers, weakened options, executable
-  commands, and imports other than Mathlib, Target and submitted supporting
-  modules validated under §14.
+  commands, and imports other than Mathlib, Target, submitted supporting
+  modules validated under §14, and prepared libraries declared by the verifier
+  workspace (never imported by a target; see `docs/LIBRARY_BINDING.md`).
 - The verifier is stateless and credential-free: cleared environment (PATH and
   fresh HOME only during compilation), fresh work directory, bounded input and
   output, and a deadline (default 1200 seconds, maximum 3600). Local workers use
@@ -1068,6 +1069,9 @@ An optional legacy verifier URL routes historical pins to the prior service.
 CMA outages retain the original job and remote identities without spending a
 proof generation. A second semantic assessment admits exact translations;
 independent kernel verification alone grants checked status and proof credit.
+New jobs also pin the verifier's prepared libraries with the environment and,
+when any is declared, work library first: prove the Mathlib-only target from an
+existing library declaration, and port or newly prove only what the library lacks.
 
 
 ## Visible formalization pool

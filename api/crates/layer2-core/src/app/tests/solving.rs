@@ -12,6 +12,7 @@ impl Verifier for FakeVerifier {
         }
         Ok(VerificationReceipt {
             used_constants: vec![],
+            library_use: None,
             verdict: if r.solution.contains("reject") {
                 Verdict::Rejected
             } else if r.solution.contains("disproof") {
