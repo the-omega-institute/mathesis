@@ -9,6 +9,7 @@ mod auth;
 mod blobs;
 mod cma;
 mod collected;
+mod collected_problems;
 mod domain;
 mod jobs;
 pub(crate) mod knowledge;
@@ -120,6 +121,16 @@ impl MongoStore {
                 unique(doc! {"id": 1}),
                 unique(doc! {"delivery.work_id": 1, "delivery.version": 1}),
                 unique(doc! {"delivery.work_id": 1, "delivery.previous_version": 1}),
+            ])
+            .await?;
+        // One unforked chain per slug, and one slug per library entry.
+        self.raw(collected_problems::COLLECTION)
+            .create_indexes([
+                unique(doc! {"id": 1}),
+                unique(doc! {"delivery.problem_id": 1, "delivery.version": 1}),
+                unique(doc! {"delivery.problem_id": 1, "delivery.previous_version": 1}),
+                unique(doc! {"key": 1, "delivery.version": 1}),
+                unique(doc! {"key": 1, "delivery.previous_version": 1}),
             ])
             .await?;
         self.raw(PEOPLE)

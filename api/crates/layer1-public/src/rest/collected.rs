@@ -1,5 +1,5 @@
 //! Projection of the trusted collection service. No review or acceptance shortcuts.
-use super::{ApiResult, AppState, Path, Query};
+use super::{ApiResult, AppState, Body, Path, Query};
 use crate::{auth::AuthenticatedCaller, problems::Problem};
 use axum::{
     Json, Router,
@@ -10,7 +10,10 @@ use axum::{
 use mathesis_core::{
     CoreError,
     app::{App, MAX_UPLOAD_BYTES, Upload},
-    model::{CollectedArchiveInput, PaperSearch, PreReviewedDelivery, SubmissionKind},
+    model::{
+        CollectedArchiveInput, CollectedProblemDelivery, PaperSearch, PreReviewedDelivery,
+        SubmissionKind,
+    },
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -20,6 +23,7 @@ pub(super) fn routes() -> Router<Arc<App>> {
             "/pre-reviewed-deliveries",
             post(deliver).layer(DefaultBodyLimit::max(2 * MAX_UPLOAD_BYTES + 256 * 1024)),
         )
+        .route("/collected-problems", post(collect_problem))
         .route("/collected-papers", get(list))
         .route("/collected-papers/{id}", get(paper))
         .route("/collected-papers/{id}/archive", post(attach_archive))
@@ -35,6 +39,14 @@ pub(super) fn routes() -> Router<Arc<App>> {
             post(request_explanation),
         )
         .route("/collected-papers/{id}/files/{kind}", get(file))
+}
+/// Curated open problems enter the problem library here; Layer 2 decides who may.
+async fn collect_problem(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Body(delivery): Body<CollectedProblemDelivery>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(app.collect_problem(&caller, delivery).await?))
 }
 async fn attach_archive(
     State(app): AppState,

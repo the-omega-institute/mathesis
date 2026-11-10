@@ -56,8 +56,9 @@ Problem-centred discovery uses two public read routes:
 
 | Method | Route | Result |
 |---|---|---|
-| GET | `/research-problems?limit=25&before=...` | Stable source problem summaries, the count of public accepted and collected works, and independently scoped resolution status. A problem named by collected works carries `source: {kind, locator}`. |
-| GET | `/research-problems/{id}?before=...` | Original problem descriptions and a page of up to 25 public works: accepted papers/notes in `notes`, with named results, source evidence and contribution credit, and collected works in `collected_notes`, each `{work, title, authors, version, published_on, license, public_path, lean?}` at its current public version. `next_before` continues the page. |
+| GET | `/research-problems?limit=25&before=...` | Stable source problem summaries, the count of public accepted and collected works, and independently scoped resolution status. A curated problem or a problem named by collected works carries `source: {kind, locator, year?}`. A curated problem has `status` `curated_open` or `curated_partially_resolved` with `status_as_of` (a date): the curator's dated reading, never a Mathesis audit result. |
+| GET | `/research-problems/{id}?before=...` | Original problem descriptions and a page of up to 25 public works: accepted papers/notes in `notes`, with named results, source evidence and contribution credit, and collected works in `collected_notes`, each `{work, title, authors, version, published_on, license, public_path, lean?}` at its current public version. `next_before` continues the page. A directly collected problem adds `curated`: `{name, statement, background?, posers, posers_unknown?, source, status, status_as_of, status_evidence: [{url, checked_on, observed}], msc, directions, source_license, license, version, published_on}`. |
+| POST | `/collected-problems` | Trusted collection operators (`WISHPOOL_INTERNAL_SUBJECTS`) only; others receive `403`. Body: a `mathesis.collected-problem.v1` envelope. Returns `{schema, status: "collected", problem_id, version, research_problem, public_path, request_digest}`. The same content returns the same receipt; changed content under a published version, a stale predecessor or a changed name/source is `409`. No review, record, Lean target or credit. |
 
 Public paper responses optionally include `problems: [{id,title}]` for backlinks.
 Public collected-paper responses (`GET /collected-papers`,
@@ -66,7 +67,9 @@ names problems: one `{id,title}` or `null` per `problems` entry, in order.
 Problem IDs persist across note revisions. Private drafts and private reviews do
 not enter this directory. Existing `/conjectures` and proof-attempt routes retain
 their Lean target/verification semantics. See [PROBLEMS_AND_NOTES.md](PROBLEMS_AND_NOTES.md)
-for identity, optional source descriptions, version snapshots and credit.
+for identity, optional source descriptions, version snapshots and credit, and
+[COLLECTED_PROBLEMS.md](COLLECTED_PROBLEMS.md) for the curated problem envelope,
+its limits and the meaning of a curated status.
 
 1. **Upload** (`POST /submissions`): the author sends the LaTeX source (`.tex`,
    `.zip` or `.tar.gz`, at most 30 MB) and metadata. The server reads the title,

@@ -20,18 +20,34 @@ import { Pager } from './Pager';
 import { loadCollectedResult } from '../lib/publicResult';
 import { routePath } from '../routing/routes';
 
+/** Context of work that has no result page: a curated problem. */
+type DepositPrefill = { title: string; statement: string; reference: string };
+
 export function LeanDepositForm({
   targetRecord,
   targetClaim,
   targetVersion,
+  targetProblem,
 }: {
   targetRecord?: string;
   targetClaim?: string;
   targetVersion?: string;
+  targetProblem?: string;
 }) {
   const api = useApi();
   const load = useCallback(
     async (signal: AbortSignal) => {
+      if (targetProblem && !targetRecord) {
+        const { curated } = await api.getResearchProblem(targetProblem, { signal });
+        if (!curated) return null;
+        const prefill: DepositPrefill = {
+          title: curated.name,
+          statement: curated.statement,
+          reference:
+            window.location.origin + routePath({ kind: 'research_problem', id: targetProblem }),
+        };
+        return { prefill, authors: curated.posers.map((poser) => poser.name) };
+      }
       if (!targetRecord || !targetClaim) return null;
       if (!targetRecord.startsWith('WP-')) {
         const { paper, result } = await loadCollectedResult(
@@ -47,14 +63,16 @@ export function LeanDepositForm({
       const authors = (await api.getPaper(targetRecord, { signal })).summary.authors;
       return { statement, authors: authors.map((a) => a.name) };
     },
-    [api, targetRecord, targetClaim, targetVersion],
+    [api, targetRecord, targetClaim, targetVersion, targetProblem],
   );
   const context = useAsync(load);
   return (
     <Async state={context.state} onRetry={context.reload}>
       {(data) =>
-        data?.statement ? (
+        data && 'statement' in data && data.statement ? (
           <DepositForm target={data.statement} originalAuthors={data.authors} />
+        ) : data && 'prefill' in data ? (
+          <DepositForm prefill={data.prefill} originalAuthors={data.authors} />
         ) : (
           <>
             <section className="community-proof-intro">
@@ -80,16 +98,20 @@ export function LeanDepositForm({
 }
 function DepositForm({
   target,
+  prefill,
   originalAuthors,
 }: {
   target?: StatementDetail;
+  prefill?: DepositPrefill;
   originalAuthors?: string[];
 }) {
   const api = useApi();
   const { person } = useSession();
-  const [title, setTitle] = useState(target ? `${target.title} — ${target.claim.label}` : '');
+  const [title, setTitle] = useState(
+    target ? `${target.title} — ${target.claim.label}` : (prefill?.title ?? ''),
+  );
   const [authors, setAuthors] = useState(originalAuthors?.join('\n') ?? person?.display_name ?? '');
-  const [statement, setStatement] = useState(target?.claim.statement ?? '');
+  const [statement, setStatement] = useState(target?.claim.statement ?? prefill?.statement ?? '');
   const [reference, setReference] = useState(
     target
       ? window.location.origin +
@@ -99,7 +121,7 @@ function DepositForm({
             claim: target.claim.id,
             version: target.publication ? String(target.publication.version) : undefined,
           })
-      : '',
+      : (prefill?.reference ?? ''),
   );
   const [toolchain, setToolchain] = useState(target?.target?.toolchain ?? '');
   const [formalizers, setFormalizers] = useState(person?.display_name ?? '');
@@ -293,6 +315,12 @@ function DepositForm({
         <p className="hint">
           {t(
             'The result and its original authors are filled in below. You can save Lean work privately now; verification and public credit require a matching Lean statement.',
+          )}
+        </p>
+      ) : prefill ? (
+        <p className="hint">
+          {t(
+            'The problem and its original posers are filled in below. You can save Lean work privately now; verification and public credit require a matching Lean statement.',
           )}
         </p>
       ) : (

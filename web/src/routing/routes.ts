@@ -35,6 +35,8 @@ export type Route =
       record?: string;
       claim?: string;
       version?: string;
+      /** A curated problem whose statement and posers prefill the Lean intake. */
+      problem?: string;
     }
   | { kind: 'submissions' }
   | { kind: 'queue' }
@@ -158,7 +160,9 @@ export function parseRoute(pathname: string, search = ''): Route {
                 claim: params.get('claim')!,
                 ...(params.get('version') ? { version: params.get('version')! } : {}),
               }
-            : {}),
+            : params.get('problem')
+              ? { intake: 'lean' as const, problem: params.get('problem')! }
+              : {}),
         };
       }
       case 'submissions':
@@ -308,7 +312,7 @@ export function routePath(route: Route): string {
         params.set('record', route.record);
         params.set('claim', route.claim);
         if (route.version) params.set('version', route.version);
-      }
+      } else if (route.problem) params.set('problem', route.problem);
       return `/submit${params.size ? `?${params}` : ''}`;
     }
     case 'submissions':

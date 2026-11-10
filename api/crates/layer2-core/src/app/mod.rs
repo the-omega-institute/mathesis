@@ -146,6 +146,8 @@ mod research_graph;
 pub use research_graph::*;
 
 mod collected;
+mod collected_problems;
 mod collected_proofs;
 pub use collected::{CollectionReceipt, PublicCollectedPaper};
+pub use collected_problems::{CollectedProblemReceipt, PublicCuratedProblem};
 pub use collected_proofs::CollectedProofView;

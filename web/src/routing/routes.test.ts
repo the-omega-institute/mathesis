@@ -19,6 +19,7 @@ const ROUTES: Route[] = [
   { kind: 'submit', intake: 'review' },
   { kind: 'submit', intake: 'conjecture' },
   { kind: 'submit', intake: 'lean', record: 'WP-2026-0001', claim: 'C1' },
+  { kind: 'submit', intake: 'lean', problem: 'a-curated-problem' },
   { kind: 'paper', record: 'WP-2026-0001' },
   { kind: 'policy' },
   { kind: 'submit' },

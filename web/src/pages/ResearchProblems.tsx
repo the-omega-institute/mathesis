@@ -6,6 +6,7 @@ import { usePaged } from '../api/usePaged';
 import type {
   CollectedProblemNote,
   CollectedProof,
+  CuratedProblem,
   ResearchProblemLink,
   ResearchProblemSummary,
   SourceContribution,
@@ -14,16 +15,32 @@ import { AuthorLine } from '../components/AuthorLine';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { Pager } from '../components/Pager';
 import { Async, DateText, ExternalLink, SourceLink } from '../components/ui';
+import { formatDate } from '../lib/format';
 import { safeHttpUrl, sourceHref, sourceLabel } from '../lib/links';
 import { resultLabel } from '../lib/statements';
 import { Link } from '../routing/router';
 
-const statuses: Record<ResearchProblemSummary['status'], string> = {
+type CuratedSummaryStatus = 'curated_open' | 'curated_partially_resolved';
+const statuses: Record<Exclude<ResearchProblemSummary['status'], CuratedSummaryStatus>, string> = {
   related_research: 'Reviewed research',
   settled: 'Settled',
   partial: 'Partial progress',
   conflicting: 'Conflicting conclusions',
 };
+/** A curator's reading is always shown with the day its evidence was last checked. */
+const curatedReadings: Record<CuratedProblem['status'], string> = {
+  open: 'Open as of {date}',
+  partially_resolved: 'Partially resolved as of {date}',
+};
+function curatedReading(status: CuratedProblem['status'], asOf: string): string {
+  return t(curatedReadings[status], { date: formatDate(asOf) });
+}
+function statusText(summary: ResearchProblemSummary): string {
+  if (summary.status !== 'curated_open' && summary.status !== 'curated_partially_resolved')
+    return t(statuses[summary.status]);
+  const status = summary.status === 'curated_open' ? 'open' : 'partially_resolved';
+  return `${t('Curated')} · ${curatedReading(status, summary.status_as_of ?? '')}`;
+}
 const roles: Record<SourceContribution['role'], string> = {
   problem: 'Original problem',
   mathematical_proof: 'Mathematical proof',
@@ -87,6 +104,94 @@ function CollectedNote({ note }: { note: CollectedProblemNote }) {
   );
 }
 
+function Posers({ people }: { people: { name: string; profile_url?: string }[] }) {
+  return (
+    <p>
+      {t('Proposed by')}{' '}
+      {people.map((person, i) => {
+        const url = person.profile_url && safeHttpUrl(person.profile_url);
+        return (
+          <span key={`${person.name}-${i}`}>
+            {i ? '; ' : ''}
+            {url ? <ExternalLink href={url}>{person.name}</ExternalLink> : person.name}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
+/** A directly collected problem: its statement, credit, and the curator's dated reading. */
+function CuratedEntry({ id, problem: c }: { id: string; problem: CuratedProblem }) {
+  return (
+    <>
+      <section aria-label={t('Problem statement')}>
+        <h2>{t('Statement')}</h2>
+        <LatexText source={c.statement} />
+        {c.posers.length ? (
+          <Posers people={c.posers} />
+        ) : (
+          <p>
+            {t('Original poser not recorded:')} {c.posers_unknown}
+          </p>
+        )}
+        <p>
+          <SourceLink source={c.source} />
+        </p>
+        {c.msc.length || c.directions.length ? (
+          <p className="entry-meta">
+            {[...c.msc.map((code) => `MSC ${code}`), ...c.directions].join(' · ')}
+          </p>
+        ) : null}
+      </section>
+      {c.background ? (
+        <section aria-labelledby="problem-background-h">
+          <h2 id="problem-background-h">{t('Background')}</h2>
+          <LatexText source={c.background} />
+        </section>
+      ) : null}
+      <section aria-labelledby="problem-status-h">
+        <h2 id="problem-status-h">{curatedReading(c.status, c.status_as_of)}</h2>
+        <p>
+          {t(
+            'This status is the curator’s reading of the sources below on the dates shown. It is not a Mathesis review or audit result.',
+          )}
+        </p>
+        <ul>
+          {c.status_evidence.map((evidence, index) => {
+            const url = safeHttpUrl(evidence.url);
+            return (
+              <li key={`${evidence.url}-${index}`}>
+                {url ? <ExternalLink href={url}>{evidence.url}</ExternalLink> : evidence.url}
+                {' · '}
+                {t('Checked on')}{' '}
+                <time dateTime={evidence.checked_on}>{formatDate(evidence.checked_on)}</time>
+                {' · '}
+                {evidence.observed}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+      <section aria-labelledby="problem-participate-h">
+        <h2 id="problem-participate-h">{t('Work on this problem')}</h2>
+        <p>
+          {t(
+            'A written solution goes through ordinary review. Lean work is saved with the original posers credited; no Lean statement has been prepared for this problem yet.',
+          )}
+        </p>
+        <p>
+          <Link to={{ kind: 'submit' }}>{t('Submit a written solution')}</Link>
+          {' · '}
+          <Link to={{ kind: 'submit', intake: 'lean', problem: id }}>
+            {t('Contribute a Lean formalization')}
+          </Link>
+        </p>
+      </section>
+    </>
+  );
+}
+
 export function ProblemLinks({ links }: { links: ResearchProblemLink[] }) {
   if (!links.length) return null;
   return (
@@ -126,7 +231,7 @@ export function ResearchProblems() {
                     <InlineLatex source={p.title} />
                   </Link>
                   <p className="entry-meta">
-                    {statuses[p.status]} · {p.notes}{' '}
+                    {statusText(p)} · {p.notes}{' '}
                     {p.notes === 1 ? t('paper or note') : t('papers and notes')}
                   </p>
                 </li>
@@ -158,7 +263,7 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                 <h1>
                   <InlineLatex source={p.summary.title} />
                 </h1>
-                <p>{statuses[p.summary.status]}</p>
+                <p>{statusText(p.summary)}</p>
               </div>
             </header>
             {p.descriptions.map((d, index) => {
@@ -167,24 +272,7 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                 <section key={`${d.id}-${index}`} aria-label={t('Original problem')}>
                   <h2>{t('Original problem')}</h2>
                   <LatexText source={d.statement} />
-                  {d.proposed_by?.length ? (
-                    <p>
-                      {t('Proposed by')}{' '}
-                      {d.proposed_by.map((person, i) => {
-                        const url = person.profile_url && safeHttpUrl(person.profile_url);
-                        return (
-                          <span key={`${person.name}-${i}`}>
-                            {i ? '; ' : ''}
-                            {url ? (
-                              <ExternalLink href={url}>{person.name}</ExternalLink>
-                            ) : (
-                              person.name
-                            )}
-                          </span>
-                        );
-                      })}
-                    </p>
-                  ) : null}
+                  {d.proposed_by?.length ? <Posers people={d.proposed_by} /> : null}
                   <p>
                     {href ? (
                       <ExternalLink href={href}>{sourceLabel(d.problem.source)}</ExternalLink>
@@ -195,7 +283,9 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                 </section>
               );
             })}
-            {p.summary.source ? (
+            {p.curated ? (
+              <CuratedEntry id={id} problem={p.curated} />
+            ) : p.summary.source ? (
               <section aria-label={t('Original problem')}>
                 <h2>{t('Original problem')}</h2>
                 <p>
@@ -276,6 +366,9 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
               {(p.collected_notes ?? []).map((note) => (
                 <CollectedNote key={note.work} note={note} />
               ))}
+              {p.curated && !before && !p.notes.length && !p.collected_notes?.length ? (
+                <p>{t('No paper or note addresses this problem yet.')}</p>
+              ) : null}
             </section>
             {p.next_before ? (
               <p>
@@ -290,6 +383,13 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
               )}
             </p>
             <Link to={{ kind: 'formalizations' }}>{t('Contribute a formal proof')}</Link>
+            {p.curated ? (
+              <p className="entry-meta">
+                {t('Statement text:')} {p.curated.license} · {t('Source licence:')}{' '}
+                {p.curated.source_license} · {t('Version ')}
+                {p.curated.version} · <DateText iso={p.curated.published_on} />
+              </p>
+            ) : null}
           </article>
         )}
       </Async>

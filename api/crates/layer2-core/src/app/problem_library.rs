@@ -1,8 +1,8 @@
 //! Problems are stable; accepted notes, collected works and their versions are
 //! evidence about them.
-use super::{App, clamp};
+use super::{App, PublicCuratedProblem, clamp};
 use crate::{CoreError, CoreResult, ids::*, model::*, ports::Listing};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,6 +14,10 @@ pub enum ResearchProblemStatus {
     Settled,
     Partial,
     Conflicting,
+    /// A curator's dated reading of a directly collected problem; see `status_as_of`.
+    /// Unlike the values above, it is never derived from a Mathesis source audit.
+    CuratedOpen,
+    CuratedPartiallyResolved,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,6 +36,10 @@ pub struct ResearchProblemSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<Source>,
     pub status: ResearchProblemStatus,
+    /// Present exactly for a curated status: the most recent day on which the
+    /// curator checked the evidence listed on the problem.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_as_of: Option<NaiveDate>,
     pub notes: usize,
     pub updated_at: DateTime<Utc>,
 }
@@ -46,6 +54,9 @@ pub struct ResearchProblem {
     /// acceptance, so they stay apart from `notes`.
     #[serde(default)]
     pub collected_notes: Vec<CollectedProblemNote>,
+    /// The directly collected curated entry at its current version, when one exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub curated: Option<PublicCuratedProblem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,14 +117,21 @@ fn key(s: &Submission, source_id: &str) -> Option<String> {
 /// trusted operator and producer. One source can carry several questions, so the
 /// name is part of the identity. The leading tag keeps this family apart from
 /// delivery keys: no evidence relates a producer's problem ID to a named source.
-pub(crate) fn collected_problem_key(v: &CollectedVersion, problem: &CollectedProblem) -> String {
+/// A directly collected curated problem uses the same key, so it and the works
+/// that later name it are one entry.
+pub(crate) fn collected_problem_key(
+    owner: &PersonId,
+    producer: &str,
+    source: &Source,
+    name: &str,
+) -> String {
     let identity = (
         "collected-problem",
-        &v.owner,
-        &v.delivery.producer,
-        problem.source.kind,
-        problem.source.locator.trim(),
-        problem.name.trim(),
+        owner,
+        producer,
+        source.kind,
+        source.locator.trim(),
+        name.trim(),
     );
     format!(
         "{:x}",
@@ -128,7 +146,12 @@ pub(crate) fn collected_problem_links(v: &CollectedVersion) -> Vec<ResearchProbl
         .problems
         .iter()
         .map(|problem| ResearchProblemLink {
-            id: collected_problem_key(v, problem),
+            id: collected_problem_key(
+                &v.owner,
+                &v.delivery.producer,
+                &problem.source,
+                &problem.name,
+            ),
             title: problem.name.trim().to_owned(),
         })
         .collect()
@@ -280,12 +303,14 @@ impl App {
                                         source_id: source_id.clone(),
                                         source: None,
                                         status: ResearchProblemStatus::RelatedResearch,
+                                        status_as_of: None,
                                         notes: 0,
                                         updated_at: updated,
                                     },
                                     descriptions: vec![],
                                     notes: vec![],
                                     collected_notes: vec![],
+                                    curated: None,
                                 },
                                 vec![],
                                 description.is_some(),
@@ -360,7 +385,12 @@ impl App {
                 let d = &v.delivery;
                 let mut named = BTreeSet::new();
                 for problem in &d.paper.problems {
-                    let id = collected_problem_key(&v, problem);
+                    let id = collected_problem_key(
+                        &v.owner,
+                        &d.producer,
+                        &problem.source,
+                        &problem.name,
+                    );
                     // A work counts once per problem, even when its metadata repeats one.
                     if focus.is_some_and(|wanted| wanted != id) || !named.insert(id.clone()) {
                         continue;
@@ -382,12 +412,14 @@ impl App {
                                     // A collected work has no Mathesis source audit, so it
                                     // cannot establish a settlement.
                                     status: ResearchProblemStatus::RelatedResearch,
+                                    status_as_of: None,
                                     notes: 0,
                                     updated_at: v.published_on,
                                 },
                                 descriptions: vec![],
                                 notes: vec![],
                                 collected_notes: vec![],
+                                curated: None,
                             },
                             vec![],
                             true,
@@ -419,10 +451,65 @@ impl App {
                 break;
             }
         }
+        // Directly collected problems are entries in their own right, with or without
+        // a work naming them. Each is read at its current version.
+        let mut curated = vec![];
+        if let Some(wanted) = focus {
+            curated.extend(self.ports.collected_problems.get_by_key(wanted).await?);
+        } else {
+            let mut cursor = None;
+            loop {
+                let page = self.ports.collected_problems.list(100, cursor).await?;
+                curated.extend(page.items);
+                cursor = page.next_before;
+                if cursor.is_none() {
+                    break;
+                }
+            }
+        }
+        for v in curated {
+            let public = PublicCuratedProblem::from(&v);
+            let (item, _, _) = items.entry(v.key.clone()).or_insert_with(|| {
+                (
+                    ResearchProblem {
+                        next_before: None,
+                        summary: ResearchProblemSummary {
+                            id: v.key.clone(),
+                            title: public.name.clone(),
+                            source_id: public.source.locator.clone(),
+                            source: None,
+                            status: ResearchProblemStatus::RelatedResearch,
+                            status_as_of: None,
+                            notes: 0,
+                            updated_at: v.published_on,
+                        },
+                        descriptions: vec![],
+                        notes: vec![],
+                        collected_notes: vec![],
+                        curated: None,
+                    },
+                    vec![],
+                    true,
+                )
+            });
+            // The curated source also carries the descriptive year.
+            item.summary.source = Some(public.source.clone());
+            item.summary.updated_at = item.summary.updated_at.max(v.published_on);
+            item.summary.status_as_of = Some(public.status_as_of);
+            item.curated = Some(public);
+        }
         Ok(items
             .into_iter()
             .map(|(id, (mut item, outcomes, _))| {
-                item.summary.status = status(&outcomes);
+                // A curated entry shows its curator's reading. No collected work carries a
+                // Mathesis source audit, so naming the problem never settles it.
+                item.summary.status = match item.curated.as_ref().map(|c| c.status) {
+                    Some(CuratedStatus::Open) => ResearchProblemStatus::CuratedOpen,
+                    Some(CuratedStatus::PartiallyResolved) => {
+                        ResearchProblemStatus::CuratedPartiallyResolved
+                    }
+                    None => status(&outcomes),
+                };
                 // Record order is stable across note revisions; it is also the note-page cursor.
                 item.notes
                     .sort_by_key(|n| std::cmp::Reverse(n.record.clone()));

@@ -341,6 +341,7 @@ pub trait GrantStore: Send + Sync {
 pub struct Ports {
     pub archives: Arc<dyn ArchiveRegistry>,
     pub collected: Arc<dyn CollectedPaperStore>,
+    pub collected_problems: Arc<dyn CollectedProblemStore>,
     pub deposits: Arc<dyn LeanDepositStore>,
     pub cma_bindings: Arc<dyn CmaBindingStore>,
     pub cma_setup: Arc<dyn CmaSetup>,
@@ -503,6 +504,31 @@ pub trait CollectedPaperStore: Send + Sync {
         limit: u32,
         before: Option<String>,
     ) -> CoreResult<Listing<crate::model::CollectedVersion>>;
+}
+
+/// Immutable curated problem versions. Implementations enforce unique
+/// problem/version, problem/predecessor and key/predecessor pairs atomically, so
+/// one slug has one unforked chain and one library entry has one slug.
+#[async_trait]
+pub trait CollectedProblemStore: Send + Sync {
+    /// This exact version, or the problem's current one.
+    async fn get(
+        &self,
+        problem: &str,
+        version: Option<u32>,
+    ) -> CoreResult<Option<crate::model::CollectedProblemVersion>>;
+    /// The current version of the library entry with this key.
+    async fn get_by_key(
+        &self,
+        key: &str,
+    ) -> CoreResult<Option<crate::model::CollectedProblemVersion>>;
+    async fn insert(&self, version: &crate::model::CollectedProblemVersion) -> CoreResult<()>;
+    /// Every problem at its current version, in descending key order; the cursor is a key.
+    async fn list(
+        &self,
+        limit: u32,
+        before: Option<String>,
+    ) -> CoreResult<Listing<crate::model::CollectedProblemVersion>>;
 }
 
 /// Reads a public published record and checks its archived file bytes against this version.

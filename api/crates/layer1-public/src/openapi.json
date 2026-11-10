@@ -3656,7 +3656,7 @@
     "/api/v1/research-problems": {
       "get": {
         "operationId": "list_research_problems",
-        "summary": "Stable source problems with public accepted research or public collected works",
+        "summary": "Stable source problems: curated open problems, and problems with public accepted research or public collected works",
         "parameters": [
           {
             "name": "limit",
@@ -3713,7 +3713,7 @@
     "/api/v1/research-problems/{id}": {
       "get": {
         "operationId": "research_problem",
-        "summary": "A source problem, its accepted notes and collected works, named results and source contribution credit",
+        "summary": "A source problem, its curated statement and status evidence when directly collected, its accepted notes and collected works, named results and source contribution credit",
         "parameters": [
           {
             "name": "id",
@@ -3744,10 +3744,55 @@
             }
           },
           "404": {
-            "description": "No currently public accepted research or collected work for this problem."
+            "description": "No curated entry and no currently public accepted research or collected work for this problem."
           }
         },
         "security": []
+      }
+    },
+    "/api/v1/collected-problems": {
+      "post": {
+        "operationId": "collect_problem",
+        "summary": "Collect one immutable version of a curated open problem into the public problem library. Trusted collection operators only; no review, audit, admission record, Lean target or credit.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectedProblemDelivery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Receipt of the collected version. A retry of the same content returns the same receipt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectedProblemReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Trusted collection operator required"
+          },
+          "409": {
+            "description": "Changed content under a published version, a predecessor other than the current version, a changed name or source, a problem_id of another operator or producer, or a named source question already collected under another problem_id"
+          },
+          "422": {
+            "description": "Envelope outside the schema or its bounds, a status other than open or partially_resolved, or evidence dated in the future"
+          }
+        }
       }
     },
     "/api/v1/collected-papers/{work}/index": {
@@ -9070,24 +9115,32 @@
           },
           "source_id": {
             "type": "string",
-            "description": "The producer's problem ID; the source locator for a problem named by collected works."
+            "description": "The producer's problem ID; the source locator for a curated problem or a problem named by collected works."
           },
           "source": {
             "$ref": "#/components/schemas/Source",
-            "description": "Present for a problem named by collected works: where it was published."
+            "description": "Present for a curated problem or a problem named by collected works: where it was published."
           },
           "status": {
             "enum": [
               "related_research",
               "settled",
               "partial",
-              "conflicting"
-            ]
+              "conflicting",
+              "curated_open",
+              "curated_partially_resolved"
+            ],
+            "description": "settled, partial and conflicting come from source-audited settlements. curated_open and curated_partially_resolved are a curator's dated reading of a directly collected problem (see status_as_of), never a Mathesis audit result; a work naming the problem does not change them."
+          },
+          "status_as_of": {
+            "type": "string",
+            "format": "date",
+            "description": "Present exactly for a curated status: the most recent day on which the curator checked its evidence."
           },
           "notes": {
             "type": "integer",
             "minimum": 0,
-            "description": "All currently public associated works: accepted notes and collected works."
+            "description": "All currently public associated works: accepted notes and collected works. Zero for a curated problem no work names yet."
           },
           "updated_at": {
             "type": "string",
@@ -9137,6 +9190,10 @@
             },
             "maxItems": 25,
             "description": "Collected works naming this problem, in descending work identity order. A problem lists either accepted notes or collected works."
+          },
+          "curated": {
+            "$ref": "#/components/schemas/PublicCuratedProblem",
+            "description": "Present for a directly collected curated problem."
           }
         },
         "required": [
@@ -9206,6 +9263,328 @@
           "published_on",
           "license",
           "public_path"
+        ],
+        "additionalProperties": false
+      },
+      "ProblemPoser": {
+        "type": "object",
+        "description": "An original poser, named as the source gives the name. A reported name, not a verified identity.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "profile_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2000,
+            "description": "Public HTTPS page without credentials."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "StatusEvidence": {
+        "type": "object",
+        "description": "One public page the curator opened, the day it was opened and what it showed.",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2000,
+            "description": "Public HTTPS page without credentials."
+          },
+          "checked_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "observed": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "url",
+          "checked_on",
+          "observed"
+        ],
+        "additionalProperties": false
+      },
+      "CuratedProblem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "With the source kind and locator, the entry's identity: a collected work naming the same question at the same source joins this entry."
+          },
+          "statement": {
+            "type": "string",
+            "maxLength": 20000,
+            "description": "LaTeX source text of the curated restatement."
+          },
+          "background": {
+            "type": "string",
+            "maxLength": 50000
+          },
+          "posers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemPoser"
+            },
+            "maxItems": 50,
+            "description": "Ordered as the source gives them. Empty exactly when posers_unknown is given."
+          },
+          "posers_unknown": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Why no original poser is named."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "partially_resolved"
+            ],
+            "description": "The curator's reading. A settlement cannot be asserted through collection."
+          },
+          "status_evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusEvidence"
+            },
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "msc": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8
+          },
+          "directions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,80}$"
+            },
+            "maxItems": 16,
+            "uniqueItems": true,
+            "description": "Research-direction tags."
+          },
+          "source_license": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "The source's own licence terms, as the source states them."
+          },
+          "license": {
+            "enum": [
+              "CC-BY-4.0",
+              "CC-BY-SA-4.0",
+              "CC0-1.0"
+            ],
+            "description": "Licence of the curated restatement."
+          }
+        },
+        "required": [
+          "name",
+          "statement",
+          "source",
+          "status",
+          "status_evidence",
+          "source_license",
+          "license"
+        ],
+        "additionalProperties": false
+      },
+      "CollectedProblemDelivery": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "mathesis.collected-problem.v1"
+          },
+          "producer": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,160}$"
+          },
+          "problem_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,160}$",
+            "description": "Stable slug of this problem for its operator and producer."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "previous_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "The current published version; null for the first."
+          },
+          "authorize_publication": {
+            "const": true
+          },
+          "problem": {
+            "$ref": "#/components/schemas/CuratedProblem"
+          }
+        },
+        "required": [
+          "schema",
+          "producer",
+          "problem_id",
+          "version",
+          "authorize_publication",
+          "problem"
+        ],
+        "additionalProperties": false
+      },
+      "CollectedProblemReceipt": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "mathesis.collected-problem-receipt.v1"
+          },
+          "status": {
+            "const": "collected"
+          },
+          "problem_id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "research_problem": {
+            "type": "string",
+            "description": "The lasting problem-library entry id."
+          },
+          "public_path": {
+            "type": "string",
+            "description": "Reader address of the problem page."
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 of the admitted envelope in the server's canonical form."
+          }
+        },
+        "required": [
+          "schema",
+          "status",
+          "problem_id",
+          "version",
+          "research_problem",
+          "public_path",
+          "request_digest"
+        ],
+        "additionalProperties": false
+      },
+      "PublicCuratedProblem": {
+        "type": "object",
+        "description": "A directly collected curated problem at its current version. Its status is the curator's dated reading of the listed evidence, never a Mathesis review or audit result.",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string",
+            "maxLength": 20000,
+            "description": "LaTeX source text."
+          },
+          "background": {
+            "type": "string",
+            "maxLength": 50000
+          },
+          "posers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemPoser"
+            },
+            "maxItems": 50
+          },
+          "posers_unknown": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "partially_resolved"
+            ]
+          },
+          "status_as_of": {
+            "type": "string",
+            "format": "date",
+            "description": "The most recent day on which the curator checked the listed evidence."
+          },
+          "status_evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusEvidence"
+            },
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "msc": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8
+          },
+          "directions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,80}$"
+            },
+            "maxItems": 16,
+            "uniqueItems": true,
+            "description": "Research-direction tags."
+          },
+          "source_license": {
+            "type": "string"
+          },
+          "license": {
+            "enum": [
+              "CC-BY-4.0",
+              "CC-BY-SA-4.0",
+              "CC0-1.0"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "published_on": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "statement",
+          "posers",
+          "source",
+          "status",
+          "status_as_of",
+          "status_evidence",
+          "msc",
+          "directions",
+          "source_license",
+          "license",
+          "version",
+          "published_on"
         ],
         "additionalProperties": false
       },
