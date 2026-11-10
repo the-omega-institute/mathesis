@@ -62,7 +62,8 @@ decision → immediate public display → private letter → Lean.
   targets and `wishpool-agent` attempts. Supporters is unranked, with tokens from
   NyxID receipts only. See [docs/CONTRIBUTE.md](docs/CONTRIBUTE.md).
 
-The rules are in [CLAUDE.md](CLAUDE.md) and the threshold is one pure
+The rules are in [CLAUDE.md](CLAUDE.md) and the area contracts under
+[docs/contract/](docs/contract/); the threshold is one pure
 function, [`policy.rs`](api/crates/layer2-core/src/policy.rs). The HTTP
 contract is [docs/API.md](docs/API.md); the design is
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
