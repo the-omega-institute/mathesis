@@ -5,6 +5,11 @@
 reuse, community help and a first Mathesis contribution. It does not require an
 account. The Formalizations tabs, contribution guide and site footer link to it;
 the main navigation remains focused on research and submission.
+The home introduction links to the guide as “Get familiar with Lean
+formalization.” The guide immediately offers download/setup and browser practice
+links. A short download section explains the two installed components (VS Code
+and the official Lean 4 extension), links each directly, and sends users through
+the official setup guide to install Lean itself.
 
 The page uses one continuous reading column aligned with the heading and compact
 wrapping contents links. Browser practice opens the official Lean Web editor with
@@ -38,6 +43,8 @@ Sources checked on 2026-11-10:
   Its companion project is <https://github.com/leanprover-community/mathematics_in_lean>.
 - Theorem Proving in Lean 4: <https://lean-lang.org/theorem_proving_in_lean4/>.
 - Official installation: <https://lean-lang.org/install/>.
+- VS Code downloads: <https://code.visualstudio.com/Download>.
+- Official Lean 4 extension: <https://marketplace.visualstudio.com/items?itemName=leanprover.lean4>.
 - Mathlib documentation: <https://leanprover-community.github.io/mathlib4_docs/>.
 - Loogle: <https://loogle.lean-lang.org/>.
 - Existing projects: <https://leanprover-community.github.io/install/project.html>.

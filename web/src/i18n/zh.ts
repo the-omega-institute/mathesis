@@ -2255,4 +2255,25 @@ export const zh: Record<string, string> = {
     '完整的证明还需要补齐所有空缺：含有 sorry 占位符的文件也可能编译通过，但会有警告。因此还要确认准确的命题、假设和依赖，不能只看编译结果。',
   'Lean is free, open-source software that checks mathematical proofs step by step. Explore how results build on one another, find a proof to contribute, and receive credit for your work.':
     'Lean 是免费、开源的数学证明软件，能逐步检查证明的逻辑。在这里，你可以查看结果之间的依赖关系、寻找可参与的证明工作，并获得贡献署名。',
+  'Get familiar with Lean formalization': '了解 Lean 与数学形式化',
+  'Download and install Lean': '下载与安装 Lean',
+  'Try Lean in your browser': '无需安装，在线试用',
+  'Where to download Lean': 'Lean 在哪里下载',
+  'Start with Lean’s official installation guide. The usual setup has two parts: VS Code, the editor in which you write proofs, and the Lean 4 extension, which helps install Lean and checks your work. Both are free.':
+    '从 Lean 官方安装指南开始。通常需要安装两样东西：VS Code 是书写证明的编辑器，Lean 4 扩展负责引导安装 Lean 并检查证明。两者都免费。',
+  'Official Lean installation guide': 'Lean 官方安装指南',
+  'Download VS Code': '下载 VS Code',
+  'Choose Windows, macOS or Linux, then install and open the editor.':
+    '选择适合自己电脑的 Windows、macOS 或 Linux 版本，安装后打开编辑器。',
+  'Install the official Lean 4 extension': '安装官方 Lean 4 扩展',
+  'Open this extension page and select Install. Allow it to open VS Code, then finish installing the extension there.':
+    '打开这个扩展页面，点击 Install，允许网页打开 VS Code，再在编辑器里完成扩展安装。',
+  'Complete the Lean setup guide in VS Code': '在 VS Code 中完成 Lean 安装向导',
+  'Follow the extension’s setup guide to install Lean. To reopen it, create an empty file, select the ∀ symbol at the top right, then Documentation → Show Setup Guide. The official installation page illustrates each step.':
+    '按照扩展中的安装向导完成 Lean 安装。需要重新打开向导时，新建一个空白文件，点击右上角的 ∀ 符号，再选择 Documentation → Show Setup Guide。官方安装页面有每一步的图示。',
+  'Once setup is complete, open a tutorial project or an existing Lean project. The extension helps you use the Lean version that project requires. To try a first proof immediately, the browser editor works without any download.':
+    '安装完成后，打开教程项目或已有的 Lean 项目，扩展会帮助你使用项目要求的 Lean 版本。如果只是先试一个证明，也可以直接使用网页编辑器，不用下载任何东西。',
+  'download and setup steps above': '上面的下载与安装步骤',
+  'and open a .lean file inside a Lean project in VS Code. Lean checks the file as you edit; the information panel shows the current goal and any errors.':
+    '完成设置，再用 VS Code 打开 Lean 项目里的 .lean 文件。编辑时 Lean 会自动检查，信息面板会显示当前证明目标和错误。',
 };

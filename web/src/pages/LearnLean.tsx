@@ -124,6 +124,10 @@ export function LearnLeanPage() {
               'Lean is free, open-source software for writing mathematical proofs and checking every logical step by computer.',
             )}
           </p>
+          <p className="learning-next">
+            <a href="#download-lean">{t('Download and install Lean')}</a>
+            <a href="https://live.lean-lang.org/">{t('Try Lean in your browser')}</a>
+          </p>
         </div>
       </header>
       <div className="learning-layout">
@@ -132,6 +136,9 @@ export function LearnLeanPage() {
           <ul>
             <li>
               <a href="#what-is-lean">{t('What Lean does')}</a>
+            </li>
+            <li>
+              <a href="#download-lean">{t('Where to download Lean')}</a>
             </li>
             <li>
               <a href="#check-a-proof">{t('Run and check a proof')}</a>
@@ -172,6 +179,46 @@ export function LearnLeanPage() {
               </a>
             </p>
           </section>
+          <section aria-labelledby="download-lean">
+            <h2 id="download-lean">{t('Where to download Lean')}</h2>
+            <p>
+              {t(
+                'Start with Lean’s official installation guide. The usual setup has two parts: VS Code, the editor in which you write proofs, and the Lean 4 extension, which helps install Lean and checks your work. Both are free.',
+              )}
+            </p>
+            <p>
+              <a href="https://lean-lang.org/install/">{t('Official Lean installation guide')}</a>
+            </p>
+            <ol className="learning-contribution-steps">
+              <li>
+                <a href="https://code.visualstudio.com/Download">{t('Download VS Code')}</a>
+                <p>{t('Choose Windows, macOS or Linux, then install and open the editor.')}</p>
+              </li>
+              <li>
+                <a href="https://marketplace.visualstudio.com/items?itemName=leanprover.lean4">
+                  {t('Install the official Lean 4 extension')}
+                </a>
+                <p>
+                  {t(
+                    'Open this extension page and select Install. Allow it to open VS Code, then finish installing the extension there.',
+                  )}
+                </p>
+              </li>
+              <li>
+                <strong>{t('Complete the Lean setup guide in VS Code')}</strong>
+                <p>
+                  {t(
+                    'Follow the extension’s setup guide to install Lean. To reopen it, create an empty file, select the ∀ symbol at the top right, then Documentation → Show Setup Guide. The official installation page illustrates each step.',
+                  )}
+                </p>
+              </li>
+            </ol>
+            <p>
+              {t(
+                'Once setup is complete, open a tutorial project or an existing Lean project. The extension helps you use the Lean version that project requires. To try a first proof immediately, the browser editor works without any download.',
+              )}
+            </p>
+          </section>
           <section aria-labelledby="check-a-proof">
             <h2 id="check-a-proof">{t('Run and check a proof')}</h2>
             <p>
@@ -192,9 +239,9 @@ export function LearnLeanPage() {
             </p>
             <p>
               <strong>{t('On your computer.')}</strong> {t('Follow the ')}
-              <a href="https://lean-lang.org/install/">{t('official installation guide')}</a>
+              <a href="#download-lean">{t('download and setup steps above')}</a>
               {t(
-                ' to install VS Code and its Lean 4 extension. Open an existing Lean project, then a .lean file. Lean checks the file as you edit; the information panel shows the current goal and any errors. Use the version specified by the project.',
+                ' and open a .lean file inside a Lean project in VS Code. Lean checks the file as you edit; the information panel shows the current goal and any errors.',
               )}
             </p>
             <p>
