@@ -517,6 +517,7 @@ export const zh: Record<string, string> = {
   'Read full text and version history': '阅读全文与版本历史',
   'Original publication': '原始发表',
   'Lean evidence:': 'Lean 证据：',
+  'Lean status:': 'Lean 状态：',
   'Contributions recorded in this note': '短文中记录的贡献',
   'Contribution evidence': '贡献证据',
   'More papers and notes': '更多论文与短文',

@@ -3656,7 +3656,7 @@
     "/api/v1/research-problems": {
       "get": {
         "operationId": "list_research_problems",
-        "summary": "Stable source problems with public accepted research",
+        "summary": "Stable source problems with public accepted research or public collected works",
         "parameters": [
           {
             "name": "limit",
@@ -3713,7 +3713,7 @@
     "/api/v1/research-problems/{id}": {
       "get": {
         "operationId": "research_problem",
-        "summary": "A source problem, its accepted notes, named results and source contribution credit",
+        "summary": "A source problem, its accepted notes and collected works, named results and source contribution credit",
         "parameters": [
           {
             "name": "id",
@@ -3729,7 +3729,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Continue the note page with the returned record cursor."
+            "description": "Continue the note page with the returned record or work cursor."
           }
         ],
         "responses": {
@@ -3744,7 +3744,7 @@
             }
           },
           "404": {
-            "description": "No currently public accepted research for this problem."
+            "description": "No currently public accepted research or collected work for this problem."
           }
         },
         "security": []
@@ -9068,7 +9068,12 @@
             "type": "string"
           },
           "source_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The producer's problem ID; the source locator for a problem named by collected works."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Present for a problem named by collected works: where it was published."
           },
           "status": {
             "enum": [
@@ -9080,7 +9085,8 @@
           },
           "notes": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "All currently public associated works: accepted notes and collected works."
           },
           "updated_at": {
             "type": "string",
@@ -9122,13 +9128,83 @@
               "$ref": "#/components/schemas/ProblemNote"
             },
             "maxItems": 25
+          },
+          "collected_notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectedProblemNote"
+            },
+            "maxItems": 25,
+            "description": "Collected works naming this problem, in descending work identity order. A problem lists either accepted notes or collected works."
           }
         },
         "required": [
           "summary",
           "next_before",
           "descriptions",
-          "notes"
+          "notes",
+          "collected_notes"
+        ],
+        "additionalProperties": false
+      },
+      "CollectedProblemNote": {
+        "type": "object",
+        "description": "A trusted collected work at its current public version. It carries no Mathesis acceptance or verification.",
+        "properties": {
+          "work": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Author"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "published_on": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "license": {
+            "type": "string"
+          },
+          "public_path": {
+            "type": "string",
+            "description": "Reader address of this exact version."
+          },
+          "lean": {
+            "type": "object",
+            "description": "Pinned public Lean source of this exact version: a link, never a verifier receipt.",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "revision": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "revision"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "work",
+          "title",
+          "authors",
+          "version",
+          "published_on",
+          "license",
+          "public_path"
         ],
         "additionalProperties": false
       },

@@ -16,7 +16,8 @@ export type ProjectNote = {
   license: string;
   published_on: string;
   problem_ids: string[];
-  problems: Settles[];
+  /** `id` is the lasting problem page of a live collected problem, when it has one. */
+  problems: (Settles & { id?: string })[];
   lean?: { url: string; revision: string };
   pdf: { url: string; sha256: string };
   source: { url: string; sha256: string };
@@ -38,7 +39,10 @@ export function collectedPaperNote(paper: CollectedPaper): ProjectNote {
     license: paper.license,
     published_on: paper.published_on,
     problem_ids: paper.problems.map((problem) => problem.source.locator),
-    problems: paper.problems,
+    problems: paper.problems.map((problem, index) => ({
+      ...problem,
+      id: paper.problem_links?.[index]?.id,
+    })),
     lean: paper.lean,
     pdf: { ...paper.pdf, sha256: '' },
     source: { ...paper.source, sha256: '' },

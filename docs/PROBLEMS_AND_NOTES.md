@@ -52,7 +52,45 @@ entry does not create a target, a verified proof, an award or a leaderboard scor
 Private drafts, private reviews, refused manuscripts and private accepted
 details never create public problem entries. A visibility change also removes
 that work's problem description, source evidence and contribution history. A
-problem with no remaining public accepted work returns 404.
+problem with no remaining public accepted or collected work returns 404.
+
+## Problems named by collected works
+
+A pre-reviewed collection delivery names its problems in `paper.problems` as a
+`name` and a `source`, without a producer problem ID. Every currently public
+collected work contributes those problems to the same two routes. They are
+derived at read time from each work's latest stored version; deliveries,
+receipts and digests are never rewritten, and no derived collection or cache
+holds a problem description.
+
+The collected problem key derives from the collecting operator, the producer,
+the source kind, the source locator and the exact name. Surrounding whitespace
+is ignored and `source.year` is descriptive only. One source can carry several
+questions, so kind and locator alone do not identify a problem. Works from the
+same operator and producer naming the same question at the same source share
+one problem. Another operator, producer, source or name is another problem; a
+renamed problem in a later version is a new entry until separate evidence
+reconciles the two. Collected keys and delivery keys are separate families: a
+delivery's problem ID and a named source question never merge, even when their
+names and sources agree.
+
+`summary.source` carries the source kind and locator, and `summary.source_id`
+repeats the locator. `collected_notes` lists each work once at its current
+public version, with its title, authors, `public_path` and the pinned public
+Lean source when one was published. Earlier versions stay reachable through
+the work. `summary.notes` counts all currently public associated works. A key
+belongs to one family, so a detail page lists either accepted notes or
+collected works: at most 25 per page, collected works in descending work
+identity order, continued by `next_before`. A collected work carries no
+Mathesis source audit, so its problem stays **Reviewed research**, and its
+checked Lean results remain on `/collected-papers/{work}/proofs?version=N`.
+
+Public collected-paper responses add `problem_links`, aligned with `problems`:
+`{id, title}`, or `null` on an earlier version once the work's current version
+no longer names that problem. The field is omitted when a work names no
+problem. The collected reader links each named problem to `/problems/{id}`.
+The problem page renders collected works in the same **Papers and notes**
+list as accepted notes, with their Lean source and checked-result counts.
 
 ## Optional source descriptions
 

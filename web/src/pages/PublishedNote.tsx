@@ -135,7 +135,13 @@ export function PublishedNotePage({
                   const href = sourceHref(problem.source);
                   return (
                     <li key={index}>
-                      <InlineLatex source={problem.name} />
+                      {problem.id ? (
+                        <Link to={{ kind: 'research_problem', id: problem.id }}>
+                          <InlineLatex source={problem.name} />
+                        </Link>
+                      ) : (
+                        <InlineLatex source={problem.name} />
+                      )}
                       {href ? (
                         <span>
                           {' '}

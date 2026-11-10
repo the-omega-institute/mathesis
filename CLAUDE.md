@@ -959,7 +959,10 @@ version. A source-SHA-bound bibliography sidecar is read deterministically from
 the existing source archive; admin backfill neither mutates delivery receipts nor
 queues review, compilation or proof work. Graph pagination traverses accepted
 records and then collected works, filtering matches before pagination. Citation
-edges remain source-declared references, never proof dependencies.
+edges remain source-declared references, never proof dependencies. Problems
+named by current public collected works enter the problem library at read time
+under their own operator/producer/source/name identity; see
+`docs/PROBLEMS_AND_NOTES.md`.
 
 The Lean graph includes published collected Lean sources alongside independently
 checked propositions and confirmed targets. A source link alone is not a checked

@@ -1,6 +1,7 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 mod collected;
+mod collected_problems;
 mod collected_proofs;
 mod explanations;
 mod knowledge;

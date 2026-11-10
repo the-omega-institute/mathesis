@@ -104,4 +104,77 @@ describe('problem-centred research records', () => {
     );
     expect(screen.queryByText(/Lean verified|Lean ✓|C1|r4|thm:main/)).not.toBeInTheDocument();
   });
+
+  it('centres a problem named by collected works on its source, their exact version and Lean status', async () => {
+    const lean = 'https://github.com/example/research/blob/0123456789/Formula.lean';
+    const collected: ResearchProblem = {
+      next_before: 'a-collected-note',
+      summary: {
+        id: 'collected-problem',
+        source_id: 'A391810',
+        source: { kind: 'oeis', locator: 'A391810' },
+        title: "A poser's formula (5) in OEIS A391810",
+        status: 'related_research',
+        notes: 26,
+        updated_at: '2026-11-10T08:00:00Z',
+      },
+      descriptions: [],
+      notes: [],
+      collected_notes: [
+        {
+          work: 'a-collected-note',
+          title: 'A proof of the formula',
+          authors: [{ name: 'Collected Author' }],
+          version: 4,
+          published_on: '2026-11-10T08:00:00Z',
+          license: 'CC-BY-4.0',
+          public_path: '/papers/a-collected-note?version=4',
+          lean: { url: lean, revision: '0123456789' },
+        },
+      ],
+    };
+    const proof = { version: 4, next_step: '', proofs: [] };
+    const collectedKnowledge = vi.fn(async () => ({
+      work: 'a-collected-note',
+      version: 4,
+      statements: [],
+      connections: [],
+      macros: {},
+      limitations: [],
+      formalizations: [
+        { ...proof, claim: 's1', state: 'verified' as const },
+        { ...proof, claim: 's2', state: 'verified' as const },
+        { ...proof, claim: 's3', state: 'open' as const },
+        { ...proof, claim: 's4', state: 'preparing' as const },
+      ],
+    }));
+    renderWithApp(
+      <ResearchProblemPage id="collected-problem" />,
+      fakeApi({ getResearchProblem: vi.fn(async () => collected), collectedKnowledge }),
+    );
+    expect(
+      await screen.findByRole('heading', { name: "A poser's formula (5) in OEIS A391810" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'OEIS A391810' })).toHaveAttribute(
+      'href',
+      'https://oeis.org/A391810',
+    );
+    expect(screen.getByRole('link', { name: 'A proof of the formula' })).toHaveAttribute(
+      'href',
+      '/papers/a-collected-note?version=4',
+    );
+    expect(screen.getByText('Collected Author')).toBeInTheDocument();
+    expect(screen.getByText(/Version 4/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Lean source' })).toHaveAttribute('href', lean);
+    const status = (await screen.findByText(/Verified in Lean: 2/)).closest('p')!;
+    expect(status).toHaveTextContent(
+      'Lean status: Lean source · Verified in Lean: 2 · Open for formalization: 1',
+    );
+    expect(status).not.toHaveTextContent(/Disproved|Awaiting/);
+    expect(collectedKnowledge).toHaveBeenCalledWith('a-collected-note', '4', expect.anything());
+    expect(screen.getByRole('link', { name: 'More papers and notes' })).toHaveAttribute(
+      'href',
+      '/problems/collected-problem?before=a-collected-note',
+    );
+  });
 });

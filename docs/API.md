@@ -56,10 +56,13 @@ Problem-centred discovery uses two public read routes:
 
 | Method | Route | Result |
 |---|---|---|
-| GET | `/research-problems?limit=25&before=...` | Stable source problem summaries, accepted work count and independently scoped resolution status. |
-| GET | `/research-problems/{id}?before=...` | Original problem descriptions and a page of up to 25 public accepted papers/notes, with named results, source evidence and contribution credit. `next_before` continues the notes. |
+| GET | `/research-problems?limit=25&before=...` | Stable source problem summaries, the count of public accepted and collected works, and independently scoped resolution status. A problem named by collected works carries `source: {kind, locator}`. |
+| GET | `/research-problems/{id}?before=...` | Original problem descriptions and a page of up to 25 public works: accepted papers/notes in `notes`, with named results, source evidence and contribution credit, and collected works in `collected_notes`, each `{work, title, authors, version, published_on, license, public_path, lean?}` at its current public version. `next_before` continues the page. |
 
 Public paper responses optionally include `problems: [{id,title}]` for backlinks.
+Public collected-paper responses (`GET /collected-papers`,
+`GET /collected-papers/{work}?version=N`) include `problem_links` when the work
+names problems: one `{id,title}` or `null` per `problems` entry, in order.
 Problem IDs persist across note revisions. Private drafts and private reviews do
 not enter this directory. Existing `/conjectures` and proof-attempt routes retain
 their Lean target/verification semantics. See [PROBLEMS_AND_NOTES.md](PROBLEMS_AND_NOTES.md)

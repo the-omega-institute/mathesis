@@ -3,11 +3,17 @@ import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { usePaged } from '../api/usePaged';
-import type { ResearchProblemLink, ResearchProblemSummary, SourceContribution } from '../api/types';
+import type {
+  CollectedProblemNote,
+  CollectedProof,
+  ResearchProblemLink,
+  ResearchProblemSummary,
+  SourceContribution,
+} from '../api/types';
 import { AuthorLine } from '../components/AuthorLine';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { Pager } from '../components/Pager';
-import { Async, DateText, ExternalLink } from '../components/ui';
+import { Async, DateText, ExternalLink, SourceLink } from '../components/ui';
 import { safeHttpUrl, sourceHref, sourceLabel } from '../lib/links';
 import { resultLabel } from '../lib/statements';
 import { Link } from '../routing/router';
@@ -25,6 +31,61 @@ const roles: Record<SourceContribution['role'], string> = {
   formalization: 'Formalization',
   correction: 'Correction',
 };
+const leanStates: [CollectedProof['state'], string][] = [
+  ['verified', 'Verified in Lean'],
+  ['disproved', 'Disproved in Lean'],
+  ['open', 'Open for formalization'],
+];
+
+/** A collected work's published Lean source and its independently checked results. */
+function CollectedLeanStatus({ note }: { note: CollectedProblemNote }) {
+  const api = useApi();
+  const version = String(note.version);
+  const load = useCallback(
+    (signal: AbortSignal) => api.collectedKnowledge(note.work, version, { signal }),
+    [api, note.work, version],
+  );
+  const rows = useAsync(load).value?.formalizations ?? [];
+  const source = note.lean ? safeHttpUrl(note.lean.url) : null;
+  const checked = leanStates
+    .map(([state, label]) => [label, rows.filter((row) => row.state === state).length] as const)
+    .filter(([, count]) => count > 0);
+  if (!source && !checked.length) return null;
+  return (
+    <p>
+      {t('Lean status:')}{' '}
+      {source ? <ExternalLink href={source}>{t('Lean source')}</ExternalLink> : null}
+      {checked.map(([label, count], index) => (
+        <span key={label}>
+          {source || index ? ' · ' : ''}
+          {t(label)}: {count}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function CollectedNote({ note }: { note: CollectedProblemNote }) {
+  const paper = { kind: 'paper', record: note.work, version: String(note.version) } as const;
+  return (
+    <article className="paper-entry">
+      <h3>
+        <Link to={paper}>
+          <InlineLatex source={note.title} />
+        </Link>
+      </h3>
+      <AuthorLine authors={note.authors} />
+      <p className="entry-meta">
+        {t('Version ')}
+        {note.version} · <DateText iso={note.published_on} /> · {note.license}
+      </p>
+      <p>
+        <Link to={paper}>{t('Read full text and version history')}</Link>
+      </p>
+      <CollectedLeanStatus note={note} />
+    </article>
+  );
+}
 
 export function ProblemLinks({ links }: { links: ResearchProblemLink[] }) {
   if (!links.length) return null;
@@ -134,6 +195,14 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                 </section>
               );
             })}
+            {p.summary.source ? (
+              <section aria-label={t('Original problem')}>
+                <h2>{t('Original problem')}</h2>
+                <p>
+                  <SourceLink source={p.summary.source} />
+                </p>
+              </section>
+            ) : null}
             {before ? (
               <p>
                 <Link to={{ kind: 'research_problem', id }}>{t('Back to the first notes')}</Link>
@@ -203,6 +272,9 @@ export function ResearchProblemPage({ id, before }: { id: string; before?: strin
                     </details>
                   ) : null}
                 </article>
+              ))}
+              {(p.collected_notes ?? []).map((note) => (
+                <CollectedNote key={note.work} note={note} />
               ))}
             </section>
             {p.next_before ? (
