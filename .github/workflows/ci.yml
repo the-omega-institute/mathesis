@@ -13,6 +13,89 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A pull request runs the gates of the areas it changes. Every other event
+  # (pushes to develop and main) runs all of them: each output below is true
+  # without consulting the step. A job skipped by its `if:` reports as skipped,
+  # which satisfies a required status check; a workflow-level `paths:` filter
+  # would leave that check pending.
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-24.04
+    outputs:
+      api: ${{ github.event_name != 'pull_request' || steps.areas.outputs.api == 'true' }}
+      sdk: ${{ github.event_name != 'pull_request' || steps.areas.outputs.sdk == 'true' }}
+      web: ${{ github.event_name != 'pull_request' || steps.areas.outputs.web == 'true' }}
+      images: ${{ github.event_name != 'pull_request' || steps.areas.outputs.images == 'true' }}
+      api_image: ${{ github.event_name != 'pull_request' || steps.areas.outputs.api_image == 'true' }}
+      web_image: ${{ github.event_name != 'pull_request' || steps.areas.outputs.web_image == 'true' }}
+      verifier: ${{ github.event_name != 'pull_request' || steps.areas.outputs.verifier == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+      - name: Areas changed against the pull request base
+        id: areas
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          api=false sdk=false web=false images=false api_image=false web_image=false verifier=false all=false
+          # The verifier image compiles only mathesis-verifier. Sources of the
+          # other crates are not its inputs while its manifest names no
+          # workspace crate.
+          verifier_alone=false
+          if awk '!/^name *=/ && /mathesis-|path *=/ { exit 1 }' api/crates/verifier/Cargo.toml; then
+            verifier_alone=true
+          fi
+          # GitHub tests the merge of the pull request into its base: the first
+          # parent is the base, the second the pull request head. Without that
+          # shape, or for a path no rule names, every gate runs.
+          head=$(git rev-parse --verify --quiet 'HEAD^2' || true)
+          if [ -n "$head" ] && [ "$head" = "$HEAD_SHA" ] &&
+            files=$(git diff --name-only --no-renames 'HEAD^1' HEAD); then
+            sed 's/^/changed: /' <<< "$files"
+            while IFS= read -r path; do
+              case "$path" in
+                '' | docs/* | README.md | CLAUDE.md) ;;
+                sdk/*) sdk=true ;;
+                web/*)
+                  web=true images=true web_image=true
+                  # API tests check the LaTeX reader against the web citation fixtures.
+                  case "$path" in web/src/test/*.json) api=true ;; esac
+                  ;;
+                api/*)
+                  api=true images=true api_image=true
+                  case "$path" in
+                    api/crates/verifier/*) verifier=true ;;
+                    api/crates/*/src/* | api/crates/*/tests/*) [ "$verifier_alone" = true ] || verifier=true ;;
+                    *) verifier=true ;;
+                  esac
+                  ;;
+                infra/*)
+                  # API tests read the configuration keys declared in infra/api,
+                  # web tests the Mathlib pin in infra/verifier, kubeconform
+                  # every manifest.
+                  api=true web=true images=true
+                  case "$path" in
+                    infra/api/*) api_image=true ;;
+                    infra/web/*) web_image=true ;;
+                    infra/verifier/*) verifier=true ;;
+                  esac
+                  ;;
+                *) all=true ;;
+              esac
+            done <<< "$files"
+          else
+            echo "::warning::HEAD is not the merge commit of this pull request; running every gate"
+            all=true
+          fi
+          if [ "$all" = true ]; then
+            api=true sdk=true web=true images=true api_image=true web_image=true verifier=true
+          fi
+          printf '%s\n' "api=$api" "sdk=$sdk" "web=$web" "images=$images" \
+            "api_image=$api_image" "web_image=$web_image" "verifier=$verifier" | tee -a "$GITHUB_OUTPUT"
+
   structure:
     name: Repository structure and layer rule
     runs-on: ubuntu-24.04
@@ -53,6 +136,8 @@ jobs:
 
   api:
     name: API (fmt, clippy, tests, deny)
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -89,6 +174,8 @@ jobs:
 
   sdk:
     name: Contributor SDK (fmt, clippy, tests)
+    needs: changes
+    if: needs.changes.outputs.sdk == 'true'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -107,6 +194,8 @@ jobs:
 
   web:
     name: Web (format, lint, types, tests, build, audit)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -149,12 +238,16 @@ jobs:
 
   images:
     name: Images and manifests
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - run: docker build -f infra/api/Dockerfile -t mathesis-api:ci .
-      - run: docker build -f infra/web/Dockerfile -t mathesis-web:ci .
+      - if: needs.changes.outputs.api_image == 'true'
+        run: docker build -f infra/api/Dockerfile -t mathesis-api:ci .
+      - if: needs.changes.outputs.web_image == 'true'
+        run: docker build -f infra/web/Dockerfile -t mathesis-web:ci .
       - name: kubeconform
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
@@ -162,6 +255,8 @@ jobs:
 
   verifier:
     name: Verifier image and real Lean proofs
+    needs: changes
+    if: needs.changes.outputs.verifier == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:

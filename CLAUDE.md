@@ -377,6 +377,9 @@ the MongoDB tests and `WISHPOOL_TEST_TEX_BIN` for the compile tests),
 `build`, `npm audit --audit-level=high`. Cross-cutting: gitleaks, image
 builds, kubeconform.
 
+Pull requests run the gates of the areas they change; pushes to `develop` and
+`main` run all gates.
+
 The static showcase also passes `npm run build:showcase`. Real Lean tests are
 explicitly ignored unless selected with `--ignored` and a prepared
 `WISHPOOL_TEST_LEAN_WORKSPACE`; the verifier image build must run them and fail
