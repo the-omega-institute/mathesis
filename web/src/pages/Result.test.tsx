@@ -236,3 +236,23 @@ it('shows a checked collected proof with original credit and retrieves the exact
   expect(api.getCollectedPaper).toHaveBeenCalledWith('gap-note', '2', expect.any(Object));
   expect(api.getPaper).not.toHaveBeenCalled();
 });
+
+it("keeps the paper's published Lean source visible while exact statement coverage is being connected", async () => {
+  const { dependencyPaper, dependencyKnowledge } = await import('../test/dependencyFixtures');
+  renderWithApp(
+    <ResultPage record="gap-note" claim="s2" version="2" />,
+    fakeApi({
+      getCollectedPaper: async () => dependencyPaper,
+      collectedKnowledge: async () => dependencyKnowledge,
+    }),
+  );
+  expect(await screen.findByRole('link', { name: 'Read the Lean source' })).toHaveAttribute(
+    'href',
+    dependencyPaper.lean!.url,
+  );
+  expect(screen.getByText(/includes published Lean formalization/)).toBeVisible();
+  expect(screen.queryByText('No public formal proof is available for this result.')).toBeNull();
+  expect(
+    screen.queryByRole('link', { name: 'Download proof and verification details' }),
+  ).toBeNull();
+});

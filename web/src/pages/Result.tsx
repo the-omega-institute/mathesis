@@ -18,6 +18,7 @@ import { Link } from '../routing/router';
 import { EntrantName } from './Leaderboard';
 import { pdfHref } from '../api/client';
 import { loadCollectedResult } from '../lib/publicResult';
+import { publishedLeanSource } from '../lib/publishedLean';
 
 export function ResultPage({
   record,
@@ -216,6 +217,13 @@ function CollectedResultPage({
                       </details>
                     </div>
                   ))
+                ) : publishedLeanSource(paper) ? (
+                  <p>
+                    {t(
+                      'This paper includes published Lean formalization. Read its scope before proposing additional proof work; this manuscript statement has not yet been linked to a specific declaration.',
+                    )}{' '}
+                    <a href={publishedLeanSource(paper)}>{t('Read the Lean source')}</a>
+                  </p>
                 ) : (
                   <p>
                     {result.target

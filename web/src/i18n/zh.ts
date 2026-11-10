@@ -87,7 +87,6 @@ export const zh: Record<string, string> = {
   'Published sources & checked propositions': '已发表源码与已核验命题',
   'Confirmed targets will appear here for community contributions.':
     '确认后的目标将在这里开放，欢迎社区贡献证明。',
-  'Published Lean source': '已发表的 Lean 源码',
   'This paper provides Lean source. Read the declarations and assumptions for the scope of its formalization.':
     '这篇论文提供了 Lean 源码。查看其中的命题与假设，可以了解已形式化的具体范围。',
   'New formalization credit is recorded when a contributed proof passes independent checking against a confirmed target.':
@@ -2130,4 +2129,27 @@ export const zh: Record<string, string> = {
   'This result is not available in the current public graph.': '当前公开关系图中没有这个结果。',
   'The Lean statement is not ready for proof verification yet. Read the result or choose a ready target from Formalizations.':
     '这个结果的 Lean 命题尚未就绪。请先阅读结果，或在形式化页面选择已经就绪的命题。',
+  'Published Lean source': '已发表的 Lean 源码',
+  'Published Lean sources': '已有 Lean 形式化',
+  'Checked statement': '已核验命题',
+  'Checked statements': '已核验命题',
+  'Manuscript result': '论文命题',
+  'Proof opportunities': '证明贡献机会',
+  'Lean source available': '已有 Lean 源码',
+  '{count} published Lean sources': '{count} 份已发表 Lean 源码',
+  'Published Lean formalization is available with this paper.': '这篇论文已附有 Lean 形式化成果。',
+  'Formalization progress unavailable': '暂时无法读取形式化进度',
+  'Results and proof work': '数学结果与证明贡献',
+  'Explore results': '浏览数学结果',
+  'No mathematical results listed yet': '目前尚无数学结果',
+  'Published mathematical statements appear here with their existing Lean sources and any confirmed proof targets.':
+    '这里展示公开的数学命题、已有的 Lean 源码，以及已确认的证明目标。',
+  'No confirmed proof gaps are listed. Published Lean sources remain available in the graph.':
+    '目前没有列出已确认的证明缺口。你仍可在图中阅读已有 Lean 形式化成果。',
+  'This paper was published with Lean formalization. Read the pinned source for its definitions, proved results and scope. Original attribution is retained in the source.':
+    '这篇论文发表时已附带 Lean 形式化。源码保留原有署名，并明确给出定义、已证明结果及适用范围。',
+  'This paper includes published Lean formalization. Read its scope before proposing additional proof work; this manuscript statement has not yet been linked to a specific declaration.':
+    '这篇论文已有 Lean 形式化。请先阅读源码中的证明范围；当前这条文字命题尚未逐条关联到代码中的定理。',
+  'Read the mathematics and its existing Lean sources. Contribute additional proofs where an exact target is available, or share existing Lean work with its original attribution.':
+    '阅读数学结果及其已有 Lean 源码。你可以为已确定的命题补充证明，也可以分享已有 Lean 成果并保留原有署名。',
 };

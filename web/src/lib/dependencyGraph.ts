@@ -7,10 +7,11 @@ import type {
   ResearchGraph,
 } from '../api/types';
 import { researchAreas, theoryAreas } from './theoryLibrary';
+import { publishedLeanSource } from './publishedLean';
 
 export type DependencyNode = {
   id: string;
-  kind: 'result' | 'paper' | 'literature' | 'contribution';
+  kind: 'result' | 'paper' | 'literature' | 'contribution' | 'source';
   title: string;
   label?: string;
   statement?: string;
@@ -30,10 +31,16 @@ export type DependencyNode = {
   target?: boolean;
   url?: string;
   leanSource?: string;
+  publishedLean?: string;
   contributor?: Entrant;
 };
 export type DependencyRelation =
-  'manuscript_reference' | 'declared_dependency' | 'checked_use' | 'cites' | 'contains';
+  | 'manuscript_reference'
+  | 'declared_dependency'
+  | 'checked_use'
+  | 'cites'
+  | 'contains'
+  | 'published_source';
 export type DependencyEdge = { from: string; to: string; relation: DependencyRelation };
 export type DependencySnapshot = {
   nodes: DependencyNode[];
@@ -104,7 +111,27 @@ async function composeDependencyGraph(
         )
           return;
         node.areas = researchAreas(work, paper.msc);
-        node.leanSource = paper.lean?.url;
+        node.leanSource = publishedLeanSource(paper);
+        if (node.leanSource) {
+          nodes.push({
+            id: `lean-source:${work}:${version}`,
+            kind: 'source',
+            title: paper.title,
+            label: 'Published Lean source',
+            authors: node.authors,
+            work,
+            version,
+            collected,
+            paper: node.id,
+            areas: node.areas,
+            leanSource: node.leanSource,
+          });
+          edges.push({
+            from: node.id,
+            to: `lean-source:${work}:${version}`,
+            relation: 'published_source',
+          });
+        }
         for (const claim of knowledge.statements) {
           const id = statementId(work, version, claim.id);
           const formalization = knowledge.formalizations?.find(
@@ -130,6 +157,7 @@ async function composeDependencyGraph(
             section: claim.section ?? undefined,
             areas: node.areas,
             macros: knowledge.macros,
+            publishedLean: node.leanSource,
             verified:
               formalization?.state === 'verified' && Boolean(proof?.receipt.verdict === 'proved'),
             disproved:
@@ -284,6 +312,7 @@ export function resultDegree(graph: DependencySnapshot, id: string) {
   return graph.edges.filter(
     (edge) =>
       edge.relation !== 'contains' &&
+      edge.relation !== 'published_source' &&
       edge.relation !== 'cites' &&
       (edge.from === id || edge.to === id),
   ).length;
@@ -371,7 +400,7 @@ export function dependencyAtlasLayout(graph: DependencySnapshot, availableWidth:
   const tileHeight = 320;
   const groups = new Map<string, DependencyNode[]>();
   for (const node of graph.nodes) {
-    if (node.kind !== 'result' && node.kind !== 'contribution') continue;
+    if (node.kind !== 'result' && node.kind !== 'contribution' && node.kind !== 'source') continue;
     const area = node.areas[0] ?? 'unclassified';
     groups.set(area, [...(groups.get(area) ?? []), node]);
   }
@@ -402,6 +431,7 @@ export function dependencyAtlasLayout(graph: DependencySnapshot, availableWidth:
         y,
         width: tileWidth - 40,
         count: nodes.filter((node) => node.kind === 'result').length,
+        sourceCount: nodes.filter((node) => node.kind === 'source').length,
       };
     });
   return {

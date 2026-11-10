@@ -30,6 +30,7 @@ const relationLabel: Record<DependencyRelation, string> = {
   manuscript_reference: 'Reference in the mathematical argument',
   cites: 'Cited literature',
   contains: 'Result in this paper',
+  published_source: 'Published Lean source for this paper',
 };
 
 export function DependencyGraph({
@@ -38,7 +39,7 @@ export function DependencyGraph({
   focus,
 }: {
   area?: string;
-  initialScope?: 'verified' | 'all' | 'pending';
+  initialScope?: 'verified' | 'all' | 'pending' | 'sources';
   focus?: string;
 }) {
   const api = useApi();
@@ -80,12 +81,16 @@ export function DependencyGraph({
         <>
           <div className="formalization-key" aria-label={t('Node meanings')}>
             <span>
+              <i className="formalization-mark is-source" aria-hidden="true" />
+              {t('Published Lean source')}
+            </span>
+            <span>
               <i className="formalization-mark is-verified" aria-hidden="true" />
-              {t('Formalized in Lean')}
+              {t('Checked statement')}
             </span>
             <span>
               <i className="formalization-mark" aria-hidden="true" />
-              {t('Awaiting a formal proof')}
+              {t('Manuscript result')}
             </span>
             {graph.nodes.some((n) => n.disproved) ? (
               <span>
@@ -99,7 +104,7 @@ export function DependencyGraph({
             aria-label={t('Knowledge and formalization')}
             className="dependency-toolbar dependency-scope"
           >
-            {(['all', 'pending', 'verified'] as const).map((value) => (
+            {(['all', 'sources', 'pending', 'verified'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
@@ -110,19 +115,22 @@ export function DependencyGraph({
                 {t(
                   value === 'all'
                     ? 'All results'
-                    : value === 'pending'
-                      ? 'Awaiting formalization'
-                      : 'Formalized in Lean',
+                    : value === 'sources'
+                      ? 'Published Lean sources'
+                      : value === 'pending'
+                        ? 'Proof opportunities'
+                        : 'Checked statements',
                 )}
                 <span className="scope-count">
                   {
                     graph.nodes.filter(
                       (n) =>
-                        n.kind === 'result' &&
+                        (value === 'sources' ? n.kind === 'source' : n.kind === 'result') &&
                         (value === 'all' ||
+                          value === 'sources' ||
                           (value === 'verified'
                             ? n.verified || n.disproved
-                            : !n.verified && !n.disproved)),
+                            : !n.verified && !n.disproved && (n.target || !n.publishedLean))),
                     ).length
                   }
                 </span>
@@ -134,21 +142,33 @@ export function DependencyGraph({
             graph={
               scope === 'verified'
                 ? verifiedKnowledge(graph)
-                : scope === 'pending'
+                : scope === 'sources'
                   ? cleanSnapshot({
                       ...graph,
-                      nodes: graph.nodes.filter(
-                        (n) => n.kind !== 'result' || (!n.verified && !n.disproved),
-                      ),
+                      nodes: graph.nodes.filter((n) => n.kind === 'source'),
                     })
-                  : graph
+                  : scope === 'pending'
+                    ? cleanSnapshot({
+                        ...graph,
+                        nodes: graph.nodes.filter(
+                          (n) =>
+                            (n.kind !== 'result' && n.kind !== 'source') ||
+                            (n.kind === 'result' &&
+                              !n.verified &&
+                              !n.disproved &&
+                              (n.target || !n.publishedLean)),
+                        ),
+                      })
+                    : graph
             }
             initialArea={area}
             focus={focus}
             empty={
               scope === 'verified'
                 ? 'No independently verified formalizations yet. Explore the open results and contribute a proof.'
-                : undefined
+                : scope === 'pending'
+                  ? 'No confirmed proof gaps are listed. Published Lean sources remain available in the graph.'
+                  : undefined
             }
           />
           {graph.next ? (
@@ -178,7 +198,7 @@ function inArea(node: DependencyNode, area: string) {
 
 function initialResult(graph: DependencySnapshot, area: string) {
   return graph.nodes
-    .filter((node) => node.kind === 'result' && inArea(node, area))
+    .filter((node) => (node.kind === 'result' || node.kind === 'source') && inArea(node, area))
     .sort(
       (a, b) => resultDegree(graph, b.id) - resultDegree(graph, a.id) || a.id.localeCompare(b.id),
     )[0];
@@ -262,7 +282,7 @@ export function DependencyGraphView({
   const atlas = overview && !area;
   const visibleNodes = graph.nodes.filter((node) =>
     atlas
-      ? node.kind === 'result' || node.kind === 'contribution'
+      ? node.kind === 'result' || node.kind === 'contribution' || node.kind === 'source'
       : overview
         ? activeIds.has(node.id)
         : localIds.has(node.id),
@@ -361,7 +381,8 @@ export function DependencyGraphView({
   const label = (node: DependencyNode) =>
     node.label && node.label !== node.title ? `${node.label}: ${node.title}` : node.title;
   const sourcePaper = selected?.paper ? byId.get(selected.paper) : undefined;
-  const lean = sourcePaper?.leanSource && safeHttpUrl(sourcePaper.leanSource);
+  const leanSource = selected?.leanSource ?? sourcePaper?.leanSource;
+  const lean = leanSource && safeHttpUrl(leanSource);
   return (
     <div className="dependency-reading">
       <nav className="dependency-fields" aria-label={t('Fields of mathematics')}>
@@ -418,6 +439,15 @@ export function DependencyGraphView({
               ? localize(findTheoryArea(area)!.title, locale)
               : t('Mathematical knowledge')}{' '}
             <span>· {t('{count} results loaded', { count: resultNodes.length })}</span>
+            {graph.nodes.some((node) => node.kind === 'source') ? (
+              <span>
+                {' '}
+                ·{' '}
+                {t('{count} published Lean sources', {
+                  count: graph.nodes.filter((node) => node.kind === 'source').length,
+                })}
+              </span>
+            ) : null}
           </p>
           <div role="group" aria-label={t('Graph view')}>
             {!atlas ? (
@@ -550,7 +580,11 @@ export function DependencyGraphView({
                                   ? `M ${a.x + 245} ${a.y + 20} C ${a.x + 280} ${a.y + 20}, ${b.x - 45} ${b.y + 20}, ${b.x - 8} ${b.y + 20}`
                                   : `M ${a.x - 8} ${a.y + 36} C ${a.x - 45} ${a.y + 36}, ${b.x + 280} ${b.y + 36}, ${b.x + 245} ${b.y + 36}`
                           }
-                          markerEnd={edge.relation === 'contains' ? undefined : `url(#${arrow})`}
+                          markerEnd={
+                            edge.relation === 'contains' || edge.relation === 'published_source'
+                              ? undefined
+                              : `url(#${arrow})`
+                          }
                         />
                       );
                     })}
@@ -569,7 +603,11 @@ export function DependencyGraphView({
                               ? localize(findTheoryArea(field.id)!.title, locale)
                               : t('Other mathematics')}
                           </span>
-                          <small>{t('{count} results', { count: field.count })}</small>
+                          <small>
+                            {field.count
+                              ? t('{count} results', { count: field.count })
+                              : t('{count} published Lean sources', { count: field.sourceCount })}
+                          </small>
                         </button>
                       ))
                     : null}
@@ -582,9 +620,15 @@ export function DependencyGraphView({
                           title={`${label(node)} — ${node.authors.join('; ')}`}
                           className={`dependency-node is-${node.kind}${!atlas && node.id === selected.id ? ' is-selected' : ''}${node.verified || node.disproved ? ' is-verified' : ''}${node.disproved ? ' is-disproved' : ''}`}
                           style={{ left: position.x, top: position.y }}
-                          aria-label={`${label(node)} — ${node.authors.join('; ')}${node.kind === 'result' || node.kind === 'contribution' ? ` — ${t(node.disproved ? 'Disproved in Lean' : node.verified ? 'Formalized in Lean' : 'Awaiting a formal proof')}` : ''}`}
+                          aria-label={`${label(node)} — ${node.authors.join('; ')}${node.kind === 'result' || node.kind === 'contribution' ? ` — ${t(node.disproved ? 'Disproved in Lean' : node.verified ? 'Formalized in Lean' : node.publishedLean ? 'Lean source available' : 'Awaiting a formal proof')}` : ''}`}
                           data-verification={
-                            node.disproved ? 'disproved' : node.verified ? 'verified' : 'pending'
+                            node.disproved
+                              ? 'disproved'
+                              : node.verified
+                                ? 'verified'
+                                : node.kind === 'source' || node.publishedLean
+                                  ? 'source_available'
+                                  : 'pending'
                           }
                           aria-pressed={!atlas && node.id === selected.id}
                           aria-controls={!atlas ? panel : undefined}
@@ -609,6 +653,7 @@ export function DependencyGraphView({
                     'manuscript_reference',
                     'cites',
                     'contains',
+                    'published_source',
                   ] as const
                 )
                   .filter((relation) => visibleEdges.some((edge) => edge.relation === relation))
@@ -661,7 +706,9 @@ export function DependencyGraphView({
                         ? t('Lean checked')
                         : selected.kind === 'literature'
                           ? t('Earlier literature')
-                          : (selected.label ?? t('Research'))}
+                          : selected.kind === 'source'
+                            ? t('Published Lean source')
+                            : (selected.label ?? t('Research'))}
                   </p>
                   <h2>
                     <InlineLatex source={selected.title} />
@@ -681,13 +728,22 @@ export function DependencyGraphView({
                     </p>
                   ) : null}
                   <ProofAttribution attribution={selected.attribution ?? undefined} />
+                  {selected.kind === 'source' ? (
+                    <p>
+                      {t(
+                        'This paper was published with Lean formalization. Read the pinned source for its definitions, proved results and scope. Original attribution is retained in the source.',
+                      )}
+                    </p>
+                  ) : null}
                   {selected.statement ? <LatexText source={selected.statement} /> : null}
                   {selected.kind === 'result' && !selected.verified && !selected.disproved ? (
                     <p className="formalization-invitation">
                       {t(
                         selected.target
                           ? 'This result is ready for a Lean proof. Your verified contribution will be credited here.'
-                          : 'This result is awaiting a formal proof. Read the argument, build on its prerequisites, and share your Lean work. A matching Lean statement is needed for verification.',
+                          : selected.publishedLean
+                            ? 'This paper includes published Lean formalization. Read its scope before proposing additional proof work; this manuscript statement has not yet been linked to a specific declaration.'
+                            : 'This result is awaiting a formal proof. Read the argument, build on its prerequisites, and share your Lean work. A matching Lean statement is needed for verification.',
                       )}
                     </p>
                   ) : null}

@@ -14,6 +14,8 @@ import { EntrantName } from './Leaderboard';
 import { ResearchGraphPage } from './ResearchGraph';
 import { useRouter } from '../routing/router';
 import { useEffect } from 'react';
+import { ApiError } from '../api/client';
+import { publishedLeanSource } from '../lib/publishedLean';
 
 export function FormalizationsPage({
   focus,
@@ -57,7 +59,7 @@ export function FormalizationsPage({
           to={{ kind: 'formalizations', view: 'list' }}
           aria-current={view === 'list' ? 'page' : undefined}
         >
-          {t('Work to formalize')}
+          {t('Results and proof work')}
         </Link>
       </nav>
       {view === 'list' ? (
@@ -76,11 +78,39 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
   const [draft, setDraft] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const load = useCallback(
-    (before: string | null, signal: AbortSignal) =>
-      api.formalizationOpportunities(
+    async (before: string | null, signal: AbortSignal) => {
+      const page = await api.formalizationOpportunities(
         { before, limit: 20, status, kind: kind || undefined, q: query || undefined },
         { signal },
-      ),
+      );
+      const sources = new Map<string, Promise<string | undefined>>();
+      const items = await Promise.all(
+        page.items.map(async (item) => {
+          let leanSource: string | undefined;
+          if (!item.record.startsWith('WP-') && item.version) {
+            const key = `${item.record}:${item.version}`;
+            if (!sources.has(key))
+              sources.set(
+                key,
+                api
+                  .getCollectedPaper(item.record, String(item.version), { signal })
+                  .then((paper) =>
+                    paper.id === item.record && paper.revision === String(item.version)
+                      ? publishedLeanSource(paper)
+                      : undefined,
+                  )
+                  .catch((error: unknown) => {
+                    if (error instanceof ApiError && error.code === 'not_found') return undefined;
+                    throw error;
+                  }),
+              );
+            leanSource = await sources.get(key);
+          }
+          return { ...item, leanSource };
+        }),
+      );
+      return { ...page, items };
+    },
     [api, status, kind, query],
   );
   const paged = usePaged(load);
@@ -92,12 +122,12 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
     <section className="formalization-work" aria-label={t('Formalization work')}>
       <p>
         {t(
-          'Read the result and its proof. When its Lean statement is ready, you can submit a proof directly; existing Lean projects and source links are also welcome.',
+          'Read the mathematics and its existing Lean sources. Contribute additional proofs where an exact target is available, or share existing Lean work with its original attribution.',
         )}
       </p>
       <div className="filter-row" role="group" aria-label={t('Formalization status')}>
         {[
-          ['unverified', 'To formalize'],
+          ['unverified', 'Explore results'],
           ['verified', 'Verified proofs'],
           ['disproved', 'Disproofs'],
         ].map(([value, label]) => (
@@ -146,7 +176,9 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
                           tone={['preparing', 'open'].includes(item.status) ? 'muted' : 'good'}
                         >
                           {item.status === 'preparing'
-                            ? t('Awaiting formalization')
+                            ? item.leanSource
+                              ? t('Lean source available')
+                              : t('Awaiting formalization')
                             : item.status === 'open'
                               ? t('Target ready')
                               : item.status === 'verified'
@@ -189,6 +221,9 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
                       ) : null}
                       <ProofAttribution attribution={item.attribution ?? undefined} />
                       <div className="button-row">
+                        {item.leanSource ? (
+                          <a href={item.leanSource}>{t('Read the Lean source')}</a>
+                        ) : null}
                         {item.target_digest ? (
                           <>
                             <Link
@@ -237,13 +272,13 @@ export function FormalizationOpportunities({ initialQuery = '' }: { initialQuery
                 {query || kind
                   ? t('No matching statements')
                   : status === 'unverified'
-                    ? t('No results awaiting formalization')
+                    ? t('No mathematical results listed yet')
                     : t('Verified contributions will appear here.')}
               </h2>
               <p>
                 {status === 'unverified'
                   ? t(
-                      'Published results awaiting a formal proof appear here, including those whose Lean statements are still being prepared. You can also contribute existing Lean work with its original attribution.',
+                      'Published mathematical statements appear here with their existing Lean sources and any confirmed proof targets.',
                     )
                   : t(
                       'Only independent verification of the current confirmed target makes a contribution public here.',

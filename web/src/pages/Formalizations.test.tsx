@@ -4,6 +4,7 @@ import { it, expect, vi } from 'vitest';
 import { fakeApi, renderWithApp } from '../test/render';
 import { FormalizationsPage } from './Formalizations';
 import type { FormalizationOpportunity } from '../api/types';
+import { dependencyPaper } from '../test/dependencyFixtures';
 
 const opportunity: FormalizationOpportunity = {
   record: 'WP-2026-0001',
@@ -47,7 +48,7 @@ it('links to an attributed contribution and asks the API to filter the full dire
 });
 it('offers source intake when no results are awaiting formalization', async () => {
   renderWithApp(<FormalizationsPage view="list" />, fakeApi());
-  expect(await screen.findByText('No results awaiting formalization')).toBeInTheDocument();
+  expect(await screen.findByText('No mathematical results listed yet')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Submit existing Lean work →' })).toHaveAttribute(
     'href',
     '/submit?type=lean',
@@ -83,4 +84,54 @@ it('shows pending mathematics and authors without offering an unavailable proof 
   expect(document.querySelector('.katex')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Contribute a proof' })).not.toBeInTheDocument();
   expect(screen.queryByText('Lean ✓')).not.toBeInTheDocument();
+});
+
+it('displays the existing pinned formalization without asserting that every extracted statement has a new checked proof', async () => {
+  const item: FormalizationOpportunity = {
+    ...opportunity,
+    record: dependencyPaper.id,
+    version: 2,
+    status: 'preparing',
+    target_digest: null,
+    toolchain: null,
+  };
+  const api = fakeApi({
+    formalizationOpportunities: async () => ({
+      items: [item, { ...item, claim: 'C2' }],
+      next_before: null,
+    }),
+    getCollectedPaper: vi.fn(async () => dependencyPaper),
+  });
+  renderWithApp(<FormalizationsPage view="list" />, api);
+  expect(await screen.findAllByText('Lean source available')).toHaveLength(2);
+  expect(screen.getAllByRole('link', { name: 'Read the Lean source' })[0]).toHaveAttribute(
+    'href',
+    dependencyPaper.lean!.url,
+  );
+  expect(screen.queryByText('Awaiting formalization')).toBeNull();
+  expect(screen.queryByText('Lean ✓')).toBeNull();
+  expect(api.getCollectedPaper).toHaveBeenCalledTimes(1);
+});
+
+it("never borrows a newer version's Lean source for an older result", async () => {
+  renderWithApp(
+    <FormalizationsPage view="list" />,
+    fakeApi({
+      formalizationOpportunities: async () => ({
+        items: [
+          {
+            ...opportunity,
+            record: dependencyPaper.id,
+            version: 1,
+            status: 'preparing',
+            target_digest: null,
+          },
+        ],
+        next_before: null,
+      }),
+      getCollectedPaper: async () => dependencyPaper,
+    }),
+  );
+  expect(await screen.findByText('Awaiting formalization')).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Read the Lean source' })).toBeNull();
 });
