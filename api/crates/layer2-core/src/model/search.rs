@@ -1,5 +1,5 @@
 //! Bounded public archive search. Private metadata never determines a match.
-use super::{Record, SubmissionKind};
+use super::{Author, Record, SubmissionKind, author_name_matches};
 use crate::{CoreError, CoreResult};
 use serde::{Deserialize, Serialize};
 
@@ -51,16 +51,20 @@ impl PaperSearch {
     pub fn is_empty(&self) -> bool {
         self.q.is_none() && self.author.is_none() && self.msc.is_none() && self.kind.is_none()
     }
+    /// The author filter of every archive search, in either written form of a name.
+    pub fn matches_author(&self, authors: &[Author]) -> bool {
+        self.author.as_ref().is_none_or(|query| {
+            authors
+                .iter()
+                .any(|author| author_name_matches(&author.name, query))
+        })
+    }
     /// The memory adapter's plain-word search; production uses MongoDB's text index.
     pub fn matches_record(&self, r: &Record) -> bool {
         if self.kind.is_some_and(|k| k != r.kind) {
             return false;
         }
-        if self.author.as_ref().is_some_and(|a| {
-            !r.authors
-                .iter()
-                .any(|v| v.name.to_lowercase().contains(&a.to_lowercase()))
-        }) {
+        if !self.matches_author(&r.authors) {
             return false;
         }
         if self.msc.as_ref().is_some_and(|m| {

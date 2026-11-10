@@ -167,7 +167,7 @@ async fn collected_world() -> (World, Arc<CollectedTransport>) {
         "pdf":pdf,"source":source,
         "delivery":{"schema":"mathesis.pre-reviewed-delivery.v1","producer":"publisher","work_id":"a-note","version":1,
           "previous_version":null,"authorize_publication":true,
-          "paper":{"title":"A fixture note (leanprover/lean4:v4.33.0, Mathlib db584cd6d46c92f209a44c0f1c829460d327499d)","abstract":"Fixture statements","authors":[{"name":"Original Author"}],"license":"CC-BY-4.0",
+          "paper":{"title":"A fixture note (leanprover/lean4:v4.33.0, Mathlib db584cd6d46c92f209a44c0f1c829460d327499d)","abstract":"Fixture statements","authors":[{"name":"Ma, Haobo"}],"license":"CC-BY-4.0",
           "lean":{"url":format!("https://github.com/example/research/blob/{}/Proof.lean","a".repeat(40)),"revision":"a".repeat(40)}},
           "review":{"verdict":"PASS","pdf_sha256":pdf.sha256,"source_sha256":source.sha256,"record":{"private_review":"must stay private"}}},
         "source_index":{"revision":1,"source_sha256":source.sha256,"bibliography":null,"limitations":[],"results":{"statements":[
@@ -261,6 +261,15 @@ async fn collected_batch_runs_through_the_worker_dispatch_and_verification_lanes
     let (instructions, data) = preparation.split_once("\n{\"").unwrap();
     assert!(!instructions.contains("db584cd6"));
     assert!(data.contains("A fixture note (leanprover/lean4:v4.33.0, Mathlib db584cd6"));
+    // Admitted prompt bytes keep the delivered author names; readers see the canonical form.
+    assert!(data.contains(r#""authors":[{"name":"Ma, Haobo"}]"#));
+    let shown = w
+        .worker
+        .app
+        .collected_paper("a-note", Some(1))
+        .await
+        .unwrap();
+    assert_eq!(shown.paper.authors[0].name, "Haobo Ma");
 }
 
 #[tokio::test]

@@ -1,4 +1,5 @@
 import type { Author, PublicPaper } from '../api/types';
+import { canonicalAuthorName } from '../lib/authorName';
 import { citationUrl } from '../lib/citation';
 import { texToText } from '../lib/texText';
 
@@ -48,7 +49,11 @@ export function CitationMetadata({
       <link rel="canonical" href={canonicalUrl} />
       <meta name="citation_title" content={title} />
       {authors.map((author, index) => (
-        <meta key={index} name="citation_author" content={texToText(author.name)} />
+        <meta
+          key={index}
+          name="citation_author"
+          content={texToText(canonicalAuthorName(author.name))}
+        />
       ))}
       {publicationDate ? (
         <meta name="citation_publication_date" content={publicationDate.slice(0, 10)} />

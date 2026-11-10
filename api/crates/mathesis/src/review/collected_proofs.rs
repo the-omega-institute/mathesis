@@ -162,7 +162,8 @@ impl Worker {
         };
         let outcome: Result<bool, Failure> = async {
             if !self.app.collected_proof_active(&self.reviewer, work, version, anchor).await? { return Ok(false); }
-            let publication = self.app.collected_paper(work, Some(version)).await?;
+            // Prompts carry the delivery as stored; the reader projection rewrites author names.
+            let publication = self.app.collected_explanation_input(&self.reviewer, work, version).await?.delivery;
             let mut pending = vec![];
             for claim in &claims {
                 let file = self.app.collected_proof_file(&self.reviewer, work, version, claim).await?;

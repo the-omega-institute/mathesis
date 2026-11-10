@@ -693,3 +693,152 @@ async fn initial_published_archive_is_checked_before_storage_and_searchable_with
     saved.source.sha256 = "0".repeat(64);
     assert!(PublicCollectedPaper::from(&saved).archive.is_none());
 }
+
+#[tokio::test]
+async fn collected_author_forms_share_one_search_and_one_public_name_without_changing_the_delivery()
+{
+    let mut w = World::new().await;
+    w.app = App::with_internal_accounts(
+        w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader)),
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from(["publisher".into()]),
+    );
+    let owner = w.person("publisher", &[]).await;
+    let deliver = |work: &str, names: &[&str]| {
+        let (mut d, p, s) = package(1);
+        d.work_id = work.into();
+        d.paper.authors = names
+            .iter()
+            .map(|name| serde_json::from_value(serde_json::json!({ "name": name })).unwrap())
+            .collect();
+        (d, p, s)
+    };
+    let works = [
+        ("comma-note", vec!["Ma, Haobo", "Zhang, Wenlin"]),
+        ("plain-note", vec!["Haobo Ma", "Wenlin Zhang"]),
+        ("suffix-note", vec!["Smith, John, Jr."]),
+        ("cjk-note", vec!["张文林"]),
+    ];
+    let mut receipts = vec![];
+    for (work, names) in &works {
+        let (d, p, s) = deliver(work, names);
+        receipts.push(
+            serde_json::to_value(w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap())
+                .unwrap(),
+        );
+    }
+    let found = async |name: &str| {
+        let mut items = w
+            .app
+            .collected_papers(
+                PaperSearch {
+                    author: Some(name.into()),
+                    ..Default::default()
+                },
+                None,
+                None,
+            )
+            .await
+            .unwrap()
+            .items;
+        items.sort_by(|a, b| a.id.cmp(&b.id));
+        items
+    };
+    let ids = |items: &[PublicCollectedPaper]| -> Vec<String> {
+        items.iter().map(|p| p.id.clone()).collect()
+    };
+    let names =
+        |authors: &[Author]| -> Vec<String> { authors.iter().map(|a| a.name.clone()).collect() };
+    let both = found("Haobo Ma").await;
+    assert_eq!(ids(&both), ["comma-note", "plain-note"]);
+    for query in ["Ma, Haobo", "haobo ma", "Zhang, Wenlin", "Wenlin Zhang"] {
+        assert_eq!(ids(&found(query).await), ids(&both), "{query}");
+    }
+    assert!(found("John Smith").await.is_empty());
+    assert_eq!(ids(&found("Smith, John").await), ["suffix-note"]);
+    assert_eq!(ids(&found("文林").await), ["cjk-note"]);
+    assert!(found("Ma Haobo").await.is_empty());
+    // A name is matched within one author, never across two neighbours.
+    assert!(found("Haobo Ma Wenlin").await.is_empty());
+    // The free-text query takes a name in either written form as well.
+    for q in ["Haobo Ma", "Ma, Haobo"] {
+        let mut items = w
+            .app
+            .collected_papers(
+                PaperSearch {
+                    q: Some(q.into()),
+                    ..Default::default()
+                },
+                None,
+                None,
+            )
+            .await
+            .unwrap()
+            .items;
+        items.sort_by(|a, b| a.id.cmp(&b.id));
+        assert_eq!(ids(&items), ids(&both), "{q}");
+    }
+
+    for paper in &both {
+        assert_eq!(names(&paper.paper.authors), ["Haobo Ma", "Wenlin Zhang"]);
+    }
+    let read = async |work: &str| {
+        names(
+            &w.app
+                .collected_paper(work, Some(1))
+                .await
+                .unwrap()
+                .paper
+                .authors,
+        )
+    };
+    assert_eq!(read("comma-note").await, ["Haobo Ma", "Wenlin Zhang"]);
+    assert_eq!(read("suffix-note").await, ["Smith, John, Jr."]);
+    assert_eq!(read("cjk-note").await, ["张文林"]);
+    let graph = w
+        .app
+        .research_graph(ResearchGraphQuery {
+            q: Some("Haobo Ma".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let mut nodes: Vec<_> = graph
+        .nodes
+        .iter()
+        .map(|n| (n.id.as_str(), n.authors.join("; ")))
+        .collect();
+    nodes.sort();
+    assert_eq!(
+        nodes,
+        [
+            ("paper:comma-note", "Haobo Ma; Wenlin Zhang".to_owned()),
+            ("paper:plain-note", "Haobo Ma; Wenlin Zhang".to_owned())
+        ]
+    );
+
+    // The reviewed delivery, its digest and its replay are exactly as delivered.
+    let saved = w.stores.get("comma-note", Some(1)).await.unwrap().unwrap();
+    assert_eq!(
+        names(&saved.delivery.paper.authors),
+        ["Ma, Haobo", "Zhang, Wenlin"]
+    );
+    for ((work, names), receipt) in works.iter().zip(&receipts) {
+        let before = w.stores.get(work, Some(1)).await.unwrap().unwrap();
+        let (d, p, s) = deliver(work, names);
+        assert_eq!(
+            &serde_json::to_value(w.app.collect_pre_reviewed(&owner, d, p, s).await.unwrap())
+                .unwrap(),
+            receipt
+        );
+        assert_eq!(w.stores.get(work, Some(1)).await.unwrap().unwrap(), before);
+    }
+    // The other written form is a different delivery of an immutable version.
+    let (d, p, s) = deliver("comma-note", &["Haobo Ma", "Wenlin Zhang"]);
+    assert!(matches!(
+        w.app.collect_pre_reviewed(&owner, d, p, s).await,
+        Err(CoreError::Conflict(_))
+    ));
+}

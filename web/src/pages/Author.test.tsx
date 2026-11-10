@@ -64,4 +64,43 @@ describe('AuthorPage', () => {
     );
     expect(screen.getByRole('heading', { name: 'Formalization' })).toBeInTheDocument();
   });
+
+  it('opens the same profile for a saved link in either written form of the name', async () => {
+    const shown = [{ name: 'Haobo Ma', affiliation: 'Institute of Example' }];
+    const conjecture: ConjectureSummary = {
+      claim: 'C2',
+      source: 'from WP-2026-0001',
+      status: 'open',
+      attempts: 0,
+      solver: null,
+      record: 'WP-2026-0001',
+      title: 'An open bound',
+      statement: 'For all $n$, $n = n$.',
+      lean_statement_status: 'confirmed',
+      authors: shown,
+    };
+    for (const name of ['Ma, Haobo', 'Haobo Ma']) {
+      const api = fakeApi({
+        listPapers: vi.fn(async () => ({
+          items: [{ ...paperSummary, authors: shown }],
+          next_before: null,
+        })),
+        listConjectures: vi.fn(async ({ status }) => ({
+          items: status === 'open' ? [conjecture] : [],
+          next_before: null,
+        })),
+      });
+      const page = renderWithApp(<AuthorPage name={name} />, api);
+      expect(await screen.findByRole('heading', { name: 'Haobo Ma' })).toBeInTheDocument();
+      expect(screen.getByText('Institute of Example')).toBeInTheDocument();
+      expect(screen.getByLabelText('Author contribution counts')).toHaveTextContent(
+        '1 papers and notes · 1 conjectures',
+      );
+      expect(api.formalizationOpportunities).toHaveBeenCalledWith(
+        { q: 'Haobo Ma', limit: 100 },
+        expect.any(Object),
+      );
+      page.unmount();
+    }
+  });
 });

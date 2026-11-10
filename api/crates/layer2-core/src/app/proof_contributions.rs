@@ -133,6 +133,13 @@ impl App {
     }
 
     pub async fn checked_contribution(&self, id: &str) -> CoreResult<CheckedContribution> {
+        let mut contribution = self.stored_contribution(id).await?;
+        contribution.authors = canonical_authors(&contribution.authors);
+        Ok(contribution)
+    }
+
+    /// Source authors exactly as stored, for provider input and digest-bound evidence.
+    pub(crate) async fn stored_contribution(&self, id: &str) -> CoreResult<CheckedContribution> {
         let (file, attempt) = self.find_attempt(id).await?;
         let spec = attempt
             .intermediate
@@ -243,7 +250,7 @@ impl App {
         id: &str,
     ) -> CoreResult<CheckedContribution> {
         caller.require(Role::Reviewer)?;
-        let mut contribution = self.checked_contribution(id).await?;
+        let mut contribution = self.stored_contribution(id).await?;
         contribution.contributor = self.find_attempt(id).await?.1.entrant;
         Ok(contribution)
     }
@@ -365,7 +372,7 @@ impl App {
                 claims_revision,
                 title: current.title.clone(),
                 label: statement.label.clone(),
-                authors: current.authors.clone(),
+                authors: canonical_authors(&current.authors),
             });
         }
         let publication = self
@@ -399,7 +406,7 @@ impl App {
             claims_revision,
             title: source.title.clone(),
             label: statement.label.clone(),
-            authors: source.authors.clone(),
+            authors: canonical_authors(&source.authors),
         })
     }
 

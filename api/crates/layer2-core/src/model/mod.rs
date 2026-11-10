@@ -2,6 +2,7 @@
 //! used for optimistic concurrency; stores must reject a write whose expected
 //! revision is not the stored one.
 
+mod author_name;
 pub(crate) mod claim;
 mod cma;
 mod common;
@@ -23,6 +24,7 @@ mod search;
 mod solving;
 mod task;
 
+pub use author_name::*;
 pub use claim::*;
 pub use cma::*;
 pub use common::*;

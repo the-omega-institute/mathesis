@@ -68,6 +68,17 @@ impl PaperReader for FakeReader {
     }
 }
 
+/// `FakeReader` with the author written "Family, Given", as some producers deliver names.
+struct FamilyFirstReader;
+
+impl PaperReader for FamilyFirstReader {
+    fn read(&self, bytes: &[u8], filename: &str) -> Result<ReadPaper, String> {
+        let mut paper = FakeReader.read(bytes, filename)?;
+        paper.authors = vec!["Ma, Haobo".into()];
+        Ok(paper)
+    }
+}
+
 struct World {
     app: Arc<App>,
     stores: Arc<MemoryStores>,

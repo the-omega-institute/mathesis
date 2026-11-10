@@ -279,10 +279,17 @@ impl CollectedVersion {
                                 .is_some_and(|d| id == &format!("doi:{}", d.to_ascii_lowercase()))
                     })
             }
-            super::ResearchSearch::Text(q) => std::iter::once(self.delivery.work_id.as_str())
-                .chain([self.delivery.paper.title.as_str()])
-                .chain(self.delivery.paper.authors.iter().map(|a| a.name.as_str()))
-                .any(|v| v.to_lowercase().contains(q)),
+            super::ResearchSearch::Text(q) => {
+                [&self.delivery.work_id, &self.delivery.paper.title]
+                    .iter()
+                    .any(|v| v.to_lowercase().contains(q))
+                    || self
+                        .delivery
+                        .paper
+                        .authors
+                        .iter()
+                        .any(|a| super::author_name_matches(&a.name, q))
+            }
         }
     }
 
@@ -320,6 +327,9 @@ impl CollectedVersion {
         {
             return false;
         }
+        if !q.matches_author(&p.authors) {
+            return false;
+        }
         let authors = p
             .authors
             .iter()
@@ -327,12 +337,6 @@ impl CollectedVersion {
             .collect::<Vec<_>>()
             .join(" ")
             .to_lowercase();
-        if q.author
-            .as_ref()
-            .is_some_and(|a| !authors.contains(&a.to_lowercase()))
-        {
-            return false;
-        }
         let text = format!(
             "{} {} {} {} {} {}",
             self.delivery.work_id,
@@ -349,9 +353,13 @@ impl CollectedVersion {
                 .unwrap_or_default()
         )
         .to_lowercase();
+        // A whole query may also be one author's name in its other written form.
         q.q.as_ref().is_none_or(|q| {
             q.split_whitespace()
                 .all(|w| text.contains(&w.to_lowercase()))
+                || p.authors
+                    .iter()
+                    .any(|a| super::author_name_matches(&a.name, q))
         })
     }
 }

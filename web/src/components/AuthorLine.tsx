@@ -1,5 +1,6 @@
 import { t } from '../i18n/locale';
 import type { Author } from '../api/types';
+import { canonicalAuthorName } from '../lib/authorName';
 import { orcidHref, safeHttpUrl } from '../lib/links';
 import { texToText } from '../lib/texText';
 import { ExternalLink } from './ui';
@@ -15,19 +16,21 @@ export function AuthorLine({
   return (
     <ul className={compact ? 'author-line is-compact' : 'author-line'}>
       {authors.map((a, i) => {
+        // One written form for the text and for the archive query it links to.
+        const name = canonicalAuthorName(a.name);
         const orcid = a.orcid ? orcidHref(a.orcid) : null;
         const scholar = a.google_scholar ? safeHttpUrl(a.google_scholar) : null;
         const website = a.website ? safeHttpUrl(a.website) : null;
         return (
-          <li key={`${a.name}-${i}`}>
-            <Link className="author-name" to={{ kind: 'papers', author: a.name }}>
-              {texToText(a.name)}
+          <li key={`${name}-${i}`}>
+            <Link className="author-name" to={{ kind: 'papers', author: name }}>
+              {texToText(name)}
             </Link>
             {orcid && !compact ? (
               <>
                 {' '}
                 <ExternalLink href={orcid}>
-                  <span className="orcid" aria-label={`ORCID iD of ${texToText(a.name)}`}>
+                  <span className="orcid" aria-label={`ORCID iD of ${texToText(name)}`}>
                     {t('iD')}
                   </span>
                 </ExternalLink>

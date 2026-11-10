@@ -25,6 +25,25 @@ files and bibliographic metadata before final submission.
 - Archive queries retain text, author, MSC and type in the URL. Author-name links
   use this search; existing MSC search URLs still work. External academic profiles remain
   separate. Name search does not claim a unique researcher identity.
+- An author name has one written form in reader projections, `Given Family`, the
+  form that author lists read from `\author` already have. A name stored in the
+  single-comma form `Family, Given` (as some producers deliver it) is shown as
+  `Given Family` in archive, subject and result listings, abstract pages, the
+  citation graph, plain-text and BibTeX citations and Scholar metadata, and
+  `author=Haobo Ma` and `author=Ma, Haobo` return the same works: a query is a
+  case-insensitive substring of one author's name, as stored or in this form
+  (a whole `q` of the collected-works search is also read this way).
+  The rule is purely syntactic, lives in Layer 2 (`model/author_name.rs`) and is
+  applied by the web, against the same test cases, to names it holds itself.
+  Only a name of Latin, Greek or Cyrillic letters with exactly one comma is
+  rewritten. Several commas, a generational suffix, a degree or company form,
+  `and`, digits, brackets or TeX, a single word and CJK names leave a name
+  exactly as stored; `Ma Haobo` without its comma is never reordered, and other
+  text after one comma, such as an affiliation, cannot be told from a given
+  name. Stored submissions, deliveries, accepted records, receipts, verification
+  bundles, feedback payloads and provider prompts keep each name as delivered,
+  with unchanged digests. Works under one written name are not thereby one
+  researcher's.
 - The public abstract page places files with the title and authors. Abstract,
   subjects, DOI/arXiv, versions and a folded citation follow. Source and PDF links
   name an explicit accepted version; PDF-only intake does not advertise TeX.

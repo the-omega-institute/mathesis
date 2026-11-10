@@ -84,7 +84,7 @@
               "type": "string",
               "maxLength": 160
             },
-            "description": ""
+            "description": "Case-insensitive substring of one author's name. \"Family, Given\" and \"Given Family\" select the same works."
           },
           {
             "name": "msc",
@@ -4441,7 +4441,8 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Reader projections write the name as \"Given Family\": a stored single-comma \"Family, Given\" is shown reordered; every other name is as stored."
           },
           "person": {
             "type": "string"

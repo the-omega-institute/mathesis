@@ -52,3 +52,36 @@ it('does not guess a year or DOI for minimal records', () => {
   expect(bib).not.toContain('year =');
   expect(bib).not.toContain('doi =');
 });
+
+describe('author names written "Family, Given" or "Given Family"', () => {
+  const origin = 'https://mathesis.example';
+  const delivered = [{ name: 'Ma, Haobo' }, { name: 'Zhang, Wenlin' }];
+  const natural = [{ name: 'Haobo Ma' }, { name: 'Wenlin Zhang' }];
+  const others = [
+    { name: 'Smith, John, Jr.' },
+    { name: 'Research and Development Group' },
+    { name: '张文林' },
+  ];
+
+  it('cites the canonical display form in plain text for either stored form', () => {
+    for (const authors of [delivered, natural]) {
+      expect(paperCitation({ ...paperSummary, authors }, origin)).toMatch(
+        /^Haobo Ma and Wenlin Zhang\. /,
+      );
+    }
+    expect(paperCitation({ ...paperSummary, authors: others }, origin)).toMatch(
+      /^Smith, John, Jr\., Research and Development Group and 张文林\. /,
+    );
+  });
+
+  it('exports the same valid BibTeX names for either stored form', () => {
+    const field = (authors: { name: string }[]) =>
+      /^ {2}author = \{(.*)\},$/m.exec(paperBibtex({ ...paperSummary, authors }, origin))?.[1];
+    expect(field(delivered)).toBe('{Haobo Ma} and {Wenlin Zhang}');
+    expect(field(natural)).toBe(field(delivered));
+    // Every other name stays one brace-protected BibTeX name, exactly as stored.
+    expect(field(others)).toBe(
+      '{Smith, John, Jr.} and {Research and Development Group} and {张文林}',
+    );
+  });
+});

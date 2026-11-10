@@ -29,6 +29,7 @@ import type {
   ProbeOutcome,
   RefereeAudit,
 } from '../api/types';
+import { canonicalAuthorName } from './authorName';
 import { sourceLabel } from './links';
 import { texToText } from './texText';
 
@@ -303,9 +304,9 @@ export function decisionHeadline(decision: Decision, nameOf: (stage: Stage) => s
   }
 }
 
-/** `A. One, B. Two and C. Three`. */
+/** `A. One, B. Two and C. Three`, each name in its canonical written form. */
 export function formatAuthors(authors: readonly Author[]): string {
-  const names = authors.map((a) => texToText(a.name)).filter((n) => n !== '');
+  const names = authors.map((a) => texToText(canonicalAuthorName(a.name))).filter((n) => n !== '');
   if (names.length <= 1) return names[0] ?? '';
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }

@@ -380,3 +380,25 @@ async fn collected_notes_page_with_the_same_bounded_cursor() {
     let expected: Vec<_> = (1..=101).rev().map(|n| format!("note-{n:03}")).collect();
     assert_eq!(works, expected);
 }
+
+#[tokio::test]
+async fn collected_notes_on_a_problem_page_use_the_canonical_author_form() {
+    let w = world(&["publisher"]).await;
+    let operator = w.person("publisher", &[]).await;
+    let (mut delivery, pdf, source) =
+        package("outreach", "comma-note", 1, serde_json::json!([hanna()]));
+    delivery.paper.authors[0].name = "Ma, Haobo".into();
+    w.app
+        .collect_pre_reviewed(&operator, delivery, pdf, source)
+        .await
+        .unwrap();
+    let page = w.app.list_research_problems(None, None).await.unwrap();
+    let problem = w.app.research_problem(&page.items[0].id).await.unwrap();
+    assert_eq!(problem.collected_notes[0].authors[0].name, "Haobo Ma");
+    // The delivery itself keeps the name exactly as the producer wrote it.
+    let stored = CollectedPaperStore::get(w.stores.as_ref(), "comma-note", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.delivery.paper.authors[0].name, "Ma, Haobo");
+}

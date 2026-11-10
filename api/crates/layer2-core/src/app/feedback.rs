@@ -67,7 +67,7 @@ impl App {
         let mut signers = vec![paper.submitter.clone()];
         let (producer, evidence, scope) = match &kind {
             FeedbackKind::OpenProblem { claim } => {
-                let problem = self.conjecture(record, claim).await?;
+                let problem = self.stored_conjecture(record, claim).await?;
                 if problem.summary.status != "open" {
                     return Err(CoreError::conflict(
                         "only currently admitted open problems can be proposed",

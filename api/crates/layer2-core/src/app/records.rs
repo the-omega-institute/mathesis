@@ -184,7 +184,7 @@ fn summary(record: &Record, submission: &Submission) -> PaperSummary {
         record: record.id.clone(),
         submission: submission.id.clone(),
         title: submission.title.clone(),
-        authors: submission.authors.clone(),
+        authors: canonical_authors(&submission.authors),
         abstract_text: submission.abstract_text.clone(),
         msc: submission.msc.clone(),
         doi: submission.doi.clone(),
@@ -374,6 +374,19 @@ impl App {
         self.list_conjectures_by_status(limit, before, None).await
     }
     pub async fn list_conjectures_by_status(
+        &self,
+        limit: Option<u32>,
+        before: Option<String>,
+        status: Option<String>,
+    ) -> CoreResult<Listing<ConjectureSummary>> {
+        let mut page = self.stored_conjectures(limit, before, status).await?;
+        for item in &mut page.items {
+            item.authors = canonical_authors(&item.authors);
+        }
+        Ok(page)
+    }
+    /// Author names exactly as stored; digest-bound evidence reads this form.
+    async fn stored_conjectures(
         &self,
         limit: Option<u32>,
         before: Option<String>,
@@ -705,10 +718,20 @@ impl App {
         record: &RecordId,
         claim: &ClaimId,
     ) -> CoreResult<PublicConjecture> {
+        let mut conjecture = self.stored_conjecture(record, claim).await?;
+        conjecture.summary.authors = canonical_authors(&conjecture.summary.authors);
+        Ok(conjecture)
+    }
+    /// Author names exactly as stored: feedback payload digests bind this value.
+    pub(crate) async fn stored_conjecture(
+        &self,
+        record: &RecordId,
+        claim: &ClaimId,
+    ) -> CoreResult<PublicConjecture> {
         let source = self.submission_proof_source(record).await?;
         let mut cursor = None;
         let summary = loop {
-            let page = self.list_conjectures(Some(100), cursor).await?;
+            let page = self.stored_conjectures(Some(100), cursor, None).await?;
             if let Some(s) = page
                 .items
                 .into_iter()

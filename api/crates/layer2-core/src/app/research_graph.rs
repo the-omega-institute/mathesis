@@ -101,12 +101,19 @@ pub struct ResearchGraph {
     pub next_before: Option<String>,
     pub scope: String,
 }
+/// Manuscript authors in the canonical written form of reader projections.
+fn shown_names(authors: &[Author]) -> Vec<String> {
+    authors
+        .iter()
+        .map(|a| canonical_author_name(&a.name).into_owned())
+        .collect()
+}
 fn manuscript_node(record: &RecordId, s: &Submission) -> ResearchNode {
     ResearchNode {
         id: format!("paper:{record}"),
         kind: ResearchNodeKind::Manuscript,
         title: s.title.clone(),
-        authors: s.authors.iter().map(|a| a.name.clone()).collect(),
+        authors: shown_names(&s.authors),
         url: None,
         record: Some(record.clone()),
         version: s.current_version().map(|v| v.number),
@@ -302,13 +309,7 @@ impl App {
                 id: format!("paper:{record}"),
                 kind: ResearchNodeKind::Manuscript,
                 title: collected.delivery.paper.title.clone(),
-                authors: collected
-                    .delivery
-                    .paper
-                    .authors
-                    .iter()
-                    .map(|a| a.name.clone())
-                    .collect(),
+                authors: shown_names(&collected.delivery.paper.authors),
                 url: None,
                 record: Some(record.clone()),
                 version: Some(version),

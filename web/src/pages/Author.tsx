@@ -11,6 +11,7 @@ import type {
 import { Async, Badge, DateText } from '../components/ui';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { Link } from '../routing/router';
+import { canonicalAuthorName } from '../lib/authorName';
 import { SUBMISSION_KIND_LABELS } from '../lib/labels';
 
 type AuthorWorks = {
@@ -20,9 +21,14 @@ type AuthorWorks = {
   formalizations: FormalizationOpportunity[];
 };
 
+/** The same name in either written form; a match never identifies a researcher. */
+function sameName(a: string, b: string): boolean {
+  const written = (name: string) => canonicalAuthorName(name).trim().toLowerCase();
+  return written(a) === written(b);
+}
+
 function hasAuthor(authors: readonly Author[] | undefined, name: string): boolean {
-  const wanted = name.trim().toLowerCase();
-  return Boolean(authors?.some((author) => author.name.trim().toLowerCase() === wanted));
+  return Boolean(authors?.some((author) => sameName(author.name, name)));
 }
 
 export function AuthorPage({ name }: { name: string }) {
@@ -34,20 +40,21 @@ export function AuthorPage({ name }: { name: string }) {
         api.listConjectures({ status: 'open', limit: 100 }, { signal }),
         api.listConjectures({ status: 'solved', limit: 100 }, { signal }),
         api.listConjectures({ status: 'disproved', limit: 100 }, { signal }),
-        api.formalizationOpportunities({ q: name, limit: 100 }, { signal }),
+        // Word search: the canonical form carries no comma to miss the other form.
+        api.formalizationOpportunities({ q: canonicalAuthorName(name), limit: 100 }, { signal }),
       ]);
       const conjectures = [...open.items, ...solved.items, ...disproved.items].filter((item) =>
         hasAuthor(item.authors, name),
       );
       const paperAuthor = papers.items
         .find((paper) => hasAuthor(paper.authors, name))
-        ?.authors.find((author) => author.name.trim().toLowerCase() === name.trim().toLowerCase());
+        ?.authors.find((author) => sameName(author.name, name));
       const conjectureAuthor = conjectures
         .find((item) => hasAuthor(item.authors, name))
-        ?.authors?.find((author) => author.name.trim().toLowerCase() === name.trim().toLowerCase());
+        ?.authors?.find((author) => sameName(author.name, name));
       const opportunityAuthor = formalizations.items
         .find((item) => hasAuthor(item.authors, name))
-        ?.authors.find((author) => author.name.trim().toLowerCase() === name.trim().toLowerCase());
+        ?.authors.find((author) => sameName(author.name, name));
       return {
         profile: paperAuthor ?? conjectureAuthor ?? opportunityAuthor ?? { name },
         papers: papers.items,
@@ -66,7 +73,7 @@ export function AuthorPage({ name }: { name: string }) {
             <header className="page-head author-head">
               <div>
                 <p className="eyebrow">{t('Author')}</p>
-                <h1>{value.profile.name}</h1>
+                <h1>{canonicalAuthorName(value.profile.name)}</h1>
                 {value.profile.affiliation ? (
                   <p className="lede">{value.profile.affiliation}</p>
                 ) : null}

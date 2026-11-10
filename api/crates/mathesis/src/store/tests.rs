@@ -2902,3 +2902,174 @@ async fn collected_problems_read_each_work_at_its_latest_stored_version_across_p
     assert_eq!(dropped.problem_links, vec![None]);
     db.drop().await;
 }
+
+#[tokio::test]
+async fn author_search_matches_either_written_form_like_the_memory_adapter() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let memory = mathesis_core::memory::MemoryStores::default();
+    let stored = [
+        vec!["Ma, Haobo", "Zhang, Wenlin"],
+        vec!["Haobo Ma", "Wenlin Zhang"],
+        vec!["Smith, John, Jr."],
+        vec!["张文林"],
+        vec!["Mao, Haobo"],
+        vec!["Haobo", "Ma"],
+        vec!["Ma, Haobo"],
+        vec!["Erdős, Paul"],
+    ];
+    for (n, names) in stored.iter().enumerate() {
+        let authors: Vec<Author> = names
+            .iter()
+            .map(|name| serde_json::from_value(serde_json::json!({ "name": name })).unwrap())
+            .collect();
+        let mut s = submission(
+            &format!("author-sub-{n}"),
+            "author",
+            SubmissionStatus::Draft,
+        );
+        s.analysis_visibility = Visibility::Public;
+        s.authors = authors.clone();
+        let record = Record {
+            id: RecordId::format(2026, n as u64 + 1),
+            kind: SubmissionKind::Paper,
+            title: s.title.clone(),
+            authors: authors.clone(),
+            submission: s.id.clone(),
+            publication: Some(Box::new(s)),
+            basis: mathesis_core::policy::AdmissionBasis::EscapeWitness,
+            accepted_by: "editor".into(),
+            accepted_at: Utc::now(),
+        };
+        let version: CollectedVersion = serde_json::from_value(serde_json::json!({
+            "id": format!("collected-{n}"), "owner":"publisher", "request_digest":"reviewed-request", "published_on":Utc::now(),
+            "pdf":{"id":"pdf", "bytes":10,"sha256":"a".repeat(64)},
+            "source":{"id":"source", "bytes":20,"sha256":"b".repeat(64)},
+            "delivery":{"schema":"mathesis.pre-reviewed-delivery.v1", "producer":"publisher", "work_id":format!("note-{n}"), "version":1,
+              "previous_version":null,"authorize_publication":true,
+              "paper":{"title":"A note", "abstract":"A bound on gaps", "authors":authors,"license":"CC-BY-4.0"},
+              "review":{"verdict":"PASS","pdf_sha256":"a".repeat(64),"source_sha256":"b".repeat(64),"record":{"checked":true}}}
+        })).unwrap();
+        SubmissionStore::insert(&db.store, record.publication.as_ref().unwrap())
+            .await
+            .unwrap();
+        SubmissionStore::insert(&memory, record.publication.as_ref().unwrap())
+            .await
+            .unwrap();
+        RecordStore::insert(&db.store, &record).await.unwrap();
+        RecordStore::insert(&memory, &record).await.unwrap();
+        CollectedPaperStore::insert(&db.store, &version)
+            .await
+            .unwrap();
+        CollectedPaperStore::insert(&memory, &version)
+            .await
+            .unwrap();
+    }
+    for (author, expected) in [
+        ("Haobo Ma", vec![7, 5, 2, 1]),
+        ("Ma, Haobo", vec![7, 5, 2, 1]),
+        ("haobo MA", vec![7, 5, 2, 1]),
+        ("MA,HAOBO", vec![7, 5, 2, 1]),
+        ("Wenlin Zhang", vec![2, 1]),
+        ("Zhang, Wenlin", vec![2, 1]),
+        ("Ma, H", vec![7, 1]),
+        ("Ma Haobo", vec![]),
+        ("Smith, John", vec![3]),
+        ("John Smith", vec![]),
+        ("文林", vec![4]),
+        ("paul ERDŐS", vec![8]),
+        ("ERDŐS, PAUL", vec![8]),
+        ("Ma", vec![7, 6, 5, 2, 1]),
+        (".*", vec![]),
+        ("Ma|Zhang", vec![]),
+        ("(Ma", vec![]),
+        ("Haobo Ma $where", vec![]),
+    ] {
+        let q = PaperSearch {
+            author: Some(author.into()),
+            ..Default::default()
+        };
+        // Whole result, then one item per page: the same set in the same order.
+        let mut pages: Vec<Vec<String>> = vec![];
+        for limit in [100, 1] {
+            let (mut ids, mut before) = (vec![], None);
+            loop {
+                let page = RecordStore::search(&db.store, &q, limit, before)
+                    .await
+                    .unwrap();
+                assert!(page.items.len() <= limit as usize);
+                ids.extend(page.items.iter().map(|r| r.id.to_string()));
+                before = page.next_before;
+                if before.is_none() {
+                    break;
+                }
+            }
+            pages.push(ids);
+        }
+        let wanted: Vec<String> = expected
+            .iter()
+            .map(|n| RecordId::format(2026, *n).to_string())
+            .collect();
+        assert_eq!(pages[0], wanted, "records for {author:?}");
+        assert_eq!(pages[1], wanted, "paged records for {author:?}");
+        let in_memory = RecordStore::search(&memory, &q, 100, None).await.unwrap();
+        assert_eq!(
+            in_memory
+                .items
+                .iter()
+                .map(|r| r.id.to_string())
+                .collect::<Vec<_>>(),
+            wanted,
+            "memory records for {author:?}"
+        );
+        let works = |listing: mathesis_core::ports::Listing<CollectedVersion>| {
+            let mut ids: Vec<_> = listing
+                .items
+                .into_iter()
+                .map(|v| v.delivery.work_id)
+                .collect();
+            ids.sort();
+            ids
+        };
+        let mut wanted: Vec<String> = expected.iter().map(|n| format!("note-{}", n - 1)).collect();
+        wanted.sort();
+        assert_eq!(
+            works(
+                CollectedPaperStore::list(&db.store, &q, 100, None)
+                    .await
+                    .unwrap()
+            ),
+            wanted,
+            "collected for {author:?}"
+        );
+        assert_eq!(
+            works(
+                CollectedPaperStore::list(&memory, &q, 100, None)
+                    .await
+                    .unwrap()
+            ),
+            wanted,
+            "memory collected for {author:?}"
+        );
+    }
+    // The other filters still select before pagination, and stored names are unchanged.
+    let q = PaperSearch {
+        author: Some("Haobo Ma".into()),
+        kind: Some(SubmissionKind::Conjecture),
+        ..Default::default()
+    };
+    assert!(
+        RecordStore::search(&db.store, &q, 100, None)
+            .await
+            .unwrap()
+            .items
+            .is_empty()
+    );
+    let first = RecordStore::get(&db.store, &RecordId::format(2026, 1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(first.authors[0].name, "Ma, Haobo");
+    db.drop().await;
+}

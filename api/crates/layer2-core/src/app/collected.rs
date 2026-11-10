@@ -39,6 +39,7 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             previous_version: d.previous_version.map(|v| v.to_string()),
             paper: CollectedMetadata {
                 archive_doi: None,
+                authors: canonical_authors(&d.paper.authors),
                 plain_language: v
                     .explanation
                     .text

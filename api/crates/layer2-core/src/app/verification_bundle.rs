@@ -36,9 +36,10 @@ impl App {
             .into_iter()
             .find(|a| a.id == attempt)
             .ok_or_else(|| CoreError::not_found("verified attempt", attempt))?;
+        // Evidence keeps the stored attribution; feedback digests bind these bytes.
         let mut reused_contributions = vec![];
         for pin in &proof.reuses {
-            reused_contributions.push(self.checked_contribution(&pin.attempt).await?);
+            reused_contributions.push(self.stored_contribution(&pin.attempt).await?);
         }
         let current = self.conjecture_source(record).await?;
         let current_target = self.target(record, claim).await?;

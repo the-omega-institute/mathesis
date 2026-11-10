@@ -322,7 +322,7 @@ impl App {
                         item.notes.push(ProblemNote {
                             record: record.id.clone(),
                             title: s.title.clone(),
-                            authors: s.authors.clone(),
+                            authors: canonical_authors(&s.authors),
                             kind: s.kind,
                             version: v.number,
                             upstream_version: delivery.version.clone(),
@@ -399,7 +399,7 @@ impl App {
                         item.collected_notes.push(CollectedProblemNote {
                             work: d.work_id.clone(),
                             title: d.paper.title.clone(),
-                            authors: d.paper.authors.clone(),
+                            authors: canonical_authors(&d.paper.authors),
                             version: d.version,
                             published_on: v.published_on,
                             license: d.paper.license.clone(),

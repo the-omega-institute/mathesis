@@ -2,6 +2,7 @@ import snapshot from '../data/project-notes.json';
 import type { Author, CollectedPaper, Settles } from '../api/types';
 import type { PaperQuery } from '../api/client';
 import { routePath } from '../routing/routes';
+import { authorNameMatches, canonicalAuthorName } from './authorName';
 import { noteSubjects } from './projectNoteSubjects';
 
 export type ProjectNote = {
@@ -51,7 +52,13 @@ export function collectedPaperNote(paper: CollectedPaper): ProjectNote {
   };
 }
 
-export const projectNoteVersions: readonly ProjectNote[] = snapshot.works as ProjectNote[];
+/** The snapshot keeps each name as delivered; readers get the archive's one written form. */
+export const projectNoteVersions: readonly ProjectNote[] = (snapshot.works as ProjectNote[]).map(
+  (note) => ({
+    ...note,
+    authors: note.authors.map((a) => ({ ...a, name: canonicalAuthorName(a.name) })),
+  }),
+);
 export const projectNotes = [...new Set(projectNoteVersions.map((note) => note.id))].map((id) =>
   projectNoteVersions
     .filter((note) => note.id === id)
@@ -76,8 +83,9 @@ export function mergeCollectedNotes(
 export function findProjectNotes(query: PaperQuery): ProjectNote[] {
   if (query.kind && query.kind !== 'note') return [];
   const msc = query.msc?.trim().toUpperCase();
-  const terms = (query.q ?? '').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  const author = (query.author ?? '').trim().toLocaleLowerCase();
+  const q = (query.q ?? '').trim();
+  const terms = q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const author = (query.author ?? '').trim();
   return projectNotes.filter((note) => {
     const codes = note.msc ?? noteSubjects[note.id] ?? [];
     if (msc && !codes.some((code) => code.startsWith(msc))) return false;
@@ -98,12 +106,17 @@ export function findProjectNotes(query: PaperQuery): ProjectNote[] {
     ]
       .join(' ')
       .toLocaleLowerCase();
-    return (!author || authors.includes(author)) && terms.every((term) => text.includes(term));
+    return (
+      (!author || note.authors.some((a) => authorNameMatches(a.name, author))) &&
+      // A whole query may also be one author's name in its other written form.
+      (terms.every((term) => text.includes(term)) ||
+        note.authors.some((a) => authorNameMatches(a.name, q)))
+    );
   });
 }
 
 /** This is a citation to the source work, with no invented venue, DOI or verdict. */
 export function projectCitation(note: ProjectNote): string {
   const doi = note.archive?.doi;
-  return `${note.authors.map((a) => a.name).join('; ')}. ${note.title}. Version ${note.revision}. ${note.published_on.slice(0, 4)}. ${doi ? `https://doi.org/${doi}` : `${window.location.origin}${routePath({ kind: 'paper', record: note.id, version: note.revision })}`}`;
+  return `${note.authors.map((a) => canonicalAuthorName(a.name)).join('; ')}. ${note.title}. Version ${note.revision}. ${note.published_on.slice(0, 4)}. ${doi ? `https://doi.org/${doi}` : `${window.location.origin}${routePath({ kind: 'paper', record: note.id, version: note.revision })}`}`;
 }

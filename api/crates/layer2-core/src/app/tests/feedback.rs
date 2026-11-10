@@ -630,3 +630,46 @@ async fn feedback_readback_is_durable_fenced_and_never_established_by_the_reques
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn feedback_payload_keeps_stored_author_names_while_readers_see_the_canonical_form() {
+    let stores = Arc::new(MemoryStores::default());
+    let w = World {
+        app: App::new(
+            stores.ports(Arc::new(SystemClock), Arc::new(FamilyFirstReader)),
+            Policy::default(),
+            BTreeSet::from([PersonId::from("admin")]),
+        ),
+        stores,
+    };
+    let a = w.person("author", &[]).await;
+    let r = w.person("reviewer", &[Role::Reviewer]).await;
+    let p = displayed_conjecture(&w, &a, &r).await;
+    let p = w.app.load(&p.id).await.unwrap();
+    let SubmissionStatus::Accepted { record } = &p.status else {
+        panic!()
+    };
+    assert_eq!(p.authors[0].name, "Ma, Haobo");
+    let shown = w.app.conjecture(record, &"C1".into()).await.unwrap();
+    assert_eq!(shown.summary.authors[0].name, "Haobo Ma");
+    let listed = w.app.list_conjectures(None, None).await.unwrap();
+    assert_eq!(listed.items[0].authors[0].name, "Haobo Ma");
+    // The exact payload, and so its digest, carries the attribution as stored.
+    let kind = FeedbackKind::OpenProblem { claim: "C1".into() };
+    let preview = w
+        .app
+        .preview_feedback(&a, &p.id, kind.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        preview.payload["attribution"]["authors"][0]["name"],
+        "Ma, Haobo"
+    );
+    assert_eq!(
+        preview.payload["evidence"]["problem"]["summary"]["authors"][0]["name"],
+        "Ma, Haobo"
+    );
+    let v = prepared(&w, &a, &p, kind).await;
+    assert_eq!(v.proposal.digest, preview.digest);
+    assert_eq!(v.payload, Some(preview.payload));
+}
