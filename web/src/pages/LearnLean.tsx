@@ -2,6 +2,9 @@ import { t } from '../i18n/locale';
 import { Link } from '../routing/router';
 import '../styles/learn-lean.css';
 
+const firstProof = `theorem addition_commutes (a b : Nat) : a + b = b + a := by
+  exact Nat.add_comm a b`;
+
 const stages = [
   {
     id: 'first-proof',
@@ -118,12 +121,7 @@ export function LearnLeanPage() {
           <h1>{t('Learn Lean')}</h1>
           <p className="lede">
             {t(
-              'A path from your first checked proof to contributing mathematical formalizations, with selected tutorials, tools and community resources.',
-            )}
-          </p>
-          <p className="learning-start">
-            {t(
-              'New to proof assistants? Start with the Natural Number Game, then work through Mathematics in Lean. If you already write Lean, go straight to Mathlib and contribution resources.',
+              'Lean is free, open-source software for writing mathematical proofs and checking every logical step by computer.',
             )}
           </p>
         </div>
@@ -131,7 +129,13 @@ export function LearnLeanPage() {
       <div className="learning-layout">
         <nav className="learning-contents" aria-label={t('Learning path')}>
           <p>{t('Learning path')}</p>
-          <ol>
+          <ul>
+            <li>
+              <a href="#what-is-lean">{t('What Lean does')}</a>
+            </li>
+            <li>
+              <a href="#check-a-proof">{t('Run and check a proof')}</a>
+            </li>
             {stages.map((stage) => (
               <li key={stage.id}>
                 <a href={`#${stage.id}`}>{t(stage.title)}</a>
@@ -140,23 +144,87 @@ export function LearnLeanPage() {
             <li>
               <a href="#mathesis-contribution">{t('Your first Mathesis contribution')}</a>
             </li>
-          </ol>
-          <p className="learning-note">
-            {t(
-              'All resources below are for Lean 4. Most written material is in English; the game offers a language selector.',
-            )}
-          </p>
-          <a href="https://lean-lang.org/learn/">{t('Official Lean learning directory')}</a>
+          </ul>
         </nav>
         <div className="learning-reading">
-          {stages.map((stage, index) => (
+          <section aria-labelledby="what-is-lean">
+            <h2 id="what-is-lean">{t('What Lean does')}</h2>
+            <p>
+              {t(
+                'Lean is both a programming language and a proof assistant. You write down the definitions, assumptions, theorem and proof in a precise language; Lean checks that the conclusion follows from those assumptions. Writing a mathematical argument this way is called formalization.',
+              )}
+            </p>
+            <p>
+              {t(
+                'Think of it as turning a written proof into a program whose logic a computer can check. A proof about all natural numbers covers every case through its reasoning, rather than testing a large sample. Constructive proofs can also describe algorithms, whose correctness Lean can verify.',
+              )}
+            </p>
+            <p>
+              {t(
+                'Lean and the Mathlib mathematical library are free to use, with no subscription required. You can check proofs on your own computer. Mathlib contains reusable definitions and proofs, so a new result can build on earlier mathematics. Mathesis connects those results and records credit for the original mathematics and the formalization.',
+              )}
+            </p>
+            <p className="learning-note">
+              <a href="https://lean-lang.org/">{t('About Lean')}</a>
+              {' · '}
+              <a href="https://lean-lang.org/theorem_proving_in_lean4/propositions_and_proofs.html">
+                {t('How proofs relate to programs')}
+              </a>
+            </p>
+          </section>
+          <section aria-labelledby="check-a-proof">
+            <h2 id="check-a-proof">{t('Run and check a proof')}</h2>
+            <p>
+              <a href={`https://live.lean-lang.org/#code=${encodeURIComponent(firstProof)}`}>
+                {t('Run this example in Lean Web')}
+              </a>
+              {t(
+                '. The proof below opens in the editor and Lean checks it automatically. No installation is needed.',
+              )}
+            </p>
+            <pre className="learning-code">
+              <code>{firstProof}</code>
+            </pre>
+            <p>
+              {t(
+                'The first line says that a + b = b + a for any natural numbers a and b. The second line supplies the existing proof Nat.add_comm. Lean checks that this proof matches the statement. With your cursor after the proof, the information panel should show no remaining goals and no errors.',
+              )}
+            </p>
+            <p>
+              <strong>{t('On your computer.')}</strong> {t('Follow the ')}
+              <a href="https://lean-lang.org/install/">{t('official installation guide')}</a>
+              {t(
+                ' to install VS Code and its Lean 4 extension. Open an existing Lean project, then a .lean file. Lean checks the file as you edit; the information panel shows the current goal and any errors. Use the version specified by the project.',
+              )}
+            </p>
+            <p>
+              <strong>{t('Compile a project.')}</strong>{' '}
+              {t(
+                'Once the project and its dependencies are installed, run the following in the terminal from the project folder:',
+              )}
+            </p>
+            <pre className="learning-code">
+              <code>lake build</code>
+            </pre>
+            <p>
+              {t(
+                'Lake is Lean’s project tool. This command compiles and checks the project’s configured build targets. For an unfamiliar project, follow its README to prepare dependencies and build any additional proof files.',
+              )}
+            </p>
+            <p className="learning-note">
+              {t(
+                'A finished proof also needs all gaps filled: Lean can compile a file containing sorry placeholders with a warning. Review the exact statement, assumptions and dependencies as well as the build result.',
+              )}
+            </p>
+            <p>
+              {t(
+                'New to proof assistants? Start with the Natural Number Game, then work through Mathematics in Lean. If you already write Lean, go straight to Mathlib and contribution resources.',
+              )}
+            </p>
+          </section>
+          {stages.map((stage) => (
             <section key={stage.id} aria-labelledby={stage.id}>
-              <h2 id={stage.id}>
-                <span className="learning-number" aria-hidden="true">
-                  {index + 1}.
-                </span>{' '}
-                {t(stage.title)}
-              </h2>
+              <h2 id={stage.id}>{t(stage.title)}</h2>
               <p className="learning-introduction">{t(stage.introduction)}</p>
               <ul className="learning-resources">
                 {stage.resources.map((resource) => (
@@ -203,6 +271,12 @@ export function LearnLeanPage() {
               </Link>
             </p>
           </section>
+          <p className="learning-note">
+            {t(
+              'These resources are for Lean 4. Most written material is in English; the game offers a language selector.',
+            )}{' '}
+            <a href="https://lean-lang.org/learn/">{t('Official Lean learning directory')}</a>
+          </p>
         </div>
       </div>
     </div>
