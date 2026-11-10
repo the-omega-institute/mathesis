@@ -7,13 +7,8 @@
   margin-bottom: 1rem;
   font-size: 0.875rem;
 }
-.learn-lean-page .lede,
-.learning-start {
+.learn-lean-page .lede {
   max-width: 52rem;
-}
-.learning-start {
-  margin-top: 1rem;
-  color: var(--ink-soft);
 }
 .learning-layout {
   display: grid;
@@ -29,8 +24,9 @@
 .learning-contents > p:first-child {
   font-weight: 600;
 }
-.learning-contents ol {
-  padding-left: 1.2rem;
+.learning-contents ul {
+  list-style: none;
+  padding: 0;
   margin-block: 0.75rem 1.5rem;
 }
 .learning-contents li {
@@ -53,11 +49,16 @@
   font-size: 1.6rem;
   scroll-margin-top: 1.5rem;
 }
-.learning-number {
-  color: var(--muted);
-}
 .learning-introduction {
   color: var(--ink-soft);
+}
+.learning-code {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  font-size: 0.875rem;
+  line-height: 1.65;
 }
 .learning-resources {
   list-style: none;

@@ -2224,4 +2224,35 @@ export const zh: Record<string, string> = {
   'Submit your contribution with the corresponding result. Independently verified proof contributions receive credit; the original mathematical authors remain credited separately.':
     '把贡献关联到对应结果后提交。经过独立核验的证明贡献会得到署名记录；原始数学成果的作者也会单独保留署名。',
   'Explore formalizations': '浏览形式化成果',
+  'Lean is free, open-source software for writing mathematical proofs and checking every logical step by computer.':
+    'Lean 是一款免费、开源的软件，用来书写数学证明，并让计算机逐步检查其中的逻辑。',
+  'What Lean does': 'Lean 是做什么的',
+  'Run and check a proof': '怎样运行和检查证明',
+  'Lean is both a programming language and a proof assistant. You write down the definitions, assumptions, theorem and proof in a precise language; Lean checks that the conclusion follows from those assumptions. Writing a mathematical argument this way is called formalization.':
+    'Lean 既是一门编程语言，也是一个证明助手。你用精确的语言写出定义、假设、定理和证明，Lean 则检查结论能否从这些假设中推导出来。把数学论证这样写下来，就叫作形式化。',
+  'Think of it as turning a written proof into a program whose logic a computer can check. A proof about all natural numbers covers every case through its reasoning, rather than testing a large sample. Constructive proofs can also describe algorithms, whose correctness Lean can verify.':
+    '可以把它理解为：把纸上的数学证明，写成计算机能够逐步核验逻辑的程序。一个关于所有自然数的证明，通过推理覆盖每一种情况，而不只是测试大量样例。构造性的证明还可以给出算法，并由 Lean 核验算法的正确性。',
+  'Lean and the Mathlib mathematical library are free to use, with no subscription required. You can check proofs on your own computer. Mathlib contains reusable definitions and proofs, so a new result can build on earlier mathematics. Mathesis connects those results and records credit for the original mathematics and the formalization.':
+    'Lean 和 Mathlib 数学库都可以免费使用，无需订阅；你可以在自己的电脑上检查证明。Mathlib 提供可复用的定义和证明，让新结果建立在已有数学之上。Mathesis 将这些结果连接起来，并记录原始数学成果与形式化工作的贡献。',
+  'About Lean': '了解 Lean',
+  'How proofs relate to programs': '证明与程序有什么关系',
+  'Run this example in Lean Web': '在 Lean Web 运行这个例子',
+  '. The proof below opens in the editor and Lean checks it automatically. No installation is needed.':
+    '，下面的证明会直接出现在编辑器里，由 Lean 自动检查，无需安装。',
+  'The first line says that a + b = b + a for any natural numbers a and b. The second line supplies the existing proof Nat.add_comm. Lean checks that this proof matches the statement. With your cursor after the proof, the information panel should show no remaining goals and no errors.':
+    '第一行说：任意自然数 a、b 都满足 a + b = b + a。第二行引用已有证明 Nat.add_comm，Lean 会检查这个证明是否符合命题。把光标放在证明末尾，信息面板应显示没有剩余证明目标，也没有错误。',
+  'On your computer.': '在自己的电脑上使用。',
+  'Follow the ': '按照',
+  'official installation guide': '官方安装指南',
+  ' to install VS Code and its Lean 4 extension. Open an existing Lean project, then a .lean file. Lean checks the file as you edit; the information panel shows the current goal and any errors. Use the version specified by the project.':
+    '安装 VS Code 和 Lean 4 扩展。打开一个已有 Lean 项目，再打开其中的 .lean 文件。编辑时 Lean 会自动检查，信息面板会显示当前证明目标和错误。请使用项目指定的 Lean 版本。',
+  'Compile a project.': '编译整个项目。',
+  'Once the project and its dependencies are installed, run the following in the terminal from the project folder:':
+    '准备好项目和依赖后，在项目文件夹中打开终端，运行：',
+  'Lake is Lean’s project tool. This command compiles and checks the project’s configured build targets. For an unfamiliar project, follow its README to prepare dependencies and build any additional proof files.':
+    'Lake 是 Lean 的项目管理工具。这条命令会编译并检查项目配置的构建目标。使用他人的项目时，先按 README 准备依赖，并检查是否还有需要单独编译的证明文件。',
+  'A finished proof also needs all gaps filled: Lean can compile a file containing sorry placeholders with a warning. Review the exact statement, assumptions and dependencies as well as the build result.':
+    '完整的证明还需要补齐所有空缺：含有 sorry 占位符的文件也可能编译通过，但会有警告。因此还要确认准确的命题、假设和依赖，不能只看编译结果。',
+  'Lean is free, open-source software that checks mathematical proofs step by step. Explore how results build on one another, find a proof to contribute, and receive credit for your work.':
+    'Lean 是免费、开源的数学证明软件，能逐步检查证明的逻辑。在这里，你可以查看结果之间的依赖关系、寻找可参与的证明工作，并获得贡献署名。',
 };

@@ -40,7 +40,7 @@ export function FormalizationsPage({
           <h1>{t('Formalizations')}</h1>
           <p className="lede">
             {t(
-              'Explore how results connect, find a missing formal proof, and contribute Lean work with credit for the mathematics and its formalization.',
+              'Lean is free, open-source software that checks mathematical proofs step by step. Explore how results build on one another, find a proof to contribute, and receive credit for your work.',
             )}
           </p>
         </div>
