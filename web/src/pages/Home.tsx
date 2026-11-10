@@ -43,6 +43,7 @@ export function HomePage() {
             )}
           </p>
           <nav className="home-actions" aria-label={t('About Mathesis')}>
+            <Link to={{ kind: 'learn_lean' }}>{t('Get familiar with Lean formalization')}</Link>
             <Link to={{ kind: 'research_graph' }}>{t('Explore the knowledge graph')}</Link>
             <Link to={{ kind: 'policy' }}>{t('How review works')}</Link>
           </nav>
