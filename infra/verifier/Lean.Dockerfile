@@ -16,6 +16,9 @@ COPY --chown=65532:65532 infra/verifier/lean-toolchain infra/verifier/lakefile.t
 #   it in lake-manifest.json and fetches nothing further.
 # - Only the modules of library-modules.txt and their imports are compiled. A
 #   module that does not compile at the pinned revision fails the image build.
+# - The compiler's output goes to a file: the library's linter messages exceed
+#   the 2 MiB step log of the image builder. The step prints one progress line a
+#   minute, and on failure the failing modules with their errors.
 # - Verification reads compiled modules only, and every job copies the workspace,
 #   so sources, Git data and intermediate C files are removed in the same layer.
 RUN set -eu; \
@@ -44,8 +47,19 @@ RUN set -eu; \
     test -f .lake/packages/mathlib/.lake/build/lib/lean/Mathlib.olean; \
     test "$(git -C "$library" rev-parse HEAD)" = "$revision"; \
     started=$(date +%s); \
-    lake build $(printf '+%s ' $modules); \
-    echo "prepared library: compiled in $(( $(date +%s) - started )) s"; \
+    lake build $(printf '+%s ' $modules) > /tmp/library-build.log 2>&1 & \
+    build=$!; \
+    while kill -0 "$build" 2>/dev/null; do \
+        sleep 60; \
+        echo "prepared library: $(grep -c '\] Built ' /tmp/library-build.log) modules built after $(( $(date +%s) - started )) s"; \
+    done; \
+    if ! wait "$build"; then \
+        grep -E -A 15 '^(✖|error:)' /tmp/library-build.log | head -n 500; \
+        tail -n 30 /tmp/library-build.log; \
+        exit 1; \
+    fi; \
+    echo "prepared library: compiled in $(( $(date +%s) - started )) s, $(grep -c '^warning:' /tmp/library-build.log) warnings"; \
+    rm /tmp/library-build.log; \
     for module in $modules; do \
         test -f "$library/.lake/build/lib/lean/$(echo "$module" | tr . /).olean"; \
     done; \
