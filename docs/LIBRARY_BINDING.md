@@ -261,11 +261,69 @@ collected jobs keep their pinned revision in their prompts. A proof that depends
 on a declaration absent from the new revision is rejected by the verifier with
 its ordinary compiler message.
 
+## The reference image's library
+
+`infra/verifier/` prepares one library beside Mathlib: the Lake package
+`trureturing` (<https://github.com/the-omega-institute/trureturing>) with module
+root `D5`. Four files define it:
+
+| File | Content |
+|---|---|
+| `lakefile.toml` | the `[[require]]` entry with the repository address and one full 40-digit revision |
+| `mathesis-libraries.json` | the workspace declaration, copied to the workspace root |
+| `library-modules.txt` | the modules to compile, one per line; currently the Lean module of each collected work |
+| `library-proof.json` | one proof of a Mathlib-only target that needs a declaration of the library |
+
+`Lean.Dockerfile` builds the workspace in this order:
+
+1. It fetches the library at the pinned revision with only the `D5` sources
+   checked out, then runs `lake update`. Lake finds the package at that revision
+   and writes its address and revision to `lake-manifest.json`, the file
+   `libraries()` reads.
+2. It fetches the Mathlib build cache as before.
+3. It compiles the listed modules and their imports from source with the pinned
+   toolchain and the library's own Lake options. Nothing is downloaded prebuilt
+   for the library. A listed module that does not compile at the pinned revision
+   fails the build.
+4. It removes the library's sources, Git data and intermediate C files. Checking
+   a proof reads compiled modules only, and every job copies the workspace.
+
+A module of the library outside the compiled closure is absent from the image.
+A solution that imports it is refused with `missing prepared dependency`.
+
+The verifier image build runs
+`real_lean_prepared_library_proves_a_mathlib_only_target` with
+`WISHPOOL_TEST_LIBRARY_PROOF` naming `library-proof.json`. The test checks the
+proof in the prepared workspace and requires the receipt to report the library's
+manifest revision and the named declaration. A workspace that declares a library
+without that input fails the test.
+
+### Changing the revision or the module list
+
+The revision, the module list and the proof change together in one pull request:
+
+1. Set the new revision in `lakefile.toml`. One image carries one revision of
+   the library; collected works may pin other revisions in their own records.
+2. Add or remove modules in `library-modules.txt`. Every listed module must
+   exist at that revision.
+3. Keep `library-proof.json` valid: its module must stay inside the compiled
+   closure and its declaration must keep its name and statement.
+
+The Lean base image is addressed by a pin: the first twelve hexadecimal digits of
+the SHA-256 of `lean-toolchain`, `lakefile.toml`, `mathesis-libraries.json`,
+`library-modules.txt` and `Lean.Dockerfile`, concatenated in that order. A change
+to any of them produces a new pin, and the library is compiled again:
+
+- The first CI run of a new pin compiles the library inside the verifier job.
+- `publish-images.yml` publishes the base as `mathesis-lean:<pin>` when no image
+  of that pin exists. Dispatching it for the pull request branch with the
+  verifier option publishes the base before the merge.
+- Every later CI and publication run of the same pin reuses the published base.
+
 ## Current state
 
-No library is declared in `infra/verifier/`. The deployed verifier image offers
-Mathlib only, so every production receipt is `new_lean` and no job is
-library-first until a library-enabled verifier image is prepared. Building that
-image (cloning the library at a pinned revision, compiling its modules with the
-pinned toolchain, writing `mathesis-libraries.json` and extending the image's
-real-Lean test) is a separate change. This change adds no configuration key.
+The verifier image built from this repository declares `trureturing` with root
+`D5`. A deployment offers the library once its verifier service runs such an
+image, after the API and worker of the deployment order above. Until then its
+receipts are `new_lean` and no job is library-first. This change adds no
+configuration key.

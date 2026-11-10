@@ -178,8 +178,10 @@ verifier image and validates its Kubernetes manifests alongside API/web/worker.
 
 A workspace may declare further prepared libraries in `mathesis-libraries.json`;
 readiness then also requires their built artifacts and `/environment` lists them.
-The reference image declares none. Deploy the API and worker before a verifier
-that lists libraries. See [LIBRARY_BINDING.md](LIBRARY_BINDING.md).
+The reference image declares `trureturing` with root `D5`, compiled from source
+at the revision pinned in `infra/verifier/lakefile.toml` for the modules of
+`library-modules.txt` and their imports. Deploy the API and worker before a
+verifier that lists libraries. See [LIBRARY_BINDING.md](LIBRARY_BINDING.md).
 
 ## Scope that still needs product or infrastructure work
 

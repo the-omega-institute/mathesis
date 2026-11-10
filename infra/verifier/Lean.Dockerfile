@@ -7,12 +7,49 @@ USER 65532:65532
 ENV HOME=/opt/verifier
 ENV PATH=/opt/verifier/.elan/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 WORKDIR /opt/lean-workspace
-COPY --chown=65532:65532 infra/verifier/lean-toolchain infra/verifier/lakefile.toml ./
-RUN curl -fsSL https://github.com/leanprover/elan/releases/download/v4.2.1/elan-x86_64-unknown-linux-gnu.tar.gz -o /tmp/elan.tar.gz \
-    && tar -xzf /tmp/elan.tar.gz -C /tmp \
-    && /tmp/elan-init -y --no-modify-path --default-toolchain none \
-    && elan toolchain install "$(cat lean-toolchain)" \
-    && lake update \
-    && lake exe cache get \
-    && test -f .lake/packages/mathlib/.lake/build/lib/lean/Mathlib.olean \
-    && rm /tmp/elan.tar.gz /tmp/elan-init
+COPY --chown=65532:65532 infra/verifier/lean-toolchain infra/verifier/lakefile.toml \
+    infra/verifier/mathesis-libraries.json infra/verifier/library-modules.txt ./
+# Mathlib comes from its build cache. The prepared library (docs/LIBRARY_BINDING.md)
+# is compiled here from source:
+# - It is fetched at the exact revision of lakefile.toml with only its Lean
+#   sources checked out. Lake finds the package already at that revision, records
+#   it in lake-manifest.json and fetches nothing further.
+# - Only the modules of library-modules.txt and their imports are compiled. A
+#   module that does not compile at the pinned revision fails the image build.
+# - Verification reads compiled modules only, and every job copies the workspace,
+#   so sources, Git data and intermediate C files are removed in the same layer.
+RUN set -eu; \
+    library=.lake/packages/trureturing; \
+    library_field() { \
+        awk -v field="$1" '/^\[\[require\]\]/ { found = 0 } \
+            $0 == "name = \"trureturing\"" { found = 1 } \
+            found && $1 == field { gsub(/"/, "", $3); print $3 }' lakefile.toml; \
+    }; \
+    url=$(library_field git); revision=$(library_field rev); \
+    echo "$revision" | grep -Eq '^[0-9a-f]{40}$'; \
+    modules=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' -e '/^$/d' library-modules.txt); \
+    test -n "$modules"; \
+    curl -fsSL https://github.com/leanprover/elan/releases/download/v4.2.1/elan-x86_64-unknown-linux-gnu.tar.gz -o /tmp/elan.tar.gz; \
+    tar -xzf /tmp/elan.tar.gz -C /tmp; \
+    /tmp/elan-init -y --no-modify-path --default-toolchain none; \
+    elan toolchain install "$(cat lean-toolchain)"; \
+    rm /tmp/elan.tar.gz /tmp/elan-init; \
+    git init -q "$library"; \
+    git -C "$library" remote add origin "$url"; \
+    git -C "$library" fetch -q --depth 1 --filter=blob:none origin "$revision"; \
+    git -C "$library" sparse-checkout set --cone D5; \
+    git -C "$library" checkout -q --detach "$revision"; \
+    lake update; \
+    lake exe cache get; \
+    test -f .lake/packages/mathlib/.lake/build/lib/lean/Mathlib.olean; \
+    test "$(git -C "$library" rev-parse HEAD)" = "$revision"; \
+    started=$(date +%s); \
+    lake build $(printf '+%s ' $modules); \
+    echo "prepared library: compiled in $(( $(date +%s) - started )) s"; \
+    for module in $modules; do \
+        test -f "$library/.lake/build/lib/lean/$(echo "$module" | tr . /).olean"; \
+    done; \
+    find "$library" -mindepth 1 -maxdepth 1 ! -name .lake -exec rm -rf {} +; \
+    find "$library/.lake" -mindepth 1 -maxdepth 1 ! -name build -exec rm -rf {} +; \
+    find "$library/.lake/build" -mindepth 1 -maxdepth 1 ! -name lib -exec rm -rf {} +; \
+    echo "prepared library: $(find "$library/.lake/build/lib/lean" -name '*.olean' | wc -l) modules, $(du -sm "$library" | cut -f1) MiB"
