@@ -145,12 +145,6 @@ export function LearnLeanPage() {
               <a href="#mathesis-contribution">{t('Your first Mathesis contribution')}</a>
             </li>
           </ul>
-          <p className="learning-note">
-            {t(
-              'All resources below are for Lean 4. Most written material is in English; the game offers a language selector.',
-            )}
-          </p>
-          <a href="https://lean-lang.org/learn/">{t('Official Lean learning directory')}</a>
         </nav>
         <div className="learning-reading">
           <section aria-labelledby="what-is-lean">
@@ -277,6 +271,12 @@ export function LearnLeanPage() {
               </Link>
             </p>
           </section>
+          <p className="learning-note">
+            {t(
+              'These resources are for Lean 4. Most written material is in English; the game offers a language selector.',
+            )}{' '}
+            <a href="https://lean-lang.org/learn/">{t('Official Lean learning directory')}</a>
+          </p>
         </div>
       </div>
     </div>

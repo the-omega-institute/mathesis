@@ -2211,8 +2211,8 @@ export const zh: Record<string, string> = {
   'Contribution guide · Lean community · English': '贡献指南 · Lean 社区 · 英文',
   'Learn the library’s conventions and review process when a result could be useful beyond one project. This is the guide for contributing to Mathlib itself.':
     '当一个结果也可能对其他项目有用时，可以了解数学库的规范与审阅流程。这份指南讲解如何向 Mathlib 本身贡献。',
-  'All resources below are for Lean 4. Most written material is in English; the game offers a language selector.':
-    '以下资源均面向 Lean 4。文字教程大多为英文；自然数游戏可以切换语言。',
+  'These resources are for Lean 4. Most written material is in English; the game offers a language selector.':
+    '这些资源均面向 Lean 4。文字教程大多为英文；自然数游戏可以切换语言。',
   'Official Lean learning directory': 'Lean 官方学习资源目录',
   'Your first Mathesis contribution': '在 Mathesis 完成第一次贡献',
   'Choose a result you understand. Read its mathematical statement and any existing Lean source, then look for a small, precise piece of proof work you can add.':
@@ -2242,9 +2242,9 @@ export const zh: Record<string, string> = {
   'The first line says that a + b = b + a for any natural numbers a and b. The second line supplies the existing proof Nat.add_comm. Lean checks that this proof matches the statement. With your cursor after the proof, the information panel should show no remaining goals and no errors.':
     '第一行说：任意自然数 a、b 都满足 a + b = b + a。第二行引用已有证明 Nat.add_comm，Lean 会检查这个证明是否符合命题。把光标放在证明末尾，信息面板应显示没有剩余证明目标，也没有错误。',
   'On your computer.': '在自己的电脑上使用。',
-  'Follow the ': '按照',
+  'Follow the': '按照',
   'official installation guide': '官方安装指南',
-  ' to install VS Code and its Lean 4 extension. Open an existing Lean project, then a .lean file. Lean checks the file as you edit; the information panel shows the current goal and any errors. Use the version specified by the project.':
+  'to install VS Code and its Lean 4 extension. Open an existing Lean project, then a .lean file. Lean checks the file as you edit; the information panel shows the current goal and any errors. Use the version specified by the project.':
     '安装 VS Code 和 Lean 4 扩展。打开一个已有 Lean 项目，再打开其中的 .lean 文件。编辑时 Lean 会自动检查，信息面板会显示当前证明目标和错误。请使用项目指定的 Lean 版本。',
   'Compile a project.': '编译整个项目。',
   'Once the project and its dependencies are installed, run the following in the terminal from the project folder:':
