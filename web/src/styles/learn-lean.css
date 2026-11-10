@@ -1,0 +1,101 @@
+.learn-lean-page > .page-head {
+  padding-bottom: 0;
+  border: 0;
+  margin-bottom: 2.75rem;
+}
+.learning-parent {
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+.learn-lean-page .lede,
+.learning-start {
+  max-width: 52rem;
+}
+.learning-start {
+  margin-top: 1rem;
+  color: var(--ink-soft);
+}
+.learning-layout {
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.65fr) minmax(0, 2fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+}
+.learning-contents {
+  position: sticky;
+  top: 1.5rem;
+  font-size: 0.875rem;
+}
+.learning-contents > p:first-child {
+  font-weight: 600;
+}
+.learning-contents ol {
+  padding-left: 1.2rem;
+  margin-block: 0.75rem 1.5rem;
+}
+.learning-contents li {
+  padding-left: 0.2rem;
+  margin-block: 0.6rem;
+}
+.learning-note,
+.learning-resource-detail {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.learning-reading {
+  max-width: 52rem;
+}
+.learning-reading > section + section {
+  margin-top: 3rem;
+}
+.learning-reading h2 {
+  margin-top: 0;
+  font-size: 1.6rem;
+  scroll-margin-top: 1.5rem;
+}
+.learning-number {
+  color: var(--muted);
+}
+.learning-introduction {
+  color: var(--ink-soft);
+}
+.learning-resources {
+  list-style: none;
+  padding: 0;
+  margin-block: 1.75rem 0;
+}
+.learning-resources > li + li {
+  margin-top: 1.75rem;
+}
+.learning-resources h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.35rem;
+}
+.learning-resource-detail {
+  margin-bottom: 0.45rem;
+}
+.learning-contribution-steps {
+  padding-left: 1.25rem;
+}
+.learning-contribution-steps li {
+  margin-block: 0.75rem;
+  padding-left: 0.25rem;
+}
+.learning-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.5rem;
+  margin-top: 1.5rem;
+}
+@media (max-width: 47.99rem) {
+  .learning-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.25rem;
+  }
+  .learning-contents {
+    position: static;
+  }
+  .learn-lean-page > .page-head {
+    margin-bottom: 1.75rem;
+  }
+}

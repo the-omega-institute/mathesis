@@ -20,6 +20,7 @@ export type Route =
   | { kind: 'research_problem'; id: string; before?: string }
   | { kind: 'conjectures' }
   | { kind: 'formalizations'; focus?: string; q?: string; before?: string; view?: 'list' }
+  | { kind: 'learn_lean' }
   | { kind: 'conjecture'; record: string; claim: string }
   | { kind: 'leaderboard'; category?: 'formalization' }
   | { kind: 'supporters' }
@@ -127,6 +128,8 @@ export function parseRoute(pathname: string, search = ''): Route {
       }
       case 'policy':
         return { kind: 'policy' };
+      case 'learn-lean':
+        return { kind: 'learn_lean' };
       case 'formalizations': {
         const params = new URLSearchParams(search);
         return {
@@ -288,6 +291,8 @@ export function routePath(route: Route): string {
       return `/papers/${seg(route.record)}${route.version ? `?version=${seg(route.version)}` : ''}`;
     case 'policy':
       return '/policy';
+    case 'learn_lean':
+      return '/learn-lean';
     case 'formalizations': {
       const params = new URLSearchParams();
       if (route.focus) params.set('focus', route.focus);
