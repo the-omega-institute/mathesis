@@ -381,7 +381,9 @@ Pull requests run the gates of the areas they change; pushes to `develop` and
 The static showcase also passes `npm run build:showcase`. Real Lean tests are
 explicitly ignored unless selected with `--ignored` and a prepared
 `WISHPOOL_TEST_LEAN_WORKSPACE`; the verifier image build must run them and fail
-on missing inputs. All verifier manifests are included in schema validation.
+on missing inputs. A workspace that declares prepared libraries also requires
+`WISHPOOL_TEST_LIBRARY_PROOF`. All verifier manifests are included in schema
+validation.
 
 ## 10. Branches
 

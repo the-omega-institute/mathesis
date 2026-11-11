@@ -1,0 +1,44 @@
+# Lean modules of the prepared library that the verifier image compiles, together
+# with everything they import. One module per line; text after '#' names the
+# collected work whose Lean source is that module. docs/LIBRARY_BINDING.md
+# describes how this list, the revision in lakefile.toml and library-proof.json
+# change together.
+D5.S0.Certificates.Algebra.WangConjecture326Refutation                            # wang-conjecture326
+D5.S1.Dynamics.Symbolic.PermutativeLifts.BalancedRegularRefutation                # kang-jager-2026-universal-permutative-lift-refutation
+D5.S1.Eigenstructure.OrthogonalAbsoluteProductMinimum                             # user3-2026-orthogonal-absolute-product-minimum
+D5.S1.Recurrence.Algebraic.ChenChenParityPositivity                               # chen-chen-step-m-eulerian-parity-positivity
+D5.S1.Recurrence.MatharA027182SelfConvolution                                     # mathar-a027182-closed-form
+D5.S1.Recurrence.Residue.OEISA189733DenominatorConjecture                         # oeis-a189733-curtz-denominator-conjecture
+D5.S3.Analytic.Asymptotics.MittagLefflerModulusRefutation                         # ggps2025
+D5.S3.Analytic.Polynomial.HermiteSignedMode                                       # oeis-a381423-hermite-differences
+D5.S3.Arith.FactorialRatio.BalaA295462Parity                                      # bala295462
+D5.S3.ArithSums.BrowneA164660ChebyshevFloorProduct                                # b164660-chebfloor
+D5.S3.ArithSums.HannaLaurentAlternatingJacobsthal                                 # oeis-a391810-alternating-jacobsthal
+D5.S3.ArithSums.SpeziaA320043SquareValuesRefutation                               # a320043-square-values-refutation
+D5.S3.Combinatorics.Apollonian.SecondEigenvalueLimit                              # radsarar-anando-2026-apollonian-second-eigenvalue
+D5.S3.Combinatorics.BinomialBases.KurkovStirlingMinorVandermondeSum               # kurk396563
+D5.S3.Combinatorics.Derangements.AdjacentDifferenceRefutation                     # oeis-a378495-difference-conjectures
+D5.S3.Combinatorics.GaussianQuotient.OkadaPreMergedNonPalindromic                 # okada-2020-premerged-determinant-nonpalindromic
+D5.S3.Combinatorics.Graph.Domination.MinusFourReassembly                          # alikhani-griswold-2026-connected-minus-four-family
+D5.S3.Combinatorics.Graph.Pressure.HardinBarkerA209723EdgeDifferences             # hardin-barker-a209723-edge-differences
+D5.S3.Combinatorics.Graph.Walks.CollisionPrefix                                   # oeis-a396659-edge-collision-ratio
+D5.S3.Combinatorics.Latin.ClassicalPerfectTensorFactorization                     # pozsgay-wanless-nonlinear-classical-factors
+D5.S3.Combinatorics.SpectralGraph.KoljancicOblakEvenPathNSSP                      # koljancic-oblak-2026-question-5-11-even-loop-path
+D5.S3.Combinatorics.SpectralGraph.KoljancicOblakMinimumArcs                       # koljancic-oblak-2026-nssp-minimum-arcs-problem-1-8
+D5.S3.Estimation.CorrelationTopEigenvectorWeight                                  # stepanov-herrmann-guhr-2021-correlation-top-eigenvector-weight
+D5.S3.FiniteGroups.BajnokBeattyAllRegimes                                         # bajnok-beatty-original-conjecture-4-1
+D5.S3.Geometry.DiscreteGravity.TreeEquationsNonconstantRefutation                 # huang-stoica-xia-zhong-2020-tree-equations-nonconstant
+D5.S3.Geometry.Lorentz.ChiralEventParityMinimality                                # chiral-event-parity-minimality
+D5.S3.Geometry.ProbabilityTransport.WeightedProjectionMinors                      # mathoverflow-469781-weighted-orthogonal-minors
+D5.S3.QuadraticForms.EvolutionAlgebras.AlgebraicGroupRealizationRefutation        # kmvq31-sl3-obstruction
+D5.S3.QuadraticForms.StructuredRankOneFamily                                      # mathoverflow-513954-singular-diagonal-downdate-inertia
+D5.S3.Quantum.Contextuality.PerpHyperplaneHexagonContextualityRefutation          # hexagon-perp-line-counterexamples
+D5.S3.Quantum.Entanglement.GeometricMeasure.XMemsClosestSeparableShapeRefutation  # consiglio-apollaro-wiesniak-2022-xmems-css-shape
+D5.S3.Quantum.Entanglement.Witness.CorrelationMinorNormFNFRefutation              # peled-teeni-carmi-cohen-2021-correlation-minor-norm-fnf
+D5.S3.Quantum.Entanglement.Witness.NoisyGhzWitnessBoundGap                        # xu-et-al-2023-noisy-ghz-witness-bound-gap
+D5.S3.Quantum.Magic.MixedStateInverseSumsetRefutation                             # bu-gu-jaffe-2025-mixed-state-inverse-sumset
+D5.S3.Quantum.Magic.ReflectionDiagonalCNOTLowerBound                              # huang-kosugi-nishi-matsushita-2024-reflection-diagonal-cnot-lower-bound
+D5.S3.Quantum.Magic.StabilizerAsymmetryShannonBoundRefutation                     # tarabunga-frau-haug-tirrito-piroli-2025-shannon-branch-bound
+D5.S3.Quantum.Matrix.MalkounJordanElementary                                      # malkoun-2026-mo512579-jordan-elementary
+D5.S3.Quantum.Measurement.AnticoherenceTraceDistanceRefutation                    # denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance
+D5.S3.Quantum.Optimization.SwapEarliestDephasingOptimality                        # kamin-shchukin-schmidt-van-loock-2023-swap-earliest-dephasing

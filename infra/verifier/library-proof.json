@@ -1,0 +1,7 @@
+{
+  "library": "trureturing",
+  "module": "D5.S3.Arith.Lattices.Klartag.Contact.Lemma43",
+  "declaration": "D5.S3.Arith.Lattices.Klartag.neg_sq_half_add_mul",
+  "target": "import Mathlib\ndef wishpool_target_prop : Prop :=\n  ∀ y b : ℝ, -y ^ 2 / 2 + b * y = -(y - b) ^ 2 / 2 + b ^ 2 / 2\n",
+  "solution": "import Target\nimport D5.S3.Arith.Lattices.Klartag.Contact.Lemma43\ntheorem wishpool_solution : wishpool_target_prop :=\n  fun y b => D5.S3.Arith.Lattices.Klartag.neg_sq_half_add_mul y b\n"
+}

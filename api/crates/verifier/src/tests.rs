@@ -999,3 +999,80 @@ async fn real_lean_library_binding_reports_the_library_declaration_and_ignores_m
     assert!(report.declarations.is_empty());
     assert_eq!((report.total, report.complete), (0, true));
 }
+/// The prepared workspace's own library, as opposed to the small library the test
+/// above compiles for itself. Whoever prepares a workspace with libraries supplies
+/// one proof of a Mathlib-only target that needs a library declaration; a workspace
+/// that declares a library without that input fails here.
+#[tokio::test]
+#[ignore = "requires WISHPOOL_TEST_LEAN_WORKSPACE with pinned Lean and built Mathlib"]
+async fn real_lean_prepared_library_proves_a_mathlib_only_target() {
+    let workspace = PathBuf::from(
+        std::env::var("WISHPOOL_TEST_LEAN_WORKSPACE")
+            .expect("real Lean tests require WISHPOOL_TEST_LEAN_WORKSPACE"),
+    );
+    let declared = libraries(&workspace).unwrap();
+    let Some(path) = std::env::var_os("WISHPOOL_TEST_LIBRARY_PROOF") else {
+        assert!(
+            declared.is_empty(),
+            "a workspace with prepared libraries requires WISHPOOL_TEST_LIBRARY_PROOF"
+        );
+        return;
+    };
+    let proof: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path).expect("the library proof is readable"))
+            .expect("the library proof is JSON");
+    let text = |key: &str| {
+        proof[key]
+            .as_str()
+            .unwrap_or_else(|| panic!("the library proof lacks {key}"))
+            .to_owned()
+    };
+    let library = declared
+        .iter()
+        .find(|library| library.name == text("library"))
+        .expect("the prepared workspace declares the library of the proof");
+    workspace_ready(&workspace).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let toolchain = std::fs::read_to_string(workspace.join("lean-toolchain"))
+        .unwrap()
+        .trim()
+        .to_owned();
+    let checker = Checker {
+        workspace,
+        scratch: dir.path().into(),
+        timeout: Duration::from_secs(900),
+    };
+    let target = text("target");
+    let receipt = checker
+        .verify(&Request {
+            required_declaration: None,
+            inspect_constants: vec![],
+            modules: Default::default(),
+            target_digest: digest(&target),
+            target,
+            toolchain,
+            solution: text("solution"),
+        })
+        .await;
+    assert_eq!(receipt.verdict, Verdict::Proved, "{}", receipt.reason);
+    let report = receipt.library_use.expect("the library use is reported");
+    assert_eq!(
+        report.libraries,
+        vec![LibraryPin {
+            name: library.name.clone(),
+            revision: library.revision.clone(),
+            url: library.url.clone(),
+        }]
+    );
+    let expected = LibraryDeclaration {
+        library: library.name.clone(),
+        module: text("module"),
+        name: text("declaration"),
+    };
+    assert!(
+        report.declarations.contains(&expected),
+        "{:?}",
+        report.declarations
+    );
+    assert!(report.complete);
+}

@@ -109,7 +109,7 @@ jobs:
           done
       - name: infra contains only the fixed file list
         run: |
-          expected="infra/api/Dockerfile infra/api/configmap.yaml infra/api/deployment.yaml infra/api/secret.yaml infra/api/service.yaml infra/web/Dockerfile infra/web/deployment.yaml infra/web/nginx.conf infra/web/service.yaml infra/worker/deployment.yaml infra/worker/pvc.yaml infra/verifier/Dockerfile infra/verifier/Lean.Dockerfile infra/verifier/lean-toolchain infra/verifier/lakefile.toml infra/verifier/deployment.yaml"
+          expected="infra/api/Dockerfile infra/api/configmap.yaml infra/api/deployment.yaml infra/api/secret.yaml infra/api/service.yaml infra/web/Dockerfile infra/web/deployment.yaml infra/web/nginx.conf infra/web/service.yaml infra/worker/deployment.yaml infra/worker/pvc.yaml infra/verifier/Dockerfile infra/verifier/Lean.Dockerfile infra/verifier/lean-toolchain infra/verifier/lakefile.toml infra/verifier/mathesis-libraries.json infra/verifier/library-modules.txt infra/verifier/library-proof.json infra/verifier/deployment.yaml"
           actual=$(find infra -type f | sort | tr '\n' ' ')
           [ "$(echo $expected | tr ' ' '\n' | sort | tr '\n' ' ')" = "$actual" ] || { echo "::error::infra/ diverged: $actual"; exit 1; }
       - name: Layer dependency rule
@@ -258,13 +258,40 @@ jobs:
     needs: changes
     if: needs.changes.outputs.verifier == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # A run whose Lean base inputs have no published image yet compiles the
+    # prepared library itself; every later run reuses the published base.
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - name: Make room for the pinned Mathlib workspace
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
       - uses: docker/setup-buildx-action@v3
+      - name: Reuse the published Lean base of these exact inputs
+        id: base
+        env:
+          OWNER: ${{ github.repository_owner }}
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          # The same formula as publish-images.yml: every input of Lean.Dockerfile.
+          pin=$(cat infra/verifier/lean-toolchain infra/verifier/lakefile.toml infra/verifier/mathesis-libraries.json infra/verifier/library-modules.txt infra/verifier/Lean.Dockerfile | sha256sum | cut -c1-12)
+          image="ghcr.io/${OWNER,,}/mathesis-lean:$pin"
+          if echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin >/dev/null 2>&1 \
+            && docker pull --platform linux/amd64 "$image" >/dev/null 2>&1; then
+            docker tag "$image" mathesis-lean:ci
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            echo "Reusing $image"
+          else
+            echo "reused=false" >> "$GITHUB_OUTPUT"
+            echo "No readable published Lean base for pin $pin; building it here."
+          fi
       - name: Build prepared Lean base
+        if: steps.base.outputs.reused != 'true'
         run: docker build --platform linux/amd64 -f infra/verifier/Lean.Dockerfile -t mathesis-lean:ci .
       - name: Build verifier and check real proofs, disproofs and invalid proofs
         run: docker build --build-arg LEAN_IMAGE=mathesis-lean:ci -f infra/verifier/Dockerfile -t mathesis-verifier:ci .

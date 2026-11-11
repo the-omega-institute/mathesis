@@ -17,6 +17,10 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   commands, and imports other than Mathlib, Target, submitted supporting
   modules validated under §14, and prepared libraries declared by the verifier
   workspace (never imported by a target; see `docs/LIBRARY_BINDING.md`).
+- The verifier image compiles its prepared library from source at the one
+  revision pinned in `infra/verifier/lakefile.toml`. That revision,
+  `library-modules.txt` and `library-proof.json` change together, and the image
+  build must check the proof of `library-proof.json` in the prepared workspace.
 - The verifier is stateless and credential-free: cleared environment (PATH and
   fresh HOME only during compilation), fresh work directory, bounded input and
   output, and a deadline (default 1200 seconds, maximum 3600). Local workers use
