@@ -9431,6 +9431,9 @@
               "CC0-1.0"
             ],
             "description": "Licence of the curated restatement."
+          },
+          "lean_target": {
+            "$ref": "#/components/schemas/CuratedLeanTarget"
           }
         },
         "required": [
@@ -9441,6 +9444,27 @@
           "status_evidence",
           "source_license",
           "license"
+        ],
+        "additionalProperties": false
+      },
+      "CuratedLeanTarget": {
+        "type": "object",
+        "description": "The collection operator's own Lean reading of the curated statement. A worker job has the independent verifier elaborate the exact text; a correction is a new version.",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200000,
+            "description": "Exact Target.lean text: `import Mathlib` first and no other import, the curator's definitions, and `def wishpool_target_prop : Prop := <statement>` exactly once, with that name nowhere else."
+          },
+          "correspondence": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "How the Lean proposition reads the curated statement, in plain words."
+          }
+        },
+        "required": [
+          "text",
+          "correspondence"
         ],
         "additionalProperties": false
       },
@@ -9611,6 +9635,9 @@
           "published_on": {
             "type": "string",
             "format": "date-time"
+          },
+          "lean_target": {
+            "$ref": "#/components/schemas/PublicCuratedTarget"
           }
         },
         "required": [
@@ -9627,6 +9654,58 @@
           "license",
           "version",
           "published_on"
+        ],
+        "additionalProperties": false
+      },
+      "PublicCuratedTarget": {
+        "type": "object",
+        "description": "The collection operator's Lean formalization of a curated problem, never one confirmed by the original poser. Elaboration by the independent verifier shows a well-formed proposition in the pinned environment; it does not show that the proposition states the problem faithfully. No proof is attached.",
+        "properties": {
+          "state": {
+            "enum": [
+              "checking",
+              "elaborated",
+              "refused"
+            ],
+            "description": "`checking` until the independent verifier has read this exact text."
+          },
+          "digest": {
+            "type": "string",
+            "description": "SHA-256 of the exact target text."
+          },
+          "correspondence": {
+            "type": "string",
+            "description": "The curator's account of how the proposition reads the statement."
+          },
+          "vocabulary": {
+            "enum": [
+              "mathlib",
+              "own_definitions"
+            ],
+            "description": "`mathlib` only when nothing between the import and the proposition declares a constant; otherwise the target introduces its own definitions."
+          },
+          "text": {
+            "type": "string",
+            "description": "The exact Lean text. Present only in state `elaborated`."
+          },
+          "toolchain": {
+            "type": "string",
+            "description": "The verifier's pinned Lean and Mathlib. Present once the text was read."
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the verifier refused the text. Present only in state `refused`."
+          }
+        },
+        "required": [
+          "state",
+          "digest",
+          "correspondence",
+          "vocabulary"
         ],
         "additionalProperties": false
       },

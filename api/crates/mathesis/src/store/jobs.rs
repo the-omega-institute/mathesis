@@ -53,6 +53,14 @@ impl ReviewQueue for MongoStore {
     }
 }
 
+/// Stored kinds of `JobLane::Verify`; the review lane takes every other kind
+/// except compilation. Keep in step with `JobKind::lane`.
+const VERIFY_KINDS: [&str; 3] = [
+    "verify_attempt",
+    "verify_research",
+    "collected_problem_target",
+];
+
 #[async_trait]
 impl JobLease for MongoStore {
     async fn claim_in(&self, lane: Option<JobLane>) -> CoreResult<Option<LeasedJob>> {
@@ -69,13 +77,12 @@ impl JobLease for MongoStore {
                 filter.insert("kind", "compile");
             }
             Some(JobLane::Verify) => {
-                filter.insert("kind", doc! {"$in": ["verify_attempt", "verify_research"]});
+                filter.insert("kind", doc! {"$in": VERIFY_KINDS.to_vec()});
             }
             Some(JobLane::Review) => {
-                filter.insert(
-                    "kind",
-                    doc! { "$nin": ["compile", "verify_attempt", "verify_research"] },
-                );
+                let mut other: Vec<&str> = vec!["compile"];
+                other.extend(VERIFY_KINDS);
+                filter.insert("kind", doc! { "$nin": other });
             }
             None => {}
         }

@@ -1058,6 +1058,24 @@ impl CollectedProblemStore for MemoryStores {
         versions.insert(v.id.clone(), v.clone());
         Ok(())
     }
+    async fn attach_target_check(
+        &self,
+        problem: &str,
+        version: u32,
+        check: &CuratedTargetCheck,
+    ) -> CoreResult<()> {
+        let mut versions = self.collected_problems.lock().await;
+        let saved = versions
+            .values_mut()
+            .find(|v| v.delivery.problem_id == problem && v.delivery.version == version)
+            .ok_or_else(|| {
+                CoreError::not_found("collected problem version", format!("{problem}:{version}"))
+            })?;
+        if saved.target_check.is_none() {
+            saved.target_check = Some(check.clone());
+        }
+        Ok(())
+    }
     async fn list(
         &self,
         limit: u32,

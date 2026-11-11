@@ -539,6 +539,22 @@ export const zh: Record<string, string> = {
   'Work on this problem': '研究这个问题',
   'A written solution goes through ordinary review. Lean work is saved with the original posers credited; no Lean statement has been prepared for this problem yet.':
     '文字解答按常规流程审阅。保存 Lean 工作时会注明原始提出者；这个问题尚未准备对应的 Lean 命题。',
+  'A written solution goes through ordinary review. Lean work is saved with the original posers credited; the Lean statement above is the curator’s formalization of this problem.':
+    '文字解答按常规流程审阅。保存 Lean 工作时会注明原始提出者；上面的 Lean 命题是整理者对这个问题的形式化。',
+  'Lean statement: the curator’s formalization': 'Lean 命题：整理者的形式化',
+  'The collection operator wrote this Lean proposition. The original poser has not confirmed it, and no proof is attached.':
+    '这条 Lean 命题由收录方撰写，原始提出者没有确认过，也不附带证明。',
+  'The independent verifier elaborated this exact text as a proposition. That shows it is well-formed Lean in the environment below; it does not show that it states the problem faithfully.':
+    '独立验证器已把这段文本原样检查为一个命题。这说明它在下列环境中是合式的 Lean，不说明它忠实表达了原问题。',
+  'The independent verifier did not accept the submitted Lean text:':
+    '独立验证器没有接受所提交的 Lean 文本：',
+  'The independent verifier has not read the submitted Lean text yet.':
+    '独立验证器尚未检查所提交的 Lean 文本。',
+  'Vocabulary: the statement uses definitions that Mathlib already has.':
+    '用到的定义：命题只使用 Mathlib 已有的定义。',
+  'Vocabulary: the statement introduces its own definitions before the proposition.':
+    '用到的定义：命题之前引入了自己的定义。',
+  'How the proposition reads the statement:': '命题与陈述的对应：',
   'Submit a written solution': '提交文字解答',
   'Contribute a Lean formalization': '贡献 Lean 形式化',
   'No paper or note addresses this problem yet.': '尚无论文或短文研究这个问题。',

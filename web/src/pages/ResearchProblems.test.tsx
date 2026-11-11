@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { fakeApi, renderWithApp } from '../test/render';
 import { ConjecturesPage } from './Conjectures';
@@ -388,5 +388,107 @@ describe('problem-centred research records', () => {
       'href',
       '/problems/collected-problem?before=a-collected-note',
     );
+  });
+});
+
+describe('the curator’s Lean statement of a curated problem', () => {
+  const lean =
+    'import Mathlib\n\ndef wishpool_target_prop : Prop :=\n  ∀ n : ℕ, 1 ≤ n → ∃ k : ℕ, 1 ≤ k';
+  const withTarget = (target: NonNullable<ResearchProblem['curated']>['lean_target']) => ({
+    ...curated,
+    curated: { ...curated.curated!, lean_target: target },
+  });
+  const show = (problem: ResearchProblem) =>
+    renderWithApp(
+      <ResearchProblemPage id="curated-problem" />,
+      fakeApi({ getResearchProblem: vi.fn(async () => problem) }),
+    );
+
+  it('shows an elaborated target as the curator’s formalization with its environment and limits', async () => {
+    show(
+      withTarget({
+        state: 'elaborated',
+        digest: 'a'.repeat(64),
+        correspondence: 'The product runs over k consecutive integers.',
+        vocabulary: 'mathlib',
+        text: lean,
+        toolchain: 'leanprover/lean4:v4.35.0, Mathlib 56a0058',
+        checked_at: '2026-11-11T09:00:00Z',
+      }),
+    );
+    const section = await screen.findByRole('region', {
+      name: 'Lean statement: the curator’s formalization',
+    });
+    expect(section).toHaveTextContent(
+      'The collection operator wrote this Lean proposition. The original poser has not confirmed it, and no proof is attached.',
+    );
+    expect(within(section).getByLabelText('Lean target')).toHaveTextContent(
+      'def wishpool_target_prop : Prop :=',
+    );
+    expect(section).toHaveTextContent('it does not show that it states the problem faithfully');
+    expect(section).toHaveTextContent(
+      `leanprover/lean4:v4.35.0, Mathlib 56a0058 · Checked on 11 November 2026 · SHA-256 ${'a'.repeat(64)}`,
+    );
+    expect(section).toHaveTextContent(
+      'Vocabulary: the statement uses definitions that Mathlib already has.',
+    );
+    expect(section).toHaveTextContent(
+      'How the proposition reads the statement: The product runs over k consecutive integers.',
+    );
+    expect(
+      screen.getByText(/the Lean statement above is the curator’s formalization of this problem/),
+    ).toBeInTheDocument();
+  });
+
+  it('never shows Lean text that the verifier has not elaborated', async () => {
+    const { unmount } = show(
+      withTarget({
+        state: 'checking',
+        digest: 'b'.repeat(64),
+        correspondence: 'Literal reading.',
+        vocabulary: 'own_definitions',
+      }),
+    );
+    const pending = await screen.findByRole('region', {
+      name: 'Lean statement: the curator’s formalization',
+    });
+    expect(pending).toHaveTextContent(
+      'The independent verifier has not read the submitted Lean text yet.',
+    );
+    expect(pending).toHaveTextContent(
+      'Vocabulary: the statement introduces its own definitions before the proposition.',
+    );
+    expect(within(pending).queryByLabelText('Lean target')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/no Lean statement has been prepared for this problem yet/),
+    ).toBeInTheDocument();
+    unmount();
+
+    show(
+      withTarget({
+        state: 'refused',
+        digest: 'c'.repeat(64),
+        correspondence: 'Literal reading.',
+        vocabulary: 'mathlib',
+        toolchain: 'leanprover/lean4:v4.35.0, Mathlib 56a0058',
+        checked_at: '2026-11-11T09:00:00Z',
+        reason: 'Target.lean:4:2: unknown identifier',
+      }),
+    );
+    const refused = await screen.findByRole('region', {
+      name: 'Lean statement: the curator’s formalization',
+    });
+    expect(refused).toHaveTextContent(
+      'The independent verifier did not accept the submitted Lean text: Target.lean:4:2: unknown identifier',
+    );
+    expect(within(refused).queryByLabelText('Lean target')).not.toBeInTheDocument();
+  });
+
+  it('keeps the page of a curated problem without a target as it was', async () => {
+    show(curated);
+    await screen.findByRole('heading', { name: 'Statement' });
+    expect(
+      screen.queryByRole('region', { name: 'Lean statement: the curator’s formalization' }),
+    ).not.toBeInTheDocument();
   });
 });

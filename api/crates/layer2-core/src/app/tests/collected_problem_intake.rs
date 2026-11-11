@@ -539,3 +539,362 @@ async fn curated_entries_page_with_the_rest_of_the_library() {
     }
     assert_eq!(seen.len(), 103);
 }
+
+const TARGET: &str = "import Mathlib\n\ndef wishpool_target_prop : Prop :=\n  ∀ n : ℕ, 1 ≤ n → ∃ k : ℕ, 1 ≤ k ∧ k ≤ 2 * n\n";
+const TOOLCHAIN: &str =
+    "leanprover/lean4:v4.35.0, Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679";
+
+fn sha(text: &str) -> String {
+    format!("{:x}", Sha256::digest(text.as_bytes()))
+}
+
+fn with_target(mut value: serde_json::Value, text: &str) -> serde_json::Value {
+    value["problem"]["lean_target"] = serde_json::json!({
+        "text": text,
+        "correspondence": "The sum over k is the finite sum of the first n + 1 terms.",
+    });
+    value
+}
+
+/// Answers as the independent verifier would for an elaboration witness and
+/// keeps every request it was sent.
+struct TargetVerifier {
+    refusal: Option<&'static str>,
+    requests: tokio::sync::Mutex<Vec<VerificationRequest>>,
+}
+#[async_trait::async_trait]
+impl crate::ports::Verifier for TargetVerifier {
+    async fn toolchain(&self) -> CoreResult<String> {
+        Ok(TOOLCHAIN.into())
+    }
+    async fn verify(&self, r: &VerificationRequest) -> CoreResult<VerificationReceipt> {
+        self.requests.lock().await.push(r.clone());
+        Ok(VerificationReceipt {
+            used_constants: vec![],
+            library_use: None,
+            verdict: if self.refusal.is_some() {
+                Verdict::Rejected
+            } else {
+                Verdict::Proved
+            },
+            reason: self
+                .refusal
+                .unwrap_or("Lean checked the imported target and standard axioms")
+                .into(),
+            target_digest: r.target_digest.clone(),
+            solution_digest: lean_solution_digest(&r.solution, &r.modules),
+            toolchain: r.toolchain.clone(),
+            axioms: vec![],
+            checked_at: chrono::Utc::now(),
+            duration: 1,
+        })
+    }
+}
+
+async fn target_world(refusal: Option<&'static str>) -> (World, Arc<TargetVerifier>) {
+    let verifier = Arc::new(TargetVerifier {
+        refusal,
+        requests: Default::default(),
+    });
+    let mut w = World::new().await;
+    let mut ports = w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+    ports.verifier = verifier.clone();
+    w.app = App::with_internal_accounts(
+        ports,
+        Policy::default(),
+        BTreeSet::from(["admin".into()]),
+        20,
+        BTreeSet::from([PersonId::from("curator")]),
+    );
+    (w, verifier)
+}
+
+fn target_job(slug: &str, version: u32) -> crate::ports::LeasedJob {
+    crate::ports::LeasedJob {
+        submission: SubmissionId(format!("collected-problem:{slug}:{version}")),
+        kind: crate::ports::JobKind::CollectedProblemTarget,
+        attempts: 1,
+        lease: "target-fixture".into(),
+    }
+}
+
+async fn public_target(w: &World, id: &str) -> Option<crate::app::PublicCuratedTarget> {
+    w.app
+        .research_problem(id)
+        .await
+        .unwrap()
+        .curated
+        .unwrap()
+        .lean_target
+}
+
+#[tokio::test]
+async fn a_curated_lean_target_is_public_once_the_independent_verifier_elaborated_it() {
+    let (w, verifier) = target_world(None).await;
+    let curator = w.person("curator", &[]).await;
+    let reviewer = w.person("worker", &[Role::Reviewer]).await;
+    let envelope = with_target(
+        envelope("outreach", "hanna-formula-5", 1, NAME, "A391810"),
+        TARGET,
+    );
+    let receipt = w
+        .app
+        .collect_problem(&curator, delivery(envelope.clone()))
+        .await
+        .unwrap();
+    let job = target_job("hanna-formula-5", 1);
+    assert_eq!(
+        w.stores.queued().await,
+        vec![(
+            job.submission.clone(),
+            crate::ports::JobKind::CollectedProblemTarget
+        )]
+    );
+
+    // Before the check the reader learns that a formalization exists, never its text.
+    let pending = public_target(&w, &receipt.research_problem).await.unwrap();
+    assert_eq!(pending.state, crate::app::PublicTargetState::Checking);
+    assert_eq!(pending.digest, sha(TARGET));
+    assert_eq!(pending.vocabulary, TargetVocabulary::Mathlib);
+    assert!(pending.text.is_none() && pending.toolchain.is_none() && pending.reason.is_none());
+
+    // Only the worker runs the check, and a lost lease writes nothing.
+    assert!(
+        w.app
+            .check_collected_problem_target_leased(&curator, &job, &TestAgentLease(true))
+            .await
+            .is_err()
+    );
+    assert!(verifier.requests.lock().await.is_empty());
+    assert!(
+        w.app
+            .check_collected_problem_target_leased(&reviewer, &job, &TestAgentLease(false))
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        public_target(&w, &receipt.research_problem)
+            .await
+            .unwrap()
+            .state,
+        crate::app::PublicTargetState::Checking
+    );
+
+    w.app
+        .check_collected_problem_target_leased(&reviewer, &job, &TestAgentLease(true))
+        .await
+        .unwrap();
+    let elaborated = public_target(&w, &receipt.research_problem).await.unwrap();
+    assert_eq!(elaborated.state, crate::app::PublicTargetState::Elaborated);
+    assert_eq!(elaborated.text.as_deref(), Some(TARGET));
+    assert_eq!(elaborated.toolchain.as_deref(), Some(TOOLCHAIN));
+    assert!(elaborated.checked_at.is_some() && elaborated.reason.is_none());
+
+    // The verifier never received a claim that the statement holds: it checked
+    // `p → p` for the curator's proposition `p` in the pinned environment.
+    let requests = verifier.requests.lock().await.clone();
+    let request = requests.last().unwrap();
+    assert_eq!(request.toolchain, TOOLCHAIN);
+    assert_eq!(request.target_digest, sha(&request.target));
+    assert_ne!(request.target_digest, sha(TARGET));
+    assert_eq!(
+        request.target,
+        "import Mathlib\n\ndef wishpool_target_prop : Prop := let p : Prop := (\n  ∀ n : ℕ, 1 ≤ n → ∃ k : ℕ, 1 ≤ k ∧ k ≤ 2 * n\n\n); p → p\n"
+    );
+    assert_eq!(
+        request.solution,
+        "import Target\ntheorem wishpool_solution : wishpool_target_prop := fun h => h\n"
+    );
+    assert!(request.modules.is_empty() && request.required_declaration.is_none());
+
+    // A checked version keeps its check: another run and an exact retry of the
+    // delivery ask the verifier nothing and queue nothing.
+    let asked = requests.len();
+    w.app
+        .check_collected_problem_target_leased(&reviewer, &job, &TestAgentLease(true))
+        .await
+        .unwrap();
+    assert_eq!(verifier.requests.lock().await.len(), asked);
+    let stored = CollectedProblemStore::get(w.stores.as_ref(), "hanna-formula-5", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    let again = w
+        .app
+        .collect_problem(&curator, delivery(envelope))
+        .await
+        .unwrap();
+    assert_eq!(again.request_digest, receipt.request_digest);
+    assert_eq!(
+        CollectedProblemStore::get(w.stores.as_ref(), "hanna-formula-5", Some(1))
+            .await
+            .unwrap()
+            .unwrap(),
+        stored
+    );
+}
+
+#[tokio::test]
+async fn a_refused_lean_target_shows_the_verifier_reason_and_never_its_text() {
+    let (w, _) = target_world(Some("Target.lean:4:2: unknown identifier 'Foo.bar'")).await;
+    let curator = w.person("curator", &[]).await;
+    let reviewer = w.person("worker", &[Role::Reviewer]).await;
+    let receipt = w
+        .app
+        .collect_problem(
+            &curator,
+            delivery(with_target(
+                envelope("outreach", "hanna-formula-5", 1, NAME, "A391810"),
+                TARGET,
+            )),
+        )
+        .await
+        .unwrap();
+    w.app
+        .check_collected_problem_target_leased(
+            &reviewer,
+            &target_job("hanna-formula-5", 1),
+            &TestAgentLease(true),
+        )
+        .await
+        .unwrap();
+    let refused = public_target(&w, &receipt.research_problem).await.unwrap();
+    assert_eq!(refused.state, crate::app::PublicTargetState::Refused);
+    assert!(refused.text.is_none());
+    assert_eq!(
+        refused.reason.as_deref(),
+        Some("Target.lean:4:2: unknown identifier 'Foo.bar'")
+    );
+    // The curator's reading of the problem itself is unaffected.
+    assert_eq!(
+        w.app
+            .research_problem(&receipt.research_problem)
+            .await
+            .unwrap()
+            .summary
+            .status,
+        crate::app::ResearchProblemStatus::CuratedOpen
+    );
+}
+
+#[tokio::test]
+async fn an_unavailable_or_late_verifier_leaves_the_target_check_pending() {
+    // The default port has no verifier behind it.
+    let w = world(&["curator"]).await;
+    let curator = w.person("curator", &[]).await;
+    let reviewer = w.person("worker", &[Role::Reviewer]).await;
+    let receipt = w
+        .app
+        .collect_problem(
+            &curator,
+            delivery(with_target(
+                envelope("outreach", "hanna-formula-5", 1, NAME, "A391810"),
+                TARGET,
+            )),
+        )
+        .await
+        .unwrap();
+    let job = target_job("hanna-formula-5", 1);
+    assert!(matches!(
+        w.app
+            .check_collected_problem_target_leased(&reviewer, &job, &TestAgentLease(true))
+            .await,
+        Err(CoreError::Unavailable(_))
+    ));
+    assert_eq!(
+        public_target(&w, &receipt.research_problem)
+            .await
+            .unwrap()
+            .state,
+        crate::app::PublicTargetState::Checking
+    );
+
+    let (late, _) = target_world(Some("verifier deadline exceeded")).await;
+    let curator = late.person("curator", &[]).await;
+    let reviewer = late.person("worker", &[Role::Reviewer]).await;
+    let receipt = late
+        .app
+        .collect_problem(
+            &curator,
+            delivery(with_target(
+                envelope("outreach", "hanna-formula-5", 1, NAME, "A391810"),
+                TARGET,
+            )),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        late.app
+            .check_collected_problem_target_leased(&reviewer, &job, &TestAgentLease(true))
+            .await,
+        Err(CoreError::Unavailable(_))
+    ));
+    assert_eq!(
+        public_target(&late, &receipt.research_problem)
+            .await
+            .unwrap()
+            .state,
+        crate::app::PublicTargetState::Checking
+    );
+}
+
+#[tokio::test]
+async fn entries_without_a_lean_target_keep_their_bytes_and_queue_no_check() {
+    let w = world(&["curator"]).await;
+    let curator = w.person("curator", &[]).await;
+    let plain = envelope("outreach", "hanna-formula-5", 1, NAME, "A391810");
+    let receipt = w
+        .app
+        .collect_problem(&curator, delivery(plain.clone()))
+        .await
+        .unwrap();
+    assert!(w.stores.queued().await.is_empty());
+    assert!(public_target(&w, &receipt.research_problem).await.is_none());
+    // The canonical form of an envelope without a target has no new field, so
+    // digests of entries collected before targets existed stay what they were.
+    let canonical = serde_json::to_value(delivery(plain)).unwrap();
+    assert!(canonical["problem"].get("lean_target").is_none());
+    let stored = serde_json::to_value(
+        CollectedProblemStore::get(w.stores.as_ref(), "hanna-formula-5", Some(1))
+            .await
+            .unwrap()
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(stored.get("target_check").is_none());
+
+    // A target arrives as the next version of the same entry.
+    let v2 = with_target(
+        envelope("outreach", "hanna-formula-5", 2, NAME, "A391810"),
+        TARGET,
+    );
+    let second = w.app.collect_problem(&curator, delivery(v2)).await.unwrap();
+    assert_eq!(second.research_problem, receipt.research_problem);
+    assert_eq!(
+        w.stores.queued().await,
+        vec![(
+            SubmissionId("collected-problem:hanna-formula-5:2".into()),
+            crate::ports::JobKind::CollectedProblemTarget
+        )]
+    );
+    for broken in [
+        "import Mathlib\nimport Aesop\ndef wishpool_target_prop : Prop := True\n",
+        "def wishpool_target_prop : Prop := True\n",
+        "import Mathlib\ndef wishpool_target_prop : Prop := wishpool_target_prop\n",
+        "import Mathlib\ndef wishpool_target_prop : Prop :=\n",
+        "import Mathlib\ntheorem wishpool_target : True := trivial\n",
+    ] {
+        assert!(matches!(
+            w.app
+                .collect_problem(
+                    &curator,
+                    delivery(with_target(
+                        envelope("outreach", "hanna-formula-5", 3, NAME, "A391810"),
+                        broken
+                    )),
+                )
+                .await,
+            Err(CoreError::Invalid(_))
+        ));
+    }
+}

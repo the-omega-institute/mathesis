@@ -1728,6 +1728,23 @@ export type CuratedProblem = {
   license: string;
   version: number;
   published_on: string;
+  lean_target?: CuratedLeanTarget;
+};
+/**
+ * The collection operator's Lean reading of a curated statement. `text` is
+ * present only once the independent verifier elaborated it; elaboration shows
+ * a well-formed proposition, never that it states the problem faithfully.
+ */
+export type CuratedLeanTarget = {
+  state: 'checking' | 'elaborated' | 'refused';
+  /** SHA-256 of the exact target text. */
+  digest: string;
+  correspondence: string;
+  vocabulary: 'mathlib' | 'own_definitions';
+  text?: string;
+  toolchain?: string;
+  checked_at?: string;
+  reason?: string;
 };
 export type ResearchProblem = {
   next_before?: string | null;

@@ -2,8 +2,8 @@ use super::{MongoStore, from_document, unavailable};
 use async_trait::async_trait;
 use futures::TryStreamExt;
 use mathesis_core::{
-    CoreResult,
-    model::CollectedProblemVersion,
+    CoreError, CoreResult,
+    model::{CollectedProblemVersion, CuratedTargetCheck},
     ports::{CollectedProblemStore, Listing},
 };
 use mongodb::bson::{Document, doc};
@@ -43,6 +43,38 @@ impl CollectedProblemStore for MongoStore {
     }
     async fn insert(&self, v: &CollectedProblemVersion) -> CoreResult<()> {
         self.insert(COLLECTION, v).await
+    }
+    async fn attach_target_check(
+        &self,
+        problem: &str,
+        version: u32,
+        check: &CuratedTargetCheck,
+    ) -> CoreResult<()> {
+        let id = doc! {"delivery.problem_id": problem, "delivery.version": i64::from(version)};
+        let mut unchecked = id.clone();
+        unchecked.insert("target_check", mongodb::bson::Bson::Null);
+        let check = super::to_document(check)?;
+        // `null` matches a missing field, so the first check wins and later ones
+        // leave it in place.
+        let updated = self
+            .raw(COLLECTION)
+            .update_one(unchecked, doc! {"$set": {"target_check": check}})
+            .await
+            .map_err(unavailable)?;
+        if updated.matched_count == 0
+            && self
+                .raw(COLLECTION)
+                .find_one(id)
+                .await
+                .map_err(unavailable)?
+                .is_none()
+        {
+            return Err(CoreError::not_found(
+                "collected problem version",
+                format!("{problem}:{version}"),
+            ));
+        }
+        Ok(())
     }
     async fn list(
         &self,

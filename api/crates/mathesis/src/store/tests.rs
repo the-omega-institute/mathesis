@@ -1168,6 +1168,10 @@ async fn compile_and_verification_jobs_are_available_while_reviews_are_leased() 
         ("compile", JobKind::Compile),
         ("verify", JobKind::VerifyAttempt),
         ("research-verify", JobKind::VerifyResearch),
+        (
+            "collected-problem:gap-question:1",
+            JobKind::CollectedProblemTarget,
+        ),
     ] {
         ReviewQueue::enqueue(store, &paper.into(), kind)
             .await
@@ -1213,6 +1217,15 @@ async fn compile_and_verification_jobs_are_available_while_reviews_are_leased() 
             .kind,
         JobKind::VerifyResearch
     );
+    // A curated target check is verifier work: the review lane above left it.
+    let target = store
+        .claim_in(Some(JobLane::Verify))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(target.kind, JobKind::CollectedProblemTarget);
+    assert_eq!(target.kind.lane(), JobLane::Verify);
+    assert_eq!(target.submission.0, "collected-problem:gap-question:1");
     database.drop().await;
 }
 
@@ -3109,6 +3122,89 @@ async fn author_search_matches_either_written_form_like_the_memory_adapter() {
         .unwrap();
     assert_eq!(first.authors[0].name, "Ma, Haobo");
     db.drop().await;
+}
+
+#[tokio::test]
+async fn a_curated_target_check_is_attached_once_to_its_exact_version() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let target = "import Mathlib\ndef wishpool_target_prop : Prop := ∀ n : ℕ, n = n\n";
+    let version = |n: u32| -> CollectedProblemVersion {
+        serde_json::from_value(serde_json::json!({
+            "id":format!("target-version-{n}"), "owner":"curator", "key":"target-key",
+            "request_digest":format!("request-{n}"), "published_on":Utc::now(),
+            "delivery":{"schema":"mathesis.collected-problem.v1", "producer":"outreach",
+              "problem_id":"target-question", "version":n,
+              "previous_version":(n > 1).then(|| n - 1), "authorize_publication":true,
+              "problem":{"name":"Question with a target", "statement":"Is $x = x$?",
+                "posers":[], "posers_unknown":"The source names no poser.",
+                "source":{"kind":"oeis","locator":"A123456"}, "status":"open",
+                "status_evidence":[{"url":"https://oeis.org/A123456","checked_on":"2026-11-10",
+                  "observed":"Marked as a conjecture."}],
+                "source_license":"CC BY-SA 4.0", "license":"CC-BY-SA-4.0",
+                "lean_target":{"text":target, "correspondence":"Literal reading."}}}
+        }))
+        .unwrap()
+    };
+    let check = |state: &str, reason: &str| -> CuratedTargetCheck {
+        serde_json::from_value(serde_json::json!({
+            "state":state, "target_digest":"digest-of-the-text",
+            "toolchain":"leanprover/lean4:v4.35.0, Mathlib 56a0058", "reason":reason,
+            // BSON dates keep milliseconds.
+            "checked_at":"2026-11-11T09:00:00.123Z"
+        }))
+        .unwrap()
+    };
+    let store = &db.store;
+    let (first, second) = (version(1), version(2));
+    CollectedProblemStore::insert(store, &first).await.unwrap();
+    CollectedProblemStore::insert(store, &second).await.unwrap();
+    // The target text and an absent check survive the BSON round trip.
+    assert_eq!(
+        CollectedProblemStore::get(store, "target-question", Some(1))
+            .await
+            .unwrap(),
+        Some(first.clone())
+    );
+    assert!(first.target_check.is_none());
+
+    let elaborated = check("elaborated", "Lean checked the imported target");
+    CollectedProblemStore::attach_target_check(store, "target-question", 1, &elaborated)
+        .await
+        .unwrap();
+    // The first check stays; a later one for the same version changes nothing.
+    CollectedProblemStore::attach_target_check(
+        store,
+        "target-question",
+        1,
+        &check("refused", "a later answer"),
+    )
+    .await
+    .unwrap();
+    let saved = CollectedProblemStore::get(store, "target-question", Some(1))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.target_check, Some(elaborated));
+    assert_eq!(saved.delivery, first.delivery);
+    // Only that version carries it; the current version is still unchecked.
+    assert_eq!(
+        CollectedProblemStore::get(store, "target-question", None)
+            .await
+            .unwrap(),
+        Some(second)
+    );
+    assert!(matches!(
+        CollectedProblemStore::attach_target_check(
+            store,
+            "target-question",
+            3,
+            &check("elaborated", "no such version")
+        )
+        .await,
+        Err(CoreError::NotFound { .. })
+    ));
 }
 
 #[tokio::test]

@@ -48,6 +48,7 @@ pub fn kind_key(kind: JobKind) -> String {
     match kind {
         JobKind::CollectedFormalization => "collected_formalization".into(),
         JobKind::CollectedExplanation => "collected_explanation".into(),
+        JobKind::CollectedProblemTarget => "collected_problem_target".into(),
         JobKind::PaperExplanation => "paper_explanation".into(),
         JobKind::FeedbackReadback => "feedback_readback".into(),
         JobKind::BindingAudit => "binding_audit".into(),
@@ -76,6 +77,9 @@ pub fn parse_kind_key(key: &str) -> Option<JobKind> {
     }
     if key == "collected_explanation" {
         return Some(JobKind::CollectedExplanation);
+    }
+    if key == "collected_problem_target" {
+        return Some(JobKind::CollectedProblemTarget);
     }
     if key == "paper_explanation" {
         return Some(JobKind::PaperExplanation);
@@ -283,6 +287,7 @@ mod tests {
         for kind in [
             JobKind::CollectedFormalization,
             JobKind::CollectedExplanation,
+            JobKind::CollectedProblemTarget,
             JobKind::PaperExplanation,
             JobKind::Compile,
             JobKind::Referee,
