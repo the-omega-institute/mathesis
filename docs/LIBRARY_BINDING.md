@@ -323,7 +323,8 @@ to any of them produces a new pin, and the library is compiled again:
 - Every later CI and publication run of the same pin reuses the published base.
 
 Readings on GitHub-hosted runners for revision `542ba53d78db` with the 39 listed
-modules (2026-11-10 and 2026-11-11, two builds):
+modules (2026-11-10 and 2026-11-11: two builds, then one CI run on the published
+base):
 
 | Reading | Value |
 |---|---|
@@ -331,8 +332,10 @@ modules (2026-11-10 and 2026-11-11, two builds):
 | Compiled library kept in the image | 1,074 MiB |
 | Compilation of the library | 5,221 s |
 | Whole base build step | 5,336 s and 5,872 s |
-| Real Lean tests of the verifier image, six tests | 1,278 s and 1,410 s |
+| Real Lean tests of the verifier image, six tests | 1,278 s, 1,410 s and 1,994 s |
 | The same tests before the library, five tests on the Mathlib-only base | 969 s |
+| Verifier CI job that compiles the library | 2 h 07 min |
+| Verifier CI job on the published base | 42 min |
 
 ## Current state
 
