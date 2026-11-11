@@ -149,5 +149,7 @@ mod collected;
 mod collected_problems;
 mod collected_proofs;
 pub use collected::{CollectionReceipt, PublicCollectedPaper};
-pub use collected_problems::{CollectedProblemReceipt, PublicCuratedProblem};
+pub use collected_problems::{
+    CollectedProblemReceipt, PublicCuratedProblem, PublicCuratedTarget, PublicTargetState,
+};
 pub use collected_proofs::CollectedProofView;

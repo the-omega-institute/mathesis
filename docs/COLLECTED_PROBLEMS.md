@@ -70,6 +70,7 @@ The example is illustrative. Unknown fields are refused at every level.
 | `problem.directions` | Optional research-direction tags: at most 16 distinct lowercase ASCII slugs of at most 80 characters. |
 | `problem.source_license` | Required: the source's own licence terms as the source states them (at most 500 characters). |
 | `problem.license` | Licence of the curated restatement: `CC-BY-4.0`, `CC-BY-SA-4.0` or `CC0-1.0`. Share-alike is admitted because common sources are share-alike. |
+| `problem.lean_target` | Optional: the curator's Lean statement of the problem, `{text, correspondence}`. See [Lean target](#lean-target). |
 
 The existing source kinds express the intended sources without extension:
 `oeis` (`A` and six digits), `arxiv`, `doi`, and `url` for a MathOverflow
@@ -136,8 +137,9 @@ question has one `problem_id`.
 a directly collected problem even when no work names it yet; `summary.notes` is
 then `0`. The detail adds `curated`, the current version: `name`, `statement`,
 `background`, `posers`, `posers_unknown`, `source`, `status`, `status_as_of`,
-`status_evidence`, `msc`, `directions`, `source_license`, `license`, `version`
-and `published_on`. Collected works naming the problem remain in
+`status_evidence`, `msc`, `directions`, `source_license`, `license`, `version`,
+`published_on` and, when the version carries one, `lean_target`
+([Lean target](#lean-target)). Collected works naming the problem remain in
 `collected_notes`. The projection names no operator, producer, `problem_id` or
 request digest. Earlier versions stay stored and are not projected.
 
@@ -162,13 +164,80 @@ keep their meaning and come from Mathesis source audits of accepted notes.
 - Named posers and sources are reported, not verified identities or
   authenticated citations.
 
+## Lean target
+
+A version may carry the curator's own Lean statement of the problem:
+
+```json
+"lean_target": {
+  "text": "import Mathlib\n\ndef wishpool_target_prop : Prop :=\n  ∀ n : ℕ, 1 ≤ n → ∃ k : ℕ, 1 ≤ k ∧ ...\n",
+  "correspondence": "The products run over k consecutive integers starting at n and at n + k."
+}
+```
+
+It is the collection operator's formalization. The original poser has not
+confirmed it, and it carries no proof. An entry collected without a target
+receives one as its next version.
+
+| Field | Rule |
+|---|---|
+| `text` | The exact `Target.lean`, at most 200,000 characters. It starts with `import Mathlib` and imports nothing else. It declares `def wishpool_target_prop : Prop := <statement>` exactly once, as the last declaration of the file, and the name `wishpool_target_prop` occurs nowhere else, comments included. Definitions the statement needs stand between the import and that declaration. |
+| `correspondence` | Required, at most 5,000 characters: how the Lean proposition reads the curated statement, in plain words. |
+
+The intake refuses a target that breaks these rules with `422`. Everything else
+is decided by the independent verifier:
+
+1. Collecting a version with a target queues one durable worker job for that
+   exact version (`collected_problem_target`, in the verification lane). An
+   exact retry of the delivery queues nothing once the check is stored.
+2. The job asks the verifier service (`WISHPOOL_VERIFIER_URL`) to check an
+   **elaboration witness**. For the curator's proposition `p`, the witness
+   target declares `wishpool_target_prop` as `p → p` behind the same
+   definitions, and the witness solution is the identity function. The
+   verifier accepts it exactly when the definitions and `p` elaborate as a
+   proposition in its pinned Lean and Mathlib, under its ordinary rules for
+   targets (no proof hole, no axiom, no unsafe code, no other import). The
+   proposition itself is never claimed to hold. The witness keeps the line
+   numbers of the curator's text, so a refusal cites the curator's own lines.
+3. The outcome is attached once to that version: `elaborated`, or `refused`
+   with the verifier's reason. A deadline or an unreachable verifier writes
+   nothing and the job runs again. A refused target is corrected by a new
+   version; versions stay immutable.
+
+The public projection `curated.lean_target` carries:
+
+| Field | Meaning |
+|---|---|
+| `state` | `checking` until the verifier has read this exact text, then `elaborated` or `refused`. |
+| `digest` | SHA-256 of the exact target text. |
+| `correspondence` | The curator's account, as delivered. |
+| `vocabulary` | `mathlib` when nothing between the import and the proposition declares a constant: only blank lines, comments and `open`, `namespace`, `section`, `end`, `universe` or `variable` commands. Otherwise `own_definitions`. The reading is textual and errs towards `own_definitions`. |
+| `text` | The Lean text, present only in state `elaborated`. |
+| `toolchain`, `checked_at` | The verifier's pinned Lean and Mathlib and the time of its reading, once it has read the text. |
+| `reason` | The verifier's reason, present only in state `refused`. |
+
+What an elaborated target establishes, and what it does not:
+
+- The text is a well-formed Lean proposition in the pinned environment, using
+  Mathlib and its own definitions only.
+- It does not establish that the proposition states the problem faithfully.
+  That reading is the curator's, and the page says so.
+- It opens no proof attempt, verification of a solution, credit or leaderboard
+  entry. A curated target is not a confirmed public target in the sense of
+  [contract §12](contract/12-solving.md); only author-confirmed targets of
+  reviewed conjectures are.
+- `vocabulary` reports whether the statement can be written with what Mathlib
+  already defines. It is not a search for an equivalent statement in a
+  prepared library.
+
 ## Web
 
 **Conjectures → Research record** lists curated entries as "Curated · Open as
 of <date>" (or "Partially resolved as of <date>"). The home page path **Work on
 an open problem** opens that list. The problem page `/problems/{id}` renders
 the statement as mathematics, the posers, the source link, the dated reading
-with its evidence list, and two existing ways to take part:
+with its evidence list, the curator's Lean statement when the version carries
+one, and two existing ways to take part:
 
 - **Submit a written solution** opens the ordinary submission path and its
   ordinary review.
@@ -181,11 +250,12 @@ with its evidence list, and two existing ways to take part:
 
 - No referee, Oracle, source audit, admission record, `WP-` record id or
   publication decision. `Policy::decide` is not involved.
-- No Lean target preparation, proof job, verification, credit or leaderboard
-  change. Automatic preparation of a Lean target for a collected open problem
-  is a planned follow-up; until then a Lean deposit for a curated problem has
-  no target to be verified against.
-- No reading guide or other model work, and no queued job of any kind.
+- No proof job, verification of a solution, credit or leaderboard change. A
+  Lean target is delivered by the curator, never generated: the channel runs
+  no model to write one, and a Lean deposit for a curated problem is not
+  verified against it.
+- No reading guide or other model work. The only queued job is the verifier's
+  reading of a delivered Lean target.
 - No import: a problem is collected only when an operator calls the endpoint.
   Nothing scrapes a source, and nothing is submitted to any deployment by the
   code itself.

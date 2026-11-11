@@ -28,6 +28,154 @@ pub struct StatusEvidence {
     pub observed: String,
 }
 
+/// The declaration every Lean target carries exactly once.
+pub const LEAN_TARGET_MARKER: &str = "def wishpool_target_prop : Prop :=";
+
+/// The curator's own Lean reading of the curated statement. It is the collection
+/// operator's formalization, never one confirmed by the original poser.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CuratedLeanTarget {
+    /// Exact `Target.lean` text: `import Mathlib`, the curator's definitions and
+    /// one `def wishpool_target_prop : Prop := <statement>`.
+    pub text: String,
+    /// How the Lean proposition reads the curated statement, in plain words.
+    pub correspondence: String,
+}
+
+/// Whether a target states its proposition in Mathlib's vocabulary alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetVocabulary {
+    Mathlib,
+    OwnDefinitions,
+}
+
+impl CuratedLeanTarget {
+    pub fn validate(&self) -> CoreResult<()> {
+        require_text("Lean target", &self.text, 200_000)?;
+        require_text("Lean target correspondence", &self.correspondence, 5_000)?;
+        let imports = self
+            .text
+            .lines()
+            .filter(|line| line.trim_start().starts_with("import "))
+            .count();
+        if !self.text.starts_with("import Mathlib\n") || imports != 1 {
+            return Err(CoreError::invalid(
+                "a Lean target starts with `import Mathlib` and imports nothing else",
+            ));
+        }
+        // One occurrence of the name keeps the elaboration witness an exact
+        // rewrite of this text.
+        if self.text.matches(LEAN_TARGET_MARKER).count() != 1
+            || self.text.matches("wishpool_target_prop").count() != 1
+            || self.proposition().trim().is_empty()
+        {
+            return Err(CoreError::invalid(
+                "a Lean target declares `def wishpool_target_prop : Prop := <statement>` exactly once and names it nowhere else",
+            ));
+        }
+        Ok(())
+    }
+
+    fn proposition(&self) -> &str {
+        self.text
+            .split_once(LEAN_TARGET_MARKER)
+            .map(|(_, proposition)| proposition)
+            .unwrap_or_default()
+    }
+
+    /// `Mathlib` only when everything between the import and the target is
+    /// provably inert: blank lines, comments, and commands that declare no
+    /// constant. Anything else counts as the curator's own definitions.
+    pub fn vocabulary(&self) -> TargetVocabulary {
+        let preamble = self
+            .text
+            .split_once(LEAN_TARGET_MARKER)
+            .map(|(preamble, _)| preamble)
+            .unwrap_or_default();
+        // Remove block and documentation comments, which may nest.
+        let mut code = String::new();
+        let (mut depth, mut rest) = (0usize, preamble);
+        while !rest.is_empty() {
+            if rest.starts_with("/-") {
+                depth += 1;
+                rest = &rest[2..];
+            } else if depth > 0 && rest.starts_with("-/") {
+                depth -= 1;
+                rest = &rest[2..];
+            } else {
+                let c = rest.chars().next().expect("non-empty");
+                if depth == 0 {
+                    code.push(c);
+                }
+                rest = &rest[c.len_utf8()..];
+            }
+        }
+        let inert = code.lines().all(|line| {
+            let line = line.split("--").next().unwrap_or_default().trim();
+            line.is_empty()
+                || [
+                    "import",
+                    "open",
+                    "namespace",
+                    "section",
+                    "end",
+                    "universe",
+                    "variable",
+                ]
+                .contains(&line.split_whitespace().next().unwrap_or_default())
+        });
+        if depth == 0 && inert {
+            TargetVocabulary::Mathlib
+        } else {
+            TargetVocabulary::OwnDefinitions
+        }
+    }
+
+    /// A target and a solution the independent verifier can check without a
+    /// proof of the statement: for the curator's proposition `p`, the solution
+    /// proves `p → p`, which exists exactly when the definitions and `p`
+    /// elaborate as a proposition in the pinned environment. The wrapper adds
+    /// no line before the proposition ends, so the verifier's diagnostics cite
+    /// the curator's own line numbers.
+    pub fn elaboration_witness(&self) -> (String, String) {
+        let (definitions, proposition) = self
+            .text
+            .split_once(LEAN_TARGET_MARKER)
+            .unwrap_or((&self.text, ""));
+        (
+            format!("{definitions}{LEAN_TARGET_MARKER} let p : Prop := ({proposition}\n); p → p\n"),
+            "import Target\ntheorem wishpool_solution : wishpool_target_prop := fun h => h\n"
+                .to_owned(),
+        )
+    }
+}
+
+/// The outcome of the independent verifier reading a curated Lean target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetCheckState {
+    /// The exact text is a well-formed proposition in the pinned environment.
+    Elaborated,
+    /// The verifier did not accept the text; a corrected target is a new version.
+    Refused,
+}
+
+/// Machine result attached once to an immutable version. It says nothing about
+/// whether the proposition states the problem faithfully.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CuratedTargetCheck {
+    pub state: TargetCheckState,
+    /// SHA-256 of the exact target text that was read.
+    pub target_digest: String,
+    /// The verifier's pinned Lean and Mathlib.
+    pub toolchain: String,
+    /// The verifier's own reason.
+    pub reason: String,
+    pub checked_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CuratedProblem {
@@ -54,6 +202,9 @@ pub struct CuratedProblem {
     pub source_license: String,
     /// Licence of the curated restatement.
     pub license: String,
+    /// The curator's Lean reading of the statement, when one is supplied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lean_target: Option<CuratedLeanTarget>,
 }
 
 impl CuratedProblem {
@@ -162,6 +313,9 @@ impl CollectedProblemDelivery {
                 "the curated restatement requires CC-BY-4.0, CC-BY-SA-4.0 or CC0-1.0",
             ));
         }
+        if let Some(target) = &p.lean_target {
+            target.validate()?;
+        }
         Ok(())
     }
 }
@@ -178,6 +332,10 @@ pub struct CollectedProblemVersion {
     pub delivery: CollectedProblemDelivery,
     pub request_digest: String,
     pub published_on: DateTime<Utc>,
+    /// Set once by the target check job; absent while the check is pending and
+    /// for versions without a Lean target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_check: Option<CuratedTargetCheck>,
 }
 
 #[cfg(test)]
@@ -402,5 +560,109 @@ mod tests {
         for license in ["CC-BY-NC-4.0", "All rights reserved", ""] {
             assert!(rejected(|v| v["problem"]["license"] = license.into()));
         }
+    }
+
+    fn target(text: &str) -> CuratedLeanTarget {
+        CuratedLeanTarget {
+            text: text.into(),
+            correspondence: "The proposition reads the statement literally.".into(),
+        }
+    }
+
+    #[test]
+    fn a_lean_target_is_one_mathlib_only_proposition_named_once() {
+        let good = "import Mathlib\n\ndef wishpool_target_prop : Prop :=\n  ∀ n : ℕ, n = n\n";
+        assert!(target(good).validate().is_ok());
+        for bad in [
+            // Mathlib first, and nothing else imported.
+            "def wishpool_target_prop : Prop := True\n",
+            "import Mathlib.Data.Nat.Basic\ndef wishpool_target_prop : Prop := True\n",
+            "import Mathlib\nimport D5.S1\ndef wishpool_target_prop : Prop := True\n",
+            "import Mathlib\n  import Aesop\ndef wishpool_target_prop : Prop := True\n",
+            // Exactly one declaration of the proposition, named nowhere else.
+            "import Mathlib\ntheorem wishpool_target : True := trivial\n",
+            "import Mathlib\ndef wishpool_target_prop : Prop := True\ndef wishpool_target_prop : Prop := True\n",
+            "import Mathlib\n-- wishpool_target_prop\ndef wishpool_target_prop : Prop := True\n",
+            "import Mathlib\ndef wishpool_target_prop : Prop :=\n   \n",
+        ] {
+            assert!(target(bad).validate().is_err(), "{bad}");
+        }
+        let mut wordless = target(good);
+        wordless.correspondence = " ".into();
+        assert!(wordless.validate().is_err());
+        let mut long = target(good);
+        long.correspondence = "c".repeat(5_001);
+        assert!(long.validate().is_err());
+        assert!(
+            target(&format!("{good}{}", "-- pad\n".repeat(30_000)))
+                .validate()
+                .is_err()
+        );
+        // The envelope carries it as an optional field and refuses unknown ones.
+        assert!(!rejected(|v| {
+            v["problem"]["lean_target"] =
+                serde_json::json!({"text": good, "correspondence": "Literal reading."})
+        }));
+        for unparsed in [
+            serde_json::json!({"text": good}),
+            serde_json::json!({
+                "text": good, "correspondence": "Literal reading.", "proof": "by simp"
+            }),
+        ] {
+            let mut value = envelope();
+            value["problem"]["lean_target"] = unparsed;
+            assert!(parse(value).is_err());
+        }
+    }
+
+    #[test]
+    fn vocabulary_is_mathlib_only_when_the_preamble_declares_nothing() {
+        let statement = "def wishpool_target_prop : Prop := ∀ n : ℕ, n = n\n";
+        for inert in [
+            "import Mathlib\n",
+            "import Mathlib\n\nopen Nat Finset\n\n-- the statement\n",
+            "import Mathlib\n/- a block\n/- nested -/ def hidden := 1 -/\nopen scoped BigOperators\n",
+            "import Mathlib\nuniverse u\nvariable (n : ℕ) -- def x := 1\n/-- The curated statement. -/\n",
+        ] {
+            assert_eq!(
+                target(&format!("{inert}{statement}")).vocabulary(),
+                TargetVocabulary::Mathlib,
+                "{inert}"
+            );
+        }
+        for defining in [
+            "import Mathlib\ndef gap (n : ℕ) : ℕ := n + 1\n",
+            "import Mathlib\nnoncomputable def c : ℝ := 2\n",
+            "import Mathlib\nabbrev S := Finset ℕ\n",
+            "import Mathlib\nlocal notation \"φ\" => (1 : ℝ)\n",
+            "import Mathlib\nset_option maxRecDepth 4000\n",
+            // An unclosed comment hides nothing from the reading.
+            "import Mathlib\n/- unclosed\n",
+        ] {
+            assert_eq!(
+                target(&format!("{defining}{statement}")).vocabulary(),
+                TargetVocabulary::OwnDefinitions,
+                "{defining}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_elaboration_witness_keeps_the_definitions_and_wraps_only_the_proposition() {
+        let text = "import Mathlib\ndef gap (n : ℕ) : ℕ := n + 1\ndef wishpool_target_prop : Prop :=\n  ∀ n, gap n > n\n";
+        let (witness, solution) = target(text).elaboration_witness();
+        assert_eq!(
+            witness,
+            "import Mathlib\ndef gap (n : ℕ) : ℕ := n + 1\ndef wishpool_target_prop : Prop := let p : Prop := (\n  ∀ n, gap n > n\n\n); p → p\n"
+        );
+        // Every line of the curator's text keeps its number in the witness.
+        for (number, line) in text.lines().enumerate().skip(3) {
+            assert_eq!(witness.lines().nth(number), Some(line));
+        }
+        assert_eq!(witness.matches(LEAN_TARGET_MARKER).count(), 1);
+        assert_eq!(
+            solution,
+            "import Target\ntheorem wishpool_solution : wishpool_target_prop := fun h => h\n"
+        );
     }
 }

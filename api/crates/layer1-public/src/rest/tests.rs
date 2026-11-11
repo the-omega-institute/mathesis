@@ -2325,3 +2325,110 @@ async fn curated_problem_intake_is_operator_only_and_its_entry_matches_the_docum
         serde_json::json!(["open", "partially_resolved"])
     );
 }
+
+#[tokio::test]
+async fn a_curated_lean_target_is_projected_by_its_documented_schema_before_any_check() {
+    let stores = Arc::new(MemoryStores::default());
+    let app = App::with_internal_accounts(
+        stores.ports(Arc::new(SystemClock), Arc::new(OneTheorem)),
+        Policy::default(),
+        BTreeSet::new(),
+        20,
+        BTreeSet::from(["curator".into()]),
+    );
+    let router = crate::router(app.clone()).layer(middleware::from_fn_with_state(app, test_auth));
+    let lean = "import Mathlib\n\ndef wishpool_target_prop : Prop :=\n  ∀ n : ℕ, ∃ m : ℕ, n < m\n";
+    let target = serde_json::json!({
+        "text": lean,
+        "correspondence": "Every natural number has a larger one.",
+    });
+    let envelope = serde_json::json!({
+        "schema":"mathesis.collected-problem.v1", "producer":"outreach",
+        "problem_id":"gap-question", "version":1, "previous_version":null,
+        "authorize_publication":true,
+        "problem":{"name":"The gap question in OEIS A123456",
+            "statement":"Is every gap at most $2$?",
+            "posers":[{"name":"A. Poser"}],
+            "source":{"kind":"oeis","locator":"A123456"}, "status":"open",
+            "status_evidence":[{"url":"https://oeis.org/A123456","checked_on":"2026-11-10",
+                "observed":"The comment is marked as a conjecture."}],
+            "source_license":"CC BY-SA 4.0", "license":"CC-BY-SA-4.0",
+            "lean_target": target}
+    });
+    // A target that names a proof or another import is refused at intake.
+    for broken in [
+        serde_json::json!({"text": lean}),
+        serde_json::json!({"text": "import Mathlib\nimport Aesop\ndef wishpool_target_prop : Prop := True\n",
+            "correspondence": "Literal."}),
+        serde_json::json!({"text": lean, "correspondence": "Literal.", "solution": "by simp"}),
+    ] {
+        let mut changed = envelope.clone();
+        changed["problem"]["lean_target"] = broken;
+        let (status, _, _) = call(
+            &router,
+            "POST",
+            "/collected-problems",
+            Some("curator"),
+            Some(changed),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let (status, receipt, _) = call(
+        &router,
+        "POST",
+        "/collected-problems",
+        Some("curator"),
+        Some(envelope),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let id = receipt["research_problem"].as_str().unwrap();
+    let (status, problem, _) = call(
+        &router,
+        "GET",
+        &format!("/research-problems/{id}"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    // No verifier has read the text: readers learn its digest and the curator's
+    // account, never the Lean text itself.
+    let projected = &problem["curated"]["lean_target"];
+    assert_eq!(projected["state"], "checking");
+    assert_eq!(projected["vocabulary"], "mathlib");
+    assert_eq!(
+        projected["correspondence"],
+        "Every natural number has a larger one."
+    );
+    assert_eq!(projected["digest"].as_str().unwrap().len(), 64);
+    assert!(projected.get("text").is_none() && projected.get("reason").is_none());
+
+    let (_, spec, _) = call(&router, "GET", "/openapi.json", None, None).await;
+    for (schema, value) in [
+        ("PublicCuratedProblem", &problem["curated"]),
+        ("PublicCuratedTarget", projected),
+        ("CuratedLeanTarget", &target),
+    ] {
+        let name = schema;
+        let schema = &spec["components"]["schemas"][schema];
+        assert_eq!(schema["additionalProperties"], false, "{name}");
+        for key in value.as_object().unwrap().keys() {
+            assert!(
+                schema["properties"][key].is_object(),
+                "undeclared {name}.{key}"
+            );
+        }
+        for key in schema["required"].as_array().unwrap() {
+            assert!(
+                !value[key.as_str().unwrap()].is_null(),
+                "missing {name}.{key}"
+            );
+        }
+    }
+    assert_eq!(
+        spec["components"]["schemas"]["CuratedProblem"]["properties"]["lean_target"]["$ref"],
+        "#/components/schemas/CuratedLeanTarget"
+    );
+}

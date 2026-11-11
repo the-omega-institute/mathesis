@@ -164,6 +164,8 @@ pub enum JobKind {
     PaperExplanation,
     CollectedExplanation,
     CollectedFormalization,
+    /// The independent verifier reads a curated problem's Lean target.
+    CollectedProblemTarget,
     LeanStatement,
     ResearchTarget,
     BindingAudit,
@@ -186,7 +188,9 @@ impl JobKind {
     pub fn lane(self) -> JobLane {
         match self {
             Self::Compile => JobLane::Compile,
-            Self::VerifyAttempt | Self::VerifyResearch => JobLane::Verify,
+            Self::VerifyAttempt | Self::VerifyResearch | Self::CollectedProblemTarget => {
+                JobLane::Verify
+            }
             _ => JobLane::Review,
         }
     }
@@ -528,6 +532,14 @@ pub trait CollectedProblemStore: Send + Sync {
         key: &str,
     ) -> CoreResult<Option<crate::model::CollectedProblemVersion>>;
     async fn insert(&self, version: &crate::model::CollectedProblemVersion) -> CoreResult<()>;
+    /// Attaches the target check of this exact version once. A version that
+    /// already carries a check keeps it.
+    async fn attach_target_check(
+        &self,
+        problem: &str,
+        version: u32,
+        check: &crate::model::CuratedTargetCheck,
+    ) -> CoreResult<()>;
     /// Every problem at its current version, in descending key order; the cursor is a key.
     async fn list(
         &self,

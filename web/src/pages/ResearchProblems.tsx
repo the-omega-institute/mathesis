@@ -6,6 +6,7 @@ import { usePaged } from '../api/usePaged';
 import type {
   CollectedProblemNote,
   CollectedProof,
+  CuratedLeanTarget,
   CuratedProblem,
   ResearchProblemLink,
   ResearchProblemSummary,
@@ -121,6 +122,59 @@ function Posers({ people }: { people: { name: string; profile_url?: string }[] }
   );
 }
 
+/**
+ * The collection operator's Lean reading of the statement. The text is shown
+ * only after the independent verifier elaborated it, and always under the
+ * curator's name: the original poser has not confirmed it.
+ */
+function CuratedLeanStatement({ target }: { target: CuratedLeanTarget }) {
+  return (
+    <section aria-labelledby="problem-lean-h">
+      <h2 id="problem-lean-h">{t('Lean statement: the curator’s formalization')}</h2>
+      <p>
+        {t(
+          'The collection operator wrote this Lean proposition. The original poser has not confirmed it, and no proof is attached.',
+        )}
+      </p>
+      {target.state === 'elaborated' && target.text ? (
+        <>
+          <pre className="code-block" aria-label={t('Lean target')}>
+            {target.text}
+          </pre>
+          <p>
+            {t(
+              'The independent verifier elaborated this exact text as a proposition. That shows it is well-formed Lean in the environment below; it does not show that it states the problem faithfully.',
+            )}
+          </p>
+          <p className="entry-meta">
+            {[
+              target.toolchain,
+              target.checked_at ? `${t('Checked on')} ${formatDate(target.checked_at)}` : null,
+              `SHA-256 ${target.digest}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </>
+      ) : target.state === 'refused' ? (
+        <p>
+          {t('The independent verifier did not accept the submitted Lean text:')} {target.reason}
+        </p>
+      ) : (
+        <p>{t('The independent verifier has not read the submitted Lean text yet.')}</p>
+      )}
+      <p>
+        {target.vocabulary === 'mathlib'
+          ? t('Vocabulary: the statement uses definitions that Mathlib already has.')
+          : t('Vocabulary: the statement introduces its own definitions before the proposition.')}
+      </p>
+      <p>
+        {t('How the proposition reads the statement:')} {target.correspondence}
+      </p>
+    </section>
+  );
+}
+
 /** A directly collected problem: its statement, credit, and the curator's dated reading. */
 function CuratedEntry({ id, problem: c }: { id: string; problem: CuratedProblem }) {
   return (
@@ -173,12 +227,17 @@ function CuratedEntry({ id, problem: c }: { id: string; problem: CuratedProblem 
           })}
         </ul>
       </section>
+      {c.lean_target ? <CuratedLeanStatement target={c.lean_target} /> : null}
       <section aria-labelledby="problem-participate-h">
         <h2 id="problem-participate-h">{t('Work on this problem')}</h2>
         <p>
-          {t(
-            'A written solution goes through ordinary review. Lean work is saved with the original posers credited; no Lean statement has been prepared for this problem yet.',
-          )}
+          {c.lean_target?.state === 'elaborated'
+            ? t(
+                'A written solution goes through ordinary review. Lean work is saved with the original posers credited; the Lean statement above is the curator’s formalization of this problem.',
+              )
+            : t(
+                'A written solution goes through ordinary review. Lean work is saved with the original posers credited; no Lean statement has been prepared for this problem yet.',
+              )}
         </p>
         <p>
           <Link to={{ kind: 'submit' }}>{t('Submit a written solution')}</Link>

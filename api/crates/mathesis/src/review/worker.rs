@@ -207,9 +207,14 @@ impl Worker {
             }
             Err(Failure::Transient(reason)) => {
                 tracing::warn!(reason, "job will be retried");
-                if job.kind == JobKind::CollectedFormalization {
+                if matches!(
+                    job.kind,
+                    JobKind::CollectedFormalization | JobKind::CollectedProblemTarget
+                ) {
                     // Provider recovery is an ordinary wait, not a failed proof
                     // generation. Keep the same durable job and remote handles.
+                    // A curated target likewise waits for the verifier: its check
+                    // is idempotent and writes at most once.
                     self.jobs.defer(&job, Duration::from_secs(60)).await
                 } else {
                     self.jobs.retry(&job, &reason).await
@@ -237,6 +242,14 @@ impl Worker {
         if job.kind == JobKind::VerifyResearch {
             self.app
                 .verify_research_leased(&self.reviewer, job, self.jobs.as_ref())
+                .await?;
+            return Ok(false);
+        }
+        if job.kind == JobKind::CollectedProblemTarget {
+            // A curated problem is no submission: the job names its version.
+            self.ensure_lease(job).await?;
+            self.app
+                .check_collected_problem_target_leased(&self.reviewer, job, self.jobs.as_ref())
                 .await?;
             return Ok(false);
         }
@@ -285,6 +298,7 @@ impl Worker {
         match job.kind {
             JobKind::CollectedFormalization
             | JobKind::CollectedExplanation
+            | JobKind::CollectedProblemTarget
             | JobKind::PaperExplanation
             | JobKind::ErrorReports
             | JobKind::AgentAttempt
