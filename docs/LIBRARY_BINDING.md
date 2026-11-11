@@ -284,7 +284,9 @@ root `D5`. Four files define it:
 3. It compiles the listed modules and their imports from source with the pinned
    toolchain and the library's own Lake options. Nothing is downloaded prebuilt
    for the library. A listed module that does not compile at the pinned revision
-   fails the build.
+   fails the build. Lake's output goes to a file, because the library's linter
+   messages exceed the image builder's 2 MiB step log: the step prints one
+   progress line a minute, and on failure the failing modules with their errors.
 4. It removes the library's sources, Git data and intermediate C files. Checking
    a proof reads compiled modules only, and every job copies the workspace.
 
@@ -319,6 +321,18 @@ to any of them produces a new pin, and the library is compiled again:
   of that pin exists. Dispatching it for the pull request branch with the
   verifier option publishes the base before the merge.
 - Every later CI and publication run of the same pin reuses the published base.
+
+Readings on GitHub-hosted runners for revision `542ba53d78db` with the 39 listed
+modules (2026-11-10 and 2026-11-11, two builds):
+
+| Reading | Value |
+|---|---|
+| Modules compiled: the listed modules and their imports | 537 |
+| Compiled library kept in the image | 1,074 MiB |
+| Compilation of the library | 5,221 s |
+| Whole base build step | 5,336 s and 5,872 s |
+| Real Lean tests of the verifier image, six tests | 1,278 s and 1,410 s |
+| The same tests before the library, five tests on the Mathlib-only base | 969 s |
 
 ## Current state
 
