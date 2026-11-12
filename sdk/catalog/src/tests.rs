@@ -67,16 +67,25 @@ where
             }
             match listener.accept() {
                 Ok((mut stream, _)) => {
-                    let mut request = [0u8; 4096];
-                    let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
-                    let n = stream.read(&mut request).unwrap_or(0);
-                    let request_text = String::from_utf8_lossy(&request[..n]).into_owned();
+                    let mut request = Vec::new();
+                    let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+                    // TCP may split even a short HTTP request across reads.
+                    while !request.windows(4).any(|part| part == b"\r\n\r\n")
+                        && request.len() < 16384
+                    {
+                        let mut chunk = [0u8; 4096];
+                        match stream.read(&mut chunk) {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => request.extend_from_slice(&chunk[..n]),
+                        }
+                    }
+                    let request_text = String::from_utf8_lossy(&request).into_owned();
                     let first = request_text.lines().next().unwrap_or("");
                     let path = first.split_whitespace().nth(1).unwrap_or("");
                     let (status, body) = handler(path);
                     let reason = if status == 200 { "OK" } else { "Bad Request" };
                     let head = format!(
-                        "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nContent-Type: application/json\r\n\r\n",
+                        "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n",
                         body.len()
                     );
                     let _ = stream.write_all(head.as_bytes());
