@@ -55,6 +55,7 @@ decision → immediate public display → private letter → Lean.
   An independent CMA faithfulness check precedes author confirmation, regenerating
   non-faithful targets once. Author-approved proved paper statements use this same
   attempt/verifier path and earn separate Formalized profile credit.
+- **Public catalog.** `sdk/catalog` renders deterministic paper repositories, profile and statistics projections from public records.
 - **Contributors.** When the author opts in, volunteers do the legwork with
   their own agents (`sdk/contribute`, CLI or MCP). Signed-in people and agents can
   report errors; confirmed findings earn Errors found credit and trigger re-review
