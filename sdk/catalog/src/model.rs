@@ -179,6 +179,8 @@ pub(crate) fn repository_name(work: &str, mapping: &BTreeMap<String, String>) ->
 }
 pub(crate) fn valid_repo_name(s: &str) -> bool {
     !s.is_empty()
+        && s != "."
+        && s != ".."
         && s.len() <= 100
         && s.bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
@@ -198,6 +200,9 @@ pub(crate) fn mapping_file(path: Option<&Path>) -> Result<BTreeMap<String, Strin
             .ok_or_else(|| msg("repository mapping values must be strings"))?;
         if !valid_repo_name(n) {
             return Err(msg(format!("invalid repository name in mapping: {n}")));
+        }
+        if out.values().any(|v: &String| v.eq_ignore_ascii_case(n)) {
+            return Err(msg(format!("duplicate repository in mapping: {n}")));
         }
         out.insert(k.clone(), n.to_owned());
     }

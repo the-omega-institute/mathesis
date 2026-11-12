@@ -67,16 +67,25 @@ where
             }
             match listener.accept() {
                 Ok((mut stream, _)) => {
-                    let mut request = [0u8; 4096];
-                    let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
-                    let n = stream.read(&mut request).unwrap_or(0);
-                    let request_text = String::from_utf8_lossy(&request[..n]).into_owned();
+                    let mut request = Vec::new();
+                    let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+                    // TCP may split even a short HTTP request across reads.
+                    while !request.windows(4).any(|part| part == b"\r\n\r\n")
+                        && request.len() < 16384
+                    {
+                        let mut chunk = [0u8; 4096];
+                        match stream.read(&mut chunk) {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => request.extend_from_slice(&chunk[..n]),
+                        }
+                    }
+                    let request_text = String::from_utf8_lossy(&request).into_owned();
                     let first = request_text.lines().next().unwrap_or("");
                     let path = first.split_whitespace().nth(1).unwrap_or("");
                     let (status, body) = handler(path);
                     let reason = if status == 200 { "OK" } else { "Bad Request" };
                     let head = format!(
-                        "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nContent-Type: application/json\r\n\r\n",
+                        "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n",
                         body.len()
                     );
                     let _ = stream.write_all(head.as_bytes());
@@ -229,7 +238,7 @@ fn fetch_rejects_sha256_mismatch() {
         schema_version: "1".into(),
         generator_version: GENERATOR_VERSION.into(),
         api_base: base,
-        captured_at: "t".into(),
+        captured_at: "2026-11-13T00:00:00Z".into(),
         listings: BTreeMap::new(),
         collected_works: 1,
         accepted_records: 0,
@@ -255,7 +264,7 @@ fn render_is_byte_deterministic() {
         schema_version: "1".into(),
         generator_version: GENERATOR_VERSION.into(),
         api_base: "https://x".into(),
-        captured_at: "t".into(),
+        captured_at: "2026-11-13T00:00:00Z".into(),
         listings: BTreeMap::new(),
         collected_works: 0,
         accepted_records: 0,
@@ -410,7 +419,7 @@ fn statistics_keep_similar_statements_separate_and_split_basis() {
             schema_version: "1".into(),
             generator_version: GENERATOR_VERSION.into(),
             api_base: "https://example".into(),
-            captured_at: "t".into(),
+            captured_at: "2026-11-13T00:00:00Z".into(),
             listings: BTreeMap::new(),
             collected_works: 2,
             accepted_records: 0,
@@ -470,7 +479,7 @@ fn check_rejects_tampered_stats() {
         schema_version: "1".into(),
         generator_version: GENERATOR_VERSION.into(),
         api_base: "https://x".into(),
-        captured_at: "t".into(),
+        captured_at: "2026-11-13T00:00:00Z".into(),
         listings: BTreeMap::new(),
         collected_works: 0,
         accepted_records: 0,
@@ -663,4 +672,100 @@ fn render_records_concept_doi_and_file_schema_without_embedded_nodes() {
     assert!(paper["files"]["source"].get("matches_public").is_some());
     let contributing = fs::read_to_string(out.join("papers/concept-work/CONTRIBUTING.md")).unwrap();
     assert!(contributing.contains("https://site/contribute"));
+    let index = read_json(&out.join("catalog/archive-index.json")).unwrap();
+    assert_eq!(
+        index,
+        json!({"schema":"mathesis.archive-index.v1", "generated_at":"2026-11-12T00:00:00Z",
+        "entries":[{"kind":"collected","id":"concept-work","version":2,"doi":"10.1234/version"}]})
+    );
+    let mut archive_snapshot = load_snapshot(&root).unwrap();
+    archive_snapshot.accepted.push(json!({"record":"r1", "version":2, "archive":{"doi":"10.1234/record-version"}, "concept_doi":"10.1234/concept"}));
+    let with_record = publishing::archive_index(&archive_snapshot).unwrap();
+    assert_eq!(
+        with_record["entries"][1],
+        json!({"kind":"record", "id":"r1", "version":2, "doi":"10.1234/record-version"})
+    );
+    archive_snapshot.accepted[0]["version"] = json!(0);
+    assert!(publishing::archive_index(&archive_snapshot).is_err());
+    let html = fs::read_to_string(out.join("site/index.html")).unwrap();
+    assert!(html.contains("https://site/papers/concept-work?version=2"));
+    assert!(!html.contains("https://papers.trureturing.org/concept-work/"));
+    assert!(html.contains("2026-11-12T00:00:00Z"));
+    assert!(out.join("site/doi/10.1234/version/index.html").exists());
+    assert!(!out.join("site/doi/10.1234/concept").exists());
+    assert_eq!(
+        fs::read_to_string(out.join("site/CNAME")).unwrap(),
+        "papers.trureturing.org\n"
+    );
+    check(&out).unwrap();
+    let mapping = root.join("repositories.json");
+    write_json(&mapping, &json!({"concept-work":"concept-work"})).unwrap();
+    render(
+        &root,
+        &out,
+        "org",
+        "Mathesis",
+        "https://site",
+        Some(&mapping),
+    )
+    .unwrap();
+    assert!(
+        fs::read_to_string(out.join("site/index.html"))
+            .unwrap()
+            .contains("https://papers.trureturing.org/concept-work/")
+    );
+    assert!(
+        fs::read_to_string(out.join("site/doi/10.1234/version/index.html"))
+            .unwrap()
+            .contains("0;url=https://papers.trureturing.org/concept-work/")
+    );
+    fs::write(out.join("site/CNAME"), "wrong.example").unwrap();
+    assert!(check(&out).is_err());
+}
+
+#[test]
+fn publishing_paths_and_material_boundaries() {
+    for name in [".", "..", "bad/name"] {
+        assert!(!valid_repo_name(name));
+    }
+    for doi in [
+        "10.5281/../x",
+        "10.5281/x//y",
+        "10.5281/x?y",
+        "10.5281/x%2fy",
+        "bad/x",
+    ] {
+        assert!(publishing::doi_path(doi).is_err(), "{doi}");
+    }
+    assert_eq!(
+        publishing::doi_path("10.5281/zenodo.23957560").unwrap(),
+        "10.5281/zenodo.23957560"
+    );
+    let root = temp("published-materials");
+    let paper = json!({"id":"chen-chen-step-m-eulerian-parity-positivity", "revision":"2", "title":"<Paper & title>",
+        "license":"CC-BY-4.0", "doi":"10.5281/zenodo.23957560"});
+    let mut mapping = BTreeMap::new();
+    let work = paper_work(&paper, false, &mapping).unwrap();
+    let absent = publishing::materials(&work, "mathesis-papers", &mapping, None).unwrap();
+    assert!(absent["repository_url"].is_null());
+    mapping.insert(work.work.clone(), work.repository_name.clone().unwrap());
+    let base = format!("https://papers.trureturing.org/{}/", work.work);
+    let path = root.join(format!("{}.json", work.work));
+    let mut m = json!({"schema":"mathesis.materials.v1", "work":work.work,"version":2,
+        "repository_url":format!("https://github.com/mathesis-papers/{}", work.work), "site_url":base,
+        "reading":{"en":format!("{base}{}/en/",work.work)}, "slides":[], "visualizations":[]});
+    write_json(&path, &m).unwrap();
+    let material = publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).unwrap();
+    assert_eq!(material["doi"], "10.5281/zenodo.23957560");
+    assert_eq!(material["manifest_available"], true);
+    m["reading"]["en"] = json!(format!("{base}../foreign/"));
+    write_json(&path, &m).unwrap();
+    assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
+    m["reading"]["en"] = json!("https://example.org/foreign");
+    write_json(&path, &m).unwrap();
+    assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
+    m["reading"] = json!({});
+    m["version"] = json!(1);
+    write_json(&path, &m).unwrap();
+    assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
 }

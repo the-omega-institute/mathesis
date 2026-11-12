@@ -3,7 +3,7 @@ use super::*;
 fn value_from<T: Serialize>(x: &T) -> Result<Value> {
     Ok(serde_json::to_value(x)?)
 }
-fn authors_markdown(authors: &[Value]) -> String {
+pub(crate) fn authors_markdown(authors: &[Value]) -> String {
     authors
         .iter()
         .map(|a| text(a, "name").unwrap_or_default())
@@ -23,7 +23,7 @@ fn stats_json(stats: &Stats) -> Result<Value> {
 fn site_link(site: &str, path: &str) -> String {
     format!("{}/{}", normalize_base(site), path.trim_start_matches('/'))
 }
-fn paper_page(site: &str, work: &Work) -> String {
+pub(crate) fn paper_page(site: &str, work: &Work) -> String {
     paper_page_parts(site, &work.record, work.current_version)
 }
 fn paper_page_parts(site: &str, record: &str, version: Option<i64>) -> String {
@@ -296,6 +296,27 @@ pub fn render(
     site_base: &str,
     mapping_path: Option<&Path>,
 ) -> Result<()> {
+    render_with_materials(
+        snapshot_root,
+        output,
+        organization,
+        display_name,
+        site_base,
+        mapping_path,
+        None,
+    )
+}
+
+/// Render using optional locally downloaded repository materials manifests.
+pub fn render_with_materials(
+    snapshot_root: &Path,
+    output: &Path,
+    organization: &str,
+    display_name: &str,
+    site_base: &str,
+    mapping_path: Option<&Path>,
+    materials_root: Option<&Path>,
+) -> Result<()> {
     let snapshot = load_snapshot(snapshot_root)?;
     let mapping = mapping_file(mapping_path)?;
     let mut works = Vec::new();
@@ -306,6 +327,14 @@ pub fn render(
         works.push(paper_work(paper, true, &mapping)?);
     }
     works.sort_by(|a, b| a.work.cmp(&b.work));
+    let mut names = BTreeSet::new();
+    for work in works.iter().filter(|w| w.publication == "public") {
+        if let Some(repo) = &work.repository_name
+            && !names.insert(repo.to_ascii_lowercase())
+        {
+            return Err(msg(format!("paper repository name collision: {repo}")));
+        }
+    }
     let nodes = make_nodes(&snapshot)?;
     let stats = compute_stats(&snapshot, &works, &nodes);
     let temp = output.with_extension(format!("tmp-{}", std::process::id()));
@@ -319,6 +348,30 @@ pub fn render(
         write_json(&catalog.join("works.json"), &works_json(&works)?)?;
         write_json(&catalog.join("nodes.json"), &node_json(&nodes)?)?;
         write_json(&catalog.join("stats.json"), &stats_json(&stats)?)?;
+        write_json(&catalog.join("repositories.json"), &json!(mapping))?;
+        write_json(
+            &catalog.join("archive-index.json"),
+            &publishing::archive_index(&snapshot)?,
+        )?;
+        for work in &works {
+            let material = publishing::materials(work, organization, &mapping, materials_root)?;
+            write_json(
+                &catalog
+                    .join("materials")
+                    .join(work_dir_name(&work.work)?)
+                    .join("materials.json"),
+                &material,
+            )?;
+        }
+        publishing::render_site(
+            &temp.join("site"),
+            &works,
+            &stats,
+            organization,
+            display_name,
+            site_base,
+            &mapping,
+        )?;
         let snapshot_projection = json!({"time": snapshot.meta.captured_at, "api_base": snapshot.meta.api_base, "generator_version": GENERATOR_VERSION, "schema_versions": {"snapshot": SNAPSHOT_SCHEMA, "catalog": CATALOG_SCHEMA}, "listings": snapshot.meta.listings, "rows": {"works": works.len(), "nodes": nodes.len()}});
         write_json(&catalog.join("snapshot.json"), &snapshot_projection)?;
         write_text(
@@ -379,6 +432,12 @@ pub fn render(
             write_json(&dir.join(".mathesis/generated.json"), &manifest)?;
         }
         render_template(&temp.join("template"), site_base)?;
+        let mut hashes = BTreeMap::new();
+        collect_files(&temp, &temp, &mut hashes, false)?;
+        write_json(
+            &temp.join(".mathesis/rendered.json"),
+            &json!({"schema":"mathesis.rendered.v1", "sha256":hashes}),
+        )?;
         Ok::<(), Error>(())
     })();
     match result {

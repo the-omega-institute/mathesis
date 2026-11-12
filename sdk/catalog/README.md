@@ -46,3 +46,26 @@ receive no repository tree.
 MSC labels used by `web/src/data/theory-areas.json` at package creation time.
 The SDK does not read `web/` at build time and remains self-contained when
 copied elsewhere.
+
+The renderer additionally produces `site/` for `papers.trureturing.org`,
+`catalog/archive-index.json` in the exact `mathesis.archive-index.v1` schema,
+`catalog/repositories.json`, and `catalog/materials/<work>/materials.json`.
+The org site has scoped counts, the snapshot time, paper links and exact-version
+DOI redirects; its CNAME is always preserved in publisher synchronization.
+Repository links require a durable mapping entry. Prospective repository names
+in `works.json` continue to identify renderable paper trees.
+
+Use `--materials /tmp/repository-manifests` to consume locally downloaded
+`<repository>.json` manifests (`mathesis.materials.v1`). The renderer performs no
+fetch itself. Missing manifests produce empty material lists; malformed or
+wrong-version manifests fail rendering without replacing the prior output.
+Manifest identity, site URL boundaries and exact versions are checked; DOI comes
+from Mathesis. See [PAPER_REPOSITORIES.md](../../docs/PAPER_REPOSITORIES.md) for
+all fields and the publisher contract. `check` now also checks the complete
+rendered file list/hashes, including site, archive index and materials; it still
+recomputes statistics independently. The render hash manifest is
+`.mathesis/rendered.json` and is not itself a source of mathematical verification.
+
+The publisher workflow and fake-API tests live in `mathesis-papers/catalog`.
+This SDK remains an anonymous-read-only generator; it never creates repositories,
+issues, GitHub commits, Zenodo deposits or DOI registrations.

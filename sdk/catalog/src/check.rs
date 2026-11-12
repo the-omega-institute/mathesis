@@ -2,6 +2,20 @@ use super::*;
 
 /// Recompute the statistics in a rendered catalog and reject tampering.
 pub fn check(output: &Path) -> Result<()> {
+    let manifest = read_json(&output.join(".mathesis/rendered.json"))?;
+    if manifest["schema"] != "mathesis.rendered.v1" {
+        return Err(msg("unknown render manifest"));
+    }
+    let expected: BTreeMap<String, String> = serde_json::from_value(manifest["sha256"].clone())?;
+    let mut actual = BTreeMap::new();
+    super::render::collect_files(output, output, &mut actual, false)?;
+    actual.remove(".mathesis/rendered.json");
+    if actual != expected {
+        return Err(msg("rendered files differ from manifest"));
+    }
+    if fs::read_to_string(output.join("site/CNAME"))? != "papers.trureturing.org\n" {
+        return Err(msg("org site CNAME differs"));
+    }
     let catalog = output.join("catalog");
     let works_v = read_json(&catalog.join("works.json"))?;
     let nodes_v = read_json(&catalog.join("nodes.json"))?;

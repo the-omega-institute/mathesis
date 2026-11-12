@@ -301,6 +301,7 @@ mod check;
 mod cli;
 mod fetch;
 mod model;
+mod publishing;
 mod render;
 mod snapshot;
 mod stats;
@@ -313,9 +314,9 @@ pub use model::{LeanSource, MscStats, Node, Stats, Work};
 pub(crate) use model::{descriptor_hash, descriptor_url, make_nodes, mapping_file, paper_work};
 #[cfg(test)]
 pub(crate) use model::{repository_name, valid_repo_name};
-pub use render::render;
 #[cfg(test)]
 pub(crate) use render::{citation, collect_files};
+pub use render::{render, render_with_materials};
 pub(crate) use snapshot::atomic_replace_dir;
 pub(crate) use snapshot::safe_component;
 pub(crate) use snapshot::work_dir_name;
