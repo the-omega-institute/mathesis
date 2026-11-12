@@ -84,6 +84,7 @@ fn material_url(value: &Value, base: &str) -> Result<()> {
         .ok_or_else(|| msg("material URL must be a string"))?;
     let parsed = reqwest::Url::parse(url).map_err(|_| msg("invalid material URL"))?;
     if !url.starts_with(base)
+        || !parsed.as_str().starts_with(base)
         || parsed.scheme() != "https"
         || parsed.username() != ""
         || parsed.password().is_some()

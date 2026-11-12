@@ -669,6 +669,15 @@ fn render_records_concept_doi_and_file_schema_without_embedded_nodes() {
         json!({"schema":"mathesis.archive-index.v1", "generated_at":"2026-11-12T00:00:00Z",
         "entries":[{"kind":"collected","id":"concept-work","version":2,"doi":"10.1234/version"}]})
     );
+    let mut archive_snapshot = load_snapshot(&root).unwrap();
+    archive_snapshot.accepted.push(json!({"record":"r1", "version":2, "archive":{"doi":"10.1234/record-version"}, "concept_doi":"10.1234/concept"}));
+    let with_record = publishing::archive_index(&archive_snapshot).unwrap();
+    assert_eq!(
+        with_record["entries"][1],
+        json!({"kind":"record", "id":"r1", "version":2, "doi":"10.1234/record-version"})
+    );
+    archive_snapshot.accepted[0]["version"] = json!(0);
+    assert!(publishing::archive_index(&archive_snapshot).is_err());
     let html = fs::read_to_string(out.join("site/index.html")).unwrap();
     assert!(html.contains("https://site/papers/concept-work?version=2"));
     assert!(!html.contains("https://papers.trureturing.org/concept-work/"));
@@ -740,6 +749,9 @@ fn publishing_paths_and_material_boundaries() {
     let material = publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).unwrap();
     assert_eq!(material["doi"], "10.5281/zenodo.23957560");
     assert_eq!(material["manifest_available"], true);
+    m["reading"]["en"] = json!(format!("{base}../foreign/"));
+    write_json(&path, &m).unwrap();
+    assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
     m["reading"]["en"] = json!("https://example.org/foreign");
     write_json(&path, &m).unwrap();
     assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());

@@ -327,6 +327,14 @@ pub fn render_with_materials(
         works.push(paper_work(paper, true, &mapping)?);
     }
     works.sort_by(|a, b| a.work.cmp(&b.work));
+    let mut names = BTreeSet::new();
+    for work in works.iter().filter(|w| w.publication == "public") {
+        if let Some(repo) = &work.repository_name
+            && !names.insert(repo.to_ascii_lowercase())
+        {
+            return Err(msg(format!("paper repository name collision: {repo}")));
+        }
+    }
     let nodes = make_nodes(&snapshot)?;
     let stats = compute_stats(&snapshot, &works, &nodes);
     let temp = output.with_extension(format!("tmp-{}", std::process::id()));
