@@ -3,10 +3,14 @@ use std::{sync::Arc, time::Duration};
 use mathesis_core::{
     CoreError,
     app::{App, FiledBy},
-    model::{Caller, ReviewerIdentity, Stage, Submission, SubmissionStatus},
+    model::{
+        ArchiveIndexEntry, ArchiveIndexKind, Caller, ReviewerIdentity, Stage, Submission,
+        SubmissionStatus, zenodo_record_id,
+    },
     ports::{JobKind, JobLane},
 };
 use mathesis_review::{Document, ReviewModel};
+use serde::Deserialize;
 use tokio::sync::watch;
 use tracing::Instrument;
 
@@ -16,6 +20,8 @@ use crate::latex::{self, Compile};
 const IDLE_POLL: Duration = Duration::from_secs(3);
 const RECONCILE_INTERVAL: Duration = Duration::from_secs(60);
 const LEASE_HEARTBEAT: Duration = Duration::from_secs(5 * 60);
+const ARCHIVE_INDEX_MAX_BYTES: usize = 1024 * 1024;
+const ARCHIVE_INDEX_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct Worker {
     pub knowledge: Option<Arc<dyn crate::knowledge::KnowledgeSource>>,
@@ -424,7 +430,86 @@ impl Worker {
 }
 
 /// Return expired task leases to the pool.
-pub async fn run_reconciler(app: Arc<App>, mut shutdown: watch::Receiver<bool>) {
+#[derive(Debug, Deserialize)]
+struct ArchiveIndexDocument {
+    schema: String,
+    generated_at: String,
+    entries: Vec<serde_json::Value>,
+}
+
+fn parse_archive_index(bytes: &[u8]) -> Result<Vec<ArchiveIndexEntry>, String> {
+    if bytes.len() > ARCHIVE_INDEX_MAX_BYTES {
+        return Err("archive index exceeds its size bound".into());
+    }
+    let document: ArchiveIndexDocument =
+        serde_json::from_slice(bytes).map_err(|_| "archive index is not valid JSON".to_owned())?;
+    if document.schema != "mathesis.archive-index.v1"
+        || chrono::DateTime::parse_from_rfc3339(&document.generated_at).is_err()
+    {
+        return Err("archive index schema or generated_at is invalid".into());
+    }
+    let mut entries = Vec::new();
+    for value in document.entries {
+        let Ok(entry) = serde_json::from_value::<ArchiveIndexEntry>(value) else {
+            continue;
+        };
+        if entry.id.trim().is_empty()
+            || entry.version == 0
+            || zenodo_record_id(&entry.doi).is_err()
+            || (matches!(entry.kind, ArchiveIndexKind::Record) && !entry.id.starts_with("WP-"))
+        {
+            continue;
+        }
+        entries.push(entry);
+    }
+    Ok(entries)
+}
+
+async fn fetch_archive_index(url: &str) -> Result<Vec<ArchiveIndexEntry>, String> {
+    let parsed = url::Url::parse(url).map_err(|_| "archive index URL is invalid".to_owned())?;
+    if parsed.scheme() != "https" {
+        return Err("archive index URL must use HTTPS".into());
+    }
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(ARCHIVE_INDEX_TIMEOUT)
+        .user_agent("Mathesis/1.0 (archive index)")
+        .build()
+        .map_err(|_| "archive index client unavailable".to_owned())?;
+    let response = client
+        .get(parsed)
+        .send()
+        .await
+        .map_err(|_| "archive index could not be reached".to_owned())?;
+    if !response.status().is_success() {
+        return Err(format!("archive index returned HTTP {}", response.status()));
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length > ARCHIVE_INDEX_MAX_BYTES as u64)
+    {
+        return Err("archive index exceeds its size bound".into());
+    }
+    let mut body = Vec::new();
+    let mut response = response;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| "archive index download interrupted".to_owned())?
+    {
+        if body.len().saturating_add(chunk.len()) > ARCHIVE_INDEX_MAX_BYTES {
+            return Err("archive index exceeds its size bound".into());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    parse_archive_index(&body)
+}
+
+pub async fn run_reconciler(
+    app: Arc<App>,
+    mut shutdown: watch::Receiver<bool>,
+    archive_index_url: Option<String>,
+) {
     loop {
         match app.reconcile().await {
             Ok(outcome) if outcome.leases_expired > 0 => {
@@ -433,9 +518,66 @@ pub async fn run_reconciler(app: Arc<App>, mut shutdown: watch::Receiver<bool>) 
             Ok(_) => {}
             Err(error) => tracing::warn!(%error, "reconcile failed"),
         }
+        if let Some(url) = archive_index_url.as_deref() {
+            match fetch_archive_index(url).await {
+                Ok(entries) => {
+                    for entry in entries {
+                        match app.discover_archive_entry(&entry).await {
+                            Ok(true) => {
+                                tracing::info!(kind = ?entry.kind, id = %entry.id, version = entry.version, doi = %entry.doi, "attached verified archive DOI")
+                            }
+                            Ok(false) => {}
+                            Err(error) => {
+                                tracing::warn!(kind = ?entry.kind, id = %entry.id, version = entry.version, doi = %entry.doi, %error, "archive index entry was not attached; retrying")
+                            }
+                        }
+                    }
+                }
+                Err(error) => tracing::warn!(%error, "archive index fetch failed"),
+            }
+        }
         tokio::select! {
             _ = tokio::time::sleep(RECONCILE_INTERVAL) => {}
             _ = shutdown.changed() => break,
         }
+    }
+}
+
+#[cfg(test)]
+mod archive_index_tests {
+    use super::*;
+
+    fn document(entries: &str) -> Vec<u8> {
+        format!(
+            r#"{{"schema":"mathesis.archive-index.v1","generated_at":"2026-11-12T00:00:00Z","entries":[{entries}]}}"#
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn archive_index_skips_bad_entries_but_keeps_valid_entries() {
+        let bytes = document(
+            r#"{"kind":"record","id":"WP-2026-0001","version":1,"doi":"10.5281/zenodo.123","unknown":true},
+            {"kind":"record","id":"","version":1,"doi":"10.5281/zenodo.124"},
+            {"kind":"record","id":"WP-2026-0002","version":0,"doi":"10.5281/zenodo.125"},
+            {"kind":"record","id":"WP-2026-0003","version":1,"doi":"10.5281/zenodo.126 extra"},
+            {"kind":"collected","id":"work","version":2,"doi":"10.5281/zenodo.127"}"#,
+        );
+        let entries = parse_archive_index(&bytes).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].id, "WP-2026-0001");
+        assert_eq!(entries[1].kind, ArchiveIndexKind::Collected);
+    }
+
+    #[tokio::test]
+    async fn archive_index_rejects_wrong_schema_and_oversized_body() {
+        let wrong = br#"{"schema":"other","generated_at":"2026-11-12T00:00:00Z","entries":[]}"#;
+        assert!(parse_archive_index(wrong).is_err());
+        assert!(parse_archive_index(&vec![b' '; ARCHIVE_INDEX_MAX_BYTES + 1]).is_err());
+        assert!(
+            fetch_archive_index("http://example.test/index.json")
+                .await
+                .is_err()
+        );
     }
 }

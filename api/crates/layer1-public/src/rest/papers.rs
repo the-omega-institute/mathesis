@@ -15,8 +15,8 @@ use mathesis_core::{
     app::{App, MAX_UPLOAD_BYTES, PaperFile, SubmissionScope, Upload},
     ids::{RecordId, SubmissionId},
     model::{
-        ClaimConfirmation, ConfirmManuscriptDelivery, NewManuscriptDelivery, NewPaper,
-        PrepareSubmission, SubmissionPurpose, SubmitPrepared, Visibility,
+        ClaimConfirmation, CollectedArchiveInput, ConfirmManuscriptDelivery, NewManuscriptDelivery,
+        NewPaper, PrepareSubmission, SubmissionPurpose, SubmitPrepared, Visibility,
     },
 };
 use serde::Deserialize;
@@ -82,6 +82,12 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/papers/{id}", get(paper))
         .route("/papers/{id}/landing.html", get(paper_landing))
         .route("/papers/{id}/pdf", get(paper_pdf))
+        .route("/papers/{id}/source", get(paper_source))
+        .route("/papers/{id}/archive", post(attach_archive))
+        .route(
+            "/submissions/{id}/archive-consent",
+            post(grant_archive_consent),
+        )
 }
 
 /// The parts of an upload form: `metadata` (JSON), `note` (text) and
@@ -514,6 +520,56 @@ async fn paper_pdf(State(app): AppState, Path(id): Path<String>) -> ApiResult<Re
     Ok(response)
 }
 
+async fn paper_source(State(app): AppState, Path(id): Path<String>) -> ApiResult<Response> {
+    let paper = app.paper(&RecordId(id)).await?;
+    if !paper.summary.public || paper.archive.is_none() {
+        return Err(Problem(CoreError::not_found(
+            "paper",
+            paper.summary.record.as_str(),
+        )));
+    }
+    let file = app
+        .paper_file(None, &paper.summary.submission, None, false)
+        .await?;
+    let mut response = file_response(file, false);
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=300"),
+    );
+    Ok(response)
+}
+
+async fn attach_archive(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+    Body(input): Body<CollectedArchiveInput>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.attach_paper_archive(&caller, &RecordId(id), input)
+            .await?,
+    ))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ArchiveConsentBody {
+    marker: String,
+}
+
+async fn grant_archive_consent(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    crate::auth::RequestAuthentication(authentication): crate::auth::RequestAuthentication,
+    Path(id): Path<String>,
+    Body(body): Body<ArchiveConsentBody>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.grant_archive_consent(&caller, authentication, &SubmissionId(id), &body.marker)
+            .await?,
+    ))
+}
+
 /// A direct HTML response for Scholar and other academic crawlers. The
 /// interactive React page remains the normal reader, while this response
 /// contains all bibliographic metadata without requiring JavaScript.
@@ -564,13 +620,25 @@ async fn paper_landing(
     } else {
         String::new()
     };
+    let citation_doi = paper
+        .archive
+        .as_ref()
+        .and_then(|archive| archive.doi.as_deref())
+        .or(paper.summary.doi.as_deref())
+        .map(|doi| {
+            format!(
+                "<meta name=\"citation_doi\" content=\"{}\">",
+                html_escape(doi)
+            )
+        })
+        .unwrap_or_default();
     let pdf_link = if has_pdf {
         format!("<p><a href=\"{pdf_url}\">Download the PDF</a></p>")
     } else {
         String::new()
     };
     let body = format!(
-        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title} · Mathesis</title><meta name=\"description\" content=\"{abstract_text}\"><meta name=\"citation_title\" content=\"{title}\">{authors}<meta name=\"citation_publication_date\" content=\"{date}\">{citation_pdf}<meta name=\"citation_fulltext_html_url\" content=\"{landing_url}\"><meta name=\"citation_technical_report_institution\" content=\"Omega Institute · Mathesis\"><link rel=\"canonical\" href=\"{landing_url}\"></head><body><main><article><p>Mathesis record <code>{record}</code> · {kind}</p><h1>{title}</h1><p class=\"authors\">{author_list}</p><p>Published {date} by Omega Institute · Mathesis.</p><h2>Abstract</h2><p>{abstract_text}</p>{pdf_link}<p><a href=\"{origin}/papers/{record}\">Open the interactive Mathesis page</a></p></article></main></body></html>"
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title} · Mathesis</title><meta name=\"description\" content=\"{abstract_text}\"><meta name=\"citation_title\" content=\"{title}\">{authors}<meta name=\"citation_publication_date\" content=\"{date}\">{citation_doi}{citation_pdf}<meta name=\"citation_fulltext_html_url\" content=\"{landing_url}\"><link rel=\"canonical\" href=\"{landing_url}\"></head><body><main><article><p>Mathesis record <code>{record}</code> · {kind}</p><h1>{title}</h1><p class=\"authors\">{author_list}</p><p>Published {date} by Mathesis.</p><h2>Abstract</h2><p>{abstract_text}</p>{pdf_link}<p><a href=\"{origin}/papers/{record}\">Open the interactive Mathesis page</a></p></article></main></body></html>"
     );
     let mut response = body.into_response();
     response.headers_mut().insert(

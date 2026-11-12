@@ -3,10 +3,11 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::records::PublicPaper;
 use super::{App, clamp};
 use crate::{
     CoreError, CoreResult,
-    ids::{ClaimId, SubmissionId, new_uuid},
+    ids::{ClaimId, RecordId, SubmissionId, new_uuid},
     model::*,
     ports::{JobKind, Listing, ReadPaper, SubmissionFilter},
 };
@@ -122,6 +123,8 @@ impl App {
             bibliography: read.bibliography.clone(),
             delivery: None,
             evidence: read.evidence.clone(),
+            archive_consent: None,
+            archive_record: None,
             number,
             archive,
             filename: upload.filename.chars().take(200).collect(),
@@ -251,6 +254,14 @@ impl App {
         }
         let now = self.ports.clock.now();
         let mut version = self.new_version(1, &upload, &read, String::new()).await?;
+        if new.archive_consent.is_some() {
+            version.archive_consent = Some(ArchiveConsent {
+                marker: PUBLIC_ARCHIVE_CONSENT_VERSION.into(),
+                at: now,
+                version: version.number,
+                source_sha256: version.archive.sha256.clone(),
+            });
+        }
         let manuscript = delivery.map(|(identity, delivered)| {
             version.delivery = Some(delivered);
             identity
@@ -636,6 +647,16 @@ impl App {
                     conjectures: submission.conjectures.clone(),
                     publication: Some(Box::new({
                         let mut snapshot = publication.clone();
+                        if let (Some(snapshot_version), Some(current_version)) =
+                            (snapshot.versions.last_mut(), submission.current_version())
+                            && snapshot_version.number == current_version.number
+                            && snapshot_version.archive.sha256 == current_version.archive.sha256
+                        {
+                            snapshot_version.archive_consent =
+                                current_version.archive_consent.clone();
+                            snapshot_version.archive_record =
+                                current_version.archive_record.clone();
+                        }
                         snapshot.published_progress = None;
                         snapshot
                     })),
@@ -985,7 +1006,12 @@ impl App {
                 version.unwrap().to_string(),
             ));
         }
-        if !(viewer || (pdf && public)) {
+        let public_source = public
+            && !pdf
+            && published_inputs.is_some_and(|inputs| {
+                entry_has_archive_consent(inputs, &submission, public_version, version)
+            });
+        if !(viewer || (pdf && public) || public_source) {
             return Err(CoreError::not_found("paper", id.as_str()));
         }
         let inputs = published_inputs.unwrap_or(&submission);
@@ -1029,6 +1055,320 @@ impl App {
             filename,
             bytes,
         })
+    }
+}
+
+fn entry_has_archive_consent(
+    inputs: &Submission,
+    current: &Submission,
+    public_version: Option<u32>,
+    requested: Option<u32>,
+) -> bool {
+    let number = requested.or(public_version);
+    let matches = |entry: &PaperVersion| {
+        Some(entry.number) == number
+            && entry.archive_consent.as_ref().is_some_and(|consent| {
+                consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                    && consent.version == entry.number
+                    && consent.source_sha256 == entry.archive.sha256
+            })
+    };
+    inputs.versions.iter().any(matches)
+        || current.versions.iter().any(|entry| {
+            inputs.versions.iter().any(|published| {
+                published.number == entry.number
+                    && published.archive.sha256 == entry.archive.sha256
+                    && matches(entry)
+            })
+        })
+}
+
+impl App {
+    /// Grant the one-way archive consent for the current manuscript version.
+    /// A browser cookie session is required, matching author target confirmation.
+    pub async fn grant_archive_consent(
+        &self,
+        caller: &Caller,
+        authentication: AuthenticationMethod,
+        id: &SubmissionId,
+        marker: &str,
+    ) -> CoreResult<Submission> {
+        if authentication != AuthenticationMethod::CookieSession {
+            return Err(CoreError::forbidden(
+                "grant archive consent in a signed-in browser session",
+            ));
+        }
+        let mut submission = self.load(id).await?;
+        Self::require_submitter(caller, &submission)?;
+        if submission.purpose != SubmissionPurpose::Publication {
+            return Err(CoreError::conflict(
+                "private review requests cannot grant archive consent",
+            ));
+        }
+        if marker != PUBLIC_ARCHIVE_CONSENT_VERSION {
+            return Err(CoreError::invalid("invalid public archive consent marker"));
+        }
+        let version = submission
+            .versions
+            .last_mut()
+            .ok_or_else(|| CoreError::conflict("the paper has no manuscript version"))?;
+        if let Some(existing) = &version.archive_consent {
+            if existing.marker == marker
+                && existing.version == version.number
+                && existing.source_sha256 == version.archive.sha256
+            {
+                return Ok(submission);
+            }
+            return Err(CoreError::conflict(
+                "archive consent for this version cannot be replaced",
+            ));
+        }
+        version.archive_consent = Some(ArchiveConsent {
+            marker: marker.into(),
+            at: self.ports.clock.now(),
+            version: version.number,
+            source_sha256: version.archive.sha256.clone(),
+        });
+        self.save(&mut submission).await?;
+        Ok(submission)
+    }
+
+    async fn verify_paper_archive(
+        &self,
+        doi: &str,
+        pdf: &BlobRef,
+        source: &BlobRef,
+    ) -> CoreResult<PaperArchive> {
+        zenodo_record_id(doi)?;
+        let citation = self.ports.archives.verify(doi, pdf, source).await?;
+        if citation.doi != doi
+            || citation
+                .concept_doi
+                .as_ref()
+                .is_some_and(|value| zenodo_record_id(value).is_err() || value == doi)
+        {
+            return Err(CoreError::invalid(
+                "archive returned a different DOI identity",
+            ));
+        }
+        Ok(PaperArchive {
+            citation,
+            pdf_sha256: pdf.sha256.clone(),
+            source_sha256: source.sha256.clone(),
+            checked_at: self.ports.clock.now(),
+        })
+    }
+
+    /// Attach a checked DOI to one immutable accepted author version.
+    pub async fn attach_paper_archive(
+        &self,
+        caller: &Caller,
+        record_id: &RecordId,
+        input: CollectedArchiveInput,
+    ) -> CoreResult<PublicPaper> {
+        caller.require(Role::Admin)?;
+        let record = self
+            .ports
+            .records
+            .get(record_id)
+            .await?
+            .ok_or_else(|| CoreError::not_found("paper", record_id.as_str()))?;
+        let mut submission = self.load(&record.submission).await?;
+        let publication = record
+            .publication_input(&submission)
+            .ok_or_else(|| CoreError::not_found("paper", record_id.as_str()))?;
+        let published_version = publication
+            .current_version()
+            .ok_or_else(|| CoreError::not_found("version", record_id.as_str()))?;
+        let version_number = published_version.number;
+        let source = published_version.archive.clone();
+        let consented = published_version
+            .archive_consent
+            .as_ref()
+            .is_some_and(|consent| {
+                consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                    && consent.version == published_version.number
+                    && consent.source_sha256 == source.sha256
+            })
+            || submission.current_version().is_some_and(|current| {
+                current.number == published_version.number
+                    && current.archive.sha256 == source.sha256
+                    && current.archive_consent.as_ref().is_some_and(|consent| {
+                        consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                            && consent.version == current.number
+                            && consent.source_sha256 == current.archive.sha256
+                    })
+            });
+        if !consented {
+            return Err(CoreError::forbidden(
+                "archive consent is required for this accepted version",
+            ));
+        }
+        let pdf = published_version
+            .pdf
+            .clone()
+            .ok_or_else(|| CoreError::conflict("the accepted version has no compiled PDF"))?;
+        if input.pdf_sha256 != pdf.sha256 || input.source_sha256 != source.sha256 {
+            return Err(CoreError::conflict(
+                "archive must name this exact accepted PDF and source",
+            ));
+        }
+        let existing = published_version.archive_record.as_ref().or_else(|| {
+            submission
+                .current_version()
+                .filter(|current| {
+                    current.number == version_number && current.archive.sha256 == source.sha256
+                })
+                .and_then(|current| current.archive_record.as_ref())
+        });
+        if let Some(existing) = existing {
+            if existing.citation.doi != input.doi {
+                return Err(CoreError::conflict(
+                    "this version already has a different archive DOI",
+                ));
+            }
+            return self.paper(record_id).await;
+        }
+        let archive = self.verify_paper_archive(&input.doi, &pdf, &source).await?;
+        let target = if submission.current_version().is_some_and(|version| {
+            version.number == version_number && version.archive.sha256 == source.sha256
+        }) {
+            submission
+                .versions
+                .last_mut()
+                .expect("current version exists")
+        } else {
+            submission
+                .published_progress
+                .as_mut()
+                .and_then(|progress| progress.publication.as_mut())
+                .and_then(|publication| {
+                    publication.versions.iter_mut().find(|version| {
+                        version.number == version_number && version.archive.sha256 == source.sha256
+                    })
+                })
+                .ok_or_else(|| CoreError::conflict("the accepted version changed; reload it"))?
+        };
+        target.archive_record = Some(archive);
+        self.save(&mut submission).await?;
+        self.paper(record_id).await
+    }
+
+    /// The reconciler uses the same Layer 2 checks as the admin route. Invalid
+    /// or unverifiable entries return an error so the caller can retry later.
+    pub async fn discover_archive_entry(&self, entry: &ArchiveIndexEntry) -> CoreResult<bool> {
+        match entry.kind {
+            ArchiveIndexKind::Collected => {
+                let Some(saved) = self
+                    .ports
+                    .collected
+                    .get(&entry.id, Some(entry.version))
+                    .await?
+                else {
+                    return Ok(false);
+                };
+                if let Some(existing) = saved.archive_citation() {
+                    return Ok(existing.doi == entry.doi);
+                }
+                let archive = self
+                    .ports
+                    .archives
+                    .verify(&entry.doi, &saved.pdf, &saved.source)
+                    .await?;
+                if archive.doi != entry.doi {
+                    return Err(CoreError::invalid(
+                        "archive returned a different DOI identity",
+                    ));
+                }
+                let value = CollectedArchive {
+                    citation: archive,
+                    pdf_sha256: saved.pdf.sha256.clone(),
+                    source_sha256: saved.source.sha256.clone(),
+                    checked_at: self.ports.clock.now(),
+                };
+                self.ports
+                    .collected
+                    .attach_archive(&entry.id, entry.version, &value)
+                    .await?;
+                Ok(true)
+            }
+            ArchiveIndexKind::Record => {
+                let Some(record) = self.ports.records.get(&RecordId(entry.id.clone())).await?
+                else {
+                    return Ok(false);
+                };
+                let mut submission = self.load(&record.submission).await?;
+                let Some(publication) = record.publication_input(&submission) else {
+                    return Ok(false);
+                };
+                let Some(version) = publication
+                    .versions
+                    .iter()
+                    .find(|version| version.number == entry.version)
+                else {
+                    return Ok(false);
+                };
+                let version_number = version.number;
+                let source = version.archive.clone();
+                let pdf = version
+                    .pdf
+                    .clone()
+                    .ok_or_else(|| CoreError::conflict("accepted version has no compiled PDF"))?;
+                let consented = version.archive_consent.as_ref().is_some_and(|consent| {
+                    consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                        && consent.version == version.number
+                        && consent.source_sha256 == source.sha256
+                }) || submission.current_version().is_some_and(|current| {
+                    current.number == version.number
+                        && current.archive.sha256 == source.sha256
+                        && current.archive_consent.as_ref().is_some_and(|consent| {
+                            consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                                && consent.version == current.number
+                                && consent.source_sha256 == current.archive.sha256
+                        })
+                });
+                if !consented {
+                    return Ok(false);
+                }
+                let existing = version.archive_record.as_ref().or_else(|| {
+                    submission
+                        .current_version()
+                        .filter(|current| {
+                            current.number == version_number
+                                && current.archive.sha256 == source.sha256
+                        })
+                        .and_then(|current| current.archive_record.as_ref())
+                });
+                if let Some(existing) = existing {
+                    return Ok(existing.citation.doi == entry.doi);
+                }
+                let archive = self.verify_paper_archive(&entry.doi, &pdf, &source).await?;
+                let target = if submission.current_version().is_some_and(|current| {
+                    current.number == version_number && current.archive.sha256 == source.sha256
+                }) {
+                    submission
+                        .versions
+                        .iter_mut()
+                        .find(|current| current.number == version_number)
+                        .expect("current version exists")
+                } else {
+                    submission
+                        .published_progress
+                        .as_mut()
+                        .and_then(|progress| progress.publication.as_mut())
+                        .and_then(|publication| {
+                            publication.versions.iter_mut().find(|current| {
+                                current.number == version_number
+                                    && current.archive.sha256 == source.sha256
+                            })
+                        })
+                        .ok_or_else(|| CoreError::conflict("accepted version changed; retry"))?
+                };
+                target.archive_record = Some(archive);
+                self.save(&mut submission).await?;
+                Ok(true)
+            }
+        }
     }
 }
 

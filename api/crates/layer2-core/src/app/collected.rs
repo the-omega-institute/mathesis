@@ -6,6 +6,8 @@ use sha2::{Digest, Sha256};
 #[derive(Debug, Clone, Serialize)]
 pub struct CollectedFileLink {
     pub url: String,
+    pub bytes: u64,
+    pub sha256: String,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct PublicCollectedPaper {
@@ -27,11 +29,13 @@ pub struct PublicCollectedPaper {
 impl From<&CollectedVersion> for PublicCollectedPaper {
     fn from(v: &CollectedVersion) -> Self {
         let d = &v.delivery;
-        let file = |kind: &str| CollectedFileLink {
+        let file = |kind: &str, blob: &BlobRef| CollectedFileLink {
             url: format!(
                 "/api/v1/collected-papers/{}/files/{kind}?version={}",
                 d.work_id, d.version
             ),
+            bytes: blob.bytes,
+            sha256: blob.sha256.clone(),
         };
         Self {
             id: d.work_id.clone(),
@@ -48,8 +52,8 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
                 ..d.paper.clone()
             },
             published_on: v.published_on,
-            pdf: file("pdf"),
-            source: file("source"),
+            pdf: file("pdf", &v.pdf),
+            source: file("source", &v.source),
             archive: v.archive_citation().cloned(),
             problem_links: super::problem_library::collected_problem_links(v)
                 .into_iter()

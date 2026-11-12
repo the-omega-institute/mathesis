@@ -66,6 +66,13 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   Within-paper dependencies retain their manuscript-declared basis; open assumptions
   are explicitly conditional. No bibliography citation, similarity or local edge
   is promoted to an independently checked cross-paper dependency.
+- An accepted public author paper exposes its archive descriptor only when the current
+  accepted source version carries the exact archive-consent marker. The descriptor names
+  the CC BY 4.0 licence, consent time and marker, verified exact and concept DOIs when
+  present, and byte size, SHA-256 and download URL for the frozen PDF and source. The
+  source route returns not found for every other state. Public listing rows carry the
+  current-version consent fact. Reviews, audits, letters, advice and other-version
+  consent never enter this projection.
 - Archive queries retain text, author, MSC and work-type filters in shareable URLs.
   Author-name links search the archive; supplied ORCID/Scholar/site links remain
   distinct, without treating a name match as a verified personal identity.

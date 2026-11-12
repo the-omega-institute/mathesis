@@ -371,6 +371,7 @@ export interface ApiClient {
     id: string,
     visibility: Exclude<AnalysisVisibility, 'undecided'>,
   ): Promise<Submission>;
+  grantArchiveConsent(id: string): Promise<Submission>;
   getAnalysis(id: string, options?: RequestOptions): Promise<PaperAnalysis>;
   previewDecision(id: string, options?: RequestOptions): Promise<Decision>;
   reviewSummary(id: string, options?: RequestOptions): Promise<import('./types').ReviewSummary>;
@@ -637,6 +638,10 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     withdrawSubmission: (id) => request('POST', sub(id, '/withdraw')),
     setContributors: (id, open) => request('PUT', sub(id, '/contributors'), { open }),
     setVisibility: (id, visibility) => request('PUT', sub(id, '/visibility'), { visibility }),
+    grantArchiveConsent: (id) =>
+      request('POST', sub(id, '/archive-consent'), {
+        marker: 'public-archive-2026-11-12',
+      }),
     getAnalysis: (id, o) => request('GET', sub(id, '/analysis'), undefined, o),
     previewDecision: (id, o) => request('GET', sub(id, '/decision'), undefined, o),
     reviewSummary: (id, o) => request('GET', sub(id, '/review-summary'), undefined, o),

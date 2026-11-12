@@ -143,6 +143,7 @@ export function UploadSubmission({
       msc,
       doi,
       openToContributors: false,
+      archiveConsent: makePublic,
     });
     if (!metadata.ok) {
       setError(metadata.error);
@@ -204,6 +205,7 @@ export function UploadSubmission({
       msc,
       doi,
       openToContributors: false,
+      archiveConsent: makePublic,
     });
     if (!built.ok) return;
     setBusy(true);

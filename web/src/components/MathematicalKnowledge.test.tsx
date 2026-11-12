@@ -48,8 +48,8 @@ const paper: CollectedPaper = {
   problems: [],
   published_on: '2026-11-05T10:00:00Z',
   lean: { url: reading.lean!, revision: '0123456789012345678901234567890123456789' },
-  pdf: { url: '/pdf' },
-  source: { url: '/source' },
+  pdf: { url: '/pdf', bytes: 1, sha256: 'a'.repeat(64) },
+  source: { url: '/source', bytes: 1, sha256: 'b'.repeat(64) },
 };
 describe('mathematical knowledge', () => {
   it('makes exact results the nodes and follows source references without awarding proof credit', async () => {

@@ -30,6 +30,7 @@ fn submission_request(s: &Submission) -> SubmitPrepared {
             kind: s.kind,
             purpose: s.purpose,
             processing_consent: Some(AI_PROCESSING_CONSENT_VERSION.into()),
+            archive_consent: None,
             review_scope: String::new(),
             make_public_after_acceptance: true,
             typed_conjecture: None,
@@ -110,7 +111,8 @@ async fn preparation_compiles_privately_then_submits_once_with_corrected_metadat
     assert_eq!(s.status, SubmissionStatus::Draft);
     assert_eq!(s.analysis_visibility, Visibility::Private);
     assert!(s.claims.is_empty());
-    let input = submission_request(&s);
+    let mut input = submission_request(&s);
+    input.metadata.archive_consent = Some(PUBLIC_ARCHIVE_CONSENT_VERSION.into());
     assert!(
         w.app
             .confirm_claims(&author, &s.id, input.claims.clone())
@@ -137,6 +139,13 @@ async fn preparation_compiles_privately_then_submits_once_with_corrected_metadat
     assert_eq!(submitted.title, "Author-corrected title");
     assert_eq!(submitted.abstract_text, "Author-corrected abstract");
     assert_eq!(submitted.ai_disclosure.level, AiUse::Assisted);
+    assert_eq!(
+        submitted.versions[0]
+            .archive_consent
+            .as_ref()
+            .map(|consent| consent.marker.as_str()),
+        Some(PUBLIC_ARCHIVE_CONSENT_VERSION)
+    );
     let replay = w
         .app
         .submit_prepared(&author, &s.id, input.clone())

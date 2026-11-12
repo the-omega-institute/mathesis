@@ -116,6 +116,7 @@ async fn main() -> anyhow::Result<()> {
         background.push(tokio::spawn(review::run_reconciler(
             composition.app.clone(),
             shutdown_rx.clone(),
+            config.archive_index_url.clone(),
         )));
         if let Some(hosted) = composition.hosted {
             background.push(tokio::spawn(hosted.run(shutdown_rx.clone())));

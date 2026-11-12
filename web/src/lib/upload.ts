@@ -50,6 +50,7 @@ export interface PaperFields {
   msc: string;
   doi: string;
   openToContributors: boolean;
+  archiveConsent?: boolean;
 }
 
 /** The `metadata` part of an upload, from the submit form. */
@@ -73,6 +74,7 @@ export function buildNewPaper(fields: PaperFields): Parsed<NewPaper> {
       msc,
       doi,
       open_to_contributors: fields.openToContributors,
+      ...(fields.archiveConsent ? { archive_consent: 'public-archive-2026-11-12' } : {}),
     },
   };
 }

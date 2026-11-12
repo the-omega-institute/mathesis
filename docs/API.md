@@ -63,7 +63,9 @@ Problem-centred discovery uses two public read routes:
 Public paper responses optionally include `problems: [{id,title}]` for backlinks.
 Public collected-paper responses (`GET /collected-papers`,
 `GET /collected-papers/{work}?version=N`) include `problem_links` when the work
-names problems: one `{id,title}` or `null` per `problems` entry, in order.
+names problems: one `{id,title}` or `null` per `problems` entry, in order. Their
+`pdf` and `source` objects each contain `{url, bytes, sha256}` for the exact stored
+file; the byte size and digest are additive public descriptors.
 Problem IDs persist across note revisions. Private drafts and private reviews do
 not enter this directory. Existing `/conjectures` and proof-attempt routes retain
 their Lean target/verification semantics. See [PROBLEMS_AND_NOTES.md](PROBLEMS_AND_NOTES.md)
@@ -98,6 +100,13 @@ its limits and the meaning of a curated status.
    independently elaborated Lean target after the delivered letter; the submitting
    author confirms its exact digest in a cookie session or rejects with a correction
    for regeneration. A new version voids target confirmation. Attempts use only the confirmed Target.lean.
+
+The final confirmation may include `archive_consent: "public-archive-2026-11-12"`.
+Layer 2 stores this exact marker, the server time, the source version and its
+SHA-256. The field is optional, so legacy clients, manuscript deliveries and
+private reviews keep their existing behaviour. The submitting author may grant
+the same one-way consent later in a cookie session. A new manuscript version
+starts without consent.
 
 **Threshold** (`GET /policy`, `api/crates/layer2-core/src/policy.rs`): accept
 when some main result carries an escape witness (judged `content`) and the
@@ -150,6 +159,9 @@ treated as a proof.
 | GET | `/papers/{record}` | anyone | → `PublicPaper` |
 | GET | `/papers/{record}/landing.html` | anyone | Stable HTML landing page with Scholar citation metadata and abstract |
 | GET | `/papers/{record}/pdf` | anyone | Stable latest public PDF URL for the record |
+| GET | `/papers/{record}/source` | anyone, only for an accepted public version with archive consent | Exact frozen manuscript source bytes |
+| POST | `/papers/{record}/archive` | administrators | `{ doi, pdf_sha256, source_sha256 }` → `PublicPaper`; verifies both stored files and attaches the DOI once |
+| POST | `/submissions/{id}/archive-consent` | submitting author, cookie session only | `{ marker: "public-archive-2026-11-12" }` → `Submission`; grants one-way consent for the current publication version |
 | GET | `/sitemap.xml` | anyone | XML sitemap containing public paper landing pages |
 | GET | `/conjectures?limit=&before=&status=open\|solved\|disproved` | anyone | → `Listing<ConjectureSummary>`; submitted conjectures and audited paper problems, newest record/claim first |
 | GET | `/tasks?kind=&status=&submission=&holder=` | signed in | → `Listing<Task>` |
@@ -186,6 +198,7 @@ type NewPaper = {
   title?: string;              // supplied title; required for PDF (max 1,000 characters)
   abstract_text?: string;      // overrides source abstract (max 20,000 characters)
   processing_consent: "ai-review-2026-10-11"; // required explicit agreement
+  archive_consent?: "public-archive-2026-11-12"; // explicit publication/archive consent
   kind?: SubmissionKind;          // default paper; also defaults on stored submissions/records
   make_public_after_acceptance?: boolean; // default true, maps to public/private
   typed_conjecture?: TypedConjecture | null; // conjecture only, mutually exclusive with source file
@@ -231,10 +244,22 @@ type Submission = {
     publication?: Submission /* pinned inputs for a legacy record, captured on revision */ };
   created_at: string; updated_at: string; revision: number };
 type PaperVersion = { number: number; archive: Blob; filename: string; main_file: string;
+  archive_consent?: { marker: "public-archive-2026-11-12"; at: string; version: number; source_sha256: string };
+  archive_record?: { citation: { doi: string; concept_doi?: string }; pdf_sha256: string; source_sha256: string; checked_at: string };
   pdf?: Blob; compile_error?: string; parse_warnings: string[];
   macros: Record<string, string>;   // preamble math macros, KaTeX syntax ("\\rep": "\\operatorname{rep}")
   note: string; uploaded_at: string };
 type Blob = { id: string; bytes: number; sha256: string };
+
+type PublicArchive = {
+  licence: "CC-BY-4.0";
+  consent_time: string;
+  marker: "public-archive-2026-11-12";
+  doi?: string | null;
+  concept_doi?: string | null;
+  pdf: { bytes: number; sha256: string; url: string };
+  source: { bytes: number; sha256: string; url: string };
+};
 
 type StageReport = { stage: "hygiene" | "claims" | "literature" | "escape";
   outcome: { outcome: "pass" } | { outcome: "fail"; reason: RejectReason } | { outcome: "needs_human"; question: string };
@@ -296,9 +321,10 @@ type ConjectureFollowUp = { claim: string; state: ConjectureState; updated_at: s
 // Only record/title/authors/kind are present for private or undecided records.
 type PaperSummary = { record: string; title: string; authors: Author[]; kind: SubmissionKind;
   submission?: string; abstract_text?: string; msc?: string[]; doi?: string | null;
+  archive_consent?: boolean;
   basis?: "escape_witness" | "open_problem_settlement" | "open_conjecture";
   accepted_at?: string; main_results?: number; lean_verified?: number };
-type PublicPaper = { summary: PaperSummary;
+type PublicPaper = { summary: PaperSummary; archive?: PublicArchive;
   publication?: { version: number; claims_revision: number }; // immutable accepted inputs, public only
   confirmed_error_reports?: number;
   versions?: { number: number; uploaded_at: string; has_pdf: boolean; source_is_pdf?: boolean }[];

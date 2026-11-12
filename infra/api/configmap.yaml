@@ -90,6 +90,8 @@ data:
   WISHPOOL_VERIFIER_PROGRAM: "mathesis-verifier"
   WISHPOOL_VERIFIER_TIMEOUT_SECS: "1200"
   WISHPOOL_ATTEMPTS_PER_DAY: "20"
+  # Optional public JSON index of publisher-verified archive DOIs.
+  WISHPOOL_ARCHIVE_INDEX_URL: ""
 
 # Error reports: five per entrant per rolling 24h; no extra deployment key.
 # Target faithfulness and report audits reuse the existing CMA audit timeout.

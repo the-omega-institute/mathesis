@@ -9,4 +9,6 @@ version-bound sidecar allows the owning trusted operator or admin to add a late 
 without changing delivery digests, files, receipts, publication dates or queues.
 Public citation/search projections expose the checked exact DOI and a separate
 concept DOI, never raw verification data. Collection does not register a DOI or
-imply Mathesis acceptance. See docs/PRE_REVIEWED_COLLECTION.md.
+imply Mathesis acceptance. A verified public archive-index entry is a third way to
+attach a late DOI, beside the owning operator and an admin. See
+docs/PRE_REVIEWED_COLLECTION.md.

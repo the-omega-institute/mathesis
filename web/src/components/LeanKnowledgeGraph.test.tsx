@@ -172,8 +172,8 @@ it('shows collected Lean sources with original authors and no invented checked-u
             url: `https://github.com/example/proofs/blob/${'a'.repeat(40)}/Proof.lean`,
             revision: 'a'.repeat(40),
           },
-          pdf: { url: '/paper.pdf' },
-          source: { url: '/source.zip' },
+          pdf: { url: '/paper.pdf', bytes: 1, sha256: 'a'.repeat(64) },
+          source: { url: '/source.zip', bytes: 1, sha256: 'b'.repeat(64) },
         },
       ]}
     />,

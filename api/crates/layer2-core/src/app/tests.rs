@@ -132,6 +132,7 @@ impl World {
             purpose: Default::default(),
             review_scope: Default::default(),
             processing_consent: Some("ai-review-2026-10-11".into()),
+            archive_consent: None,
             kind: crate::model::SubmissionKind::Paper,
             make_public_after_acceptance: true,
             typed_conjecture: None,
@@ -282,6 +283,130 @@ async fn managed_agent_steps_keep_identity_and_allow_only_existing_cleanup_after
             .unwrap()
             .contains("agt_test")
     );
+}
+
+#[tokio::test]
+async fn archive_consent_is_explicit_authorized_and_bound_to_each_version() {
+    let w = World::new().await;
+    let author = w.person("archive-author", &[]).await;
+    let other = w.person("archive-other", &[]).await;
+
+    let legacy = w.submit(&author, "t", false).await;
+    assert!(legacy.versions[0].archive_consent.is_none());
+
+    let mut public = NewPaper {
+        title: None,
+        abstract_text: None,
+        purpose: SubmissionPurpose::Publication,
+        review_scope: String::new(),
+        processing_consent: Some(AI_PROCESSING_REQUEST_VERSION.into()),
+        archive_consent: Some(PUBLIC_ARCHIVE_CONSENT_VERSION.into()),
+        kind: SubmissionKind::Paper,
+        make_public_after_acceptance: true,
+        typed_conjecture: None,
+        ai_disclosure: AiDisclosure {
+            level: AiUse::None,
+            statement: "No AI was used.".into(),
+        },
+        authors: vec![],
+        msc: vec![],
+        doi: None,
+        open_to_contributors: false,
+    };
+    let consented = w
+        .app
+        .submit_paper(
+            &author,
+            public.clone(),
+            Upload {
+                filename: "t.tex".into(),
+                bytes: b"source".to_vec(),
+            },
+        )
+        .await
+        .unwrap();
+    let saved = w.app.submission(&author, &consented.id).await.unwrap();
+    let marker = saved.versions[0].archive_consent.as_ref().unwrap();
+    assert_eq!(marker.marker, PUBLIC_ARCHIVE_CONSENT_VERSION);
+    assert_eq!(marker.version, 1);
+    assert_eq!(marker.source_sha256, saved.versions[0].archive.sha256);
+
+    public.purpose = SubmissionPurpose::ReviewOnly;
+    assert!(
+        w.app
+            .submit_paper(
+                &author,
+                public,
+                Upload {
+                    filename: "t.tex".into(),
+                    bytes: b"source".to_vec(),
+                },
+            )
+            .await
+            .is_err()
+    );
+
+    let granted = w
+        .app
+        .grant_archive_consent(
+            &author,
+            AuthenticationMethod::CookieSession,
+            &legacy.id,
+            PUBLIC_ARCHIVE_CONSENT_VERSION,
+        )
+        .await
+        .unwrap();
+    assert!(granted.versions[0].archive_consent.is_some());
+    let retry = w
+        .app
+        .grant_archive_consent(
+            &author,
+            AuthenticationMethod::CookieSession,
+            &legacy.id,
+            PUBLIC_ARCHIVE_CONSENT_VERSION,
+        )
+        .await
+        .unwrap();
+    assert_eq!(retry, granted);
+    assert!(matches!(
+        w.app
+            .grant_archive_consent(
+                &author,
+                AuthenticationMethod::Bearer,
+                &legacy.id,
+                PUBLIC_ARCHIVE_CONSENT_VERSION,
+            )
+            .await,
+        Err(CoreError::Forbidden(_))
+    ));
+    assert!(matches!(
+        w.app
+            .grant_archive_consent(
+                &other,
+                AuthenticationMethod::CookieSession,
+                &legacy.id,
+                PUBLIC_ARCHIVE_CONSENT_VERSION,
+            )
+            .await,
+        Err(CoreError::NotFound { .. } | CoreError::Forbidden(_))
+    ));
+
+    let revised = w
+        .app
+        .upload_version(
+            &author,
+            &legacy.id,
+            Upload {
+                filename: "t.tex".into(),
+                bytes: b"new source".to_vec(),
+            },
+            String::new(),
+            Some(AI_PROCESSING_REQUEST_VERSION.into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(revised.versions.len(), 2);
+    assert!(revised.versions[1].archive_consent.is_none());
 }
 
 #[tokio::test]
@@ -658,6 +783,7 @@ async fn authority_and_limits() {
         purpose: Default::default(),
         review_scope: Default::default(),
         processing_consent: Some("ai-review-2026-10-11".into()),
+        archive_consent: None,
         kind: crate::model::SubmissionKind::Paper,
         make_public_after_acceptance: true,
         typed_conjecture: None,
@@ -1147,6 +1273,201 @@ fn audit_for(
             .collect(),
         concerns: vec![],
     }
+}
+
+struct PaperArchiveRegistry;
+
+#[async_trait::async_trait]
+impl crate::ports::ArchiveRegistry for PaperArchiveRegistry {
+    async fn verify(
+        &self,
+        doi: &str,
+        _pdf: &BlobRef,
+        _source: &BlobRef,
+    ) -> CoreResult<ArchiveCitation> {
+        Ok(ArchiveCitation {
+            doi: doi.into(),
+            concept_doi: Some("10.5281/zenodo.122".into()),
+        })
+    }
+}
+
+#[tokio::test]
+async fn accepted_paper_archive_projection_and_doi_are_verified_set_once_and_visibility_safe() {
+    let mut w = World::new().await;
+    let mut ports = w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
+    ports.archives = Arc::new(PaperArchiveRegistry);
+    w.app = App::new(
+        ports,
+        Policy::default(),
+        BTreeSet::from([PersonId::from("admin")]),
+    );
+    let author = w.person("paper-archive-author", &[]).await;
+    let reviewer = w.person("paper-archive-reviewer", &[Role::Reviewer]).await;
+    let admin = w.person("admin", &[Role::Admin]).await;
+    let submitted = w.submit(&author, "t", false).await;
+    let reviewed = w.review_paper(&author, &submitted).await;
+    w.app
+        .begin_referee_round(&reviewer, &reviewed.id)
+        .await
+        .unwrap();
+    w.app
+        .update_referee_round(
+            &reviewer,
+            &reviewed.id,
+            1,
+            RoundUpdate::Referee(done_step(referee_report(Some(Recommendation::Accept)))),
+        )
+        .await
+        .unwrap();
+    let accepted = audited(
+        &w,
+        &reviewer,
+        &reviewed,
+        audit_for(
+            &reviewed,
+            Recommendation::Accept,
+            Correctness::Correct,
+            ProofShape::Content,
+            None,
+        ),
+    )
+    .await;
+    let SubmissionStatus::Accepted { record } = accepted.status else {
+        panic!("paper was not accepted")
+    };
+    let accepted_version = w.app.submission(&author, &accepted.id).await.unwrap();
+    let accepted_version = accepted_version.current_version().unwrap();
+    let no_consent_input = CollectedArchiveInput {
+        doi: "10.5281/zenodo.123".into(),
+        pdf_sha256: accepted_version.pdf.as_ref().unwrap().sha256.clone(),
+        source_sha256: accepted_version.archive.sha256.clone(),
+    };
+    assert!(matches!(
+        w.app
+            .attach_paper_archive(&admin, &record, no_consent_input)
+            .await,
+        Err(CoreError::Forbidden(_))
+    ));
+    w.app
+        .grant_archive_consent(
+            &author,
+            AuthenticationMethod::CookieSession,
+            &accepted.id,
+            PUBLIC_ARCHIVE_CONSENT_VERSION,
+        )
+        .await
+        .unwrap();
+
+    let before = w.app.paper(&record).await.unwrap();
+    let archive = before.archive.as_ref().unwrap();
+    assert_eq!(archive.licence, "CC-BY-4.0");
+    assert_eq!(archive.marker, PUBLIC_ARCHIVE_CONSENT_VERSION);
+    assert!(archive.doi.is_none());
+    assert!(archive.source.bytes > 0);
+    assert_eq!(
+        w.app
+            .paper_file(None, &before.summary.submission, None, false)
+            .await
+            .unwrap()
+            .bytes,
+        b"\\documentclass{article}"
+    );
+
+    let input = CollectedArchiveInput {
+        doi: "10.5281/zenodo.123".into(),
+        pdf_sha256: archive.pdf.sha256.clone(),
+        source_sha256: archive.source.sha256.clone(),
+    };
+    let index_entry = ArchiveIndexEntry {
+        kind: ArchiveIndexKind::Record,
+        id: record.as_str().into(),
+        version: 1,
+        doi: input.doi.clone(),
+    };
+    assert!(w.app.discover_archive_entry(&index_entry).await.unwrap());
+    assert!(w.app.discover_archive_entry(&index_entry).await.unwrap());
+    assert_eq!(
+        w.app
+            .paper(&record)
+            .await
+            .unwrap()
+            .archive
+            .unwrap()
+            .doi
+            .as_deref(),
+        Some(input.doi.as_str())
+    );
+    let attached = w
+        .app
+        .attach_paper_archive(&admin, &record, input.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        attached.archive.as_ref().unwrap().doi.as_deref(),
+        Some(input.doi.as_str())
+    );
+    assert_eq!(
+        attached.archive.as_ref().unwrap().concept_doi.as_deref(),
+        Some("10.5281/zenodo.122")
+    );
+    let retry = w
+        .app
+        .attach_paper_archive(&admin, &record, input.clone())
+        .await
+        .unwrap();
+    assert_eq!(retry.archive, attached.archive);
+    let mut different = input;
+    different.doi = "10.5281/zenodo.124".into();
+    assert!(matches!(
+        w.app.attach_paper_archive(&admin, &record, different).await,
+        Err(CoreError::Conflict(_))
+    ));
+
+    w.app
+        .set_analysis_visibility(&author, &accepted.id, Visibility::Private)
+        .await
+        .unwrap();
+    assert!(w.app.paper(&record).await.unwrap().archive.is_none());
+    w.app
+        .set_analysis_visibility(&author, &accepted.id, Visibility::Public)
+        .await
+        .unwrap();
+    assert_eq!(
+        w.app
+            .paper(&record)
+            .await
+            .unwrap()
+            .archive
+            .unwrap()
+            .doi
+            .as_deref(),
+        Some("10.5281/zenodo.123")
+    );
+    w.app
+        .upload_version(
+            &author,
+            &accepted.id,
+            Upload {
+                filename: "t.tex".into(),
+                bytes: b"revised source".to_vec(),
+            },
+            String::new(),
+            Some(AI_PROCESSING_REQUEST_VERSION.into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        w.app
+            .paper(&record)
+            .await
+            .unwrap()
+            .archive
+            .unwrap()
+            .doi
+            .as_deref(),
+        Some("10.5281/zenodo.123")
+    );
 }
 
 async fn audited(

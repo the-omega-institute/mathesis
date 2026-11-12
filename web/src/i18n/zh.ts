@@ -295,6 +295,11 @@ export const zh: Record<string, string> = {
   'Full name': '姓名',
   Add: '添加',
   'Make my results public once accepted.': '成果接收后公开展示。',
+  'An accepted paper is published under ': '接收的论文将按照 ',
+  '. The repository and the archive record with its DOI are permanent and stay available if you later make the Mathesis page private. Reviews, letters and advice stay private.':
+    ' 发布。论文仓库以及带有 DOI 的档案记录永久保存，即使您之后将 Mathesis 页面设为私有，它们仍会继续提供。评审、信件和建议保持私有。',
+  'Unchecking gives a private review without a publication decision. Your manuscript and report remain private.':
+    '取消勾选会获得一次私有评审，不作出版决定。您的稿件和报告保持私有。',
   'Uncheck this box if you only want a review. Your manuscript and report will remain private.':
     '如果只需要审稿意见，请取消勾选。稿件与报告将保持私密。',
   'Research archive': '研究库',

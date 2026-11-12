@@ -623,6 +623,7 @@ async fn paper_flow_against_mongo() {
         purpose: Default::default(),
         review_scope: Default::default(),
         processing_consent: Some("ai-review-2026-10-11".into()),
+        archive_consent: None,
         kind: mathesis_core::model::SubmissionKind::Paper,
         make_public_after_acceptance: true,
         typed_conjecture: None,
@@ -804,6 +805,59 @@ async fn paper_flow_against_mongo() {
     let pdf = app.paper_file(None, &paper.id, None, true).await.unwrap();
     assert_eq!(pdf.bytes, b"%PDF-1.7");
     assert_eq!(app.credits(None).await.unwrap()[0].verified, 1);
+    let mut enriched = SubmissionStore::get(&db.store, &paper.id)
+        .await
+        .unwrap()
+        .expect("stored paper");
+    let version = enriched.versions.last_mut().unwrap();
+    version.archive_consent = Some(ArchiveConsent {
+        marker: PUBLIC_ARCHIVE_CONSENT_VERSION.into(),
+        at: Utc::now(),
+        version: version.number,
+        source_sha256: version.archive.sha256.clone(),
+    });
+    version.archive_record = Some(PaperArchive {
+        citation: ArchiveCitation {
+            doi: "10.5281/zenodo.123".into(),
+            concept_doi: Some("10.5281/zenodo.122".into()),
+        },
+        pdf_sha256: version.pdf.as_ref().unwrap().sha256.clone(),
+        source_sha256: version.archive.sha256.clone(),
+        checked_at: Utc::now(),
+    });
+    let expected = enriched.revision;
+    SubmissionStore::replace(&db.store, &enriched, expected)
+        .await
+        .unwrap();
+    let round_trip = SubmissionStore::get(&db.store, &paper.id)
+        .await
+        .unwrap()
+        .expect("round-tripped paper");
+    assert!(round_trip.versions[0].archive_consent.is_some());
+    assert_eq!(
+        round_trip.versions[0]
+            .archive_record
+            .as_ref()
+            .unwrap()
+            .citation
+            .concept_doi
+            .as_deref(),
+        Some("10.5281/zenodo.122")
+    );
+    db.store
+        .raw("submissions")
+        .update_one(
+            doc! { "id": paper.id.as_str() },
+            doc! { "$unset": { "versions.0.archive_consent": "", "versions.0.archive_record": "" } },
+        )
+        .await
+        .unwrap();
+    let legacy = SubmissionStore::get(&db.store, &paper.id)
+        .await
+        .unwrap()
+        .expect("legacy paper");
+    assert!(legacy.versions[0].archive_consent.is_none());
+    assert!(legacy.versions[0].archive_record.is_none());
     db.drop().await;
 }
 

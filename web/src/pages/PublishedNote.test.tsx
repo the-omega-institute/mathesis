@@ -20,8 +20,16 @@ function liveVersion(note = projectNotes[0]!): CollectedPaper {
     revision: String(Number(note.revision) + 1),
     title: 'The updated published result',
     msc: [],
-    pdf: { url: '/api/v1/collected-papers/updated/files/pdf?version=5' },
-    source: { url: '/api/v1/collected-papers/updated/files/source?version=5' },
+    pdf: {
+      url: '/api/v1/collected-papers/updated/files/pdf?version=5',
+      bytes: 1,
+      sha256: 'a'.repeat(64),
+    },
+    source: {
+      url: '/api/v1/collected-papers/updated/files/source?version=5',
+      bytes: 1,
+      sha256: 'b'.repeat(64),
+    },
   };
 }
 
