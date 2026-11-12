@@ -16,6 +16,7 @@ pub fn run_cli<I: Iterator<Item = String>>(mut args: I) -> Result<()> {
     let mut display_name = "Mathesis".to_owned();
     let mut site = "https://mathesis-omega-research.apps.chrono-ai.fun".to_owned();
     let mut mapping = None;
+    let mut materials = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--api-base" => api = Some(parse_arg(&mut args, "--api-base")?),
@@ -26,6 +27,7 @@ pub fn run_cli<I: Iterator<Item = String>>(mut args: I) -> Result<()> {
             "--organization" => organization = Some(parse_arg(&mut args, "--organization")?),
             "--display-name" => display_name = parse_arg(&mut args, "--display-name")?,
             "--site-base" => site = parse_arg(&mut args, "--site-base")?,
+            "--materials" => materials = Some(PathBuf::from(parse_arg(&mut args, "--materials")?)),
             "--mapping" => mapping = Some(PathBuf::from(parse_arg(&mut args, "--mapping")?)),
             _ => return Err(msg(format!("unknown argument {arg}"))),
         }
@@ -53,13 +55,14 @@ pub fn run_cli<I: Iterator<Item = String>>(mut args: I) -> Result<()> {
             let root = snapshot_root.ok_or_else(|| msg("render needs --snapshot"))?;
             let out = output.ok_or_else(|| msg("render needs --output"))?;
             let organization = organization.ok_or_else(|| msg("render needs --organization"))?;
-            render(
+            render_with_materials(
                 &root,
                 &out,
                 &organization,
                 &display_name,
                 &site,
                 mapping.as_deref(),
+                materials.as_deref(),
             )
         }
         "check" => {

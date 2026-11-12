@@ -139,12 +139,75 @@ The public profile links the organization `catalog` repository. Site links use
 the public paper route `/papers/<record>?version=<version>`, the formalization
 directory `/formalizations`, and the contribution route `/contribute`.
 
-Phase 1 is the local generator, its schemas, documentation and tests. The
-publisher is later work: this client program, run by a workflow of the
-organization's `catalog` repository, with the GitHub and Zenodo credentials held
-as organization secrets. It pushes the core repositories, creates one repository
-for each accepted author-submitted paper whose author gave archive consent,
-deposits the frozen files through the Zenodo API and publishes an archive index.
-The Mathesis server holds neither credential. It records the author's consent
-and licence, and attaches a DOI only after it has verified the public archive
-record against its stored bytes. Those operations are outside phase 1.
+The local generator and the external publisher are separate programs. The
+publisher in `mathesis-papers/catalog` owns GitHub writes with its GitHub App.
+Archive deposit automation, accepted-record repository creation after consent,
+and Zenodo credentials are outside this package. The Mathesis server holds no
+publisher credential and attaches a DOI only after public archive verification.
+
+## Automatic publisher and organization site
+
+The offline renderer also emits `site/index.html`, `site/doi/<DOI>/index.html`,
+`site/CNAME` (`papers.trureturing.org`) and `site/.nojekyll`. The index shows
+all current in-scope papers, the snapshot time, scoped counts and Mathesis links.
+Repository/site links appear only for entries in the durable `repositories.json`
+mapping, not merely because the renderer proposed a repository name. DOI pages
+redirect to the mapped paper site, otherwise to Mathesis; concept DOIs do not
+create exact-version redirects. Unsafe DOI paths and conflicting mappings fail
+rendering atomically. No current time or network enters rendering.
+
+`catalog/archive-index.json` has exactly the `mathesis.archive-index.v1` shape
+specified by `docs/PAPER_ARCHIVE.md` in PR #120: `schema`, `generated_at` (snapshot
+RFC 3339 time), and sorted `entries` of `kind`, `id`, positive integer `version`,
+`doi`. `kind` is `collected` or `record`; entries contain only exact-version DOIs
+already supplied by the public projection. Concept DOIs are excluded. This
+publisher does not deposit archives or register DOIs. Index discovery still
+verifies stored bytes and consent before attaching a DOI on the server.
+
+Every work gets `catalog/materials/<work>/materials.json` with schema
+`mathesis.catalog-materials.v1`, `work`, `version`, nullable `repository_url`,
+`site_url`, `manifest_url`, nullable exact-version `doi`, `reading`, `slides`,
+and `visualizations`. Unmapped works have null repository/site/manifest URLs and
+empty material lists. A mapped repository without a manifest has empty lists.
+A consumed manifest also sets `manifest_available: true`. `--materials DIR`
+reads `DIR/<repository>.json` offline; identity and all material URL boundaries
+are checked. The Mathesis public record remains the DOI authority.
+
+Paper repositories publish `mathesis-materials.json` at the site root. Its
+schema `mathesis.materials.v1` contains `work`, integer `version`,
+`repository_url`, `site_url`, nullable `doi`, `reading` (language → absolute HTML
+URL), `slides` (objects with `id`, `language`, nullable `pdf_url` / `notes_url`),
+and `visualizations` (objects with `id`, `url`). Only built output is advertised.
+The Mathesis layer emits it through the upstream optional `site.post_build`
+interface and redirects a single-book paper's root to the original nested book
+landing. All original book URLs continue to work. This package does not change
+the Mathesis server to read these materials.
+
+The catalog repository owns a daily/manual publisher authenticated by a
+short-lived GitHub App token. It builds this SDK at an exact Mathesis commit,
+stages snapshot → fetch → render → check, downloads repository manifests
+anonymously, renders/checks again with a publication plan, and fills/checks all
+new paper skeletons from an exact template commit. No GitHub write occurs until
+all staging checks pass. A full output hash manifest is checked by `check`.
+
+`publish.json` is an explicit list of work ids; initially it contains only
+`chen-chen-step-m-eulerian-parity-positivity`. Publication eligibility remains
+collected CC-BY-4.0. The allow-list grants repository creation, not mathematical
+content generation. Existing mappings remain durable. New repositories come
+from `paper-template`; Pages uses workflow mode and one issue carries the
+layer's reading/media checklist. Template provenance and imported paper identity
+make retries safe across partial setup. Existing populated books are preserved;
+new paper versions require reviewed projection/book updates, not another fill.
+
+Catalog files are committed to `catalog`, profile README to `.github`, and the
+site to `mathesis-papers.github.io`, retaining `CNAME` and unrelated repository
+files. Commits occur only for changed bytes. Ref updates are atomic per
+repository and never forced; GitHub offers no transaction across repositories.
+An apply-stage API failure may leave completed steps published and is resumed
+by the next run; a staging failure publishes nothing. Organization-wide
+concurrency prevents overlapping publisher runs. The App must be installed for
+all organization repositories (including future ones) with administration,
+contents, pages, workflows and **issues write**. Issues write is additionally
+required for the preparation issue. Neither GitHub nor Zenodo credentials live
+on the Mathesis server. App installation and all remote writes belong to the
+dispatcher for this work package.
