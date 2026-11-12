@@ -324,7 +324,7 @@ type PaperSummary = { record: string; title: string; authors: Author[]; kind: Su
   archive_consent?: boolean;
   basis?: "escape_witness" | "open_problem_settlement" | "open_conjecture";
   accepted_at?: string; main_results?: number; lean_verified?: number };
-type PublicPaper = { summary: PaperSummary; archive?: PublicArchive;
+type PublicPaper = { summary: PaperSummary; archive?: PublicArchive; materials?: PaperMaterials;
   publication?: { version: number; claims_revision: number }; // immutable accepted inputs, public only
   confirmed_error_reports?: number;
   versions?: { number: number; uploaded_at: string; has_pdf: boolean; source_is_pdf?: boolean }[];
@@ -1283,3 +1283,39 @@ other researchers' results and `total` includes own results. It excludes conject
 solves, disproofs of paper claims, unverified source links, imported history and
 later also-verified attempts. `/leaderboard` retains its existing conjecture-only
 meaning. Profiles keep the original separate credit records.
+
+
+## Public paper materials
+
+`GET /api/v1/papers/{record}` and
+`GET /api/v1/collected-papers/{work}?version=N` optionally expose `materials`.
+Collected listing rows on `GET /api/v1/collected-papers` also carry it. The field
+is omitted when no sidecar exists, for private accepted records, and for a
+historical collected version. It always refers to the current public version;
+a private successor cannot supply materials to its accepted predecessor.
+There is no materials write route.
+
+```ts
+type PaperMaterials = {
+  version: number;
+  repository_url: string;
+  site_url: string;
+  reading: Record<string, string>; // language → absolute HTTPS URL
+  slides: { id: string; language: string; pdf_url: string | null; notes_url: string | null }[];
+  visualizations: { id: string; url: string }[];
+};
+```
+
+Optional `WISHPOOL_MATERIALS_INDEX_URL` enables anonymous worker reconciliation
+from a public `mathesis.materials-index.v1` index. It requires a `generated_at`
+RFC 3339 timestamp and `entries` with `kind: "collected" | "record"`, `id`, and
+the fields above. Discovery has a 1 MiB body limit, a 10,000-row limit, a 30-second
+timeout, an explicit user agent and HTTPS without credentials or redirects.
+Each row is independently checked against the existing exact public version and
+the same `papers.trureturing.org/<repo>/` / `github.com/mathesis-papers/<repo>`
+URL boundary. No GitHub or archive credential is used. A successful index
+replaces the revision-fenced sidecar (last valid duplicate wins, omitted rows
+remove old links); failed transport or invalid envelopes preserve it. Materials
+are explanations and illustrations, never independent verification or credit.
+See [PAPER_REPOSITORIES.md](PAPER_REPOSITORIES.md) and
+[§33](contract/33-paper-materials.md) for bounds and publication semantics.

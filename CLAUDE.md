@@ -426,3 +426,4 @@ one row here.
 | §30 | Published Lean evidence in the reader | [`docs/contract/30-published-lean-evidence.md`](docs/contract/30-published-lean-evidence.md) | paper, result and graph readers of collected Lean sources |
 | §31 | Public paper catalog projections | [`docs/contract/31-public-catalog.md`](docs/contract/31-public-catalog.md) | `sdk/catalog`, catalog/profile/paper-template projections |
 | §32 | Accepted author-paper archive | [`docs/contract/32-paper-archive.md`](docs/contract/32-paper-archive.md) | archive consent, public paper projection, verified DOI and archive-index discovery |
+| §33 | Paper materials on public pages | [`docs/contract/33-paper-materials.md`](docs/contract/33-paper-materials.md) | materials index, worker discovery, exact-version sidecar and public paper readers |

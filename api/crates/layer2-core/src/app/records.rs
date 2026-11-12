@@ -67,6 +67,8 @@ pub struct PublicVersion {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPaper {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub materials: Option<PaperMaterials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plain_language: Option<PlainLanguageText>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub problems: Vec<super::ResearchProblemLink>,
@@ -731,6 +733,16 @@ impl App {
             })
             .count();
         Ok(PublicPaper {
+            materials: if public {
+                if let Some(v) = submission.current_version() {
+                    self.public_materials(MaterialsKind::Record, id.as_str(), v.number)
+                        .await?
+                } else {
+                    None
+                }
+            } else {
+                None
+            },
             plain_language: if public {
                 submission
                     .current_version()

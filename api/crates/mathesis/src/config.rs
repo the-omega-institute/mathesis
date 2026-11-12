@@ -131,6 +131,8 @@ pub struct Config {
     pub knowledge_index: Option<String>,
     /// Public, credential-free archive DOI index committed by the publisher.
     pub archive_index_url: Option<String>,
+    /// Optional public catalog of exact-version reading and media links.
+    pub materials_index_url: Option<String>,
     pub review_concurrency: usize,
     pub cma_byok: Option<CmaByokConfig>,
     pub verifier_program: String,
@@ -632,9 +634,26 @@ impl Config {
                 Ok::<_, anyhow::Error>(value)
             })
             .transpose()?;
+        let materials_index_url = get("WISHPOOL_MATERIALS_INDEX_URL")
+            .filter(|value| !value.trim().is_empty())
+            .map(|value| {
+                let url = Url::parse(&value).context("invalid WISHPOOL_MATERIALS_INDEX_URL")?;
+                if url.scheme() != "https"
+                    || url.host_str().is_none()
+                    || !url.username().is_empty()
+                    || url.password().is_some()
+                    || url.query().is_some()
+                    || url.fragment().is_some()
+                {
+                    bail!("WISHPOOL_MATERIALS_INDEX_URL must be an HTTPS URL without credentials, query or fragment");
+                }
+                Ok::<_, anyhow::Error>(value)
+            })
+            .transpose()?;
         Ok(Self {
             knowledge_index,
             archive_index_url,
+            materials_index_url,
             cma_byok,
             verifier_program: get("WISHPOOL_VERIFIER_PROGRAM")
                 .unwrap_or_else(|| "mathesis-verifier".into()),
@@ -717,6 +736,37 @@ mod tests {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
         Config::from_lookup(|k| map.get(k).cloned())
+    }
+
+    #[test]
+    fn materials_index_is_optional_and_requires_a_public_https_url() {
+        let base = [
+            ("WISHPOOL_PUBLIC_URL", "http://127.0.0.1:5173"),
+            ("WISHPOOL_AUTH_MODE", "dev"),
+            ("WISHPOOL_STORAGE", "memory"),
+            ("WISHPOOL_BIND", "127.0.0.1:8080"),
+        ];
+        assert!(config(&base).unwrap().materials_index_url.is_none());
+        for raw in ["", "https://papers.trureturing.org/materials-index.json"] {
+            let mut values = base.to_vec();
+            values.push(("WISHPOOL_MATERIALS_INDEX_URL", raw));
+            let parsed = config(&values).unwrap();
+            assert_eq!(
+                parsed.materials_index_url.as_deref(),
+                (!raw.is_empty()).then_some(raw)
+            );
+        }
+        for raw in [
+            "http://example.test/index.json",
+            "https://user:pass@example.test/index.json",
+            "https://example.test/index.json?q=1",
+            "https://example.test/index.json#fragment",
+            "garbage",
+        ] {
+            let mut values = base.to_vec();
+            values.push(("WISHPOOL_MATERIALS_INDEX_URL", raw));
+            assert!(config(&values).is_err(), "{raw}");
+        }
     }
 
     #[test]

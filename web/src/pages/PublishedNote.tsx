@@ -5,6 +5,7 @@ import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
 import { publishedLeanSource } from '../lib/publishedLean';
 import { AuthorLine } from '../components/AuthorLine';
+import { PaperMaterials } from '../components/PaperMaterials';
 import { PaperExplanation } from '../components/PaperExplanation';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { DateText, ExternalLink } from '../components/ui';
@@ -100,6 +101,7 @@ export function PublishedNotePage({
         {note.plain_language?.en.trim() && note.plain_language.zh.trim() ? (
           <a href="#plain-language">{t('In plain language')}</a>
         ) : null}
+        {note.materials ? <a href="#materials">{t('Materials')}</a> : null}
         {note.problems.length ? (
           <a
             href="#related-questions"
@@ -122,6 +124,7 @@ export function PublishedNotePage({
             <LatexText source={note.abstract} className="abstract" />
           </section>
           <PaperExplanation text={note.plain_language} />
+          <PaperMaterials materials={note.materials} />
           <PublishedFormalizations
             work={note.id}
             version={note.revision}

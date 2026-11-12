@@ -13,6 +13,7 @@ mod formalization;
 mod knowledge;
 mod lean_statements;
 mod manuscripts;
+mod materials;
 mod problem_library;
 pub use problem_library::*;
 mod papers;

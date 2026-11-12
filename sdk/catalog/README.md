@@ -49,7 +49,8 @@ copied elsewhere.
 
 The renderer additionally produces `site/` for `papers.trureturing.org`,
 `catalog/archive-index.json` in the exact `mathesis.archive-index.v1` schema,
-`catalog/repositories.json`, and `catalog/materials/<work>/materials.json`.
+`catalog/repositories.json`, `catalog/materials/<work>/materials.json`, and
+`site/materials-index.json` (`mathesis.materials-index.v1`).
 The org site has scoped counts, the snapshot time, paper links and exact-version
 DOI redirects; its CNAME is always preserved in publisher synchronization.
 Repository links require a durable mapping entry. Prospective repository names
@@ -69,3 +70,12 @@ recomputes statistics independently. The render hash manifest is
 The publisher workflow and fake-API tests live in `mathesis-papers/catalog`.
 This SDK remains an anonymous-read-only generator; it never creates repositories,
 issues, GitHub commits, Zenodo deposits or DOI registrations.
+
+
+The public `materials-index.json` sets `generated_at` to the snapshot's `captured_at` and
+sorted entries of `kind`, `id`, `version`, `repository_url`, `site_url`, `reading`,
+`slides` and `visualizations`. Entries require a durable mapping; mapped papers
+without a manifest still link their repository. The file is included in
+`.mathesis/rendered.json`. The Mathesis worker optionally consumes it through
+`WISHPOOL_MATERIALS_INDEX_URL` and exposes only the current public version's
+materials on the existing paper routes.

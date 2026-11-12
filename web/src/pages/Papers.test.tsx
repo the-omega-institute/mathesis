@@ -3,7 +3,7 @@ import { setLocale, useLocale } from '../i18n/locale';
 import userEvent from '@testing-library/user-event';
 import { screen, within, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { paperSummary, publicPaper, SHA } from '../test/fixtures';
+import { paperSummary, publicPaper, paperMaterials, SHA } from '../test/fixtures';
 import type { VerifiedAttempt } from '../api/types';
 import { KATEX_ERROR, MACROS } from '../test/katex';
 import { fakeApi, renderWithApp } from '../test/render';
@@ -446,4 +446,31 @@ it('identifies a legacy primary Lean link in both languages without adding verif
   expect(screen.getAllByText('A verified formal proof is available.')).toHaveLength(1);
   act(() => setLocale('zh'));
   expect(screen.getByRole('link', { name: 'Lean 源码' })).toHaveAttribute('href', source);
+});
+
+it('shows public accepted-paper materials and omits the section when absent', async () => {
+  const first = renderWithApp(
+    <PaperPage record="WP-2026-0001" />,
+    fakeApi({
+      getPaper: vi.fn(async () => ({ ...publicPaper, materials: paperMaterials })),
+    }),
+  );
+  const section = await screen.findByRole('region', { name: 'Materials' });
+  expect(within(section).getByRole('link', { name: 'Repository' })).toHaveAttribute(
+    'href',
+    paperMaterials.repository_url,
+  );
+  expect(
+    within(screen.getByRole('navigation', { name: 'On this page' })).getByRole('link', {
+      name: 'Materials',
+    }),
+  ).toHaveAttribute('href', '#materials');
+  first.unmount();
+  renderWithApp(
+    <PaperPage record="WP-2026-0001" />,
+    fakeApi({ getPaper: vi.fn(async () => publicPaper) }),
+  );
+  await screen.findByRole('heading', { level: 1, name: publicPaper.summary.title });
+  expect(screen.queryByRole('region', { name: 'Materials' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Materials' })).not.toBeInTheDocument();
 });

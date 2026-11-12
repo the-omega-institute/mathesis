@@ -65,6 +65,7 @@ pub fn display_name(identity: &VerifiedIdentity) -> String {
 
 #[derive(Default)]
 pub struct MemoryStores {
+    materials: Mutex<MaterialsSidecar>,
     binding_admissions: Mutex<BTreeMap<PersonId, Vec<crate::model::BindingAdmission>>>,
     collected: Mutex<BTreeMap<String, CollectedVersion>>,
     collected_problems: Mutex<BTreeMap<String, CollectedProblemVersion>>,
@@ -90,6 +91,7 @@ pub struct MemoryStores {
 impl MemoryStores {
     pub fn ports(self: &Arc<Self>, clock: Arc<dyn Clock>, reader: Arc<dyn PaperReader>) -> Ports {
         Ports {
+            materials: self.clone(),
             archives: Arc::new(UnavailableArchiveRegistry),
             collected: self.clone(),
             collected_problems: self.clone(),
@@ -1090,5 +1092,26 @@ impl CollectedProblemStore for MemoryStores {
             }
         }
         Ok(page(&current, limit, before, |_| true))
+    }
+}
+
+#[async_trait]
+impl MaterialsStore for MemoryStores {
+    async fn load_materials(&self) -> CoreResult<MaterialsSidecar> {
+        Ok(self.materials.lock().await.clone())
+    }
+    async fn replace_materials(&self, sidecar: &MaterialsSidecar, expected: u64) -> CoreResult<()> {
+        let mut saved = self.materials.lock().await;
+        if sidecar.revision != expected + 1 {
+            return Err(CoreError::invalid("invalid materials revision"));
+        }
+        if saved.revision != expected {
+            return Err(CoreError::StaleRevision {
+                kind: "paper materials",
+                id: "index".into(),
+            });
+        }
+        *saved = sidecar.clone();
+        Ok(())
     }
 }

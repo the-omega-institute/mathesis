@@ -14,6 +14,7 @@ mod domain;
 mod jobs;
 pub(crate) mod knowledge;
 mod maintenance;
+mod materials;
 mod network;
 mod referees;
 mod solving;

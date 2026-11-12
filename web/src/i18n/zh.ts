@@ -1,5 +1,17 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  Materials: '论文资料',
+  'Plain-language reading': '通俗解读',
+  'Seminar slides': '研讨会幻灯片',
+  'Interactive visualizations': '交互式可视化',
+  Repository: '代码仓库',
+  Notes: '讲稿',
+  PDF: 'PDF',
+  English: '英语',
+  'Simplified Chinese': '简体中文',
+  'Prepared by Mathesis from the manuscript; explanations and illustrations are not verification.':
+    '由 Mathesis 根据原稿编写；解读与图示不代表验证。',
+
   'Add author': '添加作者',
   'Add contributor': '添加贡献者',
 

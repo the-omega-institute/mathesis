@@ -1,11 +1,12 @@
 import snapshot from '../data/project-notes.json';
-import type { Author, CollectedPaper, Settles } from '../api/types';
+import type { Author, CollectedPaper, PaperMaterials, Settles } from '../api/types';
 import type { PaperQuery } from '../api/client';
 import { routePath } from '../routing/routes';
 import { authorNameMatches, canonicalAuthorName } from './authorName';
 import { noteSubjects } from './projectNoteSubjects';
 
 export type ProjectNote = {
+  materials?: PaperMaterials;
   archive?: { doi: string; concept_doi?: string };
   id: string;
   revision: string;
@@ -30,6 +31,7 @@ export type ProjectNote = {
 export function collectedPaperNote(paper: CollectedPaper): ProjectNote {
   return {
     archive: paper.archive,
+    materials: paper.materials,
     id: paper.id,
     revision: paper.revision,
     title: paper.title,

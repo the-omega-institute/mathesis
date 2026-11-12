@@ -172,6 +172,44 @@ pub(crate) fn materials(
     Ok(out)
 }
 
+/// Only durable repository mappings produce public links. Reuse the validated
+/// catalog material rows, retaining repository-only entries before media exists.
+pub(crate) fn materials_index(snapshot: &Snapshot, materials: &[Value]) -> Result<Value> {
+    time::OffsetDateTime::parse(
+        &snapshot.meta.captured_at,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .map_err(|_| msg("snapshot time must be RFC 3339 for materials-index.json"))?;
+    let collected: BTreeSet<_> = snapshot
+        .collected
+        .iter()
+        .filter_map(|v| text(v, "id"))
+        .collect();
+    let mut entries = Vec::new();
+    for material in materials {
+        if material["repository_url"].is_null() {
+            continue;
+        }
+        let id = text(material, "work").ok_or_else(|| msg("materials work has no id"))?;
+        let version = material["version"]
+            .as_u64()
+            .filter(|v| *v > 0 && *v <= u32::MAX as u64)
+            .ok_or_else(|| msg("materials work has no positive version"))?;
+        let kind = if collected.contains(&id) {
+            "collected"
+        } else {
+            "record"
+        };
+        entries.push(json!({"kind":kind,"id":id,"version":version,
+            "repository_url":material["repository_url"],"site_url":material["site_url"],
+            "reading":material["reading"],"slides":material["slides"],"visualizations":material["visualizations"]}));
+    }
+    entries.sort_by_key(|v| (text(v, "kind"), text(v, "id"), v["version"].as_u64()));
+    Ok(
+        json!({"schema":"mathesis.materials-index.v1", "generated_at":snapshot.meta.captured_at,"entries":entries}),
+    )
+}
+
 pub(crate) fn render_site(
     root: &Path,
     works: &[Work],

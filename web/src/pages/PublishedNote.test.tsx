@@ -8,7 +8,7 @@ import snapshot from '../data/project-notes.json';
 import { findProjectNotes, projectNotes, projectNoteVersions } from '../lib/projectNotes';
 import { fakeApi, renderWithApp } from '../test/render';
 import { PublishedNotePage } from './PublishedNote';
-import { paperSummary } from '../test/fixtures';
+import { paperSummary, paperMaterials } from '../test/fixtures';
 import userEvent from '@testing-library/user-event';
 import { PaperPage, PapersPage } from './Papers';
 import { HomePage } from './Home';
@@ -369,4 +369,28 @@ it('links each named problem of a live collected work to its lasting problem pag
   expect(
     within(questions).getAllByRole('link', { name: 'arXiv:2509.18724v1', hidden: true }),
   ).toHaveLength(2);
+});
+
+it('carries live collected materials through the paper adapter and omits them on an earlier version', async () => {
+  const live = { ...liveVersion(), materials: paperMaterials };
+  const page = renderWithApp(
+    <PaperPage record={live.id} />,
+    fakeApi({
+      getCollectedPaper: vi.fn(async () => live),
+    }),
+  );
+  const section = await screen.findByRole('region', { name: 'Materials' });
+  expect(within(section).getByRole('link', { name: 'Repository' })).toHaveAttribute(
+    'href',
+    paperMaterials.repository_url,
+  );
+  page.unmount();
+  renderWithApp(
+    <PaperPage record={live.id} version="1" />,
+    fakeApi({
+      getCollectedPaper: vi.fn(async () => ({ ...live, revision: '1', materials: undefined })),
+    }),
+  );
+  await screen.findByRole('heading', { level: 1, name: live.title });
+  expect(screen.queryByRole('region', { name: 'Materials' })).not.toBeInTheDocument();
 });

@@ -117,6 +117,7 @@ async fn main() -> anyhow::Result<()> {
             composition.app.clone(),
             shutdown_rx.clone(),
             config.archive_index_url.clone(),
+            config.materials_index_url.clone(),
         )));
         if let Some(hosted) = composition.hosted {
             background.push(tokio::spawn(hosted.run(shutdown_rx.clone())));

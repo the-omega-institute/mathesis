@@ -353,6 +353,7 @@ pub fn render_with_materials(
             &catalog.join("archive-index.json"),
             &publishing::archive_index(&snapshot)?,
         )?;
+        let mut materials = Vec::new();
         for work in &works {
             let material = publishing::materials(work, organization, &mapping, materials_root)?;
             write_json(
@@ -362,7 +363,12 @@ pub fn render_with_materials(
                     .join("materials.json"),
                 &material,
             )?;
+            materials.push(material);
         }
+        write_json(
+            &temp.join("site/materials-index.json"),
+            &publishing::materials_index(&snapshot, &materials)?,
+        )?;
         publishing::render_site(
             &temp.join("site"),
             &works,

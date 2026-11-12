@@ -19,6 +19,7 @@ mod knowledge;
 mod knowledge_mapping;
 mod knowledge_queries;
 pub(crate) mod mapping;
+mod materials;
 #[cfg(test)]
 mod methodology_tests;
 mod open_problems;

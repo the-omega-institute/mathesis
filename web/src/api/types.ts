@@ -709,7 +709,16 @@ export type PaperSummary = {
   new_results?: number;
   lean_verified?: number;
 };
+export type PaperMaterials = {
+  version: number;
+  repository_url: string;
+  site_url: string;
+  reading: Record<string, string>;
+  slides: { id: string; language: string; pdf_url?: string | null; notes_url?: string | null }[];
+  visualizations: { id: string; url: string }[];
+};
 export type CollectedPaper = {
+  materials?: PaperMaterials;
   archive?: { doi: string; concept_doi?: string };
   id: string;
   revision: string;
@@ -766,6 +775,7 @@ export type PublicClaim = {
   lean?: FormalArtifact | null;
 };
 export type PublicPaper = {
+  materials?: PaperMaterials;
   plain_language?: PlainLanguageText;
   problems?: ResearchProblemLink[];
   bibliography?: PublicBibliography;

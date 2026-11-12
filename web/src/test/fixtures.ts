@@ -1,3 +1,4 @@
+import type { PaperMaterials } from '../api/types';
 import type {
   Claim,
   DonationGrant,
@@ -403,4 +404,29 @@ export const grant: DonationGrant = {
   created_at: '2026-10-01T00:00:00Z',
   updated_at: '2026-10-05T00:00:00Z',
   revision: 2,
+};
+
+export const paperMaterials: PaperMaterials = {
+  version: 1,
+  repository_url: 'https://github.com/mathesis-papers/paper',
+  site_url: 'https://papers.trureturing.org/paper/',
+  reading: {
+    en: 'https://papers.trureturing.org/paper/en/',
+    zh: 'https://papers.trureturing.org/paper/zh/',
+  },
+  slides: [
+    {
+      id: 'seminar',
+      language: 'en',
+      pdf_url: 'https://papers.trureturing.org/paper/slides.pdf',
+      notes_url: 'https://papers.trureturing.org/paper/notes/',
+    },
+    {
+      id: 'seminar',
+      language: 'zh',
+      pdf_url: null,
+      notes_url: 'https://papers.trureturing.org/paper/zh/notes/',
+    },
+  ],
+  visualizations: [{ id: 'parity-demo', url: 'https://papers.trureturing.org/paper/demo/' }],
 };
