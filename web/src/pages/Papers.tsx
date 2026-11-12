@@ -1,4 +1,5 @@
 import { t } from '../i18n/locale';
+import { PaperMaterials } from '../components/PaperMaterials';
 import { PaperExplanation } from '../components/PaperExplanation';
 import {
   collectedPaperNote,
@@ -350,6 +351,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           {paper.plain_language?.en.trim() && paper.plain_language.zh.trim() ? (
             <a href="#plain-language">{t('In plain language')}</a>
           ) : null}
+          {paper.materials ? <a href="#materials">{t('Materials')}</a> : null}
           {claims.length ? <a href="#results-h">{t('Results')}</a> : null}
           {paper.publication ? <a href="#references-h">{t('References and connections')}</a> : null}
           <a
@@ -368,6 +370,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
               </section>
             ) : null}
             <PaperExplanation text={paper.plain_language} />
+            <PaperMaterials materials={paper.materials} />
             {claims.length ? (
               <PaperResults paper={paper} />
             ) : (

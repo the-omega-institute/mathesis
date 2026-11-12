@@ -4361,6 +4361,134 @@
           }
         }
       }
+    },
+    "/api/v1/collected-papers/{work}": {
+      "get": {
+        "operationId": "get_collected_paper",
+        "summary": "Read a public collected paper at an exact or current version. Materials appear only for the current version.",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public collected paper",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCollectedPaper"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Work or version not found"
+          }
+        }
+      }
+    },
+    "/api/v1/collected-papers": {
+      "get": {
+        "operationId": "list_collected_papers",
+        "summary": "List current public collected versions, with optional explanatory materials.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "msc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public collected papers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicCollectedPaper"
+                      }
+                    },
+                    "next_before": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_before"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4789,6 +4917,10 @@
           "archive": {
             "$ref": "#/components/schemas/PublicArchive",
             "description": "Frozen files and verified archive citation; omitted without consent and public visibility."
+          },
+          "materials": {
+            "$ref": "#/components/schemas/PaperMaterials",
+            "description": "Omitted when absent, private or not the current public version."
           }
         },
         "required": [
@@ -10264,6 +10396,207 @@
             "pattern": "^[a-f0-9]{64}$"
           }
         }
+      },
+      "PaperMaterials": {
+        "type": "object",
+        "description": "Replaceable explanatory materials for this exact current public version. Explanations and illustrations are not verification. Every URL belongs to the same papers.trureturing.org site or mathesis-papers GitHub repository.",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "repository_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "site_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "reading": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048
+            }
+          },
+          "slides": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "language": {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                "pdf_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri",
+                  "maxLength": 2048
+                },
+                "notes_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "id",
+                "language",
+                "pdf_url",
+                "notes_url"
+              ]
+            }
+          },
+          "visualizations": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "id",
+                "url"
+              ]
+            }
+          }
+        },
+        "required": [
+          "version",
+          "repository_url",
+          "site_url",
+          "reading",
+          "slides",
+          "visualizations"
+        ]
+      },
+      "PublicCollectedPaper": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "previous_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "abstract": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "license": {
+            "type": "string"
+          },
+          "msc": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "published_on": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pdf": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "bytes",
+              "sha256"
+            ]
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "bytes",
+              "sha256"
+            ]
+          },
+          "materials": {
+            "$ref": "#/components/schemas/PaperMaterials",
+            "description": "Omitted when absent, private or not the current public version."
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "title",
+          "abstract",
+          "authors",
+          "license",
+          "published_on",
+          "pdf",
+          "source"
+        ]
       }
     }
   }

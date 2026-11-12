@@ -342,7 +342,18 @@ pub trait GrantStore: Send + Sync {
 }
 
 /// Everything Layer 2 needs, bundled for composition.
+#[async_trait]
+pub trait MaterialsStore: Send + Sync {
+    async fn load_materials(&self) -> CoreResult<crate::model::MaterialsSidecar>;
+    async fn replace_materials(
+        &self,
+        sidecar: &crate::model::MaterialsSidecar,
+        expected: u64,
+    ) -> CoreResult<()>;
+}
+
 pub struct Ports {
+    pub materials: Arc<dyn MaterialsStore>,
     pub archives: Arc<dyn ArchiveRegistry>,
     pub collected: Arc<dyn CollectedPaperStore>,
     pub collected_problems: Arc<dyn CollectedProblemStore>,

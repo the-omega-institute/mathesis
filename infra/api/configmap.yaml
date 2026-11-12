@@ -92,6 +92,8 @@ data:
   WISHPOOL_ATTEMPTS_PER_DAY: "20"
   # Optional public JSON index of publisher-verified archive DOIs.
   WISHPOOL_ARCHIVE_INDEX_URL: ""
+  # Optional anonymous public materials catalog; empty disables discovery.
+  WISHPOOL_MATERIALS_INDEX_URL: ""
 
 # Error reports: five per entrant per rolling 24h; no extra deployment key.
 # Target faithfulness and report audits reuse the existing CMA audit timeout.

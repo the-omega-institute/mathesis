@@ -568,6 +568,7 @@ async fn paper_flow_against_mongo() {
     };
     let shared = Arc::new(db.store.clone());
     let ports = Ports {
+        materials: Arc::new(db.store.clone()),
         archives: Arc::new(mathesis_core::ports::UnavailableArchiveRegistry),
         collected: Arc::new(db.store.clone()),
         collected_problems: Arc::new(db.store.clone()),
@@ -3458,5 +3459,71 @@ async fn curated_problem_collection_is_idempotent_and_public_against_mongo() {
             .unwrap(),
         2
     );
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn materials_sidecar_replacement_is_durable_atomic_and_revision_fenced() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    assert_eq!(
+        db.store.load_materials().await.unwrap(),
+        MaterialsSidecar::default()
+    );
+    let sidecar = MaterialsSidecar {
+        revision: 1,
+        entries: vec![MaterialsIndexEntry {
+            kind: MaterialsKind::Collected,
+            id: "paper".into(),
+            materials: PaperMaterials {
+                version: 2,
+                repository_url: "https://github.com/mathesis-papers/paper".into(),
+                site_url: "https://papers.trureturing.org/paper/".into(),
+                reading: Default::default(),
+                slides: vec![],
+                visualizations: vec![],
+            },
+        }],
+    };
+    db.store.replace_materials(&sidecar, 0).await.unwrap();
+    let reopened = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    assert_eq!(reopened.load_materials().await.unwrap(), sidecar);
+    assert!(matches!(
+        reopened.replace_materials(&sidecar, 0).await,
+        Err(CoreError::StaleRevision { .. })
+    ));
+    let empty = MaterialsSidecar {
+        revision: 2,
+        entries: vec![],
+    };
+    reopened.replace_materials(&empty, 1).await.unwrap();
+    assert!(matches!(
+        db.store.replace_materials(&empty, 1).await,
+        Err(CoreError::StaleRevision { .. })
+    ));
+    assert_eq!(db.store.load_materials().await.unwrap(), empty);
+    assert_eq!(
+        db.store
+            .raw("records")
+            .count_documents(mongodb::bson::doc! {})
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        db.store
+            .raw("collected_papers")
+            .count_documents(mongodb::bson::doc! {})
+            .await
+            .unwrap(),
+        0
+    );
+    reopened.shutdown().await;
     db.drop().await;
 }

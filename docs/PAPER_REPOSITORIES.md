@@ -180,8 +180,7 @@ URL), `slides` (objects with `id`, `language`, nullable `pdf_url` / `notes_url`)
 and `visualizations` (objects with `id`, `url`). Only built output is advertised.
 The Mathesis layer emits it through the upstream optional `site.post_build`
 interface and redirects a single-book paper's root to the original nested book
-landing. All original book URLs continue to work. This package does not change
-the Mathesis server to read these materials.
+landing. All original book URLs continue to work. The worker consumes the organization materials index described below.
 
 The catalog repository owns a daily/manual publisher authenticated by a
 short-lived GitHub App token. It builds this SDK at an exact Mathesis commit,
@@ -211,3 +210,45 @@ contents, pages, workflows and **issues write**. Issues write is additionally
 required for the preparation issue. Neither GitHub nor Zenodo credentials live
 on the Mathesis server. App installation and all remote writes belong to the
 dispatcher for this work package.
+
+
+## Materials on Mathesis paper pages
+
+The renderer also writes `site/materials-index.json`, served as
+`https://papers.trureturing.org/materials-index.json`. It contains
+`schema: "mathesis.materials-index.v1"`, `generated_at` from the snapshot and
+sorted `entries`. Each entry has `kind` (`collected` or `record`), `id`, positive
+`version`, `repository_url`, `site_url`, `reading`, `slides` and `visualizations`,
+with the same media shapes as the repository manifest. Only durable mappings
+produce entries. Missing manifests retain a repository-only entry; unmapped
+works are excluded. DOI and manifest-discovery metadata are not in this index.
+The output hash manifest covers the index, and `check` detects changes to it.
+
+Set the optional worker configuration `WISHPOOL_MATERIALS_INDEX_URL` to that
+public URL to enable discovery; an empty value disables fetching. Requests are
+anonymous HTTPS with an explicit Mathesis user agent, no redirects, a 30-second
+timeout and a 1 MiB body limit. Layer 2 requires the schema and RFC 3339 timestamp,
+accepts at most 10,000 rows and validates rows individually. A row has at most 64
+readings, 64 slide sets and 64 visualizations, with URLs at most 2,048 bytes.
+Repository names use GitHub's ASCII name characters (at most 100 bytes); ids and
+language tokens are bounded. Slide sets require a language and a PDF or notes.
+Duplicate slide identities `(id, language)` and visualization ids are refused.
+
+All URLs must be HTTPS within the same paper's site path or
+`github.com/mathesis-papers/<repo>` repository boundary. Credentials, queries,
+encoded paths, backslashes, whitespace and dot-segment escapes are refused.
+The repository and site root URLs must match the same repository exactly.
+Fragments on media URLs are allowed. Unknown works, private accepted records and
+wrong public versions are skipped. Collected versions must exist; accepted
+records must name the current public accepted version, including while a newer
+private draft is being prepared.
+
+A successful index atomically replaces a revision-fenced materials sidecar;
+the last valid row for an exact identity wins. Omitted entries are removed.
+A failed fetch or invalid envelope preserves the previous sidecar. The public
+paper responses expose `materials` only for the current public version; historical
+collected pages omit it. Materials never change scientific delivery, receipts,
+statements, citations, review queues or contribution credit. The paper readers
+show available readings by language, slide PDFs/notes, visualizations and the
+repository, explaining that these materials are not verification. See
+[§33](contract/33-paper-materials.md) and [API.md](API.md).

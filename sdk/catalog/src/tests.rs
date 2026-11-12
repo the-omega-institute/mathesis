@@ -769,3 +769,89 @@ fn publishing_paths_and_material_boundaries() {
     write_json(&path, &m).unwrap();
     assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
 }
+
+#[test]
+fn materials_index_is_deterministic_versioned_and_in_the_render_hash_manifest() {
+    let root = temp("materials-index");
+    let meta = json!({"schema_version":SNAPSHOT_SCHEMA,"generator_version":GENERATOR_VERSION,
+        "api_base":"https://site","captured_at":"2026-11-13T00:00:00Z","listings":{},
+        "collected_works":2,"accepted_records":1,"directory_nodes":0});
+    write_json(&root.join("snapshot.json"), &meta).unwrap();
+    write_json(
+        &root.join("raw/collected.json"),
+        &json!([
+        {"id":"unmapped","revision":"1","title":"Unmapped","license":"CC-BY-4.0"},
+        {"id":"paper","revision":"2","title":"Paper","license":"CC-BY-4.0"}]),
+    )
+    .unwrap();
+    write_json(
+        &root.join("raw/papers.json"),
+        &json!([{"record":"WP-2026-0001","version":3,"title":"Accepted"}]),
+    )
+    .unwrap();
+    write_json(&root.join("raw/opportunities.json"), &json!([])).unwrap();
+    let mapping = root.join("mapping.json");
+    write_json(
+        &mapping,
+        &json!({"paper":"mapped-paper","WP-2026-0001":"accepted"}),
+    )
+    .unwrap();
+    let base = "https://papers.trureturing.org/mapped-paper/";
+    let manifest = json!({"schema":"mathesis.materials.v1","work":"paper","version":2,
+        "repository_url":"https://github.com/mathesis-papers/mapped-paper","site_url":base,
+        "reading":{"zh":format!("{base}zh/"),"en":format!("{base}en/")},
+        "slides":[{"id":"seminar","language":"en","pdf_url":format!("{base}slides.pdf"),"notes_url":null}],
+        "visualizations":[{"id":"demo","url":format!("{base}demo/")}]});
+    let manifests = root.join("manifests");
+    write_json(&manifests.join("mapped-paper.json"), &manifest).unwrap();
+    let out = temp("materials-index-output");
+    render_with_materials(
+        &root,
+        &out,
+        "mathesis-papers",
+        "Mathesis",
+        "https://site",
+        Some(&mapping),
+        Some(&manifests),
+    )
+    .unwrap();
+    let index_path = out.join("site/materials-index.json");
+    let original = fs::read(&index_path).unwrap();
+    let index: Value = serde_json::from_slice(&original).unwrap();
+    assert_eq!(index["schema"], "mathesis.materials-index.v1");
+    assert_eq!(index["generated_at"], meta["captured_at"]);
+    assert_eq!(index["entries"].as_array().unwrap().len(), 2);
+    let first = &index["entries"][0];
+    assert_eq!(first["kind"], "collected");
+    assert_eq!(first["id"], "paper");
+    assert_eq!(first["version"], 2);
+    for key in [
+        "repository_url",
+        "site_url",
+        "reading",
+        "slides",
+        "visualizations",
+    ] {
+        assert_eq!(first[key], manifest[key]);
+    }
+    let record = &index["entries"][1];
+    assert_eq!(record["kind"], "record");
+    assert_eq!(record["id"], "WP-2026-0001");
+    assert_eq!(record["version"], 3);
+    assert_eq!(record["reading"], json!({}));
+    assert!(first.get("doi").is_none());
+    check(&out).unwrap();
+    render_with_materials(
+        &root,
+        &out,
+        "mathesis-papers",
+        "Mathesis",
+        "https://site",
+        Some(&mapping),
+        Some(&manifests),
+    )
+    .unwrap();
+    assert_eq!(fs::read(&index_path).unwrap(), original);
+    fs::write(&index_path, b"{}").unwrap();
+    assert!(check(&out).is_err());
+}

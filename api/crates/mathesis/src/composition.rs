@@ -56,6 +56,7 @@ impl Composition {
                 let store = MongoStore::connect(uri, database).await?;
                 let shared = Arc::new(store.clone());
                 let ports = Ports {
+                    materials: shared.clone(),
                     archives: Arc::new(mathesis_core::ports::UnavailableArchiveRegistry),
                     collected: shared.clone(),
                     collected_problems: shared.clone(),

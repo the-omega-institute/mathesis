@@ -8,6 +8,7 @@ mod explanations;
 mod knowledge;
 mod library_binding;
 mod manuscripts;
+mod materials;
 mod preparation;
 mod problem_library;
 mod research;

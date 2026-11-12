@@ -11,6 +11,8 @@ pub struct CollectedFileLink {
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct PublicCollectedPaper {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub materials: Option<PaperMaterials>,
     pub id: String,
     pub revision: String,
     pub previous_version: Option<String>,
@@ -38,6 +40,7 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             sha256: blob.sha256.clone(),
         };
         Self {
+            materials: None,
             id: d.work_id.clone(),
             revision: d.version.to_string(),
             previous_version: d.previous_version.map(|v| v.to_string()),
@@ -101,10 +104,22 @@ impl App {
     /// links only the problems that current version still names.
     async fn public_collected(&self, v: &CollectedVersion) -> CoreResult<PublicCollectedPaper> {
         let mut public = PublicCollectedPaper::from(v);
+        let current = self.ports.collected.get(&v.delivery.work_id, None).await?;
+        if current
+            .as_ref()
+            .is_some_and(|c| c.delivery.version == v.delivery.version)
+        {
+            public.materials = self
+                .public_materials(
+                    MaterialsKind::Collected,
+                    &v.delivery.work_id,
+                    v.delivery.version,
+                )
+                .await?;
+        }
         if public.problem_links.is_empty() {
             return Ok(public);
         }
-        let current = self.ports.collected.get(&v.delivery.work_id, None).await?;
         if let Some(current) = current.filter(|c| c.delivery.version != v.delivery.version) {
             let named = super::problem_library::collected_problem_links(&current);
             for link in &mut public.problem_links {
@@ -582,11 +597,7 @@ impl App {
             .get(id, version)
             .await?
             .ok_or_else(|| CoreError::not_found("paper", id))?;
-        match version {
-            Some(_) => self.public_collected(&v).await,
-            // Without a version the store returned the current one.
-            None => Ok((&v).into()),
-        }
+        self.public_collected(&v).await
     }
     pub async fn collected_papers(
         &self,
@@ -600,8 +611,26 @@ impl App {
             .collected
             .list(&search, clamp(limit), before)
             .await?;
+        let materials = self.ports.materials.load_materials().await?;
+        let items = listing
+            .items
+            .iter()
+            .map(|v| {
+                let mut public = PublicCollectedPaper::from(v);
+                public.materials = materials
+                    .entries
+                    .iter()
+                    .find(|e| {
+                        e.kind == MaterialsKind::Collected
+                            && e.id == v.delivery.work_id
+                            && e.materials.version == v.delivery.version
+                    })
+                    .map(|e| e.materials.clone());
+                public
+            })
+            .collect();
         Ok(Listing {
-            items: listing.items.iter().map(Into::into).collect(),
+            items,
             next_before: listing.next_before,
         })
     }

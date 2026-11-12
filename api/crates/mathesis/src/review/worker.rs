@@ -509,6 +509,7 @@ pub async fn run_reconciler(
     app: Arc<App>,
     mut shutdown: watch::Receiver<bool>,
     archive_index_url: Option<String>,
+    materials_index_url: Option<String>,
 ) {
     loop {
         match app.reconcile().await {
@@ -534,6 +535,15 @@ pub async fn run_reconciler(
                     }
                 }
                 Err(error) => tracing::warn!(%error, "archive index fetch failed"),
+            }
+        }
+        if let Some(url) = materials_index_url.as_deref() {
+            match super::materials::fetch_materials_index(url).await {
+                Ok(bytes) => match app.reconcile_materials_index(&bytes).await {
+                    Ok(count) => tracing::debug!(count, "reconciled public paper materials"),
+                    Err(error) => tracing::warn!(%error, "materials index was not applied"),
+                },
+                Err(error) => tracing::warn!(%error, "materials index fetch failed"),
             }
         }
         tokio::select! {
