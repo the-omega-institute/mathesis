@@ -12,7 +12,7 @@ export function PaperMetadata({ paper }: { paper: PublicPaper }) {
     <CitationMetadata
       title={summary.title}
       authors={summary.authors}
-      doi={summary.doi}
+      doi={paper.archive?.doi ?? summary.doi}
       abstract={summary.abstract_text}
       canonicalUrl={citationUrl(summary, origin)}
       publicationDate={summary.accepted_at}

@@ -28,6 +28,7 @@ export function paperCitation(
   paper: PaperSummary,
   origin: string,
   locator: CitationLocator = {},
+  archiveDoi?: string,
 ): string {
   const authors = formatAuthors(paper.authors);
   const title = paper.title.trim().replace(/\.$/, '');
@@ -41,6 +42,9 @@ export function paperCitation(
         ? `Version ${locator.version}.`
         : null,
     paper.doi ? `doi:${paper.doi}${doiHref ? ` (${doiHref})` : ''}.` : null,
+    archiveDoi && archiveDoi !== paper.doi
+      ? `Archive DOI: doi:${archiveDoi} (https://doi.org/${archiveDoi}).`
+      : null,
     citationUrl(paper, origin, locator),
   ]
     .filter((part) => part !== null)
@@ -77,6 +81,7 @@ export function paperBibtex(
   paper: PaperSummary,
   origin: string,
   locator: CitationLocator = {},
+  archiveDoi?: string,
 ): string {
   const key = `${paper.record}${locator.claim ? `-${locator.claim.id}` : ''}`.replace(
     /[^a-zA-Z0-9_-]/g,
@@ -104,6 +109,7 @@ export function paperBibtex(
     ['title', paper.title],
     ['year', year],
     ['doi', paper.doi],
+    ['archiveDoi', archiveDoi && archiveDoi !== paper.doi ? archiveDoi : undefined],
     ['eprint', arxiv],
     ['archivePrefix', arxiv ? 'arXiv' : undefined],
     ['note', note],

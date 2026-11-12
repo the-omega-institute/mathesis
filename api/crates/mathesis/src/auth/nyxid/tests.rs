@@ -625,6 +625,7 @@ async fn donated_quota_retains_rotation_without_legacy_hosted_judgements() {
                 purpose: Default::default(),
                 review_scope: Default::default(),
                 processing_consent: Some("ai-review-2026-10-11".into()),
+                archive_consent: None,
                 kind: mathesis_core::model::SubmissionKind::Paper,
                 make_public_after_acceptance: true,
                 typed_conjecture: None,

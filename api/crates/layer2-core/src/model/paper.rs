@@ -67,6 +67,12 @@ pub struct PaperVersion {
     pub delivery: Option<super::ManuscriptVersion>,
     #[serde(default)]
     pub evidence: Vec<super::EvidenceAttachment>,
+    /// The author's exact archive-consent marker for this source version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_consent: Option<ArchiveConsent>,
+    /// A verified permanent archive citation for this exact version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_record: Option<PaperArchive>,
     pub number: u32,
     pub archive: BlobRef,
     pub filename: String,
@@ -278,6 +284,47 @@ pub struct PublishedProgress {
 pub const AI_PROCESSING_CONSENT_VERSION: &str = "ai-review-2026-10-11";
 /// Upload/submit action in the AI-review service; no separate checkbox receipt.
 pub const AI_PROCESSING_REQUEST_VERSION: &str = "ai-review-request-2026-10-29";
+/// Exact consent marker for publication of the accepted manuscript in a public archive.
+pub const PUBLIC_ARCHIVE_CONSENT_VERSION: &str = "public-archive-2026-11-12";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchiveConsent {
+    pub marker: String,
+    pub at: DateTime<Utc>,
+    pub version: u32,
+    pub source_sha256: String,
+}
+
+/// A DOI checked against both stored files of an accepted author version.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PaperArchive {
+    pub citation: super::ArchiveCitation,
+    pub pdf_sha256: String,
+    pub source_sha256: String,
+    pub checked_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchiveIndexEntry {
+    pub kind: ArchiveIndexKind,
+    pub id: String,
+    pub version: u32,
+    pub doi: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ArchiveIndexKind {
+    Record,
+    Collected,
+}
+
+pub fn validate_public_archive_consent(marker: Option<&str>) -> CoreResult<()> {
+    if marker.is_some_and(|value| value != PUBLIC_ARCHIVE_CONSENT_VERSION) {
+        return Err(CoreError::invalid("invalid public archive consent marker"));
+    }
+    Ok(())
+}
 
 pub fn validate_processing_request(version: Option<&str>) -> CoreResult<&str> {
     match version {
@@ -375,6 +422,9 @@ pub struct NewPaper {
     pub review_scope: String,
     #[serde(default)]
     pub processing_consent: Option<String>,
+    /// Optional exact author consent. Absence preserves legacy/API behaviour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_consent: Option<String>,
     #[serde(default)]
     pub kind: SubmissionKind,
     #[serde(default = "public_by_default")]
@@ -414,6 +464,14 @@ impl NewPaper {
             ));
         }
         validate_processing_request(self.processing_consent.as_deref())?;
+        validate_public_archive_consent(self.archive_consent.as_deref())?;
+        if self.archive_consent.is_some()
+            && (self.purpose == SubmissionPurpose::ReviewOnly || !self.make_public_after_acceptance)
+        {
+            return Err(CoreError::invalid(
+                "public archive consent requires a public publication request",
+            ));
+        }
         if self.typed_conjecture.is_some() && self.kind != SubmissionKind::Conjecture {
             return Err(CoreError::invalid("typed input is only for conjectures"));
         }
@@ -548,6 +606,7 @@ mod tests {
             purpose: Default::default(),
             review_scope: Default::default(),
             processing_consent: Some("ai-review-2026-10-11".into()),
+            archive_consent: None,
             kind: crate::model::SubmissionKind::Paper,
             make_public_after_acceptance: true,
             typed_conjecture: None,

@@ -26,6 +26,9 @@ pub struct PaperSummary {
     pub abstract_text: String,
     pub msc: Vec<String>,
     pub doi: Option<String>,
+    /// Whether the current accepted source version carries explicit archive consent.
+    #[serde(default)]
+    pub archive_consent: bool,
     pub basis: AdmissionBasis,
     pub accepted_at: DateTime<Utc>,
     pub main_results: usize,
@@ -76,6 +79,10 @@ pub struct PublicPaper {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<ManuscriptOrigin>,
     pub summary: PaperSummary,
+    /// The frozen accepted files and the verified archive citation. This is
+    /// omitted unless the accepted version is public and has consent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive: Option<PublicArchive>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confirmed_error_reports: Option<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -91,6 +98,24 @@ pub struct PublicPaper {
     pub new_content: Vec<PublicWitness>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lean_statements: Vec<PublicLeanStatement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicArchiveFile {
+    pub bytes: u64,
+    pub sha256: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicArchive {
+    pub licence: String,
+    pub consent_time: chrono::DateTime<chrono::Utc>,
+    pub marker: String,
+    pub doi: Option<String>,
+    pub concept_doi: Option<String>,
+    pub pdf: PublicArchiveFile,
+    pub source: PublicArchiveFile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,7 +168,8 @@ impl Serialize for PaperSummary {
         if self.public {
             let fields = serde_json::json!({"submission": self.submission, "abstract_text": self.abstract_text,
                 "msc": self.msc, "doi": self.doi, "basis": self.basis, "accepted_at": self.accepted_at,
-                "main_results": self.main_results, "new_results": self.new_results, "lean_verified": self.lean_verified});
+                "main_results": self.main_results, "new_results": self.new_results, "lean_verified": self.lean_verified,
+                "archive_consent": self.archive_consent});
             value
                 .as_object_mut()
                 .unwrap()
@@ -188,6 +214,13 @@ fn summary(record: &Record, submission: &Submission) -> PaperSummary {
         abstract_text: submission.abstract_text.clone(),
         msc: submission.msc.clone(),
         doi: submission.doi.clone(),
+        archive_consent: submission.current_version().is_some_and(|v| {
+            v.archive_consent.as_ref().is_some_and(|consent| {
+                consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                    && consent.version == v.number
+                    && consent.source_sha256 == v.archive.sha256
+            })
+        }),
         basis: match &submission.decision {
             Some(crate::policy::Decision::Accept { basis }) => *basis,
             _ => record.basis,
@@ -213,6 +246,17 @@ impl App {
                 record: record.id.clone(),
             };
             published.analysis_visibility = current.analysis_visibility;
+            // Archive consent and a verified citation are mutable enrichment of
+            // the accepted version. Copy them only when the source binding is
+            // unchanged; a later manuscript version starts without consent.
+            if let (Some(published_version), Some(current_version)) =
+                (published.versions.last_mut(), current.current_version())
+                && published_version.number == current_version.number
+                && published_version.archive.sha256 == current_version.archive.sha256
+            {
+                published_version.archive_consent = current_version.archive_consent.clone();
+                published_version.archive_record = current_version.archive_record.clone();
+            }
             // Exposition may finish after acceptance. Copy only the exact public
             // source version, even while a later private revision is in progress.
             if let Some(version) = published.versions.last_mut()
@@ -332,11 +376,18 @@ impl App {
         before: Option<String>,
     ) -> CoreResult<Listing<PaperSummary>> {
         search.validate()?;
+        if search
+            .q
+            .as_deref()
+            .is_some_and(|query| query.to_ascii_lowercase().starts_with("10.5281/zenodo."))
+        {
+            return self.search_archive_doi(&search, limit, before).await;
+        }
         if search.is_empty() {
             return self.list_papers(limit, before).await;
         }
         let limit = clamp(limit) as usize;
-        let mut cursor = before;
+        let mut cursor = before.clone();
         let mut items = Vec::new();
         loop {
             let page = self.ports.records.search(&search, 100, cursor).await?;
@@ -353,6 +404,62 @@ impl App {
                 if items.len() > limit {
                     items.pop();
                     let next_before = items.last().map(|p| p.record.to_string());
+                    return Ok(Listing { items, next_before });
+                }
+            }
+            cursor = page.next_before;
+            if cursor.is_none() {
+                return Ok(Listing {
+                    items,
+                    next_before: None,
+                });
+            }
+        }
+    }
+
+    async fn search_archive_doi(
+        &self,
+        search: &PaperSearch,
+        limit: Option<u32>,
+        before: Option<String>,
+    ) -> CoreResult<Listing<PaperSummary>> {
+        let wanted = search.q.as_deref().unwrap_or_default().to_ascii_lowercase();
+        let mut cursor = before.clone();
+        let mut items = Vec::new();
+        loop {
+            let page = self.ports.records.list(100, cursor).await?;
+            for record in page.items {
+                if before
+                    .as_ref()
+                    .is_some_and(|value| record.id.as_str() >= value.as_str())
+                {
+                    continue;
+                }
+                let Ok(submission) = self.accepted(&record).await else {
+                    continue;
+                };
+                if submission.analysis_visibility != Visibility::Public
+                    || search.kind.is_some_and(|kind| kind != submission.kind)
+                    || !search.matches_author(&submission.authors)
+                    || search.msc.as_ref().is_some_and(|msc| {
+                        !submission.msc.iter().any(|value| value.starts_with(msc))
+                    })
+                    || !submission.current_version().is_some_and(|version| {
+                        version.archive_record.as_ref().is_some_and(|archive| {
+                            archive.citation.doi.to_ascii_lowercase() == wanted
+                                || archive
+                                    .citation
+                                    .concept_doi
+                                    .as_ref()
+                                    .is_some_and(|doi| doi.to_ascii_lowercase() == wanted)
+                        })
+                    })
+                {
+                    continue;
+                }
+                items.push(self.paper_summary(&record, &submission).await?);
+                if items.len() >= clamp(limit) as usize {
+                    let next_before = page.next_before;
                     return Ok(Listing { items, next_before });
                 }
             }
@@ -528,6 +635,41 @@ impl App {
             .ok_or_else(|| CoreError::not_found("paper", id.as_str()))?;
         let submission = self.accepted(&record).await?;
         let public = submission.analysis_visibility == Visibility::Public;
+        let archive = if public {
+            submission.current_version().and_then(|version| {
+                let consent = version.archive_consent.as_ref().filter(|consent| {
+                    consent.marker == PUBLIC_ARCHIVE_CONSENT_VERSION
+                        && consent.version == version.number
+                        && consent.source_sha256 == version.archive.sha256
+                })?;
+                let pdf = version.pdf.as_ref()?;
+                Some(PublicArchive {
+                    licence: "CC-BY-4.0".into(),
+                    consent_time: consent.at,
+                    marker: consent.marker.clone(),
+                    doi: version
+                        .archive_record
+                        .as_ref()
+                        .map(|record| record.citation.doi.clone()),
+                    concept_doi: version
+                        .archive_record
+                        .as_ref()
+                        .and_then(|record| record.citation.concept_doi.clone()),
+                    pdf: PublicArchiveFile {
+                        bytes: pdf.bytes,
+                        sha256: pdf.sha256.clone(),
+                        url: format!("/api/v1/papers/{}/pdf", record.id),
+                    },
+                    source: PublicArchiveFile {
+                        bytes: version.archive.bytes,
+                        sha256: version.archive.sha256.clone(),
+                        url: format!("/api/v1/papers/{}/source", record.id),
+                    },
+                })
+            })
+        } else {
+            None
+        };
         let new_content = if public {
             match submission.latest_report(Stage::Escape).map(|r| &r.payload) {
                 Some(StagePayload::Escape { assessments }) => assessments
@@ -634,6 +776,7 @@ impl App {
                 None
             },
             summary: paper_summary,
+            archive,
             confirmed_error_reports: if public {
                 Some(
                     self.all_error_reports()

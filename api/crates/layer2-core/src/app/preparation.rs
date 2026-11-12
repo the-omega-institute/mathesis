@@ -16,6 +16,7 @@ impl App {
             kind: preparation.kind,
             purpose: preparation.purpose,
             processing_consent: preparation.processing_consent,
+            archive_consent: None,
             title: None,
             abstract_text: None,
             authors: vec![],
@@ -117,6 +118,18 @@ impl App {
             } else {
                 Visibility::Private
             };
+        if new.archive_consent.is_some() {
+            let version = submission
+                .versions
+                .last_mut()
+                .expect("prepared submission has a version");
+            version.archive_consent = Some(ArchiveConsent {
+                marker: PUBLIC_ARCHIVE_CONSENT_VERSION.into(),
+                at: self.ports.clock.now(),
+                version: version.number,
+                source_sha256: version.archive.sha256.clone(),
+            });
+        }
         submission.intake.as_mut().unwrap().confirmed_request = Some(digest);
         Ok(false)
     }

@@ -55,8 +55,11 @@ pipeline; only their labels differ.
   and legacy review links start unchecked. Purpose is chosen atomically with final
   metadata/statement confirmation, before review begins. Publication happens at the decision, before advice,
   letter or Lean. The author may later change visibility through the existing
-  route. Public details contain title, authors, abstract, DOI and record id;
-  statements with dependencies; witness lemmas of audited-correct main content
+  route. A checked final confirmation records the exact archive-consent marker and
+  server time for that source version. Public details contain title, authors,
+  abstract, DOI and record id; with archive consent they also contain the CC BY 4.0
+  archive descriptor and any verified archive DOI. Statements with dependencies;
+  witness lemmas of audited-correct main content
   results; and verified Lean artifacts. Lean ✓ means a verifier-passed proof.
   Correctness labels, comments, rationale, audit summaries, referee reports,
   letters and advice stay private to authors/staff. Private or legacy undecided
@@ -278,8 +281,9 @@ sdk/contribute/    the contributors' CLI and MCP server.
   abstract only while the author keeps `open_to_contributors` on. Turning it
   off closes the paper's open tasks.
 - Accepted mathematical details are public when the upload checkbox selected
-  `public`, and may be made private later. Reviews and letters remain private
-  under either setting. Formalization of a proved statement starts only after
+  `public`, and may be made private later. The repository and permanent archive
+  record remain available after that visibility change. Reviews, letters and advice
+  remain private under either setting. Formalization of a proved statement starts only after
   the author approves it. The private post-letter Lean probe exposes outcomes, never proof
   files, to the authors; publishing files still requires their agreement.
 - Submitter and linked co-authors may read their private audit, the GPT Pro
@@ -421,3 +425,4 @@ one row here.
 | §29 | Visible formalization pool | [`docs/contract/29-formalization-pool.md`](docs/contract/29-formalization-pool.md) | `layer2-core/src/app/formalization_directory.rs`, `web/src/pages/Formalizations.tsx` |
 | §30 | Published Lean evidence in the reader | [`docs/contract/30-published-lean-evidence.md`](docs/contract/30-published-lean-evidence.md) | paper, result and graph readers of collected Lean sources |
 | §31 | Public paper catalog projections | [`docs/contract/31-public-catalog.md`](docs/contract/31-public-catalog.md) | `sdk/catalog`, catalog/profile/paper-template projections |
+| §32 | Accepted author-paper archive | [`docs/contract/32-paper-archive.md`](docs/contract/32-paper-archive.md) | archive consent, public paper projection, verified DOI and archive-index discovery |

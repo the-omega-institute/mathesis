@@ -6,15 +6,17 @@ import { paperBibtex, paperCitation, type CitationLocator } from '../lib/citatio
 export function Citation({
   paper,
   locator = {},
+  archiveDoi,
 }: {
   paper: PaperSummary;
   locator?: CitationLocator;
+  archiveDoi?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(false);
   const [format, setFormat] = useState<'text' | 'bibtex'>('text');
-  const text = paperCitation(paper, window.location.origin, locator);
-  const bibtex = paperBibtex(paper, window.location.origin, locator);
+  const text = paperCitation(paper, window.location.origin, locator, archiveDoi);
+  const bibtex = paperBibtex(paper, window.location.origin, locator, archiveDoi);
   const displayed = format === 'text' ? text : bibtex;
   const download = () => {
     const url = URL.createObjectURL(

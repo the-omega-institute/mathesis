@@ -3161,7 +3161,7 @@
           {
             "name": "focus",
             "in": "query",
-            "description": "Node identity returned by the API. paper:WP-… returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
+            "description": "Node identity returned by the API. paper:WP-\u2026 returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
             "required": false,
             "schema": {
               "type": "string"
@@ -3189,7 +3189,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Matching public accepted source records per page, clamped to 1–20 (default 10). Matching and live visibility precede pagination.",
+            "description": "Matching public accepted source records per page, clamped to 1\u201320 (default 10). Matching and live visibility precede pagination.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -3887,7 +3887,7 @@
         ],
         "responses": {
           "200": {
-            "description": "LeaderboardRow[]; others counts other researchers’ results and total includes own results"
+            "description": "LeaderboardRow[]; others counts other researchers\u2019 results and total includes own results"
           },
           "422": {
             "description": "Invalid filter"
@@ -4166,7 +4166,7 @@
     "/api/v1/collected-papers/{work}/results/{claim}/formalization": {
       "post": {
         "operationId": "request_collected_formalization",
-        "summary": "Request venue-funded Lean proof work for an internal collection. Reuses source inspection across this paper’s results; never re-runs manuscript review.",
+        "summary": "Request venue-funded Lean proof work for an internal collection. Reuses source inspection across this paper\u2019s results; never re-runs manuscript review.",
         "security": [
           {
             "nyxid": []
@@ -4211,6 +4211,153 @@
           },
           "422": {
             "description": "An indexed non-open result is required."
+          }
+        }
+      }
+    },
+    "/api/v1/papers/{record}/source": {
+      "get": {
+        "operationId": "paper_source",
+        "summary": "Return the frozen source for a public accepted paper with archive consent.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "record",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public manuscript source",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable, private, unaccepted, or without archive consent"
+          }
+        }
+      }
+    },
+    "/api/v1/papers/{record}/archive": {
+      "post": {
+        "operationId": "attach_paper_archive",
+        "summary": "Attach a verified Zenodo DOI to an accepted author version. Administrator only; the version must carry archive consent.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Public paper with verified archive DOI"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Administrator or archive consent required"
+          },
+          "404": {
+            "description": "Paper not found"
+          },
+          "409": {
+            "description": "Different DOI or file binding already attached"
+          },
+          "503": {
+            "description": "Public archive unavailable"
+          },
+          "422": {
+            "description": "Unpublished DOI or archived bytes differ"
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{id}/archive-consent": {
+      "post": {
+        "operationId": "grant_archive_consent",
+        "summary": "Grant one-way archive consent for the current publication version. Submitting author and cookie session only.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "marker"
+                ],
+                "properties": {
+                  "marker": {
+                    "const": "public-archive-2026-11-12"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated submission"
+          },
+          "401": {
+            "description": "Cookie authentication required"
+          },
+          "403": {
+            "description": "Submitting author required"
+          },
+          "404": {
+            "description": "Paper not found"
+          },
+          "409": {
+            "description": "Consent cannot be replaced"
+          },
+          "422": {
+            "description": "Invalid marker"
           }
         }
       }
@@ -4563,6 +4710,10 @@
           },
           "lean_verified": {
             "type": "integer"
+          },
+          "archive_consent": {
+            "type": "boolean",
+            "description": "The current accepted version has explicit author archive consent."
           }
         },
         "required": [
@@ -4634,6 +4785,10 @@
               "$ref": "#/components/schemas/ResearchProblemLink"
             },
             "maxItems": 100
+          },
+          "archive": {
+            "$ref": "#/components/schemas/PublicArchive",
+            "description": "Frozen files and verified archive citation; omitted without consent and public visibility."
           }
         },
         "required": [
@@ -10025,6 +10180,90 @@
             ]
           }
         ]
+      },
+      "PublicArchiveFile": {
+        "type": "object",
+        "required": [
+          "bytes",
+          "sha256",
+          "url"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "PublicArchive": {
+        "type": "object",
+        "required": [
+          "licence",
+          "consent_time",
+          "marker",
+          "pdf",
+          "source"
+        ],
+        "properties": {
+          "licence": {
+            "const": "CC-BY-4.0"
+          },
+          "consent_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "marker": {
+            "const": "public-archive-2026-11-12"
+          },
+          "doi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "concept_doi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pdf": {
+            "$ref": "#/components/schemas/PublicArchiveFile"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PublicArchiveFile"
+          }
+        }
+      },
+      "ArchiveInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "doi",
+          "pdf_sha256",
+          "source_sha256"
+        ],
+        "properties": {
+          "doi": {
+            "type": "string",
+            "pattern": "^10\\.5281/zenodo\\.[1-9][0-9]*$"
+          },
+          "pdf_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
       }
     }
   }

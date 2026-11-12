@@ -159,6 +159,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
       msc,
       doi,
       openToContributors: false,
+      archiveConsent: makePublic,
     });
     if (!metadata.ok) return fail(metadata.error, 0);
     Object.assign(metadata.value, {

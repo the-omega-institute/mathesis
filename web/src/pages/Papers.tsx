@@ -292,6 +292,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
   const versions = paper.versions ?? [];
   const latest = versions.at(-1);
   const claims = paper.claims ?? [];
+  const archiveDoi = paper.archive?.doi ?? undefined;
   const repo = paper.formalization_repository ? safeHttpUrl(paper.formalization_repository) : null;
   const arxiv = /^10\.48550\/arxiv\.(.+)$/i.exec(s.doi ?? '')?.[1];
   const doiHref = s.doi ? sourceHref({ kind: 'doi', locator: s.doi }) : null;
@@ -327,6 +328,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             {latest?.has_pdf && s.submission ? (
               <a href={pdfHref(s.submission, latest.number)}>{t('View PDF')}</a>
             ) : null}
+            {paper.archive ? <a href={paper.archive.source.url}>{t('Download source')}</a> : null}
             <a
               href="#citation"
               onClick={() => document.getElementById('citation')?.setAttribute('open', '')}
@@ -383,7 +385,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
           </div>
           <aside className="paper-sidebar" aria-label={t('Publication details')}>
-            {s.msc?.length || s.doi ? (
+            {s.msc?.length || s.doi || paper.archive ? (
               <section>
                 <h2>{t('Publication details')}</h2>
                 <dl className="paper-metadata">
@@ -421,12 +423,29 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                       </dd>
                     </>
                   ) : null}
+                  {archiveDoi ? (
+                    <>
+                      <dt>{t('Archive DOI')}</dt>
+                      <dd>
+                        <ExternalLink href={`https://doi.org/${archiveDoi}`}>
+                          {archiveDoi}
+                        </ExternalLink>
+                      </dd>
+                    </>
+                  ) : null}
+                  {paper.archive ? (
+                    <>
+                      <dt>{t('License')}</dt>
+                      <dd>{paper.archive.licence}</dd>
+                    </>
+                  ) : null}
                 </dl>
               </section>
             ) : null}
             <Citation
               paper={s}
               locator={{ version: paper.publication?.version ?? latest?.number }}
+              archiveDoi={archiveDoi}
             />
             {versions.length ? (
               <section aria-labelledby="public-versions-h" className="paper-versions">

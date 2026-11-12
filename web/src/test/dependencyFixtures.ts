@@ -54,8 +54,8 @@ export const dependencyPaper: CollectedPaper = {
     url: 'https://github.com/example/project/blob/0123456789012345678901234567890123456789/Gap.lean',
     revision: '0123456789012345678901234567890123456789',
   },
-  pdf: { url: '/pdf' },
-  source: { url: '/source' },
+  pdf: { url: '/pdf', bytes: 1, sha256: 'a'.repeat(64) },
+  source: { url: '/source', bytes: 1, sha256: 'b'.repeat(64) },
 };
 export const dependencyKnowledge: CollectedKnowledge = {
   work: 'gap-note',

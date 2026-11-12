@@ -277,6 +277,7 @@ export type NewPaper = {
   purpose?: 'publication' | 'review_only';
   review_scope?: string;
   processing_consent?: string;
+  archive_consent?: string;
   kind?: SubmissionKind;
   make_public_after_acceptance?: boolean;
   typed_conjecture?: TypedConjecture;
@@ -358,6 +359,18 @@ export type PaperVersion = {
   macros: Record<string, string>;
   note: string;
   uploaded_at: string;
+  archive_consent?: {
+    marker: string;
+    at: string;
+    version: number;
+    source_sha256: string;
+  };
+  archive_record?: {
+    citation: { doi: string; concept_doi?: string };
+    pdf_sha256: string;
+    source_sha256: string;
+    checked_at: string;
+  };
 };
 
 export type SubmissionStatus =
@@ -689,6 +702,7 @@ export type PaperSummary = {
   abstract_text?: string;
   msc?: string[];
   doi?: string;
+  archive_consent?: boolean;
   basis?: AdmissionBasis;
   accepted_at?: string;
   main_results?: number;
@@ -711,8 +725,8 @@ export type CollectedPaper = {
   published_on: string;
   plain_language?: PlainLanguageText;
   lean?: { url: string; revision: string };
-  pdf: { url: string };
-  source: { url: string };
+  pdf: { url: string; bytes: number; sha256: string };
+  source: { url: string; bytes: number; sha256: string };
 };
 export type CollectedProof = {
   claim: string;
@@ -758,6 +772,15 @@ export type PublicPaper = {
   publication?: { version: number; claims_revision: number };
   origin?: ManuscriptOrigin;
   summary: PaperSummary;
+  archive?: {
+    licence: 'CC-BY-4.0' | string;
+    consent_time: string;
+    marker: string;
+    doi?: string | null;
+    concept_doi?: string | null;
+    pdf: { bytes: number; sha256: string; url: string };
+    source: { bytes: number; sha256: string; url: string };
+  };
   confirmed_error_reports?: number;
   versions?: { number: number; uploaded_at: string; has_pdf: boolean; source_is_pdf?: boolean }[];
   claims?: PublicClaim[];

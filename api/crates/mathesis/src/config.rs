@@ -129,6 +129,8 @@ impl std::fmt::Debug for CmaByokConfig {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub knowledge_index: Option<String>,
+    /// Public, credential-free archive DOI index committed by the publisher.
+    pub archive_index_url: Option<String>,
     pub review_concurrency: usize,
     pub cma_byok: Option<CmaByokConfig>,
     pub verifier_program: String,
@@ -614,8 +616,25 @@ impl Config {
             }
             Some(_) => bail!("WISHPOOL_CMA_BYOK_ENABLED must be true or false"),
         };
+        let archive_index_url = get("WISHPOOL_ARCHIVE_INDEX_URL")
+            .filter(|value| !value.trim().is_empty())
+            .map(|value| {
+                let url = Url::parse(&value).context("invalid WISHPOOL_ARCHIVE_INDEX_URL")?;
+                if url.scheme() != "https"
+                    || url.host_str().is_none()
+                    || !url.username().is_empty()
+                    || url.password().is_some()
+                    || url.query().is_some()
+                    || url.fragment().is_some()
+                {
+                    bail!("WISHPOOL_ARCHIVE_INDEX_URL must be an HTTPS URL without credentials, query or fragment");
+                }
+                Ok::<_, anyhow::Error>(value)
+            })
+            .transpose()?;
         Ok(Self {
             knowledge_index,
+            archive_index_url,
             cma_byok,
             verifier_program: get("WISHPOOL_VERIFIER_PROGRAM")
                 .unwrap_or_else(|| "mathesis-verifier".into()),
