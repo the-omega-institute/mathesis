@@ -177,9 +177,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.sdk == 'true'
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: sdk/contribute
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.95.0
@@ -187,10 +184,30 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: sdk/contribute
-      - run: cargo fmt --check
-      - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: cargo test --locked
+          workspaces: |
+            sdk/contribute
+            sdk/catalog
+      - name: Format every SDK package
+        run: |
+          set -euo pipefail
+          for package in sdk/*; do
+            [ -f "$package/Cargo.toml" ] || continue
+            (cd "$package" && cargo fmt --check)
+          done
+      - name: Lint every SDK package
+        run: |
+          set -euo pipefail
+          for package in sdk/*; do
+            [ -f "$package/Cargo.toml" ] || continue
+            (cd "$package" && cargo clippy --locked --all-targets -- -D warnings)
+          done
+      - name: Test every SDK package
+        run: |
+          set -euo pipefail
+          for package in sdk/*; do
+            [ -f "$package/Cargo.toml" ] || continue
+            (cd "$package" && cargo test --locked)
+          done
 
   web:
     name: Web (format, lint, types, tests, build, audit)

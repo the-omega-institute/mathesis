@@ -420,3 +420,4 @@ one row here.
 | §28 | Automatic collected-paper formalization | [`docs/contract/28-collected-formalization.md`](docs/contract/28-collected-formalization.md) | `layer2-core/src/app/collected_proofs.rs`, `mathesis/src/review/collected_proofs.rs`, `layer3-review/src/lean_environment.rs` |
 | §29 | Visible formalization pool | [`docs/contract/29-formalization-pool.md`](docs/contract/29-formalization-pool.md) | `layer2-core/src/app/formalization_directory.rs`, `web/src/pages/Formalizations.tsx` |
 | §30 | Published Lean evidence in the reader | [`docs/contract/30-published-lean-evidence.md`](docs/contract/30-published-lean-evidence.md) | paper, result and graph readers of collected Lean sources |
+| §31 | Public paper catalog projections | [`docs/contract/31-public-catalog.md`](docs/contract/31-public-catalog.md) | `sdk/catalog`, catalog/profile/paper-template projections |
