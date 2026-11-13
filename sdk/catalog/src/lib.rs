@@ -300,6 +300,7 @@ mod archive;
 mod check;
 mod cli;
 mod fetch;
+mod formalization;
 mod model;
 mod publishing;
 mod render;
@@ -337,3 +338,6 @@ impl Eq for Stats {}
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod formalization_tests;

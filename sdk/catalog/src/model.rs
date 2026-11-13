@@ -270,10 +270,16 @@ pub(crate) fn make_nodes(snapshot: &Snapshot) -> Result<Vec<Node>> {
         let proof = is_collected
             .then(|| proof_for(snapshot, &work, version, &claim))
             .flatten();
-        let status = proof
-            .as_ref()
-            .and_then(|p| text(p, "state"))
-            .unwrap_or_else(|| text(row, "status").unwrap_or_else(|| "preparing".into()));
+        // The directory chooses the winning receipt. Collected proofs also lists
+        // later checked attempts, which must not replace that winner's status.
+        let status = if row["target_digest"].is_string() {
+            text(row, "status").unwrap_or_else(|| "open".into())
+        } else {
+            proof
+                .as_ref()
+                .and_then(|p| text(p, "state"))
+                .unwrap_or_else(|| text(row, "status").unwrap_or_else(|| "preparing".into()))
+        };
         let mut receipt = row.get("receipt").cloned().filter(|v| !v.is_null());
         let mut basis = row.get("proof_basis").cloned().filter(|v| !v.is_null());
         if receipt.is_none() {
@@ -286,7 +292,12 @@ pub(crate) fn make_nodes(snapshot: &Snapshot) -> Result<Vec<Node>> {
                 .cloned();
         }
         if basis.is_none() {
-            basis = receipt.as_ref().and_then(|r| r.get("proof_basis")).cloned();
+            basis = proof
+                .as_ref()
+                .and_then(|p| p["proofs"].as_array())
+                .and_then(|a| a.first())
+                .and_then(|a| a.get("proof_basis"))
+                .cloned();
         }
         let target_digest = row
             .get("target_digest")

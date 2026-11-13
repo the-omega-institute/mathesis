@@ -1,0 +1,39 @@
+name: Projection integrity and target elaboration
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  projection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check generated hashes, exact sources and indexes
+        run: python3 scripts/check.py
+      - name: Install the pinned Lean toolchain in this job
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 https://github.com/leanprover/elan/releases/download/v4.2.1/elan-x86_64-unknown-linux-gnu.tar.gz -o "$RUNNER_TEMP/elan.tar.gz"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" toolchain install "$(cat lean-toolchain)"
+      - name: Fetch pinned Mathlib and its compiled cache
+        working-directory: ci/mathlib
+        run: lake exe cache get
+      - name: Compile each compatible target separately
+        run: python3 scripts/build.py targets
+      - name: State the checks performed
+        if: always()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'TEXT'
+          This job checks projection hashes, public source digests and indexes, then compiles compatible targets separately with pinned Mathlib. Historical targets with other pins are explicitly skipped.
+          It does not pull the reference GHCR image, build the prepared trureturing library, compile proof/disproof bundles, run the independent Mathesis verifier, establish target faithfulness or confer verification/credit.
+          TEXT

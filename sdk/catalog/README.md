@@ -13,7 +13,7 @@ mathesis-catalog snapshot \
 # Download frozen public files, checking every hash supplied by the projection.
 mathesis-catalog fetch --snapshot /tmp/mathesis-snapshot
 
-# Render the catalog, profile, paper trees and static template.
+# Render the catalog, profile, paper trees, formalization tree and static template.
 mathesis-catalog render --snapshot /tmp/mathesis-snapshot \
   --output /tmp/mathesis-output --organization example-mathesis \
   --site-base https://mathesis.example
@@ -44,8 +44,8 @@ receive no repository tree.
 
 `src/msc_labels.json` is a copied, package-local projection of the English
 MSC labels used by `web/src/data/theory-areas.json` at package creation time.
-The SDK does not read `web/` at build time and remains self-contained when
-copied elsewhere.
+The SDK does not read `web/` at build time. Source builds now use the full
+Mathesis checkout to cross-check the generated verifier pins against `infra/verifier/`.
 
 The renderer additionally produces `site/` for `papers.trureturing.org`,
 `catalog/archive-index.json` in the exact `mathesis.archive-index.v1` schema,
@@ -79,3 +79,48 @@ without a manifest still link their repository. The file is included in
 `.mathesis/rendered.json`. The Mathesis worker optionally consumes it through
 `WISHPOOL_MATERIALS_INDEX_URL` and exposes only the current public version's
 materials on the existing paper routes.
+
+
+## Formalization content repository
+
+The renderer also emits `formalization/`, the content for the organization's
+`formalization` repository. It is a projection; Mathesis records, independent
+verifier receipts and public leaderboards remain the authority. Repository PRs
+and CI confer no verification or credit.
+
+Snapshot additionally traverses research-problem pages and public curated
+details, downloads confirmed exact target text and all public verified attempts'
+bundles, and reads both all-time/all-entrants leaderboards. It validates source
+hashes, bundle identity, receipt/toolchain binding and extracted module names
+before atomic replacement. `raw/formalization.json` is mandatory for this
+renderer; take a new snapshot when upgrading from an older SDK.
+
+The tree has separate `targets/`, `curated/`, `proofs/` and `disproofs/` areas,
+`index/nodes.json`, `index/papers/<work>.json`, `index/curated.json`,
+`index/modules.json`, both leaderboard representations, build scripts and CI.
+Covered/new/open/no-target splits retain public declarations, exact pins and
+API reasons. Request-queue URL is defined; write-back request/state/revision
+remain null until public authority supplies them. Curator targets are explicitly
+not open for submission. Empty source areas still have explanatory READMEs.
+
+`verifier-pins.json` is generated, never edited by hand. After changing verifier
+inputs, run `python3 sdk/catalog/scripts/refresh-verifier-pins.py` from the
+Mathesis root. It obtains only small dependency locks/config metadata via
+anonymous GET and never downloads Mathlib sources. The SDK checks these pins
+against the source verifier files, and renders both a complete root Lake
+workspace and a Mathlib-only target workspace from them.
+
+From a generated clone, `python3 scripts/check.py` checks integrity without
+Lean. Prepare `ci/mathlib` with `lake exe cache get`, then use
+`python3 scripts/build.py targets` for compatible targets, separately.
+`python3 scripts/build.py <bundle-path> --workspace <prepared-workspace>`
+compiles one exact proof/disproof bundle with its recorded library pins. No
+aggregate import exists. CI checks integrity and compiles compatible targets;
+it does not build the prepared library, compile bundles or run the independent
+Mathesis verifier. Historical pin skips and check limits are explicit.
+
+The complete formalization tree is covered by `.mathesis/rendered.json` and
+`check`, which independently recomputes its counts/source bindings. See
+[FORMALIZATION_REPOSITORY.md](../../docs/FORMALIZATION_REPOSITORY.md) for the
+schemas, anonymous image probe, real snapshot, commands, publisher handoff and
+the design-only next package splitting SolveFile stores.

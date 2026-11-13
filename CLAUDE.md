@@ -427,3 +427,4 @@ one row here.
 | §31 | Public paper catalog projections | [`docs/contract/31-public-catalog.md`](docs/contract/31-public-catalog.md) | `sdk/catalog`, catalog/profile/paper-template projections |
 | §32 | Accepted author-paper archive | [`docs/contract/32-paper-archive.md`](docs/contract/32-paper-archive.md) | archive consent, public paper projection, verified DOI and archive-index discovery |
 | §33 | Paper materials on public pages | [`docs/contract/33-paper-materials.md`](docs/contract/33-paper-materials.md) | materials index, worker discovery, exact-version sidecar and public paper readers |
+| §34 | Public formalization content repository | [`docs/contract/34-formalization-repository.md`](docs/contract/34-formalization-repository.md) | `sdk/catalog` formalization snapshot/rendering, formalization publisher and build projections |
