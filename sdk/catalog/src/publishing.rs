@@ -340,7 +340,11 @@ pub(crate) fn render_site(
     }
     write!(
         body,
-        "</ul><p>{} · {}</p>",
+        "</ul><p>{} · {} · {}</p>",
+        link(
+            &format!("https://github.com/{org}/formalization"),
+            "Formalization repository"
+        ),
         link(&format!("https://github.com/{org}/catalog"), "Full catalog"),
         link(mathesis, "Mathesis")
     )?;

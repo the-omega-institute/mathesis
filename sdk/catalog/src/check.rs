@@ -46,6 +46,7 @@ pub fn check(output: &Path) -> Result<()> {
             serde_json::to_string(&actual)?
         )));
     }
+    super::formalization::check_output(output)?;
     Ok(())
 }
 fn compute_stats_for_render(works: &[Work], nodes: &[Node], snapshot_time: &str) -> Stats {

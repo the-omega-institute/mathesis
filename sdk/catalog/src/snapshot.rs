@@ -101,6 +101,7 @@ pub fn snapshot(api_base: &str, output: &Path) -> Result<SnapshotMeta> {
                 "directory/proofs node mismatch; missing directory={missing:?}, extra directory={extra:?}"
             )));
         }
+        super::formalization::collect(&client, &api_base, &temp, &opportunities, &mut listings)?;
         let captured_at = chrono_like_now();
         let meta = SnapshotMeta {
             schema_version: SNAPSHOT_SCHEMA.into(),

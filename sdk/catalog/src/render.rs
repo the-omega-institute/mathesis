@@ -438,6 +438,14 @@ pub fn render_with_materials(
             write_json(&dir.join(".mathesis/generated.json"), &manifest)?;
         }
         render_template(&temp.join("template"), site_base)?;
+        super::formalization::render(
+            &snapshot,
+            &temp.join("formalization"),
+            &works,
+            &nodes,
+            site_base,
+        )?;
+        super::formalization::check_output(&temp)?;
         let mut hashes = BTreeMap::new();
         collect_files(&temp, &temp, &mut hashes, false)?;
         write_json(
@@ -579,7 +587,7 @@ fn profile_readme(
     }
     writeln!(
         s,
-        "\n[Full catalog](https://github.com/{org}/catalog) · [Mathesis site]({}) · [Formalization directory]({}/formalizations)",
+        "\n[Full catalog](https://github.com/{org}/catalog) · [Formalization repository](https://github.com/{org}/formalization) · [Mathesis site]({}) · [Formalization directory]({}/formalizations)",
         normalize_base(site),
         normalize_base(site)
     )?;

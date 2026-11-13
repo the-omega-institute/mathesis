@@ -1,6 +1,6 @@
 use super::*;
 use std::io::Write;
-fn temp(name: &str) -> PathBuf {
+pub(crate) fn temp(name: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!(
         "mathesis-catalog-test-{name}-{}",
         std::process::id()
@@ -9,6 +9,7 @@ fn temp(name: &str) -> PathBuf {
         fs::remove_dir_all(&p).unwrap();
     }
     fs::create_dir_all(&p).unwrap();
+    write_json(&p.join("raw/formalization.json"), &json!({"schema":"mathesis.formalization-snapshot.v1","pins":formalization::pins().unwrap(),"targets":[],"bundles":[],"curated":[],"leaderboards":{"formalizations":[],"conjectures":[]}})).unwrap();
     p
 }
 #[test]
@@ -42,7 +43,7 @@ fn license_is_official_and_stable() {
     );
 }
 
-fn mock_server<F>(
+pub(crate) fn mock_server<F>(
     handler: F,
 ) -> (
     String,
@@ -75,14 +76,31 @@ where
                     {
                         let mut chunk = [0u8; 4096];
                         match stream.read(&mut chunk) {
+                            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
                             Ok(0) | Err(_) => break,
                             Ok(n) => request.extend_from_slice(&chunk[..n]),
                         }
                     }
+                    // Do not turn an interrupted/closed preconnection into a
+                    // misleading HTTP 404 for an incomplete request.
+                    if !request.windows(4).any(|part| part == b"\r\n\r\n") {
+                        continue;
+                    }
                     let request_text = String::from_utf8_lossy(&request).into_owned();
                     let first = request_text.lines().next().unwrap_or("");
                     let path = first.split_whitespace().nth(1).unwrap_or("");
-                    let (status, body) = handler(path);
+                    let (mut status, mut body) = handler(path);
+                    if status == 404
+                        && (path.starts_with("/api/v1/research-problems?")
+                            || path.starts_with("/api/v1/leaderboard"))
+                    {
+                        status = 200;
+                        body = if path.starts_with("/api/v1/leaderboard") {
+                            b"[]".to_vec()
+                        } else {
+                            br#"{"items":[],"next_before":null}"#.to_vec()
+                        };
+                    }
                     let reason = if status == 200 { "OK" } else { "Bad Request" };
                     let head = format!(
                         "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n",

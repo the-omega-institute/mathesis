@@ -11,6 +11,7 @@ GitHub organization `mathesis-papers` (display name Mathesis). Its repositories 
 - `.github`, containing the organization profile README;
 - `catalog`, containing `works.json`, `nodes.json`, `stats.json` and snapshot metadata;
 - `paper-template`, containing the static tree used by each paper repository;
+- `formalization`, the organization's own exact-target, verified-bundle, curator-target and leaderboard projection;
 - the shared Lean library, currently `the-omega-institute/trureturing` at the
   revision named by each public source link.
 
@@ -87,9 +88,10 @@ checked DOI and concept DOI when present, license, citation, version and stateme
 Authors and formalization contributors are separate. `formalization/` maps
 statements to evidence; it does not copy the shared library. A paper-specific
 Lean environment appears only when the library lacks required Lean, and its
-pins come from the verifier environment. The generator does not emit
-`lean-toolchain`, `lakefile.toml`, `lake-manifest.json` or a `Paper/` directory
-for the current phase. `LICENSES/CC-BY-4.0.txt` is the official Creative
+pins come from the verifier environment. Per-paper trees do not emit `lean-toolchain`, `lakefile.toml`,
+`lake-manifest.json` or a `Paper/` directory. The separate organization
+`formalization` tree does emit the verifier-derived environment and exact
+standalone modules; its compilation does not confer verification or credit. `LICENSES/CC-BY-4.0.txt` is the official Creative
 Commons legal code. `paper.json` has `files.pdf` and `files.source` objects with `path`, `bytes`,
 `sha256`, `public_sha256`, and nullable `matches_public`; it does not embed the
 statement nodes. Generated manifests list generated paths and SHA-256 values.
@@ -197,6 +199,13 @@ from `paper-template`; Pages uses workflow mode and one issue carries the
 layer's reading/media checklist. Template provenance and imported paper identity
 make retries safe across partial setup. Existing populated books are preserved;
 new paper versions require reviewed projection/book updates, not another fill.
+
+The `formalization/` tree is staged, checked and sealed with the catalog. It syncs
+to the existing public `formalization` repository; it is not created by this
+publisher. Generated source/index/environment namespaces and the generated
+workflow/scripts are managed, and unrelated files remain. Profile and org site
+link it. See [FORMALIZATION_REPOSITORY.md](FORMALIZATION_REPOSITORY.md) and §34
+for its exact byte, pin, scope and CI contracts.
 
 Catalog files are committed to `catalog`, profile README to `.github`, and the
 site to `mathesis-papers.github.io`, retaining `CNAME` and unrelated repository
