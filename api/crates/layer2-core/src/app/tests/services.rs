@@ -311,6 +311,7 @@ async fn staff_can_retry_a_settled_failed_private_review_without_rewriting_histo
     );
     for update in [
         RoundUpdate::Advice(done_step(Advice {
+            value: None,
             summary: "Clarify the hypotheses.".into(),
             improvements: vec![],
             formalization: vec![],
@@ -570,6 +571,7 @@ async fn private_review_has_no_publication_and_retains_evidence_through_revision
     ));
     for update in [
         RoundUpdate::Advice(done_step(Advice {
+            value: None,
             summary: "Fix the zero case.".into(),
             improvements: vec![],
             formalization: vec![],

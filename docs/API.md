@@ -469,19 +469,43 @@ recommendations, not author-approved work, proof receipts or public credit.
 The client matches candidates to proved claims of the current source version.
 
 After same-round letter delivery and completed audit/advice, `research_suggestions`
-projects each nonempty improvement as `{claim?, kind, suggestion, excerpt}`. Suggestion
-text is limited to 6,000 Unicode characters per item, with explicit truncation status.
-It omits the internal recommendation summary, execution evidence, contributor promises,
-sketches and provider metadata. No storage migration or re-review is required.
+projects each nonempty improvement as `{claim?, kind, suggestion, progress, status, excerpt}`,
+plus optional `rank`, `target_statement`, `feasibility`, `risk` and `prior_work` below.
+Suggestion and bounded completed-progress text are limited to 6,000 Unicode characters
+per item; `excerpt` records suggestion truncation. New target fields are preserved whole
+from sanitized advice (oversized fields are dropped before storage). The projection
+omits the internal summary, staff-only `value` reading, execution evidence, sketches
+and provider metadata. Its delivery and selection rules are unchanged. The detailed
+author report and Markdown download include the target fields in rank order; the short
+preview keeps its existing whole-sentence limits. No storage migration or re-review is required.
 
-New rounds pin `letter_contract: 3`: mathematical sections use Review analysis,
+New rounds pin `letter_contract: 4`: mathematical sections use Review analysis,
 Suggestions and Further directions. The author interface supplies the fixed opening
 from the applied submission state and visibility; a private review has no publication
 verdict. Pending submissions have no author report or report download, even if an
 internal letter exists. Staff still receive the full original history. Completed legacy
 reports use saved mathematical findings and the delivered suggestions projection;
 new reports use the three authored mathematical sections. The download matches the
-rendered document. Contracts 0/1/2 and running rounds keep their original prompt bytes.
+rendered document. Contracts 0/1/2/3 retain their original letter instruction bytes. Contract 4
+leads directions with the rank-1 item and records each target's prior-work finding
+and reported opened source in the note, without claiming venue-verified novelty.
+
+Advice never issues another novelty verdict on the manuscript's main results,
+nor changes or restates the decision. Every proposed or newly proved strengthening
+is checked as an exact target before listing; known/specialized targets become
+literature items. Weak quantitative constants are presented as conservative
+certificates, with proof placement advice. `not_located` is scoped search reporting,
+not a novelty claim. The binary drops unknown verdicts and positive findings without
+a valid reported `[opened: …]` source. All new free-text fields are bounded at 10,000
+Unicode characters, with source/location limited to 2,000; oversized fields or
+objects are dropped whole and reported in the existing advice summary. Invalid
+claim references are dropped. Absent fields stay absent on legacy JSON round trips.
+
+Advice instruction bytes are not version-pinned. The current template is rebuilt;
+a saved CMA input digest rejects changed bytes, preserving the existing behavior.
+Exact saved mutation intents and delivery framing remain durable, and completed
+advice is unchanged. Pending advice not yet admitted uses the current instructions,
+even for an older round. No new advice or delivery pin is introduced.
 
 Editors may still post additional letters. Posting stores subject, body and note
 as an in-app message. Body must have non-whitespace text; body/note are limited
@@ -515,7 +539,7 @@ type RefereeView = {
 };
 type RefereeRound = {
   letter_contract?: number;
-  research_suggestions?: { claim?: string; kind: ImprovementKind; suggestion: string; excerpt: boolean }[];
+  research_suggestions?: (ImprovementTarget & { claim?: string; kind: ImprovementKind; suggestion: string; progress: string; status: "checked" | "proposed"; excerpt: boolean })[];
   formalization_suggestions?: { claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
   number: number;                   // 1-based, increases on restart
   version: number;                  // the paper version reviewed
@@ -600,9 +624,26 @@ type RefereeAudit = {
 type AuthorProbe = {
   attempts: { claim: string; outcome: "compiled" | "failed"; theorem?: string | null }[];
 };
+type TargetPriorWork = {
+  verdict: "known" | "specialization_of" | "related" | "not_located";
+  source?: string;                  // Title [opened: https://…], [opened: DOI:…] or [opened: arXiv:…]
+  location?: string;                // theorem/equation/page; required for positive findings
+  note: string;                    // relation to this exact target; actual search scope for not_located
+};
+type ImprovementTarget = {
+  rank?: number;                    // positive ordering, normalized to strict 1..n; no score
+  target_statement?: string;        // complete hypotheses, quantifiers and conclusion
+  feasibility?: string;             // what is in hand and missing
+  risk?: string;                    // likely failure or existing-result overlap
+  prior_work?: TargetPriorWork;     // reported target check, never venue-verified novelty
+};
 type Advice = {
+  value?: {                        // staff only; advisor's reading consistent with supplied audit
+    significance: string;          // one or two sentences; what remains if main results are known
+    weakest_point: { text: string; claim: string | null };
+  };
   summary: string;                  // also names dropped unusable outputs
-  improvements: {
+  improvements: (ImprovementTarget & {
     claim?: string | null;          // null for a paper-wide suggestion
     kind: "gap" | "strengthen" | "generalize" | "computation" | "literature" | "exposition";
     suggestion: string;
@@ -610,7 +651,7 @@ type Advice = {
     effort: "small" | "medium" | "large";
     status: "checked" | "proposed"; // advisor-reported evidence standing
     evidence: string;              // checked work/outcome; empty for proposed work
-  }[];
+  })[];
   formalization: {
     claim: string;                  // proved statements only
     feasibility: "ready" | "needs_library" | "hard";
@@ -1154,12 +1195,12 @@ the same author/staff access policy as the private submission. My work uses this
 small projection and distinguishes loading, request errors and an interrupted
 review. Details continue using the saved private referee view.
 
-New rounds pin `letter_contract: 3`, using final Mathesis report language:
+New rounds pin `letter_contract: 4`, using final Mathesis report language:
 accepted work describes contributions and extensions; refused work states the
 applied reasons. Private reviews have no publication verdict. The automatic
 letter assessment follows the actual publication decision, never the internal
 minor/major revision recommendation. Historical reports are immutable and
-contracts 0/1/2 retain their original prompt bytes for retries.
+contracts 0/1/2/3 retain their original letter instruction bytes for retries.
 
 ### Versioned downstream manuscripts
 

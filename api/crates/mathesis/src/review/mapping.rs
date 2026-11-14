@@ -791,13 +791,60 @@ pub(crate) fn referee_out(
     serde_json::from_value(serde_json::to_value(report).unwrap_or_default()).unwrap_or_default()
 }
 
+// Keep exact mathematical statements intact. As with structured audit readings,
+// omit oversize fields rather than cutting off hypotheses or conclusions.
+const MAX_ADVICE_TEXT_CHARS: usize = 10_000;
+const MAX_ADVICE_LOCATION_CHARS: usize = 2_000;
+
+fn advice_text(raw: Option<String>, dropped: &mut usize) -> Option<String> {
+    raw.filter(|text| {
+        let usable = !text.trim().is_empty() && text.chars().count() <= MAX_ADVICE_TEXT_CHARS;
+        if !usable {
+            *dropped += 1;
+        }
+        usable
+    })
+}
+
+fn target_prior_work(
+    raw: mathesis_review::referee_prompts::TargetPriorWorkOut,
+) -> Option<mathesis_core::model::TargetPriorWork> {
+    use mathesis_core::model::{TargetPriorWork, TargetPriorWorkVerdict as Verdict};
+    let verdict = match raw.verdict.as_str() {
+        "known" => Verdict::Known,
+        "specialization_of" => Verdict::SpecializationOf,
+        "related" => Verdict::Related,
+        "not_located" => Verdict::NotLocated,
+        _ => return None,
+    };
+    if raw.note.trim().is_empty()
+        || raw.note.chars().count() > MAX_ADVICE_TEXT_CHARS
+        || raw
+            .source
+            .as_ref()
+            .is_some_and(|source| !super::sources::reported_work(source))
+        || raw.location.as_ref().is_some_and(|location| {
+            location.trim().is_empty() || location.chars().count() > MAX_ADVICE_LOCATION_CHARS
+        })
+        || (verdict != Verdict::NotLocated && (raw.source.is_none() || raw.location.is_none()))
+    {
+        return None;
+    }
+    Some(TargetPriorWork {
+        verdict,
+        source: raw.source,
+        location: raw.location,
+        note: raw.note,
+    })
+}
+
 pub(crate) fn advice(
     raw: mathesis_review::referee_prompts::AdviceOut,
     claims: &[Claim],
 ) -> mathesis_core::model::Advice {
     use mathesis_core::model::{
-        Advice, Effort, Feasibility, FormalizationCandidate, Improvement,
-        ImprovementEvidence as Evidence, ImprovementKind,
+        Advice, AdviceValue, Effort, Feasibility, FormalizationCandidate, Improvement,
+        ImprovementEvidence as Evidence, ImprovementKind, WeakestPoint,
     };
     let effort = |value: &str| match value {
         "small" => Some(Effort::Small),
@@ -809,6 +856,29 @@ pub(crate) fn advice(
     let mut formalization = Vec::new();
     let mut dropped = 0;
     let mut omitted_proposal_evidence = 0;
+    let value = raw.value.and_then(|value| {
+        if value
+            .weakest_point
+            .claim
+            .as_ref()
+            .is_some_and(|id| !claims.iter().any(|claim| claim.id.as_str() == id))
+            || value.significance.trim().is_empty()
+            || value.significance.chars().count() > MAX_ADVICE_TEXT_CHARS
+            || value.weakest_point.text.trim().is_empty()
+            || value.weakest_point.text.chars().count() > MAX_ADVICE_TEXT_CHARS
+        {
+            dropped += 1;
+            return None;
+        }
+        Some(AdviceValue {
+            significance: value.significance,
+            weakest_point: WeakestPoint {
+                text: value.weakest_point.text,
+                claim: value.weakest_point.claim.map(ClaimId),
+            },
+        })
+    });
+    let mut ranked = Vec::new();
     for item in raw.improvements {
         if item
             .claim
@@ -849,7 +919,26 @@ pub(crate) fn advice(
         if status == Evidence::Proposed && !item.evidence.is_empty() {
             omitted_proposal_evidence += 1;
         }
+        if let Some(rank) = item.rank {
+            if rank > 0 {
+                ranked.push((rank, improvements.len()));
+            } else {
+                dropped += 1;
+            }
+        }
+        let prior_work = item.prior_work.and_then(|raw| {
+            let mapped = target_prior_work(raw);
+            if mapped.is_none() {
+                dropped += 1;
+            }
+            mapped
+        });
         improvements.push(Improvement {
+            rank: None,
+            target_statement: advice_text(item.target_statement, &mut dropped),
+            feasibility: advice_text(item.feasibility, &mut dropped),
+            risk: advice_text(item.risk, &mut dropped),
+            prior_work,
             claim: item.claim.map(ClaimId),
             kind,
             suggestion: item.suggestion,
@@ -862,6 +951,12 @@ pub(crate) fn advice(
                 String::new()
             },
         });
+    }
+    // Original index breaks ties; unranked items keep their original position
+    // and remain unranked. Gaps (including ranks of dropped items) disappear.
+    ranked.sort_by_key(|&(rank, index)| (rank, index));
+    for (ordinal, (_, index)) in ranked.into_iter().enumerate() {
+        improvements[index].rank = Some((ordinal + 1) as u32);
     }
     for item in raw.formalization {
         let Some(claim) = claims
@@ -897,7 +992,7 @@ pub(crate) fn advice(
     let mut summary = raw.summary;
     if dropped > 0 {
         summary.push_str(&format!(
-            " {dropped} unusable improvement or formalization candidate(s) dropped."
+            " {dropped} unusable advice field(s), improvement(s) or formalization candidate(s) dropped."
         ));
     }
     if omitted_proposal_evidence > 0 {
@@ -905,6 +1000,7 @@ pub(crate) fn advice(
     }
     Advice {
         summary,
+        value,
         improvements,
         formalization,
     }
@@ -1706,5 +1802,158 @@ mod response_assessment_tests {
             assert!(result[0].evidence.is_empty());
         }
         assert!(map_response_assessments(&[valid], None).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod advice_target_tests {
+    use super::*;
+    use mathesis_review::referee_prompts::AdviceOut;
+    use serde_json::{Value, json};
+
+    fn mapped(fields: Value) -> mathesis_core::model::Advice {
+        let mut item = json!({"kind":"generalize", "suggestion":"Prove the target.", "effort":"medium", "status":"proposed"});
+        item.as_object_mut()
+            .unwrap()
+            .extend(fields.as_object().unwrap().clone());
+        let raw: AdviceOut = serde_json::from_value(json!({"improvements":[item]})).unwrap();
+        advice(raw, &[])
+    }
+
+    fn prior(verdict: &str) -> Value {
+        json!({"verdict":verdict, "source":"Bound [opened: https://example.org/bound]", "location":"Theorem 2", "note":"The finite specialization; the infinite case differs."})
+    }
+
+    #[test]
+    fn normalizes_ranks_after_drops_with_stable_ties_and_unranked_items() {
+        let mut items: Vec<Value> = [Some(7_i64), Some(2), Some(2), None, Some(0), Some(-1), Some(i64::MAX)]
+            .into_iter().map(|rank| json!({"kind":"generalize", "suggestion":"Target", "effort":"small", "status":"proposed", "rank":rank})).collect();
+        items.insert(0, json!({"kind":"invented", "rank":1}));
+        let raw: AdviceOut = serde_json::from_value(json!({"improvements":items})).unwrap();
+        let result = advice(raw, &[]);
+        assert_eq!(
+            result
+                .improvements
+                .iter()
+                .map(|i| i.rank)
+                .collect::<Vec<_>>(),
+            vec![Some(3), Some(1), Some(2), None, None, None, Some(4)]
+        );
+        assert!(result.summary.contains("3 unusable"));
+    }
+
+    #[test]
+    fn accepts_only_reported_opened_sources_for_positive_findings() {
+        for verdict in ["known", "specialization_of", "related"] {
+            let result = mapped(json!({"prior_work":prior(verdict)}));
+            assert!(result.improvements[0].prior_work.is_some());
+            assert_eq!(
+                advice_out(&result).improvements[0]
+                    .prior_work
+                    .as_ref()
+                    .unwrap()
+                    .verdict,
+                verdict
+            );
+            for source in [
+                Value::Null,
+                json!("Unopened source"),
+                json!("[opened: https://example.org/bound]"),
+                json!("Bound [opened: invalid]"),
+                json!("Bound [opened: https://example.org/bound"),
+            ] {
+                let mut check = prior(verdict);
+                check["source"] = source;
+                let result = mapped(json!({"prior_work":check}));
+                assert!(result.improvements[0].prior_work.is_none());
+                assert!(result.summary.contains("1 unusable"));
+            }
+        }
+    }
+
+    #[test]
+    fn accepts_doi_arxiv_and_scoped_nonfindings_but_drops_unknown_verdicts() {
+        for source in [
+            "Bound [opened: DOI:10.1000/example]",
+            "Bound [opened: arXiv:2401.00001]",
+        ] {
+            let mut check = prior("related");
+            check["source"] = json!(source);
+            assert!(
+                mapped(json!({"prior_work":check})).improvements[0]
+                    .prior_work
+                    .is_some()
+            );
+        }
+        let result = mapped(
+            json!({"prior_work":{"verdict":"not_located", "note":"Searched arXiv for compact operator bounds; inaccessible older monographs remain unchecked."}}),
+        );
+        assert!(result.improvements[0].prior_work.is_some());
+        let result = mapped(json!({"prior_work":prior("novel")}));
+        assert!(result.improvements[0].prior_work.is_none());
+        assert!(result.summary.contains("1 unusable"));
+    }
+
+    #[test]
+    fn drops_oversize_new_text_whole_and_reports_every_omission() {
+        let long = "数学".repeat(5_001);
+        for field in ["target_statement", "feasibility", "risk"] {
+            let result = mapped(json!({field:long}));
+            let output = serde_json::to_value(&result.improvements[0]).unwrap();
+            assert!(output.get(field).is_none());
+            assert!(result.summary.contains("1 unusable"));
+            assert!(
+                serde_json::to_value(&mapped(json!({field:"数".repeat(10_000)})).improvements[0])
+                    .unwrap()
+                    .get(field)
+                    .is_some()
+            );
+        }
+        for (field, limit) in [("source", 2_000), ("location", 2_000), ("note", 10_000)] {
+            let mut check = prior("related");
+            check[field] = json!("数".repeat(limit + 1));
+            let result = mapped(json!({"prior_work":check}));
+            assert!(result.improvements[0].prior_work.is_none());
+            assert!(result.summary.contains("1 unusable"));
+        }
+    }
+
+    #[test]
+    fn value_is_bounded_and_its_claim_must_exist() {
+        let claim = Claim {
+            id: "C1".into(),
+            kind: mathesis_core::model::ClaimKind::Theorem,
+            label: "Theorem 1".into(),
+            latex_label: None,
+            statement: "True".into(),
+            role: ClaimRole::Main,
+            has_proof: true,
+            section: None,
+            depends_on: vec![],
+            settles: None,
+        };
+        let good = json!({"significance":"A readable argument remains.", "weakest_point":{"text":"The constant is too small for practice.", "claim":"C1"}});
+        let run = |value: Value| {
+            advice(
+                serde_json::from_value(json!({"value":value})).unwrap(),
+                std::slice::from_ref(&claim),
+            )
+        };
+        assert!(run(good.clone()).value.is_some());
+        let mut paper_wide = good.clone();
+        paper_wide["weakest_point"]["claim"] = Value::Null;
+        assert!(run(paper_wide).value.is_some());
+        for bad in [
+            json!({"significance":"Insight", "weakest_point":{"text":"Issue", "claim":"C99"}}),
+            json!({"significance":"数".repeat(10_001), "weakest_point":{"text":"Issue"}}),
+            json!({"significance":"Insight", "weakest_point":{"text":"数".repeat(10_001)}}),
+        ] {
+            let result = run(bad);
+            assert!(result.value.is_none());
+            assert!(result.summary.contains("1 unusable"));
+        }
+        let result = mapped(json!({"claim":"C99"}));
+        assert!(result.improvements.is_empty());
+        assert!(result.summary.contains("1 unusable"));
     }
 }

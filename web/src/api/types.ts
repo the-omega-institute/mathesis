@@ -88,7 +88,20 @@ export type RefereeReport = {
   limits: string[];
   text: string;
 };
-export type Improvement = {
+export type TargetPriorWork = {
+  verdict: 'known' | 'specialization_of' | 'related' | 'not_located';
+  source?: string;
+  location?: string;
+  note: string;
+};
+export type ImprovementTarget = {
+  rank?: number;
+  target_statement?: string;
+  feasibility?: string;
+  risk?: string;
+  prior_work?: TargetPriorWork;
+};
+export type Improvement = ImprovementTarget & {
   claim?: string;
   kind: ImprovementKind;
   suggestion: string;
@@ -108,6 +121,10 @@ export type FormalizationCandidate = {
 };
 export type Advice = {
   summary: string;
+  value?: {
+    significance: string;
+    weakest_point: { text: string; claim: string | null };
+  };
   improvements: Improvement[];
   formalization: FormalizationCandidate[];
 };
@@ -149,14 +166,14 @@ export type RefereeRound = {
   waiting_since?: string;
   letter_contract?: number;
   formalization_suggestions?: FormalizationSuggestion[];
-  research_suggestions?: {
+  research_suggestions?: (ImprovementTarget & {
     claim?: string;
     kind: ImprovementKind;
     suggestion: string;
     progress?: string;
     status?: ImprovementEvidence;
     excerpt: boolean;
-  }[];
+  })[];
   computation_contract?: number;
   computation_receipts?: ComputationReceipt[];
   knowledge_contract?: number;

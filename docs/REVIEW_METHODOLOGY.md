@@ -110,3 +110,31 @@ This change does not provision a CMA sandbox, enable live model service or alter
 identity/payer selection. Deployment still requires usable company-managed CMA
 resources and Oracle access. GitHub Pages is a separate static project showcase;
 the actual review application needs its backend and database.
+
+## Advice: value and checked targets
+
+Advice gives the advisor's reading of what a specialist learns and the single
+weakest point, consistently with the supplied audit. If main results are known,
+it says what remains. The manuscript's novelty reading stays with the referee and
+source audit; advice neither repeats that verdict nor restates or changes the decision.
+
+Each proposed or newly proved strengthening is stated with exact hypotheses,
+quantifiers and conclusion, then checked against opened literature before listing.
+The target's reported finding is `known`, `specialization_of`, `related` or
+`not_located`, with source, theorem/equation/page and a precise comparison.
+Known targets and specializations are literature connections. A nonfinding states
+actual search scope and limits; it never asserts novelty. Sources are reported by
+the model, never independently verified by Mathesis. Feasibility says what is in
+hand and missing; risk identifies the most likely failure or prior-work overlap.
+Positive ranks order value without a scalar score, with one rank-1 addition when
+a grounded direction exists. Constants too weak for practical use are described
+as conservative certificates, with a recommendation on proof placement.
+
+Value stays staff-only. Delivered author research suggestions gain only the
+optional ranked target fields for the improvements already selected there. The
+binary bounds new strings, checks claim identities, drops invalid verdicts and
+unopened evidence, and names omissions in the advice summary. Old advice JSON
+omits absent new fields unchanged. Letter contract 4 adds rank-first directions
+and target comparisons in the note; letter contracts 0–3 retain their instructions.
+Advice instructions have no version pin: saved CMA digests reject changed inputs;
+not-yet-admitted advice uses the current template. This existing behavior remains.

@@ -1,5 +1,6 @@
 import type {
   Advice,
+  ImprovementTarget,
   FeedbackLetter,
   FormalProbe,
   LetterDraft,
@@ -186,4 +187,17 @@ export const queuedRound: RefereeRound = {
   advice: { attempts: 0, state: { state: 'pending' } },
   formal: { attempts: 0, state: { state: 'pending' } },
   letter: { attempts: 0, state: { state: 'pending' } },
+};
+
+export const checkedTarget: ImprovementTarget = {
+  rank: 1,
+  target_statement: 'For every compact operator $T$, the bound holds uniformly in $n$.',
+  feasibility: 'The finite case is in hand; the uniform limit remains.',
+  risk: 'The estimate may fail without compactness.',
+  prior_work: {
+    verdict: 'related',
+    source: 'Finite bound [opened: https://example.org/finite-bound]',
+    location: 'Theorem 2, page 4',
+    note: 'The opened result covers finite dimension only.',
+  },
 };

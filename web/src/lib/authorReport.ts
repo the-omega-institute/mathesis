@@ -1,3 +1,4 @@
+import { rankedImprovements, researchTargetsText } from './adviceTargets';
 import type { FeedbackLetter, RefereeRound, RejectReason, Submission } from '../api/types';
 import { formalizationAdvice, formalizationAdviceText } from './formalizationAdvice';
 import { manuscriptReferences, resultLabel } from './statements';
@@ -138,8 +139,8 @@ export function authorReport(
     )
     .join('\n\n');
   const suggestions = (research: boolean) =>
-    round.research_suggestions
-      ?.filter((item) => ['strengthen', 'generalize'].includes(item.kind) === research)
+    rankedImprovements(round.research_suggestions ?? [])
+      .filter((item) => ['strengthen', 'generalize'].includes(item.kind) === research)
       .map(
         (item) =>
           `- ${item.suggestion}${item.excerpt ? '\n\n  This is an excerpt of the suggestion.' : ''}`,
@@ -160,6 +161,7 @@ export function authorReport(
     authored && letter.note.trim()
       ? `## Supporting analysis\n\n${manuscriptReferences(letter.note, s.claims)}`
       : '',
+    researchTargetsText(s, round),
     formalizationAdviceText(s, round),
   ]
     .filter(Boolean)
@@ -228,9 +230,12 @@ export function authorReportPreview(
     exposition: 2,
     computation: 3,
   };
-  const improvements = (round.research_suggestions ?? [])
+  const improvements = rankedImprovements(round.research_suggestions ?? [])
     .filter((item) => !['strengthen', 'generalize'].includes(item.kind))
-    .sort((a, b) => priorities[a.kind]! - priorities[b.kind]!);
+    .sort(
+      (a, b) =>
+        (a.rank ?? Infinity) - (b.rank ?? Infinity) || priorities[a.kind]! - priorities[b.kind]!,
+    );
   const concise = (text: string) =>
     text.trim().split(/\s+/).length <= 85 &&
     !internalOrOutcome.test(text) &&
@@ -245,11 +250,11 @@ export function authorReportPreview(
   const suggestions = (improvements.length ? improvements.map((item) => item.suggestion) : concerns)
     .filter(concise)
     .slice(0, 3);
-  const proposedDirections = (round.research_suggestions ?? [])
+  const proposedDirections = rankedImprovements(round.research_suggestions ?? [])
     .filter((item) => ['strengthen', 'generalize'].includes(item.kind) && concise(item.suggestion))
     .slice(0, 2)
     .map((item) => item.suggestion);
-  const checkedProgress = (round.research_suggestions ?? [])
+  const checkedProgress = rankedImprovements(round.research_suggestions ?? [])
     .filter((item) => item.status === 'checked' && item.progress && concise(item.suggestion))
     .slice(0, 3)
     .map((item) => {

@@ -1598,8 +1598,25 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
             .is_err()
     );
     let advice = done_step(Advice {
+        value: Some(AdviceValue {
+            significance: "STAFF_ONLY_VALUE_READING".into(),
+            weakest_point: WeakestPoint {
+                text: "Uniformity is unclear.".into(),
+                claim: Some(paper.claims[0].id.clone()),
+            },
+        }),
         summary: "help".into(),
         improvements: vec![Improvement {
+            rank: Some(1),
+            target_statement: Some("For every sequence satisfying H, the bound B holds.".into()),
+            feasibility: Some("Finite case in hand; limiting argument missing.".into()),
+            risk: Some("The bound may fail without compactness.".into()),
+            prior_work: Some(TargetPriorWork {
+                verdict: TargetPriorWorkVerdict::Related,
+                source: Some("Earlier bound [opened: https://example.org/bound]".into()),
+                location: Some("Theorem 2".into()),
+                note: "Only finite sequences are covered.".into(),
+            }),
             claim: Some(paper.claims[0].id.clone()),
             kind: ImprovementKind::Generalize,
             suggestion: "Study the same bound without the finiteness assumption.".into(),
@@ -1682,7 +1699,7 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
     let before_letter = w.app.referee(&author, &paper.id).await.unwrap();
     assert!(before_letter.rounds[0].formalization_suggestions.is_none());
     assert!(before_letter.rounds[0].research_suggestions.is_none());
-    assert_eq!(before_letter.rounds[0].letter_contract, 3);
+    assert_eq!(before_letter.rounds[0].letter_contract, 4);
     let file = w
         .app
         .update_referee_round(&auditor, &paper.id, 1, RoundUpdate::Letter(letter.clone()))
@@ -1736,6 +1753,28 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
     assert_eq!(research["progress"], "private contributor plan");
     assert_eq!(research["status"], "proposed");
     assert_eq!(research["excerpt"], false);
+    assert_eq!(research["rank"], 1);
+    assert_eq!(
+        research["target_statement"],
+        "For every sequence satisfying H, the bound B holds."
+    );
+    assert_eq!(
+        research["feasibility"],
+        "Finite case in hand; limiting argument missing."
+    );
+    assert_eq!(research["risk"], "The bound may fail without compactness.");
+    assert_eq!(research["prior_work"]["verdict"], "related");
+    assert_eq!(
+        research["prior_work"]["source"],
+        "Earlier bound [opened: https://example.org/bound]"
+    );
+    assert!(research.get("value").is_none());
+    assert!(!author_view.to_string().contains("STAFF_ONLY_VALUE_READING"));
+    let staff_view = serde_json::to_value(file.clone().view(true)).unwrap();
+    assert_eq!(
+        staff_view["rounds"][0]["advice"]["state"]["result"]["value"]["significance"],
+        "STAFF_ONLY_VALUE_READING"
+    );
     for field in ["summary", "evidence", "effort", "engine", "model"] {
         assert!(research.get(field).is_none());
     }
@@ -1940,6 +1979,7 @@ async fn audited_escape_alone_decides_and_reports_and_records_are_idempotent() {
                     &paper.id,
                     1,
                     RoundUpdate::Advice(done_step(Advice {
+                        value: None,
                         summary: "help".into(),
                         improvements: vec![],
                         formalization: vec![],

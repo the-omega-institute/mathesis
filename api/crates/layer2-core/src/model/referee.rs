@@ -199,6 +199,49 @@ pub struct Improvement {
     #[serde(default)]
     pub evidence: String,
     pub effort: Effort,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rank: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_statement: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub feasibility: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prior_work: Option<TargetPriorWork>,
+}
+
+/// The advisor's reading of value, consistent with the source audit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdviceValue {
+    pub significance: String,
+    pub weakest_point: WeakestPoint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WeakestPoint {
+    pub text: String,
+    pub claim: Option<ClaimId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetPriorWorkVerdict {
+    Known,
+    SpecializationOf,
+    Related,
+    NotLocated,
+}
+
+/// A model-reported check of a proposed target, never venue-verified novelty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TargetPriorWork {
+    pub verdict: TargetPriorWorkVerdict,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
+    pub note: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -231,6 +274,8 @@ pub struct FormalizationCandidate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Advice {
     pub summary: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<AdviceValue>,
     #[serde(default)]
     pub improvements: Vec<Improvement>,
     #[serde(default)]
@@ -730,6 +775,16 @@ pub struct ResearchSuggestion {
     pub progress: String,
     pub status: Evidence,
     pub excerpt: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rank: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_statement: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub feasibility: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prior_work: Option<TargetPriorWork>,
 }
 
 impl RefereeRound {
@@ -748,6 +803,11 @@ impl RefereeRound {
                     progress: item.how_we_help.chars().take(6_000).collect(),
                     status: item.status,
                     excerpt: item.suggestion.chars().count() > 6_000,
+                    rank: item.rank,
+                    target_statement: item.target_statement.clone(),
+                    feasibility: item.feasibility.clone(),
+                    risk: item.risk.clone(),
+                    prior_work: item.prior_work.clone(),
                 })
                 .collect(),
         )
@@ -1184,5 +1244,18 @@ mod tests {
             let value = serde_json::to_value(&new).unwrap();
             assert_eq!(serde_json::from_value::<NewLetter>(value).unwrap(), new);
         }
+    }
+}
+
+#[cfg(test)]
+mod advice_compatibility_tests {
+    use super::Advice;
+
+    #[test]
+    fn old_advice_round_trips_byte_identically() {
+        let json = r#"{"summary":"old","improvements":[{"kind":"exposition","suggestion":"Clarify.","how_we_help":"Read.","status":"proposed","evidence":"","effort":"small"}],"formalization":[]}"#;
+        let advice: Advice = serde_json::from_str(json).unwrap();
+        assert!(advice.value.is_none());
+        assert_eq!(serde_json::to_string(&advice).unwrap(), json);
     }
 }

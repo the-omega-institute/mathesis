@@ -17,6 +17,7 @@ import {
 } from '../test/fixtures';
 import { KATEX_ERROR, MACROS } from '../test/katex';
 import {
+  checkedTarget,
   feedbackLetter,
   queuedRound,
   refereeAdvice,
@@ -221,6 +222,93 @@ describe('referee workspace', () => {
     expect(within(panel).getByText('A wrapper lemma.')).toBeInTheDocument();
     expect(panel.querySelector('.code-block pre')).toHaveTextContent('theorem square_injective');
     expect(within(panel).queryByRole('button', { name: 'Propose formalization' })).toBeNull();
+  });
+
+  it('renders the staff value reading and ranked targets with the reported comparison', async () => {
+    const advice = {
+      ...refereeAdvice,
+      value: {
+        significance: 'A finite estimate remains useful.',
+        weakest_point: { text: 'The quantitative constant is conservative.', claim: 'C1' },
+      },
+      improvements: [
+        { ...refereeAdvice.improvements[0]!, rank: 2 },
+        { ...refereeAdvice.improvements[1]!, ...checkedTarget },
+      ],
+    };
+    workspace({
+      referee: vi.fn(async () =>
+        refereeFile({
+          rounds: [
+            {
+              ...refereeRound,
+              advice: {
+                attempts: 1,
+                state: { state: 'done', at: refereeRound.started_at, result: advice },
+              },
+            },
+          ],
+        }),
+      ),
+    });
+    const panel = await staffPanel();
+    await userEvent.click(
+      within(panel).getByText(
+        'Research progress · 2 improvements, 1 statements that could go to Lean',
+      ),
+    );
+    const value = within(panel).getByRole('region', { name: 'Value reading' });
+    expect(within(value).getByText('A finite estimate remains useful.')).toBeVisible();
+    expect(within(value).getByText('The quantitative constant is conservative.')).toBeVisible();
+    const table = within(panel).getByRole('table', { name: 'Research progress and next steps' });
+    const rows = within(table).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Add a diagram.');
+    expect(rows[1]).toHaveTextContent('Priority: 1');
+    expect(rows[1]).toHaveTextContent('Related result');
+    expect(rows[1]).toHaveTextContent(checkedTarget.feasibility!);
+    expect(rows[1]).toHaveTextContent(checkedTarget.risk!);
+    expect(rows[1]).toHaveTextContent(checkedTarget.prior_work!.location!);
+    expect(rows[1]).toHaveTextContent(checkedTarget.prior_work!.note);
+    expect(rows[1]).toHaveTextContent('not independently verified by Mathesis');
+    expect(rows[1]!.querySelector('a')).toHaveAttribute('href', 'https://example.org/finite-bound');
+    expect(rows[1]!.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('renders delivered research targets for authors without the staff value reading', async () => {
+    workspace(
+      {
+        referee: vi.fn(async () =>
+          refereeFile({
+            letters: [feedbackLetter],
+            rounds: [
+              {
+                ...refereeRound,
+                advice: undefined,
+                research_suggestions: [
+                  {
+                    ...checkedTarget,
+                    kind: 'generalize',
+                    suggestion: 'Extend the finite bound.',
+                    excerpt: false,
+                  },
+                ],
+              },
+            ],
+          }),
+        ),
+      },
+      author,
+      accepted,
+    );
+    const report = await screen.findByRole('region', { name: 'Final review report' });
+    await userEvent.click(
+      within(report).getByText('Detailed report: findings and recommendations'),
+    );
+    expect(within(report).getByRole('heading', { name: 'Research targets' })).toBeVisible();
+    expect(within(report).getByText(checkedTarget.feasibility!)).toBeVisible();
+    expect(within(report).getByText(checkedTarget.prior_work!.note)).toBeVisible();
+    expect(within(report).queryByRole('region', { name: 'Value reading' })).toBeNull();
+    expect(within(report).getByText('Related result')).toBeVisible();
   });
 
   it('shows the Lean probe as private, with outcome, axioms, note and source', async () => {
