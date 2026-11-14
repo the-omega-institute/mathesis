@@ -464,6 +464,42 @@ async fn library_pin_is_set_once_with_the_environment_and_never_added_to_admitte
 }
 
 #[tokio::test]
+async fn external_contributor_to_collected_internal_paper_still_ranks() {
+    let (w, owner, reviewer) = world().await;
+    let outsider = w.person("outsider", &[]).await;
+    let claim = "s1".into();
+    w.app
+        .request_collected_proof(&owner, "a-note", 1, &claim)
+        .await
+        .unwrap();
+    w.app
+        .save_collected_proposal(&reviewer, "a-note", &claim, proposal())
+        .await
+        .unwrap();
+    w.app
+        .admit_collected_target(&reviewer, "a-note", &claim, faithful())
+        .await
+        .unwrap();
+    let attempt = w
+        .app
+        .submit_attempt(
+            &outsider,
+            &"a-note".into(),
+            &claim,
+            proposal().solution,
+            None,
+            String::new(),
+        )
+        .await
+        .unwrap();
+    w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    let board = w.app.formalization_leaderboard("all", "all").await.unwrap();
+    assert_eq!(board.len(), 1);
+    assert_eq!(board[0].entrant.id, outsider.person.as_str());
+    assert_eq!((board[0].others, board[0].total), (1, 1));
+}
+
+#[tokio::test]
 async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_without_referee() {
     let (w, owner, reviewer) = world().await;
     let outsider = w.person("outsider", &[]).await;
@@ -561,11 +597,19 @@ async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_wi
             .source
             .sha256
     );
-    assert_eq!(
+    assert!(
         w.app
             .formalization_leaderboard("all", "all")
             .await
             .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        w.app
+            .entrant_profile("wishpool-agent")
+            .await
+            .unwrap()
+            .formalized
             .len(),
         1
     );

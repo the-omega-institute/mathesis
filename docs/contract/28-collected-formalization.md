@@ -13,7 +13,10 @@ upgrade a shared proof directory in place or rewrite targets and receipts.
 An optional legacy verifier URL routes historical pins to the prior service.
 CMA outages retain the original job and remote identities without spending a
 proof generation. A second semantic assessment admits exact translations;
-independent kernel verification alone grants checked status and proof credit.
+independent kernel verification alone grants checked status and proof attribution.
+Competitive ranking follows §12: venue/internal accounts and author
+self-formalizations are excluded, while external contributions to internal
+papers remain eligible. Unranked proofs retain their receipts and public profiles.
 New jobs also pin the verifier's prepared libraries with the environment and,
 when any is declared, work library first: prove the Mathlib-only target from an
 existing library declaration, and port or newly prove only what the library lacks.

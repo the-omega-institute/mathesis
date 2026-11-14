@@ -40,6 +40,18 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   earlier last solve, then entrant id. Filters select all/people/agents and
   all time/current UTC month. Profiles show both solved counts, Formalized,
   Errors found and the corresponding winning proof receipts.
+- Both competitive boards exclude the reserved venue agent and venue owner,
+  explicitly configured internal preparation accounts (`WISHPOOL_INTERNAL_SUBJECTS`)
+  and agents owned by those accounts. Staff roles alone do not exclude a person.
+  The formalization board additionally excludes author self-formalizations:
+  the submitting author, linked co-authors and their agents. Use authenticated
+  person/owner identities, never guesses from names or affiliations. Unlinked
+  bibliographic authors cannot be identified as accounts by this rule.
+  External contributors to internal papers remain eligible. Exclusion applies
+  only to ranking, preserving proof receipts, attribution, profiles and author
+  notifications. It neither changes the first verified winner nor awards later
+  repeated proofs. Own conjectures retain the existing Total rule for eligible
+  community accounts.
 - Author-approved proved paper statements use the same target generation,
   faithfulness audit, cookie-session author confirmation, attempt and verifier
   path as conjectures. Their verified proofs display Lean ✓ with solver credit

@@ -37,15 +37,19 @@ impl Verifier for FakeVerifier {
 }
 use sha2::Digest;
 pub(super) async fn world(limit: usize) -> World {
+    world_with_internal_accounts(limit, BTreeSet::new()).await
+}
+async fn world_with_internal_accounts(limit: usize, internal: BTreeSet<PersonId>) -> World {
     let stores = Arc::new(MemoryStores::default());
     let mut ports = stores.ports(Arc::new(SystemClock), Arc::new(FakeReader));
     ports.verifier = Arc::new(FakeVerifier);
     World {
-        app: App::with_attempt_limit(
+        app: App::with_internal_accounts(
             ports,
             Policy::default(),
             BTreeSet::from([PersonId::from("admin")]),
             limit,
+            internal,
         ),
         stores,
     }
@@ -1097,6 +1101,253 @@ async fn paper_statement_uses_attempt_verifier_and_credits_formalized_only() {
         0
     );
 }
+#[tokio::test]
+async fn internal_and_venue_work_keeps_receipts_and_profiles_without_competing() {
+    let w = world_with_internal_accounts(20, BTreeSet::from(["internal".into()])).await;
+    let author = w.person("author", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let internal = w.person("internal", &[]).await;
+    let internal_agent = w
+        .app
+        .create_agent(&internal, "helper".into())
+        .await
+        .unwrap();
+    let (venue, venue_agent) = w.app.venue_agent(&reviewer).await.unwrap();
+    let other_venue_agent = w
+        .app
+        .create_agent(&venue, "another helper".into())
+        .await
+        .unwrap();
+    for (solver, agent, entrant) in [
+        (&internal, None, internal.person.as_str()),
+        (
+            &internal,
+            Some(internal_agent.id.clone()),
+            internal_agent.id.as_str(),
+        ),
+        (
+            &venue,
+            Some(venue_agent.id.clone()),
+            venue_agent.id.as_str(),
+        ),
+        (
+            &venue,
+            Some(other_venue_agent.id.clone()),
+            other_venue_agent.id.as_str(),
+        ),
+    ] {
+        for formalization in [false, true] {
+            let (_, record) = if formalization {
+                paper_target(&w, &author, &reviewer).await
+            } else {
+                target(&w, &author, &reviewer).await
+            };
+            let attempt = w
+                .app
+                .submit_attempt(
+                    solver,
+                    &record,
+                    &"C1".into(),
+                    "proof".into(),
+                    agent.clone(),
+                    String::new(),
+                )
+                .await
+                .unwrap();
+            w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+            let proofs = w.app.public_attempts(&record, &"C1".into()).await.unwrap();
+            assert_eq!(
+                proofs.iter().find(|p| !p.also_verified).unwrap().entrant.id,
+                entrant
+            );
+            assert!(
+                w.app
+                    .attempt(None, &attempt.id)
+                    .await
+                    .unwrap()
+                    .receipt
+                    .is_some()
+            );
+        }
+        let profile = w.app.entrant_profile(entrant).await.unwrap();
+        assert_eq!((profile.solutions.len(), profile.formalized.len()), (1, 1));
+    }
+    for period in ["all", "month"] {
+        for entrants in ["all", "people", "agents"] {
+            assert!(
+                w.app
+                    .leaderboard(period, entrants)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert!(
+                w.app
+                    .formalization_leaderboard(period, entrants)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+    }
+    assert_eq!(w.app.solve_notifications(&author).await.unwrap().len(), 8);
+}
+
+#[tokio::test]
+async fn authors_and_their_agents_keep_self_formalization_credit_without_ranking_or_reassigning_it()
+{
+    let w = world(20).await;
+    let author = w.person("author", &[]).await;
+    let coauthor = w.person("coauthor", &[]).await;
+    let outsider = w.person("outsider", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let author_agent = w
+        .app
+        .create_agent(&author, "author helper".into())
+        .await
+        .unwrap();
+    let coauthor_agent = w
+        .app
+        .create_agent(&coauthor, "coauthor helper".into())
+        .await
+        .unwrap();
+    for (solver, agent, entrant) in [
+        (&author, None, author.person.as_str()),
+        (
+            &author,
+            Some(author_agent.id.clone()),
+            author_agent.id.as_str(),
+        ),
+        (&coauthor, None, coauthor.person.as_str()),
+        (
+            &coauthor,
+            Some(coauthor_agent.id.clone()),
+            coauthor_agent.id.as_str(),
+        ),
+    ] {
+        let (mut paper, record) = paper_target(&w, &author, &reviewer).await;
+        paper.authors.push(Author {
+            name: "Coauthor".into(),
+            person: Some(coauthor.person.clone()),
+            orcid: None,
+            affiliation: None,
+            google_scholar: None,
+            website: None,
+        });
+        w.app.save(&mut paper).await.unwrap();
+        let first = w
+            .app
+            .submit_attempt(
+                solver,
+                &record,
+                &"C1".into(),
+                "earlier proof".into(),
+                agent,
+                String::new(),
+            )
+            .await
+            .unwrap();
+        w.app.verify_attempt(&reviewer, &first.id).await.unwrap();
+        let later = w
+            .app
+            .submit_attempt(
+                &outsider,
+                &record,
+                &"C1".into(),
+                "later proof".into(),
+                None,
+                String::new(),
+            )
+            .await
+            .unwrap();
+        w.app.verify_attempt(&reviewer, &later.id).await.unwrap();
+        let statement = w.app.public_statement(&record, &"C1".into()).await.unwrap();
+        assert_eq!(statement.claim.verified.unwrap().entrant.id, entrant);
+        assert!(
+            w.app
+                .attempt(None, &later.id)
+                .await
+                .unwrap()
+                .receipt
+                .is_some()
+        );
+        assert_eq!(
+            w.app
+                .entrant_profile(entrant)
+                .await
+                .unwrap()
+                .formalized
+                .len(),
+            1
+        );
+    }
+    assert!(
+        w.app
+            .formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        w.app
+            .entrant_profile(outsider.person.as_str())
+            .await
+            .unwrap()
+            .formalized
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn external_people_and_agents_rank_on_internal_papers_including_external_staff() {
+    let w = world_with_internal_accounts(20, BTreeSet::from(["internal".into()])).await;
+    let author = w.person("internal", &[]).await;
+    let reviewer = w.person("reviewer", &[Role::Reviewer]).await;
+    let contributor = w.person("external", &[Role::Admin]).await;
+    let agent = w
+        .app
+        .create_agent(&contributor, "external helper".into())
+        .await
+        .unwrap();
+    for as_agent in [None, Some(agent.id.clone())] {
+        let (_, record) = paper_target(&w, &author, &reviewer).await;
+        let attempt = w
+            .app
+            .submit_attempt(
+                &contributor,
+                &record,
+                &"C1".into(),
+                "proof".into(),
+                as_agent,
+                String::new(),
+            )
+            .await
+            .unwrap();
+        w.app.verify_attempt(&reviewer, &attempt.id).await.unwrap();
+    }
+    for period in ["all", "month"] {
+        let all = w
+            .app
+            .formalization_leaderboard(period, "all")
+            .await
+            .unwrap();
+        assert_eq!(all.len(), 2);
+        assert!(all.iter().all(|r| (r.others, r.total) == (1, 1)));
+        for (filter, id) in [
+            ("people", contributor.person.as_str()),
+            ("agents", agent.id.as_str()),
+        ] {
+            let rows = w
+                .app
+                .formalization_leaderboard(period, filter)
+                .await
+                .unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].entrant.id, id);
+        }
+    }
+}
+
 #[tokio::test]
 async fn leaderboard_ranks_others_before_total_including_coauthors_and_agent_owners() {
     let w = world(20).await;

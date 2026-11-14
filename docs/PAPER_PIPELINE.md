@@ -94,9 +94,12 @@ and avoid separate requests for translations. Mathematical equivalence needs
 review; titles, lexical matches and issue numbers are insufficient.
 
 Expose the public shared queue from `/formalizations`, and link each paper's
-registered requests in its materials. Readers can join the discussion and
-upstream proof work there. Confirmed Mathesis targets retain their existing
-proof-submission entry, independent verifier and credit rules. A contribution
+registered requests in its materials. Mathesis is the intended public browsing,
+claim-of-work and submission interface: a person or agent may participate through
+the webpage or API, without being required to leave the site and claim a GitHub
+issue manually. Both entry points must bind to the same canonical request and
+exact confirmed target, not create competing work queues. Confirmed Mathesis
+targets retain their existing independent verifier and credit rules. A contribution
 made only on GitHub is attributed upstream but receives no invented platform
 points. No change here bypasses an external author's existing target consent.
 
@@ -116,10 +119,57 @@ and all language editions, validate and rebuild. Only receipt-backed mappings
 change the verified graph/coverage or platform leaderboard. The automatic
 upstream-result-to-platform binding worker is not implemented by material links.
 
+### Request submission and fulfillment adapter
+
+The existing webpage and API share statement-scoped proof submission and
+independent verification. They do **not** yet provide canonical request-to-target
+routing, GitHub PR submission or automatic upstream-result reconciliation. The
+shared requests repository currently provides issues, not a submission service.
+The following is the downstream adapter design, not a claim of deployed behavior.
+
+1. Bind the canonical request URL and scoped clauses to exact paper versions,
+   confirmed target digests and authenticated contributor/agent-owner identities.
+   Preserve the original mathematical authors and existing-library formalizers.
+   A claim of work records public scope and progress, without an exclusive lock.
+2. If a contributor supplies Lean code, send it through the existing bounded
+   independent verifier. Reuse an exact saved receipt on a retry. No model call
+   is needed to package known files, poll CI or repeat an identical check.
+3. A normal durable background adapter prepares a focused contributor branch/PR
+   through upstream's existing contribution route, retaining source attribution,
+   contributor identity, exact files and full request URL. It tracks the existing
+   upstream checks, review, admission and freeze. Retries reconcile saved branch,
+   PR and commit identities rather than opening duplicates. It requires its own
+   narrowly scoped GitHub write credential; no model receives that credential.
+   It neither changes upstream CI nor adds a mandatory Mathesis-fork gate.
+4. Use CMA only when mathematical work is needed: translation, proof construction
+   or a substantive repository adaptation. A version/target mismatch requests
+   adaptation or confirmation; an outage leaves work pending and retains handles.
+5. Reconcile an admitted frozen declaration against each exact target and every
+   requested clause. A verified proof, an upstream merge and complete request
+   fulfillment are separate observations. Partial completion records covered and
+   uncovered clauses and keeps the request open. Close only on full scoped
+   fulfillment; preserve the issue, original authors, contributors, PRs and evidence.
+6. Refresh the existing paper coverage, dependency graph and receipt projections.
+   A change to the paper or target requires a new exact mapping, not a model redo
+   of unrelated content. Existing declarations are reused before new proof work.
+
+Show readers concise states: awaiting proof, checking, independently verified,
+upstream admission pending, and admitted, with partial scope explicit where
+applicable. Keep genuine open mathematical questions separate from established
+results awaiting Lean formalization. GitHub issue closure alone never fills a
+verified graph node or awards platform points.
+
+Competitive rankings exclude Mathesis's venue agent/owner, configured internal
+preparation accounts and their agents, and authors/their agents formalizing their
+own papers. External contributors to our papers remain eligible. All checked
+proofs retain attribution and receipts, subject to the existing public/version
+fences; ranking exclusions do not transfer first-proof credit to a later repeat.
+Author identity uses submitting or linked co-author accounts, not name guesses.
+
 ## Community contributions directly upstream
 
-The normal route for every contributor is a focused branch in their own
-contributor fork and a PR to `the-omega-institute/trureturing:dev`. An upstream
+For contributors using GitHub directly, the normal route is a focused branch in
+their own contributor fork and a PR to `the-omega-institute/trureturing:dev`. An upstream
 branch is an alternative only when upstream permits that contributor to use it;
 direct upstream submission is not a maintainer-only exception. Follow upstream
 [contribution rules](https://github.com/the-omega-institute/trureturing/blob/dev/docs/CONTRIBUTING.md)
@@ -269,6 +319,11 @@ remaining clauses before changing any claim's status or closing the request.
    it pending without changing consent rules, awarding points or demanding a
    new upstream publication. This pilot need not redo the reviewed Chen–Chen
    content or create duplicate story/media jobs.
+4. **Request adapter, future downstream work.** Establish a canonical request,
+   exact target and authenticated contributor mapping using the pilot. Add
+   request-scoped page/API participation over the existing verifier, then the
+   durable GitHub submission/reconciliation adapter described above. No new
+   upstream API, mandatory fork or model-driven GitHub operator is presumed.
 
 The bounded next implementation delta is phase 2's existing-interface activation
 and readback, followed by one manual phase-3 pilot. These are unimplemented
