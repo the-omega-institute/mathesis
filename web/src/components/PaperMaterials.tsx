@@ -67,7 +67,40 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
           </ul>
         </>
       ) : null}
+      {materials.videos?.length ? (
+        <>
+          <h3>{t('Video explanations')}</h3>
+          <ul>
+            {materials.videos.map((video) => (
+              <li key={video.id}>
+                <ExternalLink href={video.url}>{video.title}</ExternalLink>
+                {' · '}
+                <ExternalLink href={video.mp4_url}>{t('Watch video')}</ExternalLink>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {materials.formalization_requests?.length ? (
+        <>
+          <h3>{t('Formalization requests')}</h3>
+          <p>
+            {t(
+              'Join the shared proof work on GitHub. Each request describes the result and its current progress.',
+            )}
+          </p>
+          <ul>
+            {materials.formalization_requests.map((request) => (
+              <li key={request.url}>
+                <ExternalLink href={request.url}>{request.label}</ExternalLink>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       <p>
+        <ExternalLink href={materials.site_url}>{t('Reading and materials')}</ExternalLink>
+        {' · '}
         <ExternalLink href={materials.repository_url}>{t('Repository')}</ExternalLink>
       </p>
     </section>

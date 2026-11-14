@@ -330,6 +330,9 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
               <a href={pdfHref(s.submission, latest.number)}>{t('View PDF')}</a>
             ) : null}
             {paper.archive ? <a href={paper.archive.source.url}>{t('Download source')}</a> : null}
+            {paper.materials ? (
+              <ExternalLink href={paper.materials.repository_url}>{t('Repository')}</ExternalLink>
+            ) : null}
             <a
               href="#citation"
               onClick={() => document.getElementById('citation')?.setAttribute('open', '')}

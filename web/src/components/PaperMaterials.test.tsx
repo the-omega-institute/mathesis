@@ -43,10 +43,47 @@ describe('paper materials', () => {
     rerender(
       <PaperMaterials materials={{ ...materials, reading: {}, slides: [], visualizations: [] }} />,
     );
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getAllByRole('link')).toHaveLength(2);
     expect(screen.queryByRole('heading', { name: 'Seminar slides' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: 'Interactive visualizations' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows playable video and named shared requests without claiming verification', () => {
+    render(
+      <PaperMaterials
+        materials={{
+          ...materials,
+          videos: [
+            {
+              id: 'intro-wide',
+              title: 'Why parity matters',
+              url: materials.site_url + 'films/',
+              mp4_url: materials.site_url + 'intro.mp4',
+            },
+          ],
+          formalization_requests: [
+            {
+              label: 'Theorem 1',
+              url: 'https://github.com/the-omega-institute/trureturing-requests/issues/2',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Why parity matters' })).toHaveAttribute(
+      'href',
+      materials.site_url + 'films/',
+    );
+    expect(screen.getByRole('link', { name: 'Watch video' })).toHaveAttribute(
+      'href',
+      materials.site_url + 'intro.mp4',
+    );
+    expect(screen.getByRole('link', { name: 'Theorem 1' })).toHaveAttribute(
+      'href',
+      'https://github.com/the-omega-institute/trureturing-requests/issues/2',
+    );
+    expect(screen.queryByText('Lean ✓')).not.toBeInTheDocument();
   });
 });

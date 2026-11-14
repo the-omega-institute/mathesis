@@ -3483,6 +3483,8 @@ async fn materials_sidecar_replacement_is_durable_atomic_and_revision_fenced() {
                 reading: Default::default(),
                 slides: vec![],
                 visualizations: vec![],
+                videos: vec![],
+                formalization_requests: vec![],
             },
         }],
     };

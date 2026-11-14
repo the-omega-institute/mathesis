@@ -23,6 +23,25 @@ pub struct PaperMaterials {
     pub reading: BTreeMap<String, String>,
     pub slides: Vec<MaterialSlides>,
     pub visualizations: Vec<MaterialVisualization>,
+    #[serde(default)]
+    pub videos: Vec<MaterialVideo>,
+    #[serde(default)]
+    pub formalization_requests: Vec<MaterialFormalizationRequest>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MaterialVideo {
+    pub id: String,
+    pub title: String,
+    pub url: String,
+    pub mp4_url: String,
+    pub poster_url: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MaterialFormalizationRequest {
+    pub label: String,
+    pub url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,6 +99,8 @@ impl MaterialsIndexEntry {
             || m.reading.len() > 64
             || m.slides.len() > 64
             || m.visualizations.len() > 64
+            || m.videos.len() > 64
+            || m.formalization_requests.len() > 256
         {
             return Err(CoreError::invalid("invalid materials identity or bounds"));
         }
@@ -134,6 +155,39 @@ impl MaterialsIndexEntry {
                 return Err(CoreError::invalid("invalid materials visualization"));
             }
             check_url(&item.url)?;
+        }
+        let mut videos = BTreeSet::new();
+        for item in &m.videos {
+            if !token(&item.id, 200)
+                || !videos.insert(&item.id)
+                || item.title.trim().is_empty()
+                || item.title.len() > 500
+            {
+                return Err(CoreError::invalid("invalid materials video"));
+            }
+            check_url(&item.url)?;
+            check_url(&item.mp4_url)?;
+            if let Some(poster) = &item.poster_url {
+                check_url(poster)?;
+            }
+        }
+        let mut requests = BTreeSet::new();
+        for item in &m.formalization_requests {
+            let number = item.url.strip_prefix(
+                "https://github.com/the-omega-institute/trureturing-requests/issues/",
+            );
+            if item.label.trim().is_empty()
+                || item.label.len() > 500
+                || !requests.insert(&item.url)
+                || !number.is_some_and(|n| {
+                    !n.is_empty()
+                        && n.len() <= 20
+                        && !n.starts_with('0')
+                        && n.bytes().all(|c| c.is_ascii_digit())
+                })
+            {
+                return Err(CoreError::invalid("invalid formalization request"));
+            }
         }
         Ok(())
     }
