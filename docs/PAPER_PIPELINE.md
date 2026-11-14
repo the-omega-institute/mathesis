@@ -3,7 +3,9 @@
 This is the downstream integration plan. The existing publisher collects and
 publishes eligible public papers without another model review. The material
 adapter, web readers and local inspection commands implement the interfaces
-below. Automated content authorship and upstream-result reconciliation remain
+below. The catalog also supplies a serial local Codex content runner with frozen inputs,
+checkpoints and fixed build/QA commands. Its [execution contract](https://github.com/mathesis-papers/catalog/blob/main/docs/SERIAL_CONTENT.md)
+can be reused by a future CMA adapter. Upstream-result reconciliation remains
 separate work: a plan or request is not a completed output.
 
 ## What readers see
@@ -54,8 +56,11 @@ materials.
    substitute an abstract for a self-contained story.
 3. Establish the question, result, mechanism, examples, significance and precise
    limits in the two languages. Review mathematical correspondence and sources.
-4. Derive figures, interactive examples, seminar slides and narrated video from
-   that story through the installed upstream skills and tools. Commit sources;
+4. Derive seminar slides and narrated video from that story through the installed
+   upstream skills and tools. Add interaction only when manipulating a parameter,
+   example or mathematical object teaches something the story or a static figure
+   cannot convey as clearly. Record the reason for including or omitting it;
+   prose mathematics does not require an interactive illustration. Commit sources;
    keep rendered media and run records outside the committed paper tree.
 5. Run the complete paper/template checks and relevant builds. Video acceptance
    requires an actual playable MP4, not a successful build that skipped films.
@@ -77,7 +82,7 @@ python3 scripts/plan_content.py --repository /path/to/paper-repo \
 
 This command belongs to `mathesis-papers/catalog`. It checks frozen file hashes,
 version/repository identity and advertised built formats. Its deterministic
-unit keys are handoff inputs for a future runner; it does not call CMA, execute
+unit keys are handoff inputs for the serial runner; the planner does not call CMA, execute
 uploaded manuscript code or make semantic mathematical judgments. `built` means
 content output exists, never that a proof is independently verified. Template
 changes and formalization-pin changes require their own revalidation even when
