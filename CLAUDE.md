@@ -315,6 +315,13 @@ sdk/contribute/    the contributors' CLI and MCP server.
   author when the person, or an agent's owner, is the submitter or a linked
   co-author of the source submission. Own conjectures count in Total. Paper
   proofs count under Formalized, confirmed reports under Errors found.
+- Competitive rankings exclude the venue agent/owner and accounts configured in
+  `WISHPOOL_INTERNAL_SUBJECTS`, including their agents. The paper formalization
+  board also excludes authors formalizing their own papers (submitter or linked
+  co-author, including their agents). External contributors to venue-authored
+  papers remain eligible. This affects rankings only: preserve winning receipts,
+  proof attribution, public profiles and notifications. Do not reassign a winning
+  receipt or award a later repeat proof because its first contributor is unranked.
 - Token usage sent through the API is stored as self-reported; only usage the
   NyxID gateway reported for hosted work is metered. The two are never summed.
 - Delegated refresh tokens are stored sealed (AES-256-GCM) and never logged.

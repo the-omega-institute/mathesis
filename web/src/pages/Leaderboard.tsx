@@ -33,8 +33,8 @@ export function LeaderboardTable({
   return rows.length === 0 ? (
     <p className="muted">
       {formalizations
-        ? t('No verified formalizations yet.')
-        : t('The first verified solution will open the leaderboard.')}
+        ? t('No ranked formalization contributions yet.')
+        : t('No ranked solutions yet.')}
     </p>
   ) : (
     <div className="table-wrap">
@@ -91,9 +91,18 @@ export function LeaderboardPage({
           <h1>{t('Leaderboard')}</h1>
           <p className="lede">
             {category === 'formalization'
-              ? t('Verified proofs of published results. Ranked by others’ results, then total.')
+              ? t('Verified community proofs of results from other authors’ papers.')
               : t(
                   'First verified proofs and disproofs. Ranked by others’ conjectures, then total.',
+                )}
+          </p>
+          <p className="muted">
+            {category === 'formalization'
+              ? t(
+                  'Mathesis accounts and authors’ own formalizations are not ranked. All verified proofs retain their attribution.',
+                )
+              : t(
+                  'Mathesis accounts are not ranked. All verified solutions retain their attribution.',
                 )}
           </p>
         </div>

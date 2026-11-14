@@ -1118,6 +1118,20 @@ impl App {
         let now = self.ports.clock.now();
         let mut rows: BTreeMap<String, LeaderboardRow> = BTreeMap::new();
         for (entrant, credit) in self.solve_credits().await? {
+            let person = entrant
+                .owner
+                .as_ref()
+                .map(|owner| owner.id.clone())
+                .unwrap_or_else(|| entrant.id.clone().into());
+            // Ranking eligibility never changes the winning receipt or attribution.
+            // External contributors remain eligible on venue-authored papers.
+            if entrant.id == "wishpool-agent"
+                || person.as_str() == "wishpool:venue"
+                || self.is_internal_account(&person)
+                || formalizations && !credit.others
+            {
+                continue;
+            }
             if credit.formalized != formalizations
                 || formalizations && credit.receipt.verdict != Verdict::Proved
             {

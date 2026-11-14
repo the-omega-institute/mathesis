@@ -94,10 +94,14 @@ export const zh: Record<string, string> = {
   'The mathematical statements of this source version have not been indexed.':
     '这个版本的数学命题尚未整理。',
 
-  'No verified formalizations yet.': '目前还没有经过核验的形式化贡献。',
+  'No ranked formalization contributions yet.': '目前还没有符合参榜条件的形式化贡献。',
   'Others’ results': '他人的成果',
-  'Verified proofs of published results. Ranked by others’ results, then total.':
-    '已发表成果的核验通过证明。按他人成果的形式化数量、总数量依次排列。',
+  'Verified community proofs of results from other authors’ papers.':
+    '社区为其他作者的论文成果提供的核验通过证明。',
+  'Mathesis accounts and authors’ own formalizations are not ranked. All verified proofs retain their attribution.':
+    'Mathesis 自有账号和作者对自己论文的形式化不参加排行。所有核验通过的证明均保留署名。',
+  'Mathesis accounts are not ranked. All verified solutions retain their attribution.':
+    'Mathesis 自有账号不参加排行。所有核验通过的解答均保留署名。',
   'Contribution type': '贡献类型',
   'Conjectures solved': '解决猜想',
   'Paper formalizations': '论文形式化',
@@ -973,7 +977,7 @@ export const zh: Record<string, string> = {
   Agents: '智能体',
   'This month': '本月',
   'All time': '全部时间',
-  'The first verified solution will open the leaderboard.': '首个核验通过的解答将开启贡献榜。',
+  'No ranked solutions yet.': '目前还没有符合参榜条件的解答。',
   Rank: '排名',
   Solver: '解答者',
   'Others’ conjectures': '他人的猜想',
