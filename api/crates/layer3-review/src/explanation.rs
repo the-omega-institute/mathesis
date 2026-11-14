@@ -8,7 +8,7 @@ pub struct ExplanationOut {
     pub zh: String,
 }
 
-pub fn prompt(input: &AdvisorInput) -> String {
+fn reading_guide_prompt(input: &AdvisorInput) -> String {
     let source = serde_json::json!({
         "kind": input.kind, "title": input.title, "abstract": input.abstract_text,
         "authors": input.authors, "statements": input.statements, "source": input.text,
@@ -18,14 +18,24 @@ pub fn prompt(input: &AdvisorInput) -> String {
     )
 }
 
+/// The story is the plain-language explanation itself, reused for other media.
+pub fn prompt(input: &AdvisorInput) -> String {
+    reading_guide_prompt(input).replacen(
+        "for a mathematically curious reader outside its specialty.",
+        "for a curious high-school student, assuming school algebra but no university mathematics. This is the paper's one plain-language story, not a teaser for a second explanation. Introduce any necessary university-level idea through concrete objects and examples before naming it. Keep the mathematical qualifications accurate: an analogy explains the idea but never proves it.",
+        1,
+    )
+}
+
 /// An already admitted conversation keeps its original input bytes. New runs use
-/// the fuller reading-guide contract; upgrading never cancels healthy old work.
+/// the high-school reading-guide contract; upgrading never cancels healthy old work.
 pub(crate) fn admitted_prompt(input: &AdvisorInput, digest: Option<&str>) -> String {
     use sha2::{Digest, Sha256};
     if let Some(digest) = digest {
-        let legacy = legacy_prompt(input);
-        if format!("{:x}", Sha256::digest(legacy.as_bytes())) == digest {
-            return legacy;
+        for previous in [legacy_prompt(input), reading_guide_prompt(input)] {
+            if format!("{:x}", Sha256::digest(previous.as_bytes())) == digest {
+                return previous;
+            }
         }
     }
     prompt(input)
@@ -71,6 +81,10 @@ mod tests {
         let digest = format!("{:x}", Sha256::digest(legacy.as_bytes()));
         assert_eq!(admitted_prompt(&input, Some(&digest)), legacy);
         assert_ne!(admitted_prompt(&input, None), legacy);
+        let previous = reading_guide_prompt(&input);
+        let digest = format!("{:x}", Sha256::digest(previous.as_bytes()));
+        assert_eq!(admitted_prompt(&input, Some(&digest)), previous);
+        assert_ne!(admitted_prompt(&input, None), previous);
         let current = prompt(&input);
         let digest = format!("{:x}", Sha256::digest(current.as_bytes()));
         assert_eq!(admitted_prompt(&input, Some(&digest)), current);

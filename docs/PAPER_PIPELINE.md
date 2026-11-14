@@ -15,11 +15,21 @@ without a DOI retain their durable mapping when a DOI is later assigned. Titles
 can change without moving repositories or breaking links.
 
 A paper page offers the original paper and citation, bilingual readable story,
-slides, video and appropriate interactive illustrations. Show only built
+slides, video and appropriate interactive illustrations. The story assumes school
+algebra and no university mathematics: introduce the question with concrete
+objects, explain specialist ideas before naming them, and preserve the result's
+actual assumptions and limits. Show only built
 materials of that exact public version. Academic slides are currently Beamer
 PDF plus source; editable PowerPoint is not an implemented export. Short
-plain-language sidecars are useful inputs, but do not certify completion of a
-full explanatory story. Preserve authorship and credit in derived materials.
+plain-language sidecars and the story are the same explanatory product, not
+separate short and long generation tasks. Reuse a faithful complete exact-version
+sidecar; expand it in the paper's authored editions only where necessary for
+readability or missing explanation, without requesting a duplicate story job.
+When no sidecar exists, author the same explanation directly from the frozen
+manuscript. Preserve authorship and credit in derived materials. Video is a
+required planned content product; its absence stays pending and does not block
+publication or display of an otherwise eligible public paper and its existing
+materials.
 
 ## Ownership
 
@@ -29,7 +39,8 @@ full explanatory story. Preserve authorship and credit in derived materials.
 | A paper repository | Frozen manuscript/citation, bilingual story and media sources, statement-to-theory mapping |
 | Published books template | Renderer, visual/media contracts, build commands and caches |
 | `mathesis-papers/catalog` | Public inventory, stable repository mapping, deterministic publication and local work plans |
-| `trureturing-requests` | Shared, deduplicated formalization request discussions and handling |
+| `trureturing-requests` | Shared, deduplicated requests, claims of work and progress discussions |
+| `mathesis-papers/trureturing` | Optional workspace for a named collaboration; no mandatory staging merge or permanent sync/CI service |
 | Mathlib / trureturing | Pinned formal mathematics, declarations and published validation evidence |
 | `mathesis-papers/formalization` | Public projection of platform targets, receipts and credit; not a second competing proof queue |
 
@@ -95,6 +106,7 @@ Keep these states distinct:
 - Written proof awaiting formalization, with a shared request.
 - Partial coverage, with the precise uncovered clauses.
 - A genuine unsolved conjecture/question.
+- Unknown or unreviewed statement correspondence, with mapping still pending.
 - Attempt/environment failure, recorded separately from mathematical status.
 
 Issue open/closed status is live workflow context, not verification. When a
@@ -103,6 +115,167 @@ parameters and hypotheses, bind it to each exact paper claim, update the pin
 and all language editions, validate and rebuild. Only receipt-backed mappings
 change the verified graph/coverage or platform leaderboard. The automatic
 upstream-result-to-platform binding worker is not implemented by material links.
+
+## Community contributions directly upstream
+
+The normal route for every contributor is a focused branch in their own
+contributor fork and a PR to `the-omega-institute/trureturing:dev`. An upstream
+branch is an alternative only when upstream permits that contributor to use it;
+direct upstream submission is not a maintainer-only exception. Follow upstream
+[contribution rules](https://github.com/the-omega-institute/trureturing/blob/dev/docs/CONTRIBUTING.md)
+and the rules at the actual checkout revision, including library reuse, proof
+admission, required CI and independent review.
+
+1. Open the shared request and inspect its exact statement and current work.
+   Comment with the scope you will tackle and link the working branch/PR. The
+   comment is the public claim of work; no assignment bot or exclusive lock is
+   implied. Coordinate overlapping efforts in that same issue.
+2. Develop a focused change in a contributor fork, retaining the original
+   mathematical authors and each contributor's attribution. Run the applicable
+   development checks and submit that branch directly to upstream `dev`.
+   There is no prerequisite merge into a Mathesis organization fork.
+3. Meet upstream's current admission, independent review and required checks.
+   Contributor/fork CI is development evidence; upstream acceptance and frozen
+   declaration membership establish the shared-library publication boundary.
+   Neither CI success nor merge alone proves correspondence to a paper claim.
+   Keep full request URLs in PRs; a bare `Closes #N` can close a different repo's
+   issue. Close the request only when its full stated scope is complete.
+4. Bind each published declaration to the exact paper statement, hypotheses and
+   version; refresh pinned editions and evidence. A partial theorem leaves the
+   uncovered clauses explicit, even when a PR has merged.
+
+The existing [Mathesis fork](https://github.com/mathesis-papers/trureturing) is
+optional reversible preparation, separate from the generated
+`mathesis-papers/formalization` projection. Use it only for a concrete
+collaboration with a named owner, scope and end condition. It adds no second
+queue, proof authority or compulsory integration gate. Inspect the actual
+repository/network settings, workflow events, permissions, secrets, protections
+and cache access before using it; fork behavior depends on those settings.
+Creation or enabling workflows does not establish a successful proof-CI run or
+upstream release authority. No ongoing mirror, scheduled synchronization or
+extra CI service is funded by this plan. Preserve active branches if a later
+collaboration needs an upstream refresh.
+
+### Route decision and cost
+
+| Option | Maintenance and participation | Decision |
+|---|---|---|
+| Mandatory Mathesis-fork integration before upstream | Two integration/review paths, extra CI and synchronization ownership; every public contributor waits on another gate without changing upstream authority | Reject for the present need |
+| Direct upstream PRs, with an optional Mathesis collaboration fork | Ordinary contributors use the existing upstream route; a named collaboration pays for only its actual shared branch/checks | Retain as an on-demand option |
+| No additional Mathesis staging workflow | Ordinary contributor forks send focused upstream PRs; shared issues and existing material links provide Mathesis visibility with no organization-fork service to maintain | Adopt as the operational baseline now |
+
+No current collaboration requires the extra integration step. Reconsider the
+optional workspace only when an owner can name its concrete benefit and retire
+its temporary integration work when that collaboration ends.
+
+### Evidence and owners
+
+These are distinct observations, not one automatic completion state machine:
+
+| Observation | Owner and evidence | Downstream meaning |
+|---|---|---|
+| Public request and claim of work | Contributor and shared-queue maintainers; canonical issue, scope comment and full working PR URL | Intent/coordination; no assignment bot or exclusive lock |
+| Proof development and checks | Contributor; focused PR, exact head and applicable CI results | Work/check evidence; no paper verification or points |
+| Admission and freeze | Upstream maintainers under current rules; accepted revision, frozen declaration, exact statement and axiom scope | Reusable formal evidence for that declaration |
+| Exact paper coverage | Paper integrator; exact version/node, reviewed correspondence, pinned GID/revision and scope in existing book mapping/review | Exact, partial or pending/unknown correspondence; structural checks do not decide semantic equality |
+| Independent platform verification | Existing Mathesis author-target and independent-verifier routes; eligible receipt bound to the exact confirmed target | Only this authority updates platform verified coverage and points |
+| Public paper/material display | Catalog, paper publisher and Mathesis consumer; eligible public record and actual exact-version material manifest | Show available outputs and shared request links; missing video remains pending |
+| Contribution attribution | Source authors/literature and upstream contributors; citation, request registration and PR history; platform receipts for platform credit | Preserve each role; GitHub attribution does not automatically become Mathesis points |
+
+An uninspected correspondence stays unknown, not a demonstrated absence of a
+proof. A paper-level Lean URL, a closed issue and a failed provider call cannot
+resolve it. Existing book comparison verdicts describe the inspected comparison
+at its recorded revision; `none` does not prove the entire library lacks a proof.
+
+### Source and contribution credit
+
+A Mathesis registration identifies **submitted through Mathesis**, the full
+paper title and original authors, exact-version DOI, source theorem/section,
+Mathesis version URL, current paper repository and use of the result. Retain the
+original problem/literature attribution, exact statement and pinned-library
+comparison. Reuse the upstream `tbook` registration; append provenance without
+replacing historical markers after a repository rename. Each issue can serve
+several papers and must not be relabeled as solely Mathesis-origin mathematics.
+The Mathesis layer's `REQUESTS.md` gives the registration format.
+
+Record GitHub contributors and PRs immediately. Upstream authorship and Mathesis
+points have separate evidence: GitHub CI/merge alone awards no platform points.
+The current independent Mathesis verifier and credit routes remain authoritative
+for the platform leaderboard. Automatic reconciliation of GitHub contributions,
+frozen declarations and platform credit is still required before this can be
+called an automatic end-to-end credit loop.
+
+### Exact-version and partial-scope examples
+
+The source registration on
+[request 2](https://github.com/the-omega-institute/trureturing-requests/issues/2)
+identifies Haobo Ma and Wenlin Zhang's *Proof of Chen and Chen's parity-positivity
+conjectures: OEIS A392664–A392666, COMMENTS, and Conjecture 2 (p. 1)*, version 2,
+[DOI 10.5281/zenodo.23957560](https://doi.org/10.5281/zenodo.23957560),
+Theorem 1 (`thm:main`), and its
+[exact-version Mathesis record](https://mathesis-omega-research.apps.chrono-ai.fun/papers/chen-chen-step-m-eulerian-parity-positivity?version=2).
+The current repository is
+[mathesis-papers/10.5281-zenodo.23957559](https://github.com/mathesis-papers/10.5281-zenodo.23957559),
+using the stable concept-DOI address; this does not replace the exact source's
+version DOI. The historical `tbook` registration retains its original
+`mathesis-papers/chen-chen-step-m-eulerian-parity-positivity` identity. Preserve
+the original Chen–Chen/OEIS question and literature attribution as well as the
+source paper's authors; “registered through Mathesis” adds a channel, not an
+origination claim.
+
+That registration's inspected comparison at
+`2a8e85703420116c8f07e1eebebd34fa221c8d55` reports
+`ChenChenParityPositivity.even_rows_positive` for integer parameters, while the
+requested theorem covers real `r >= 3` and odd-row interior negativity as well.
+The local book mapping accordingly keeps `paper-thm-main` at `special case`
+with empty `gids`; its complete conversion stage is a content/mapping status.
+Neither that stage nor the paper-level Lean source link verifies the full
+version-2 theorem or earns platform points. This is existing comparison evidence,
+not new independent Lean validation in this documentation task.
+
+[Request 11](https://github.com/the-omega-institute/trureturing-requests/issues/11)
+provides a second countercheck: it remains open after
+[PR 30294](https://github.com/the-omega-institute/trureturing/pull/30294) merged at
+`dda48614240dae7abcdcf394c668a6a876858d2f`. The issue records the admitted
+`DirectedForestCompletion.directed_forest_completion` core and leaves the
+broader edge-count/event-ratio/path-order scope with written-proof evidence.
+Those issue reports are source-attributed evidence, not a new verification run
+here. A future exact mapping must distinguish the admitted core from those
+remaining clauses before changing any claim's status or closing the request.
+
+## Phased downstream work
+
+1. **Decision/documentation, this change.** Align the normal contribution route,
+   source registration and single-story policy using the existing shared queue,
+   template runtime and receipt authorities. Preserve already reviewed paper
+   conversions and prepared provenance/prompt changes. No new queue, renderer,
+   admission service or points system is needed.
+2. **Material activation, future downstream work.** The publisher/consumer owners
+   update their existing released consumer pins and enable the existing main-site
+   material-discovery interface. Read back an exact-version public record and
+   each advertised output/link, including the shared requests. At the last
+   intake, discovery was not enabled in production and publisher pins were old;
+   merged adapter/UI work is not deployment evidence. Plan only missing content:
+   the inspected Chen–Chen sample has two reading languages, Beamer and an
+   interactive visualization, with video still pending. Preserve its existing
+   public display while the video is prepared through the current tools.
+3. **One manual coverage/receipt pilot, future downstream work.** A paper
+   integrator reviews one exact claim against an already published frozen
+   declaration, records full revision, quantifiers, hypotheses and uncovered
+   clauses in the existing mapping/review, then validates the pin and editions.
+   If that claim has an eligible author-confirmed target, use the existing
+   independent-verifier submission/receipt route and inspect the resulting
+   platform coverage/credit. If it has no such target or no exact match, keep
+   it pending without changing consent rules, awarding points or demanding a
+   new upstream publication. This pilot need not redo the reviewed Chen–Chen
+   content or create duplicate story/media jobs.
+
+The bounded next implementation delta is phase 2's existing-interface activation
+and readback, followed by one manual phase-3 pilot. These are unimplemented
+follow-ups, not actions performed by this documentation change. Automated
+semantic binding of upstream results to exact paper claims and reconciliation
+of GitHub work with independent receipts/credit remain unimplemented; the
+manual pilot should establish what is missing before funding automation.
 
 ## Statistics and continued research
 
