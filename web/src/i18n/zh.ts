@@ -1,5 +1,12 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'Video explanations': '视频讲解',
+  'Watch video': '观看视频',
+  'Reading and materials': '解读与论文资料',
+  'Formalization requests': '形式化请求',
+  'Shared formalization requests': '公开形式化任务',
+  'Join the shared proof work on GitHub. Each request describes the result and its current progress.':
+    '欢迎在 GitHub 参与共同的证明工作。每条请求列出了具体结果和当前进展。',
   Materials: '论文资料',
   'Plain-language reading': '通俗解读',
   'Seminar slides': '研讨会幻灯片',

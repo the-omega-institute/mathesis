@@ -776,6 +776,15 @@ fn publishing_paths_and_material_boundaries() {
     let material = publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).unwrap();
     assert_eq!(material["doi"], "10.5281/zenodo.23957560");
     assert_eq!(material["manifest_available"], true);
+    let mut invalid = m.clone();
+    invalid["videos"] = json!([{"id":"intro","title":"Proof idea","url":format!("{base}films/"),"mp4_url":"https://evil.test/video.mp4","poster_url":null}]);
+    write_json(&path, &invalid).unwrap();
+    assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
+    invalid = m.clone();
+    invalid["formalization_requests"] =
+        json!([{"label":"Theorem 1","url":"https://github.com/another/repository/issues/2"}]);
+    write_json(&path, &invalid).unwrap();
+    assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
     m["reading"]["en"] = json!(format!("{base}../foreign/"));
     write_json(&path, &m).unwrap();
     assert!(publishing::materials(&work, "mathesis-papers", &mapping, Some(&root)).is_err());
@@ -820,7 +829,9 @@ fn materials_index_is_deterministic_versioned_and_in_the_render_hash_manifest() 
         "repository_url":"https://github.com/mathesis-papers/mapped-paper","site_url":base,
         "reading":{"zh":format!("{base}zh/"),"en":format!("{base}en/")},
         "slides":[{"id":"seminar","language":"en","pdf_url":format!("{base}slides.pdf"),"notes_url":null}],
-        "visualizations":[{"id":"demo","url":format!("{base}demo/")}]});
+        "visualizations":[{"id":"demo","url":format!("{base}demo/")}],
+        "videos":[{"id":"intro-wide","title":"Proof idea","url":format!("{base}films/"),"mp4_url":format!("{base}intro.mp4"),"poster_url":null}],
+        "formalization_requests":[{"label":"Theorem 1","url":"https://github.com/the-omega-institute/trureturing-requests/issues/2"}]});
     let manifests = root.join("manifests");
     write_json(&manifests.join("mapped-paper.json"), &manifest).unwrap();
     let out = temp("materials-index-output");
@@ -853,6 +864,11 @@ fn materials_index_is_deterministic_versioned_and_in_the_render_hash_manifest() 
     ] {
         assert_eq!(first[key], manifest[key]);
     }
+    assert_eq!(first["videos"], manifest["videos"]);
+    assert_eq!(
+        first["formalization_requests"],
+        manifest["formalization_requests"]
+    );
     let record = &index["entries"][1];
     assert_eq!(record["kind"], "record");
     assert_eq!(record["id"], "WP-2026-0001");

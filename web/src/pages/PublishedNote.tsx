@@ -95,6 +95,9 @@ export function PublishedNotePage({
           {t('Download source')}
         </a>
         {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
+        {note.materials ? (
+          <ExternalLink href={note.materials.repository_url}>{t('Repository')}</ExternalLink>
+        ) : null}
       </nav>
       <nav className="paper-sections" aria-label={t('On this page')}>
         <a href="#abstract-h">{t('Abstract')}</a>

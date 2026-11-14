@@ -4,7 +4,7 @@ import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useApi } from '../api/context';
 import { usePaged } from '../api/usePaged';
-import { Async, Badge } from '../components/ui';
+import { Async, Badge, ExternalLink } from '../components/ui';
 import { LatexText, MacrosProvider } from '../components/Markdown';
 import { ProofAttribution } from '../components/ProofAttribution';
 import { ProofBasisNote } from '../components/ProofBasis';
@@ -63,6 +63,9 @@ export function FormalizationsPage({
           {t('Results and proof work')}
         </Link>
         <Link to={{ kind: 'learn_lean' }}>{t('Learn Lean')}</Link>
+        <ExternalLink href="https://github.com/the-omega-institute/trureturing-requests/issues">
+          {t('Shared formalization requests')}
+        </ExternalLink>
       </nav>
       {view === 'list' ? (
         <FormalizationOpportunities initialQuery={q} />

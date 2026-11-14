@@ -733,6 +733,14 @@ export type PaperMaterials = {
   reading: Record<string, string>;
   slides: { id: string; language: string; pdf_url?: string | null; notes_url?: string | null }[];
   visualizations: { id: string; url: string }[];
+  videos?: {
+    id: string;
+    title: string;
+    url: string;
+    mp4_url: string;
+    poster_url?: string | null;
+  }[];
+  formalization_requests?: { label: string; url: string }[];
 };
 export type CollectedPaper = {
   materials?: PaperMaterials;

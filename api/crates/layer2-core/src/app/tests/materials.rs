@@ -98,6 +98,46 @@ fn materials_url_boundaries_refuse_cross_repo_and_url_normalization_escapes() {
     assert_eq!(parse_materials_index(&index(vec![row])).unwrap().len(), 1);
 }
 
+#[test]
+fn videos_and_shared_requests_are_optional_bounded_and_cannot_escape_their_boundaries() {
+    let old = entry("collected", "paper", 1);
+    let legacy = parse_materials_index(&index(vec![old.clone()])).unwrap();
+    assert!(legacy[0].materials.videos.is_empty());
+    assert!(legacy[0].materials.formalization_requests.is_empty());
+    let mut row = old;
+    row["videos"] = json!([{"id":"intro-wide","title":"The idea behind the proof",
+        "url":"https://papers.trureturing.org/paper/films/#intro",
+        "mp4_url":"https://papers.trureturing.org/paper/films/intro/wide.mp4","poster_url":null}]);
+    row["formalization_requests"] = json!([{"label":"Theorem 1",
+        "url":"https://github.com/the-omega-institute/trureturing-requests/issues/2"}]);
+    let parsed = parse_materials_index(&index(vec![row.clone()])).unwrap();
+    assert_eq!(parsed[0].materials.videos.len(), 1);
+    assert_eq!(parsed[0].materials.formalization_requests.len(), 1);
+    for url in [
+        "https://evil.test/video.mp4",
+        "https://papers.trureturing.org/other/video.mp4",
+    ] {
+        let mut bad = row.clone();
+        bad["videos"][0]["mp4_url"] = json!(url);
+        assert!(parse_materials_index(&index(vec![bad])).unwrap().is_empty());
+    }
+    for url in [
+        "https://github.com/the-omega-institute/trureturing-requests/pull/2",
+        "https://github.com/the-omega-institute/trureturing-requests/issues/2?x=1",
+        "https://github.com/the-omega-institute/other/issues/2",
+        "https://github.com/the-omega-institute/trureturing-requests/issues/0",
+    ] {
+        let mut bad = row.clone();
+        bad["formalization_requests"][0]["url"] = json!(url);
+        assert!(parse_materials_index(&index(vec![bad])).unwrap().is_empty());
+    }
+    for key in ["videos", "formalization_requests"] {
+        let mut bad = row.clone();
+        bad[key] = json!([row[key][0].clone(), row[key][0].clone()]);
+        assert!(parse_materials_index(&index(vec![bad])).unwrap().is_empty());
+    }
+}
+
 #[tokio::test]
 async fn collected_materials_replace_remove_and_project_only_the_current_version() {
     let mut w = World::new().await;

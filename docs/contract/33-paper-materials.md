@@ -28,3 +28,13 @@ Both paper readers show only available material groups and the repository, with:
 verification.” The Chinese copy lives in `zh.ts`. No materials means no section.
 Materials are exposition, never proof receipts or archive/DOI authority. The
 server performs no publisher write and holds no publisher credential.
+
+Optional `videos` and `formalization_requests` default to empty for existing
+manifests and stored sidecars. Video page/MP4/poster links share the paper's
+existing URL boundary; only actually built nonempty output is advertised by the
+paper adapter. Requests link only to canonical positive-number issues in
+`the-omega-institute/trureturing-requests`, deduplicated per paper. They are
+shared work registrations, not evidence of verification, mathematical openness,
+completion, dependency or newly earned credit. GitHub remains the live work
+queue; issue closure does not confer a proof receipt. Public formalization
+navigation links this shared queue alongside platform targets and contributions.

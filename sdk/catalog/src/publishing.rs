@@ -1,4 +1,5 @@
 use super::*;
+use crate::model::valid_repo_name;
 
 pub(crate) const PAPERS_SITE: &str = "https://papers.trureturing.org";
 
@@ -113,7 +114,7 @@ pub(crate) fn materials(
     let site = repo.map(|r| format!("{PAPERS_SITE}/{r}/"));
     let mut out = json!({"schema":"mathesis.catalog-materials.v1", "work":work.work,"version":work.current_version,
         "repository_url":repo_url,"site_url":site,"manifest_url":site.as_ref().map(|s| format!("{s}mathesis-materials.json")),
-        "doi":work.doi,"reading":{},"slides":[],"visualizations":[]});
+        "doi":work.doi,"reading":{},"slides":[],"visualizations":[],"videos":[],"formalization_requests":[]});
     if let (Some(root), Some(repo), Some(base)) = (input, repo, site.as_deref()) {
         let path = root.join(format!("{repo}.json"));
         if !path.exists() {
@@ -169,6 +170,51 @@ pub(crate) fn materials(
         for key in ["reading", "slides", "visualizations"] {
             out[key] = m[key].clone();
         }
+        for key in ["videos", "formalization_requests"] {
+            let Some(value) = m.get(key) else { continue };
+            let items = value
+                .as_array()
+                .filter(|a| a.len() <= if key == "videos" { 64 } else { 256 })
+                .ok_or_else(|| msg(format!("invalid materials {key}")))?;
+            let mut identities = BTreeSet::new();
+            for item in items {
+                if key == "videos" {
+                    let id = text(item, "id")
+                        .filter(|s| valid_repo_name(s))
+                        .ok_or_else(|| msg("invalid video id"))?;
+                    if !identities.insert(id)
+                        || !text(item, "title")
+                            .is_some_and(|s| !s.trim().is_empty() && s.len() <= 500)
+                    {
+                        return Err(msg("invalid or duplicate video"));
+                    }
+                    for field in ["url", "mp4_url"] {
+                        material_url(&item[field], base)?;
+                    }
+                    if !item["poster_url"].is_null() {
+                        material_url(&item["poster_url"], base)?;
+                    }
+                } else {
+                    let url = text(item, "url")
+                        .ok_or_else(|| msg("missing formalization request URL"))?;
+                    let number = url.strip_prefix(
+                        "https://github.com/the-omega-institute/trureturing-requests/issues/",
+                    );
+                    if !number.is_some_and(|n| {
+                        !n.is_empty()
+                            && n.len() <= 20
+                            && !n.starts_with('0')
+                            && n.bytes().all(|c| c.is_ascii_digit())
+                    }) || !identities.insert(url)
+                        || !text(item, "label")
+                            .is_some_and(|s| !s.trim().is_empty() && s.len() <= 500)
+                    {
+                        return Err(msg("invalid or duplicate formalization request"));
+                    }
+                }
+            }
+            out[key] = value.clone();
+        }
         out["manifest_available"] = json!(true);
     }
     Ok(out)
@@ -204,7 +250,8 @@ pub(crate) fn materials_index(snapshot: &Snapshot, materials: &[Value]) -> Resul
         };
         entries.push(json!({"kind":kind,"id":id,"version":version,
             "repository_url":material["repository_url"],"site_url":material["site_url"],
-            "reading":material["reading"],"slides":material["slides"],"visualizations":material["visualizations"]}));
+            "reading":material["reading"],"slides":material["slides"],"visualizations":material["visualizations"],
+            "videos":material["videos"],"formalization_requests":material["formalization_requests"]}));
     }
     entries.sort_by_key(|v| (text(v, "kind"), text(v, "id"), v["version"].as_u64()));
     Ok(
