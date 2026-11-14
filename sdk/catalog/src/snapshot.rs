@@ -28,6 +28,10 @@ pub fn snapshot(api_base: &str, output: &Path) -> Result<SnapshotMeta> {
         let (collected, ccount) =
             collect_pages(&client, &api_base, "/collected-papers", &collected_dir)?;
         let (accepted, pcount) = collect_pages(&client, &api_base, "/papers", &papers_dir)?;
+        let accepted = accepted
+            .into_iter()
+            .map(|row| accepted::collect_archive(&client, &api_base, row))
+            .collect::<Result<Vec<_>>>()?;
         let statuses = [
             None,
             Some("unverified"),

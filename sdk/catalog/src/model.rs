@@ -121,6 +121,7 @@ pub(crate) fn paper_work(
         .or_else(|| text(v, "record"))
         .ok_or_else(|| msg("paper has no work/record id"))?;
     let record = text(v, "record").unwrap_or_else(|| work.clone());
+    let consent = consent && !accepted::archive_eligible(v);
     let license = text(v, "license");
     let in_scope = license.as_deref() == Some("CC-BY-4.0");
     let repository_name = if consent || !in_scope {
@@ -249,7 +250,14 @@ pub(crate) fn make_nodes(snapshot: &Snapshot) -> Result<Vec<Node>> {
         })
         .collect();
     works.extend(snapshot.accepted.iter().filter_map(|v| {
-        text(v, "record").map(|record| (record, (v.clone(), "requires_author_consent".to_owned())))
+        text(v, "record").map(|record| {
+            let scope = if accepted::archive_eligible(v) {
+                "in_scope"
+            } else {
+                "requires_author_consent"
+            };
+            (record, (v.clone(), scope.to_owned()))
+        })
     }));
     for row in &snapshot.opportunities {
         let record = text(row, "record").ok_or_else(|| msg("formalization row has no record"))?;

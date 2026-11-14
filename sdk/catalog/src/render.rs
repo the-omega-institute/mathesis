@@ -220,7 +220,7 @@ fn paper_json(work: &Work, snapshot_root: &Path) -> Result<Value> {
         let root = snapshot_root.join("files").join(work_dir_name(&work.work)?);
         json!({
             "pdf": file_info("pdf", "paper.pdf", &root.join("paper.pdf")),
-            "source": file_info("source", "manuscript/", &root.join("source.archive"))
+            "source": file_info("source", "source.archive", &root.join("source.archive"))
         })
     };
     Ok(json!({"work": work, "files": files, "source_identity": "Mathesis public projection"}))
@@ -257,11 +257,11 @@ fn render_template(root: &Path, site: &str) -> Result<()> {
     copy_license(&root.join("LICENSES/CC-BY-4.0.txt"))?;
     Ok(())
 }
-fn manifest_for(root: &Path, snapshot: &Snapshot) -> Result<Value> {
+fn manifest_for(root: &Path, _snapshot: &Snapshot) -> Result<Value> {
     let mut files = BTreeMap::new();
     collect_files(root, root, &mut files, true)?;
     Ok(
-        json!({"generated_paths": files.keys().collect::<Vec<_>>(), "sha256": files, "generator_version": GENERATOR_VERSION, "snapshot_identity": sha256(&fs::read(snapshot.root.join("snapshot.json"))?)}),
+        json!({"generated_paths": files.keys().collect::<Vec<_>>(), "sha256": files, "generator_version": GENERATOR_VERSION, "snapshot_identity": sha256(&serde_json::to_vec(&files)?)}),
     )
 }
 pub(crate) fn collect_files(
@@ -434,6 +434,9 @@ pub fn render_with_materials(
             if frozen.join("manuscript").exists() {
                 copy_tree(&frozen.join("manuscript"), &dir.join("manuscript"))?;
             }
+            if frozen.join("source.archive").exists() {
+                fs::copy(frozen.join("source.archive"), dir.join("source.archive"))?;
+            }
             let manifest = manifest_for(&dir, &snapshot)?;
             write_json(&dir.join(".mathesis/generated.json"), &manifest)?;
         }
@@ -502,12 +505,12 @@ fn profile_readme(
     s.push_str("Public papers and formalization results of Mathesis, operated by Chrono AI.\n\n");
     writeln!(
         s,
-        "Snapshot time: `{}` UTC. Counts cover current public versions of in-scope collected works. Each scope sentence describes the counted set.\n",
+        "Snapshot time: `{}` UTC. Counts cover current public versions of in-scope archive works. Each scope sentence describes the counted set.\n",
         stats.snapshot_time
     )?;
     writeln!(
         s,
-        "| Metric | Count | Scope |\n|---|---:|---|\n| Public papers | {} | in-scope collected works with a current public CC-BY-4.0 version |\n| Registered statements | {} | in-scope nodes of selected versions, deduplicated by identity |\n| Independently verified statements | {} | in-scope nodes with an exact target and matching public receipt |\n| Verified from existing library declarations | {} | in-scope verified nodes whose receipt basis is library declarations |\n| Verified with new Lean | {} | in-scope verified nodes whose receipt basis is new Lean |\n| Verified counterexamples / disproofs | {} | in-scope public disproof receipts, counted separately |\n| Open formalization targets | {} | in-scope confirmed targets without a verified proof |\n| Statements awaiting a formal target | {} | in-scope nodes without a confirmed target; needs-attention subset: {} |\n| Papers with Lean source | {} | in-scope papers with an exact-commit paper-level source link |\n| Papers with a DOI | {} | in-scope papers with a checked exact-version DOI in the public projection |",
+        "| Metric | Count | Scope |\n|---|---:|---|\n| Public papers | {} | in-scope collected works and exactly consented accepted author papers |\n| Registered statements | {} | in-scope nodes of selected versions, deduplicated by identity |\n| Independently verified statements | {} | in-scope nodes with an exact target and matching public receipt |\n| Verified from existing library declarations | {} | in-scope verified nodes whose receipt basis is library declarations |\n| Verified with new Lean | {} | in-scope verified nodes whose receipt basis is new Lean |\n| Verified counterexamples / disproofs | {} | in-scope public disproof receipts, counted separately |\n| Open formalization targets | {} | in-scope confirmed targets without a verified proof |\n| Statements awaiting a formal target | {} | in-scope nodes without a confirmed target; needs-attention subset: {} |\n| Papers with Lean source | {} | in-scope papers with an exact-commit paper-level source link |\n| Papers with a DOI | {} | in-scope papers with a checked exact-version DOI in the public projection |",
         stats.public_papers,
         stats.registered_statements,
         stats.independently_verified_statements,

@@ -296,6 +296,9 @@ fn proof_key(work: &str, v: &Value) -> Option<String> {
 }
 
 /// Traverse every listing page and every formalization status into an atomic snapshot.
+mod accepted;
+#[cfg(test)]
+mod accepted_tests;
 mod archive;
 mod check;
 mod cli;

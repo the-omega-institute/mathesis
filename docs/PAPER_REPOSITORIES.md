@@ -16,8 +16,11 @@ GitHub organization `mathesis-papers` (display name Mathesis). Its repositories 
   revision named by each public source link.
 
 The generator renders one long-lived repository tree for each in-scope collected
-work. Rendering a tree does not publish it: which rendered trees become
-repositories is the publisher's decision. The
+work and each accepted author paper with exact-version public archive consent.
+It compares the public summary with its detail before importing the archive;
+legacy licence strings and consent booleans alone do not authorize copying.
+Rendering a tree does not publish it: repository selection follows the external
+publisher's reviewed automatic-eligibility or explicit-list policy. The
 stable work id is the repository name when it satisfies GitHub's repository-name
 rules. Otherwise the generator uses `paper-` followed by the first twelve
 hexadecimal characters of the SHA-256 of the work id. An explicit mapping file
@@ -50,7 +53,7 @@ The catalog statistics have fixed scopes:
 
 | Metric | Scope |
 |---|---|
-| Public papers | In-scope current public versions of collected CC-BY-4.0 works |
+| Public papers | In-scope current public CC-BY-4.0 collected and exactly consented author papers |
 | Registered statements | In-scope selected-version nodes, deduplicated by node identity |
 | Independently verified statements | In-scope nodes with an exact target and public proof receipt match |
 | Verified from existing library declarations | In-scope verified subset whose receipt basis is `library_declarations` |
@@ -96,17 +99,16 @@ Commons legal code. `paper.json` has `files.pdf` and `files.source` objects with
 `sha256`, `public_sha256`, and nullable `matches_public`; it does not embed the
 statement nodes. Generated manifests list generated paths and SHA-256 values.
 
-Phase 1 includes collected works whose public record says `CC-BY-4.0`. Accepted
-author-submitted records are included in the snapshot and catalog with
-`publication: "requires_author_consent"`, but receive no repository tree. A
-public repository or archive record cannot be withdrawn by the generator, while
-CLAUDE.md §4 permits a later privacy change. Pull requests and CI do not confer
-verification or credit. Contributors submit attempts through
-[`docs/CONTRIBUTE.md`](CONTRIBUTE.md) and `sdk/contribute`; repository changes
-are for explanations, errata pointers and reproducibility material. Copying an
-upstream result creates no new contribution. Accepted directory rows are retained
-with their explicit scope and are not counted as public papers or registered
-in-scope statements.
+Eligible public collected works and exactly consented accepted author papers enter
+the same archive projection. The accepted paper adapter checks the published
+version's archive marker, licence, consent time and PDF/source descriptors against
+the public detail. Private, legacy and unconsented accepted records retain
+`publication: "requires_author_consent"` and receive no repository tree or material
+links. Conjectures remain outside paper-repository publication. A later privacy
+change does not erase an already consented permanent archive. Repository copying,
+pull requests and CI confer no new mathematical verification or credit.
+Contributors submit attempts through [`docs/CONTRIBUTE.md`](CONTRIBUTE.md) and
+`sdk/contribute`.
 
 The generator displays an existing checked exact-version DOI. It never registers
 one. One party registers DOIs for a given paper version. Zenodo API deposits are
@@ -143,8 +145,7 @@ directory `/formalizations`, and the contribution route `/contribute`.
 
 The local generator and the external publisher are separate programs. The
 publisher in `mathesis-papers/catalog` owns GitHub writes with its GitHub App.
-Archive deposit automation, accepted-record repository creation after consent,
-and Zenodo credentials are outside this package. The Mathesis server holds no
+GitHub writes, archive deposits and Zenodo credentials are outside this package. The Mathesis server holds no
 publisher credential and attaches a DOI only after public archive verification.
 
 ## Automatic publisher and organization site
@@ -184,21 +185,24 @@ The Mathesis layer emits it through the upstream optional `site.post_build`
 interface and redirects a single-book paper's root to the original nested book
 landing. All original book URLs continue to work. The worker consumes the organization materials index described below.
 
-The catalog repository owns a daily/manual publisher authenticated by a
+The catalog repository owns an hourly/manual publisher authenticated by a
 short-lived GitHub App token. It builds this SDK at an exact Mathesis commit,
 stages snapshot → fetch → render → check, downloads repository manifests
 anonymously, renders/checks again with a publication plan, and fills/checks all
 new paper skeletons from an exact template commit. No GitHub write occurs until
 all staging checks pass. A full output hash manifest is checked by `check`.
 
-`publish.json` is an explicit list of work ids; initially it contains only
-`chen-chen-step-m-eulerian-parity-positivity`. Publication eligibility remains
-collected CC-BY-4.0. The allow-list grants repository creation, not mathematical
-content generation. Existing mappings remain durable. New repositories come
-from `paper-template`; Pages uses workflow mode and one issue carries the
-layer's reading/media checklist. Template provenance and imported paper identity
-make retries safe across partial setup. Existing populated books are preserved;
-new paper versions require reviewed projection/book updates, not another fill.
+`publisher.json` selects `publication_selection: "all_eligible"`: every eligible
+current public archive work enters the pipeline, without a new referee or model
+call. `publish.json` retains a reviewed baseline of 39 works and the default
+allow-list policy remains available. DOI-based durable mappings prevent duplicate
+repositories across versions. New ordinary papers receive static reading pages,
+PDF, original `source.archive`, extracted files and immutable `versions/vN/`.
+The existing authored book is preserved separately. Exposition and formalization
+are independent follow-up work, not gates for collecting already public papers.
+The publisher records a per-paper factory inventory, Git commit receipts and
+post-deployment anonymous readback checks. Content-derived paper identities avoid
+commits for unchanged papers when only snapshot time changes.
 
 The `formalization/` tree is staged, checked and sealed with the catalog. It syncs
 to the existing public `formalization` repository; it is not created by this

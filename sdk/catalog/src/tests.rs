@@ -804,7 +804,8 @@ fn materials_index_is_deterministic_versioned_and_in_the_render_hash_manifest() 
     .unwrap();
     write_json(
         &root.join("raw/papers.json"),
-        &json!([{"record":"WP-2026-0001","version":3,"title":"Accepted"}]),
+        &json!([{"record":"WP-2026-0001","version":3,"title":"Accepted","license":"CC-BY-4.0",
+            "archive_consent":true,"archive":{"marker":"public-archive-2026-11-12","licence":"CC-BY-4.0"}}]),
     )
     .unwrap();
     write_json(&root.join("raw/opportunities.json"), &json!([])).unwrap();

@@ -37,10 +37,16 @@ and path checks, and links are never followed.
 
 The output has `catalog/works.json`, `nodes.json`, `stats.json`,
 `snapshot.json` and `README.md`, the organization `profile/README.md`, one
-`papers/<repository-name>/` tree per CC-BY-4.0 collected work, and the static
-`template/` tree. Accepted author-submitted records are present in the
-snapshot and works catalog with `publication: "requires_author_consent"`, but
-receive no repository tree.
+`papers/<repository-name>/` tree per CC-BY-4.0 collected work or consented
+accepted author paper, and the static `template/` tree. Author papers require
+the exact public archive consent marker and frozen-file descriptors from their
+current public details. A listing flag or licence alone is insufficient.
+Unconsented and legacy records stay `requires_author_consent`, without copied
+files or material links. A concurrent change aborts snapshot replacement.
+Original source bytes are retained in `source.archive`, with the public hash
+and size checked; extracted archives, single TeX files and PDF-only uploads
+remain readable in `manuscript/`. Paper manifests identify their own content,
+so refreshing the catalog time does not rebuild unchanged papers.
 
 `src/msc_labels.json` is a copied, package-local projection of the English
 MSC labels used by `web/src/data/theory-areas.json` at package creation time.

@@ -106,7 +106,9 @@ pub(crate) fn materials(
     mapping: &BTreeMap<String, String>,
     input: Option<&Path>,
 ) -> Result<Value> {
-    let repo = mapping.get(&work.work);
+    let repo = mapping
+        .get(&work.work)
+        .filter(|_| work.publication == "public");
     let repo_url = repo.map(|r| format!("https://github.com/{org}/{r}"));
     let site = repo.map(|r| format!("{PAPERS_SITE}/{r}/"));
     let mut out = json!({"schema":"mathesis.catalog-materials.v1", "work":work.work,"version":work.current_version,
@@ -223,7 +225,7 @@ pub(crate) fn render_site(
     fs::write(root.join("CNAME"), "papers.trureturing.org\n")?;
     fs::write(root.join(".nojekyll"), "")?;
     let mut body = format!(
-        "<h1>{}</h1><p>Public papers from Mathesis.</p><p>Snapshot: <time>{}</time>. Counts cover current public CC-BY-4.0 collected works and their selected-version statement nodes.</p>",
+        "<h1>{}</h1><p>Public papers from Mathesis.</p><p>Snapshot: <time>{}</time>. Counts cover current eligible public CC-BY-4.0 archive works and their selected-version statement nodes.</p>",
         html(name),
         html(&stats.snapshot_time)
     );
@@ -234,7 +236,7 @@ pub(crate) fn render_site(
         (
             "Public papers",
             stats.public_papers,
-            "Current in-scope collected versions",
+            "Current in-scope archive versions",
         ),
         (
             "Registered statements",
