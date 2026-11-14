@@ -1,3 +1,5 @@
+import { rankedImprovements } from '../lib/adviceTargets';
+import { ImprovementTargetDetails } from './workspace/AuthorPanels';
 import { t } from '../i18n/locale';
 import { FinalReviewReport } from './FinalReviewReport';
 import { useState, type FormEvent } from 'react';
@@ -625,6 +627,22 @@ function AdviceView({
     <div className="report">
       <h3>{t('Research progress')}</h3>
       <Markdown text={advice.summary} />
+      {advice.value ? (
+        <section aria-label={t('Value reading')}>
+          <h4>{t('Value reading')}</h4>
+          <p className="small muted">
+            {t('The advisor’s reading, consistent with the source review.')}
+          </p>
+          <h5>{t('What a specialist learns')}</h5>
+          <Markdown text={advice.value.significance} />
+          <h5>{t('Single weakest point')}</h5>
+          <StatementRef
+            id={advice.value.weakest_point.claim ?? undefined}
+            submission={submission}
+          />
+          <Markdown text={advice.value.weakest_point.text} />
+        </section>
+      ) : null}
       <p className="small muted">
         {t(
           'Each checked item records a bounded mathematical advance or a precise obstruction. Proposed items are directions for the next step.',
@@ -644,7 +662,7 @@ function AdviceView({
             </tr>
           </thead>
           <tbody>
-            {advice.improvements.map((item, i) => (
+            {rankedImprovements(advice.improvements).map((item, i) => (
               <tr key={i}>
                 <td data-label="Kind">{t(IMPROVEMENT_KIND_LABELS[item.kind])}</td>
                 <td data-label="Statement">
@@ -652,6 +670,7 @@ function AdviceView({
                 </td>
                 <td data-label="Next mathematical step">
                   <Markdown text={item.suggestion} />
+                  <ImprovementTargetDetails item={item} />
                 </td>
                 <td data-label="What Mathesis checked">
                   <Markdown text={item.how_we_help} />

@@ -274,6 +274,21 @@ fn final_report_style_is_pinned_without_changing_legacy_prompt_bytes() {
     assert!(academic.contains("## Review analysis"));
     assert!(academic.contains("## Further directions"));
     assert!(academic.contains("Formalization opportunities"));
+    current.letter_contract = 4;
+    let targets = referee_prompts::letter(&current, None);
+    for rule in [
+        "lead with the supplied rank-1 improvement",
+        "In note, state the target's prior-work finding",
+        "reported opened source and location",
+        "never venue-verified novelty",
+        "do not expose internal field names",
+    ] {
+        assert!(targets.contains(rule), "missing rule: {rule}");
+    }
+    current.letter_contract = 3;
+    assert_eq!(referee_prompts::letter(&current, None), outcome);
+    current.letter_contract = 2;
+    assert_eq!(referee_prompts::letter(&current, None), academic);
     current.letter_contract = 1;
     assert_eq!(referee_prompts::letter(&current, None), new);
     current.letter_contract = 0;

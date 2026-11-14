@@ -2355,4 +2355,20 @@ export const zh: Record<string, string> = {
     '共引用 {total} 个库声明，此处列出 {shown} 个。',
   'The inspection stopped at its bound, so further library declarations may be referenced.':
     '检查在达到上限时停止，证明可能还引用了其他库声明。',
+  'Value reading': '价值解读',
+  'The advisor’s reading, consistent with the source review.': '顾问依据原文审阅给出的解读。',
+  'What a specialist learns': '专业读者能获得什么',
+  'Single weakest point': '最薄弱的一点',
+  'Priority:': '优先次序：',
+  'Target statement:': '目标命题：',
+  'Feasibility:': '可行性：',
+  'Risk:': '风险：',
+  'Prior work on this target:': '该目标的已有研究：',
+  'Known target': '目标已知',
+  'Special case of an opened result': '已打开文献中结果的特例',
+  'Related result': '相关结果',
+  'No matching statement located in the reported search': '在所报告的检索范围内未找到匹配命题',
+  'Sources are reported by the advisor, not independently verified by Mathesis.':
+    '来源由顾问报告，未经 Mathesis 独立核验。',
+  'Research targets': '研究目标',
 };

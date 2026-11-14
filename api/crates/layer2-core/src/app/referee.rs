@@ -1058,7 +1058,7 @@ impl App {
             } else {
                 RefereeBackend::Oracle
             },
-            letter_contract: 3,
+            letter_contract: 4,
             computation_contract: 1,
             computation_receipts: vec![],
             knowledge_contract: 4,

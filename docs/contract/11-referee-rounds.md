@@ -33,8 +33,21 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   Report and decision replay is idempotent, including recovery after record
   insertion. Accepted records and their publication inputs remain immutable.
 - Advice runs after the applied decision (or private review completion) for every audited paper and feeds
-  improvement suggestions to the letter. Formalization candidates are used only
-  after acceptance. A sketch does not verify a theorem.
+  improvement suggestions to the letter. Its optional staff-only value reading
+  states what a specialist learns, consistently with the supplied audit, and the
+  single weakest point (with a valid affected claim or null). Advice gives no
+  second novelty verdict on main results and never restates or changes the decision.
+  Theorem proposals carry an exact target, feasibility, risk and a separate
+  opened-source prior-work check before listing. Known targets/specializations are
+  literature items; `not_located` records actual search scope, never novelty.
+  Positive ranks order additions by value; one grounded direction leads at rank 1.
+  The binary normalizes ranked survivors to 1..n, breaking ties by original order,
+  and leaves unranked items unranked. Practically weak constants are described
+  conservatively, with appropriate presentation and proof placement.
+  Unknown prior-work verdicts, unopened citations, invalid claim references and
+  oversized new text are dropped and named in the advice summary; sources remain
+  model-reported. Formalization candidates are used only after acceptance. A
+  sketch does not verify a theorem.
 - A completed letter step atomically delivers the letter in-app, with its round,
   applied accept/reject outcome (no assessment for private or pending reviews),
   the auditor as sender, and `edited=false`. It states the
@@ -43,7 +56,10 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   Author-facing reports do not use minor/major-revision outcome labels; accepted
   reports describe contributions and extensions, refusals explain their reasons.
   Internal mathematical recommendations and historical letters stay unchanged.
-  New rounds pin `letter_contract: 3`; legacy rounds retain their original prompts.
+  New rounds pin `letter_contract: 4`, retaining the three mathematical sections
+  and leading Further directions with the rank-1 item. The note states a target's
+  prior-work finding and reported opened source, never venue-verified novelty or
+  internal field names. Contracts 0–3 retain their original instruction bytes.
   The My work list uses the private, version-bound `review-summary` projection;
   delivery requires a saved current letter. Internal stages remain in staff details.
   It contains no Lean results. Private review letters state completion and feedback,
@@ -63,6 +79,10 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
 - Staff receive full review history. Submitter and linked co-authors receive
   reports, audits, sent letters and projected Lean outcomes through the existing
   referee GET; advice, drafts, provider metadata and Lean files remain private.
+  After same-round letter delivery and completed audit/advice, the existing
+  `research_suggestions` projection also carries rank, exact target, feasibility,
+  risk and target prior-work findings for its already selected improvements.
+  The value reading remains staff-only. No policy, credit or publication rule changes.
   Anyone else receives `not_found`, including readers of an accepted paper.
 - Referee readings remain machine judgements under `wishpool:referee` by default
   (engine `nyxid-oracle`). Audit reports and automatic letters use the separate
@@ -89,6 +109,13 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   durable private steps in the referee aggregate. Stable keys bind submission,
   version, statement revision, round, step and attempt. Worker restarts resume
   polling with those ids; uncertain mutations reuse the original key and body.
+  Advice instruction content is not version-pinned today: it is rebuilt from the
+  current advice template. Saved CMA runs pin the input digest, exact mutation
+  intents and framing, not the complete advice instructions; a changed prompt
+  fails the existing input-digest fence rather than replaying under new bytes.
+  Settled advice stays unchanged; not-yet-admitted advice uses the current prompt,
+  including in an older round. This change preserves that behavior and adds no
+  advice or delivery contract number.
   Agent steps have at most 3,600 seconds. The lease heartbeat stays active.
   New CMA runs pin delivery contract 1: the final input chunk repeats bounded
   audit/advice/letter instructions and the exact response-format requirement without removing

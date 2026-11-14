@@ -39,14 +39,15 @@ pub use paper::*;
 pub use person::*;
 pub use record::*;
 pub use referee::{
-    Advice, AgentStep, AgentStepUpdate, AuditedClaim, AuditedConcern, ConcernStatus, Correctness,
-    Effort, Evidence as ImprovementEvidence, Feasibility, FeedbackLetter, FindingResponse,
-    FormalAttempt, FormalProbe, FormalProbeView, FormalizationCandidate, Improvement,
-    ImprovementKind, LetterDraft, MAX_LETTER_CHARS, NewFindingResponse, NewLetter, ProbeOutcome,
-    ProbeOutcomeView, Recommendation, RefereeAudit, RefereeBackend, RefereeClaim, RefereeConcern,
-    RefereeFile, RefereeReport, RefereeRound, RefereeRoundView, RefereeView, ResearchSuggestion,
-    ResponseAssessment, ResponseDisposition, ReviewEvidenceReference, ReviewSummary, RoundProgress,
-    RoundUpdate, Severity, StageProgress, Step, StepState,
+    Advice, AdviceValue, AgentStep, AgentStepUpdate, AuditedClaim, AuditedConcern, ConcernStatus,
+    Correctness, Effort, Evidence as ImprovementEvidence, Feasibility, FeedbackLetter,
+    FindingResponse, FormalAttempt, FormalProbe, FormalProbeView, FormalizationCandidate,
+    Improvement, ImprovementKind, LetterDraft, MAX_LETTER_CHARS, NewFindingResponse, NewLetter,
+    ProbeOutcome, ProbeOutcomeView, Recommendation, RefereeAudit, RefereeBackend, RefereeClaim,
+    RefereeConcern, RefereeFile, RefereeReport, RefereeRound, RefereeRoundView, RefereeView,
+    ResearchSuggestion, ResponseAssessment, ResponseDisposition, ReviewEvidenceReference,
+    ReviewSummary, RoundProgress, RoundUpdate, Severity, StageProgress, Step, StepState,
+    TargetPriorWork, TargetPriorWorkVerdict, WeakestPoint,
 };
 pub use review::*;
 pub use search::*;

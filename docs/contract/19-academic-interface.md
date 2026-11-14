@@ -46,8 +46,10 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   Developer integration instructions are collapsed on the contribution page. The public
   review policy explains mathematical criteria and privacy without internal stage names.
 
-- New rounds pin `letter_contract: 3` for Review analysis, Suggestions and Further
-  directions. Contracts 0/1/2 retain their prompt bytes. The existing
+- New rounds pin `letter_contract: 4` for Review analysis, Suggestions and Further
+  directions. Contracts 0/1/2/3 retain their letter instruction bytes. Contract 4 leads directions
+  with the most valuable ranked addition and reports target prior-work findings in
+  the note with their opened sources. The existing
   venue-authored decision remains authoritative. After same-round letter delivery,
   a bounded projection exposes selected correct-statement formalization plans;
   it never exposes raw advice, sketches, files or provider data. Recommendations

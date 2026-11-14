@@ -1,3 +1,5 @@
+import { targetDetailsText } from '../../lib/adviceTargets';
+import { Markdown } from '../Markdown';
 import { t } from '../../i18n/locale';
 import { ProofWork } from '../ProofWork';
 import { EvidencePicker } from '../EvidenceFiles';
@@ -5,7 +7,7 @@ import { bundleManuscript, withEvidence, type EvidenceInput } from '../../lib/so
 import { PROCESSING_REQUEST_VERSION } from '../../api/types';
 import { useState, type FormEvent } from 'react';
 import { useApi } from '../../api/context';
-import type { RefereeRound, Submission } from '../../api/types';
+import type { ImprovementTarget, RefereeRound, Submission } from '../../api/types';
 import { useSession } from '../../auth/session';
 import { resultLabel } from '../../lib/statements';
 import { hasReviewedProof, legacyFormalizationStatus } from '../../lib/formalizationAdvice';
@@ -618,4 +620,10 @@ function LeanStatementResponse({
       <InlineError error={mutation.error} />
     </div>
   );
+}
+
+/** Shared mathematical target details for staff advice and delivered author feedback. */
+export function ImprovementTargetDetails({ item }: { item: ImprovementTarget }) {
+  const text = targetDetailsText(item);
+  return text ? <Markdown text={text} texDelimiters /> : null;
 }

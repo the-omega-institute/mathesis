@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accepted, notAccepted, submission } from '../test/fixtures';
-import { feedbackLetter, refereeAudit, refereeRound } from '../test/referee';
+import { checkedTarget, feedbackLetter, refereeAudit, refereeRound } from '../test/referee';
 import {
   authorReport,
   authorReportPreview,
@@ -10,6 +10,32 @@ import {
 import { manuscriptReferences } from './statements';
 
 describe('author publication reports', () => {
+  it('retains exact target details in the full report used by the download', () => {
+    const round = {
+      ...refereeRound,
+      research_suggestions: [
+        {
+          ...checkedTarget,
+          kind: 'generalize' as const,
+          suggestion: 'Extend the finite bound.',
+          excerpt: false,
+        },
+      ],
+    };
+    const text = authorReport(accepted, round, feedbackLetter)!;
+    for (const field of [
+      checkedTarget.target_statement!,
+      checkedTarget.feasibility!,
+      checkedTarget.risk!,
+      checkedTarget.prior_work!.source!,
+      checkedTarget.prior_work!.location!,
+      checkedTarget.prior_work!.note,
+    ])
+      expect(text).toContain(field);
+    expect(text).toContain('**Priority:** 1');
+    expect(text).not.toContain('value');
+  });
+
   it('keeps the initial report short while retaining every recommendation in the full report', () => {
     const suggestions = Array.from({ length: 8 }, (_, i) => ({
       kind: 'exposition' as const,
