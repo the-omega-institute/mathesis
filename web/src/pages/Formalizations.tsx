@@ -74,7 +74,7 @@ export function FormalizationsPage({
         <FormalizationOpportunities initialQuery={q} />
       ) : (
         <>
-          {!focus || focus.startsWith('module:') ? (
+          {!focus || focus.startsWith('module:') || focus.startsWith('library:') ? (
             <SharedLibraryGraph
               msc={msc}
               focus={focus?.startsWith('module:') ? focus.slice(7) : undefined}

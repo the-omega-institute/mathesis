@@ -6,6 +6,7 @@ import type { CollectedPaper } from '../api/types';
 import type { SharedLibrary } from '../lib/sharedLibrary';
 import { loadSharedLibrary } from '../lib/sharedLibrary';
 import { SharedLibraryGraph } from './SharedLibraryGraph';
+import { FormalizationsPage } from '../pages/Formalizations';
 
 vi.mock('../lib/sharedLibrary', async (original) => ({
   ...(await original<typeof import('../lib/sharedLibrary')>()),
@@ -61,7 +62,7 @@ it('starts with independent subject links, without loading or drawing a combined
   const api = fakeApi({
     listCollectedPapers: vi.fn(async () => ({ items: papers, next_before: null })),
   });
-  renderWithApp(<SharedLibraryGraph />, api);
+  renderWithApp(<FormalizationsPage focus="library:all" />, api);
   expect(await screen.findByRole('link', { name: 'Quantum theory' })).toHaveAttribute(
     'href',
     '/formalizations?msc=81',
