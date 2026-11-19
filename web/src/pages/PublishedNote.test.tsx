@@ -276,6 +276,8 @@ it('preserves a live exact-version DOI through archive, paper citation and refer
     `${window.location.origin}/papers/doi/${live.archive.doi}`,
   );
   expect(document.querySelector('meta[name="citation_journal_title"]')).toBeNull();
+  await waitFor(() => expect(document.title).toBe('The updated published result · Mathesis'));
+  expect(document.querySelectorAll('title')).toHaveLength(1);
   paper.unmount();
   renderWithApp(<PublishedNotePage id={old.id} note={old} />, fakeApi());
   expect(document.querySelector('meta[name="citation_doi"]')).toBeNull();

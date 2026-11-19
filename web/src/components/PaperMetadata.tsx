@@ -2,6 +2,7 @@ import type { Author, PublicPaper } from '../api/types';
 import { canonicalAuthorName } from '../lib/authorName';
 import { citationUrl } from '../lib/citation';
 import { texToText } from '../lib/texText';
+import { useEffect } from 'react';
 
 /** Standard citation metadata for browser reference managers; public fields only. */
 export function PaperMetadata({ paper }: { paper: PublicPaper }) {
@@ -43,9 +44,11 @@ export function CitationMetadata({
   publicationDate?: string;
   pdfUrl?: string;
 }) {
+  useEffect(() => {
+    document.title = `${texToText(title)} · Mathesis`;
+  }, [title]);
   return (
     <>
-      <title>{texToText(title)} · Mathesis</title>
       <link rel="canonical" href={canonicalUrl} />
       <meta name="citation_title" content={title} />
       {authors.map((author, index) => (
