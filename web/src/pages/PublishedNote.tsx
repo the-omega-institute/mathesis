@@ -5,6 +5,7 @@ import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
 import { publishedLeanSource } from '../lib/publishedLean';
 import { sharedLibraryFocus } from '../lib/sharedLibrary';
+import { formalizationPaperSubjects } from '../lib/formalizationLibrary';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperMaterialLinks, PaperMaterials } from '../components/PaperMaterials';
 import { InlineLatex, LatexText } from '../components/Markdown';
@@ -107,7 +108,13 @@ export function PublishedNotePage({
         </a>
         {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
         {sharedLibraryFocus(note.lean?.url) ? (
-          <Link to={{ kind: 'formalizations', focus: sharedLibraryFocus(note.lean?.url) }}>
+          <Link
+            to={{
+              kind: 'formalizations',
+              msc: formalizationPaperSubjects(note)[0],
+              focus: sharedLibraryFocus(note.lean?.url),
+            }}
+          >
             {t('View in dependency graph')}
           </Link>
         ) : null}

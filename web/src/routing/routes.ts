@@ -20,7 +20,14 @@ export type Route =
     }
   | { kind: 'research_problem'; id: string; before?: string }
   | { kind: 'conjectures' }
-  | { kind: 'formalizations'; focus?: string; q?: string; before?: string; view?: 'list' }
+  | {
+      kind: 'formalizations';
+      msc?: string;
+      focus?: string;
+      q?: string;
+      before?: string;
+      view?: 'list';
+    }
   | { kind: 'learn_lean' }
   | { kind: 'conjecture'; record: string; claim: string }
   | { kind: 'leaderboard'; category?: 'formalization' }
@@ -141,8 +148,11 @@ export function parseRoute(pathname: string, search = ''): Route {
         return { kind: 'learn_lean' };
       case 'formalizations': {
         const params = new URLSearchParams(search);
+        const msc = params.get('msc');
+        if (msc && !findSubject(msc)) return notFound;
         return {
           kind: 'formalizations',
+          ...(msc ? { msc } : {}),
           ...(params.get('focus') ? { focus: params.get('focus')! } : {}),
           ...(params.get('q') ? { q: params.get('q')! } : {}),
           ...(params.get('before') ? { before: params.get('before')! } : {}),
@@ -311,6 +321,7 @@ export function routePath(route: Route): string {
       return '/learn-lean';
     case 'formalizations': {
       const params = new URLSearchParams();
+      if (route.msc) params.set('msc', route.msc);
       if (route.focus) params.set('focus', route.focus);
       if (route.q) params.set('q', route.q);
       if (route.before) params.set('before', route.before);
