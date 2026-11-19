@@ -2398,7 +2398,7 @@ input[type='file']::file-selector-button {
   }
 }
 
-/* Archive discovery: one clear search, with secondary metadata filters. */
+/* Subject browsing leads the directory; text search is available when needed. */
 .research-archive .page-head {
   padding-bottom: 0;
   margin-bottom: 1rem;
@@ -2407,9 +2407,48 @@ input[type='file']::file-selector-button {
 .research-archive .lede {
   max-width: none;
 }
+.archive-browse {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin-block: 1.75rem 1rem;
+}
+.archive-subjects {
+  display: flex;
+  flex: 1 1 38rem;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.5rem;
+  font-size: 0.95rem;
+}
+.archive-subjects a {
+  text-decoration: none;
+}
+.archive-subjects a:hover {
+  text-decoration: underline;
+}
+.archive-subjects a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.35em;
+}
+.archive-subject-picker select {
+  max-width: min(23rem, 100%);
+  font-size: 0.9rem;
+}
+.archive-search-disclosure {
+  margin-block: 1rem 2rem;
+  font-size: 0.9rem;
+}
+.archive-search-disclosure > summary {
+  width: fit-content;
+  color: var(--muted);
+  cursor: pointer;
+}
 .archive-search {
   padding: var(--space-4) 0;
-  margin: 0 0 2rem;
+  margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2446,7 +2485,7 @@ input[type='file']::file-selector-button {
     grid-template-columns: 1fr 1fr;
   }
   .archive-search {
-    padding: 1rem;
+    padding: 1rem 0;
   }
 }
 @media (max-width: 380px) {
@@ -2931,7 +2970,77 @@ button.research-map-node.is-connected {
   gap: 1.6rem;
   margin-block: 2rem;
 }
+.paper-directory-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.5rem 2rem;
+}
+.paper-directory-body {
+  min-width: 0;
+}
+.paper-directory-entry h2 {
+  margin: 0.2rem 0 0;
+  padding: 0;
+  border: 0;
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.paper-directory-entry h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+.paper-directory-entry h2 a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.paper-directory-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.paper-directory-subjects a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.paper-directory-subjects a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.paper-directory-doi {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.paper-directory-doi a {
+  color: inherit;
+  text-decoration: none;
+}
+.paper-directory-doi a:hover {
+  text-decoration: underline;
+}
+.paper-directory-pdf {
+  margin-top: 1.65rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
 @media (max-width: 45rem) {
+  .paper-directory-entry {
+    column-gap: 1rem;
+  }
+  .paper-directory-entry h2 {
+    font-size: 1.05rem;
+  }
+  .archive-subjects {
+    gap: 0.65rem 1.1rem;
+  }
   .research-archive-list .research-entry {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.3rem;

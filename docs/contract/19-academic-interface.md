@@ -25,8 +25,11 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
 - Public pages share the header/footer's outer margins through `--page` and `--gutter`.
   Keep headings and page containers on those same edges. Restrict prose within the
   shared page instead of centering narrower page wrappers or widening individual routes.
-- Public paper lists keep compact bibliographic rows, with dates and file access in
-  a consistent secondary column on desktop. Both paper readers use the same title,
+- The public paper directory uses compact subject, title and DOI rows with PDF access.
+  Author bylines, versions and source downloads belong on individual paper pages;
+  author search and full citation metadata remain available. Subject navigation
+  uses MSC classes and includes editorial indexing of legacy deposits without MSC,
+  without changing the deposited metadata. Both paper readers use the same title,
   abstract-first reading order, section links and citation/version sidebar; narrow
   screens retain document order. Keep complete bilingual explanations on the work
   page and show only sections and public downloads that actually exist.

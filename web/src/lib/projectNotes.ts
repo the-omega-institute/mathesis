@@ -3,7 +3,7 @@ import type { Author, CollectedPaper, PaperMaterials, Settles } from '../api/typ
 import type { PaperQuery } from '../api/client';
 import { routePath } from '../routing/routes';
 import { authorNameMatches, canonicalAuthorName } from './authorName';
-import { noteSubjects } from './projectNoteSubjects';
+import { publicationSubjects } from './projectNoteSubjects';
 
 export type ProjectNote = {
   materials?: PaperMaterials;
@@ -82,14 +82,17 @@ export function mergeCollectedNotes(
   return [...notes.values()];
 }
 
-export function findProjectNotes(query: PaperQuery): ProjectNote[] {
+export function findProjectNotes(
+  query: PaperQuery,
+  notes: readonly ProjectNote[] = projectNotes,
+): ProjectNote[] {
   if (query.kind && query.kind !== 'note') return [];
   const msc = query.msc?.trim().toUpperCase();
   const q = (query.q ?? '').trim();
   const terms = q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const author = (query.author ?? '').trim();
-  return projectNotes.filter((note) => {
-    const codes = note.msc ?? noteSubjects[note.id] ?? [];
+  return notes.filter((note) => {
+    const codes = publicationSubjects(note.id, note.msc);
     if (msc && !codes.some((code) => code.startsWith(msc))) return false;
     const authors = note.authors
       .map((a) => a.name)

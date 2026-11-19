@@ -233,7 +233,15 @@ describe('public paper page', () => {
       '/papers/WP-2026-0001',
     );
     const entry = screen.getByRole('link', { name: 'On sums of integers' }).closest('article')!;
-    expect(entry).toHaveTextContent(paperSummary.authors[0]!.name);
+    expect(entry).not.toHaveTextContent(paperSummary.authors[0]!.name);
+    expect(within(entry).getByRole('link', { name: 'Number theory' })).toHaveAttribute(
+      'href',
+      '/subjects/11',
+    );
+    expect(within(entry).getByRole('link', { name: paperSummary.doi! })).toHaveAttribute(
+      'href',
+      `https://doi.org/${paperSummary.doi}`,
+    );
     expect(entry.querySelector('.badge')).toBeNull();
   });
 });
@@ -243,6 +251,7 @@ it('searches the complete archive through the API and resets pagination when fil
   renderWithApp(<PapersPage />, fakeApi({ listPapers }));
   const user = userEvent.setup();
   await screen.findByText(paperSummary.title);
+  await user.click(screen.getByText('Search and filters'));
   await user.type(screen.getByLabelText('Find research'), 'prime gaps');
   await user.type(screen.getByLabelText('Author'), 'A. Author');
   await user.type(screen.getByLabelText('Subject (MSC)'), '11');
@@ -310,7 +319,8 @@ it('keeps archive entries bibliographic and puts abstracts on the work page', as
   const card = title.closest('article')!;
   expect(card).not.toHaveTextContent(abstract.trim());
   expect(card.querySelector('.abstract-excerpt')).toBeNull();
-  expect(card.querySelector('time')).not.toBeNull();
+  expect(card.querySelector('time')).toBeNull();
+  expect(within(card).getByRole('link', { name: 'View paper' })).toBeVisible();
   expect(
     screen
       .getByRole('link', { name: 'Legacy note' })

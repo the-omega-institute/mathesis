@@ -185,14 +185,15 @@ describe('published manuscripts', () => {
     const { container } = renderWithApp(<PapersPage />, fakeApi());
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
     expect(screen.getAllByRole('link', { name: 'Read PDF' })).toHaveLength(10);
-    expect(screen.getAllByRole('link', { name: 'Source files' })).toHaveLength(10);
-    expect(screen.getAllByRole('link', { name: 'Lean source' })).toHaveLength(10);
+    expect(screen.queryByRole('link', { name: 'Source files' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Lean source' })).toBeNull();
     expect(container.querySelector('.research-archive-list')?.tagName).toBe('OL');
     for (const [index, note] of projectNotes.entries()) {
       const entry = container.querySelectorAll('.paper-entry')[index]!;
       expect(entry.querySelector('.prose')).toBeNull();
-      expect(entry).toHaveTextContent(note.authors[0]!.name);
-      expect(entry).toHaveTextContent(`Version ${note.revision}`);
+      expect(entry).not.toHaveTextContent(note.authors[0]!.name);
+      expect(within(entry as HTMLElement).getByRole('list', { name: 'Subjects' })).toBeVisible();
+      expect(entry).not.toHaveTextContent(`Version ${note.revision}`);
       expect(entry.querySelector('.research-entry-sources')).toBeNull();
     }
     expect(container.querySelector('.badge')).toBeNull();
@@ -248,7 +249,7 @@ it('preserves a live exact-version DOI through archive, paper citation and refer
     getCollectedPaper: vi.fn(async () => live),
   });
   const archive = renderWithApp(<PapersPage initialQuery={live.archive.doi} />, api);
-  expect(await screen.findByRole('link', { name: 'DOI' })).toHaveAttribute(
+  expect(await screen.findByRole('link', { name: live.archive.doi })).toHaveAttribute(
     'href',
     'https://doi.org/' + live.archive.doi,
   );
@@ -322,13 +323,8 @@ describe('author names delivered in two written forms', () => {
       fakeApi(),
     );
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
-    const names = [...container.querySelectorAll('.paper-entry .author-name')];
-    expect(names).toHaveLength(20);
-    for (const [index, link] of names.entries()) {
-      const name = index % 2 ? 'Wenlin Zhang' : 'Haobo Ma';
-      expect(link).toHaveTextContent(name);
-      expect(link).toHaveAttribute('href', `/papers?author=${name.replace(' ', '+')}`);
-    }
+    expect(container.querySelectorAll('.paper-entry')).toHaveLength(10);
+    expect(container.querySelector('.paper-entry .author-name')).toBeNull();
   });
 
   it('cites a manuscript and describes it to reference managers in the canonical form', () => {
