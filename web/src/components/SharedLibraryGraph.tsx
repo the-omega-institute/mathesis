@@ -117,7 +117,13 @@ function SubjectGraphSource({
             if (result.status === 'fulfilled') knowledge.push(result.value);
         }
         if (signal.aborted) throw signal.reason;
-        return formalizationLibrary(source, selectedPapers, knowledge, msc ? undefined : focus);
+        return formalizationLibrary(
+          source,
+          selectedPapers,
+          knowledge,
+          msc ? undefined : focus,
+          papers,
+        );
       },
       [api, papers, focus, msc],
     ),

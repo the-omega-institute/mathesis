@@ -104,6 +104,25 @@ describe('Mathesis formalization presentation', () => {
       'Arith/Other',
     ]);
     expect(subjectFormalizationLibrary(graph, '99').nodes).toEqual([]);
+    const foundationPaper = {
+      ...arithmeticPaper,
+      id: 'foundation-paper',
+      lean: {
+        ...arithmeticPaper.lean!,
+        url: `https://github.com/the-omega-institute/trureturing/blob/${commit}/Arith/Base.lean`,
+      },
+    } as CollectedPaper;
+    const scoped = formalizationLibrary(
+      { ...library, nodes: [...library.nodes, unrelated] },
+      [paper],
+      [],
+      undefined,
+      [paper, foundationPaper, arithmeticPaper],
+    );
+    expect(scoped.nodes.map((node) => node.id)).toEqual(['Quantum/Base', 'Arith/Base']);
+    expect(scoped.nodes.find((node) => node.id === 'Arith/Base')!.papers).toEqual([
+      foundationPaper,
+    ]);
   });
   it('shows current version proof targets without turning source associations into proof dependencies', () => {
     const knowledge = {

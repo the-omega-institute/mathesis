@@ -79,13 +79,20 @@ export function formalizationLibrary(
   papers: CollectedPaper[],
   knowledge: CollectedKnowledge[] = [],
   focus?: string,
+  relatedPapers: CollectedPaper[] = papers,
 ): FormalizationLibrary {
   const byModule = new Map<string, CollectedPaper[]>();
-  for (const paper of papers) {
+  for (const paper of relatedPapers) {
     const module = sharedLibraryFocus(paper.lean?.url)?.slice(7);
     if (module) byModule.set(module, [...(byModule.get(module) ?? []), paper]);
   }
-  const included = new Set([...byModule.keys(), ...(focus ? [focus] : [])]);
+  const included = new Set([
+    ...papers.flatMap((paper) => {
+      const module = sharedLibraryFocus(paper.lean?.url)?.slice(7);
+      return module ? [module] : [];
+    }),
+    ...(focus ? [focus] : []),
+  ]);
   const prerequisites = new Map<string, string[]>();
   for (const edge of library.edges) {
     const list = prerequisites.get(edge.to) ?? [];
