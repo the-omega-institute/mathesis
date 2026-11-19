@@ -10,6 +10,7 @@ export type ProjectNote = {
   archive?: { doi: string; concept_doi?: string };
   id: string;
   revision: string;
+  previous_version?: string;
   title: string;
   abstract: string;
   summary: string;
@@ -34,6 +35,7 @@ export function collectedPaperNote(paper: CollectedPaper): ProjectNote {
     materials: paper.materials,
     id: paper.id,
     revision: paper.revision,
+    previous_version: paper.previous_version,
     title: paper.title,
     abstract: paper.abstract,
     summary: paper.plain_language?.en ?? paper.abstract,

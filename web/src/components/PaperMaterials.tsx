@@ -1,8 +1,9 @@
 import { t, useLocale } from '../i18n/locale';
-import type { PaperMaterials as Materials } from '../api/types';
+import type { PaperMaterials as Materials, PlainLanguageText } from '../api/types';
 import { ExternalLink } from './ui';
 import { AcademicReading } from './AcademicReading';
 import { PdfPreview } from './PdfPreview';
+import { hasPaperExplanation, PaperExplanation, PaperExplanationText } from './PaperExplanation';
 
 function languageName(language: string): string {
   if (language === 'en') return t('English');
@@ -10,11 +11,78 @@ function languageName(language: string): string {
   return language;
 }
 
-export function PaperMaterials({ materials }: { materials?: Materials }) {
+type PaperReadingProps = { materials?: Materials; text?: PlainLanguageText };
+
+function hasSupplementaryMaterials(materials?: Materials): materials is Materials {
+  return Boolean(
+    materials?.slides.length ||
+    materials?.videos?.length ||
+    materials?.formalization_requests?.length,
+  );
+}
+
+export function PaperMaterialLinks({ materials, text }: PaperReadingProps) {
+  useLocale();
+  return (
+    <>
+      {materials?.visualizations.length ? (
+        <a href="#visualizations">{t('Visualizations')}</a>
+      ) : null}
+      {Object.values(materials?.reading ?? {}).some(Boolean) || hasPaperExplanation(text) ? (
+        <a href="#plain-language">{t('In plain language')}</a>
+      ) : null}
+      {hasSupplementaryMaterials(materials) ? <a href="#materials">{t('Materials')}</a> : null}
+    </>
+  );
+}
+
+export function PaperMaterials({ materials, text }: PaperReadingProps) {
   const locale = useLocale();
-  if (!materials) return null;
-  const reading =
-    materials.reading[locale] ?? materials.reading.en ?? Object.values(materials.reading)[0];
+  const readings = materials?.reading ?? {};
+  const reading = readings[locale] || readings.en || Object.values(readings).find(Boolean);
+  return (
+    <>
+      {materials?.visualizations.length ? (
+        <section id="visualizations" aria-labelledby="visualizations-h">
+          <h2 id="visualizations-h">{t('Visualizations')}</h2>
+          {materials.visualizations.map((item, index) => (
+            <div className="material-visualization" key={item.id}>
+              <iframe
+                src={item.url}
+                title={t('Interactive explanation {number}', { number: index + 1 })}
+                loading="lazy"
+                allow="fullscreen"
+              />
+              <p>
+                <ExternalLink href={item.url}>{t('Open interactive explanation')}</ExternalLink>
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : null}
+      {reading ? (
+        <section id="plain-language" aria-labelledby="plain-language-h">
+          <h2 id="plain-language-h">{t('In plain language')}</h2>
+          <AcademicReading
+            url={reading}
+            fallback={hasPaperExplanation(text) ? <PaperExplanationText text={text} /> : undefined}
+          />
+          <p>
+            <ExternalLink href={reading}>{t('Read full explanation')}</ExternalLink>
+          </p>
+        </section>
+      ) : (
+        <PaperExplanation text={text} />
+      )}
+      {hasSupplementaryMaterials(materials) ? (
+        <SupplementaryMaterials materials={materials} />
+      ) : null}
+    </>
+  );
+}
+
+function SupplementaryMaterials({ materials }: { materials: Materials }) {
+  const locale = useLocale();
   const localizedSlides = materials.slides.filter(
     (slides) => slides.language === locale || (locale === 'zh' && slides.language === 'zh-Hans'),
   );
@@ -24,24 +92,6 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
   return (
     <section id="materials" aria-labelledby="materials-h">
       <h2 id="materials-h">{t('Materials')}</h2>
-      {Object.keys(materials.reading).length ? (
-        <>
-          <h3>{t('Plain-language reading')}</h3>
-          {reading ? <AcademicReading url={reading} /> : null}
-          {reading ? (
-            <p>
-              <ExternalLink href={reading}>{t('Read full explanation')}</ExternalLink>
-            </p>
-          ) : null}
-          <ul className="material-downloads">
-            {Object.entries(materials.reading).map(([language, url]) => (
-              <li key={language}>
-                <ExternalLink href={url}>{languageName(language)}</ExternalLink>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
       {materials.slides.length ? (
         <>
           <h3>{t('Seminar slides')}</h3>
@@ -75,24 +125,6 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
               </li>
             ))}
           </ul>
-        </>
-      ) : null}
-      {materials.visualizations.length ? (
-        <>
-          <h3>{t('Interactive visualizations')}</h3>
-          {materials.visualizations.map((item, index) => (
-            <div className="material-visualization" key={item.id}>
-              <iframe
-                src={item.url}
-                title={t('Interactive explanation {number}', { number: index + 1 })}
-                loading="lazy"
-                allow="fullscreen"
-              />
-              <p>
-                <ExternalLink href={item.url}>{t('Open interactive explanation')}</ExternalLink>
-              </p>
-            </div>
-          ))}
         </>
       ) : null}
       {materials.videos?.length ? (
@@ -133,11 +165,6 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
           </ul>
         </>
       ) : null}
-      <p>
-        <ExternalLink href={materials.site_url}>{t('Reading and materials')}</ExternalLink>
-        {' · '}
-        <ExternalLink href={materials.repository_url}>{t('Repository')}</ExternalLink>
-      </p>
     </section>
   );
 }
