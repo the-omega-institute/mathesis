@@ -14,6 +14,11 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
 - People is an administrator account list, with only an Administrator access switch.
   Legacy roles remain readable for historical access; the interface neither advertises
   nor grants editor, reviewer or endorser roles. The account menu omits editorial labels.
+- Submitting authors may remove withdrawn submissions from My work and restore them
+  through Removed submissions. Removal is idempotent, revision-fenced and does not
+  erase source files, review history or producer delivery identities. Filter removed
+  items before pagination. The administrator-only complete inventory retains them;
+  no other role gains access to private drafts through this inventory.
 - Use the archive's page alignment, horizontal submission steps, readable text measures
   and restrained rules. Avoid nested centred cards, rounded status pills or decorative
   borders. Keep real input boundaries, keyboard focus, error text and responsive layout.

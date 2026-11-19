@@ -53,6 +53,8 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     confirmClaims: vi.fn(notFound),
     uploadVersion: vi.fn(notFound),
     withdrawSubmission: vi.fn(notFound),
+    removeSubmission: vi.fn(notFound),
+    restoreSubmission: vi.fn(notFound),
     setContributors: vi.fn(notFound),
     setVisibility: vi.fn(notFound),
     grantArchiveConsent: vi.fn(notFound),

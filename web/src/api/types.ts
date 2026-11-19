@@ -400,6 +400,7 @@ export type SubmissionStatus =
 export type AnalysisVisibility = 'undecided' | 'public' | 'private';
 
 export type Submission = {
+  removed_from_work_at?: string;
   intake?: { confirmed_request: string | null };
   purpose?: 'publication' | 'review_only';
   review_scope?: string;

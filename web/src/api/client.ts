@@ -220,7 +220,7 @@ export interface PageParams {
   limit?: number;
 }
 
-export type SubmissionScope = 'mine' | 'queue';
+export type SubmissionScope = 'mine' | 'queue' | 'removed' | 'all';
 
 export interface TaskQuery extends PageParams {
   kind?: TaskKind | '';
@@ -366,6 +366,8 @@ export interface ApiClient {
     processingConsent?: string,
   ): Promise<Submission>;
   withdrawSubmission(id: string): Promise<Submission>;
+  removeSubmission(id: string): Promise<Submission>;
+  restoreSubmission(id: string): Promise<Submission>;
   setContributors(id: string, open: boolean): Promise<Submission>;
   setVisibility(
     id: string,
@@ -636,6 +638,8 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     uploadVersion: (id, source, note, processingConsent) =>
       request('POST', sub(id, '/versions'), versionBody(source, note, processingConsent)),
     withdrawSubmission: (id) => request('POST', sub(id, '/withdraw')),
+    removeSubmission: (id) => request('DELETE', sub(id)),
+    restoreSubmission: (id) => request('POST', sub(id, '/restore')),
     setContributors: (id, open) => request('PUT', sub(id, '/contributors'), { open }),
     setVisibility: (id, visibility) => request('PUT', sub(id, '/visibility'), { visibility }),
     grantArchiveConsent: (id) =>

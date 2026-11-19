@@ -2382,4 +2382,9 @@ export const zh: Record<string, string> = {
   'Sources are reported by the advisor, not independently verified by Mathesis.':
     '来源由顾问报告，未经 Mathesis 独立核验。',
   'Research targets': '研究目标',
+  'Removed submissions': '已移除的投稿',
+  'No removed submissions.': '没有已移除的投稿。',
+  'Back to my work': '返回我的工作',
+  'Remove from my work': '从我的工作移除',
+  'Restore to my work': '恢复到我的工作',
 };

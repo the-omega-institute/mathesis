@@ -345,6 +345,10 @@ pub struct ProcessingConsent {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Submission {
+    /// Reversible removal of a withdrawn submission from the author's work list.
+    /// Source bytes and producer delivery identity remain available for recovery.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_from_work_at: Option<DateTime<Utc>>,
     /// Upload-first draft; review is fenced until the author submits its metadata.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub intake: Option<SubmissionIntake>,

@@ -119,6 +119,16 @@ impl SubmissionStore for MongoStore {
         if let Some(status) = &filter.status {
             query.insert("status.state", status.as_str());
         }
+        if let Some(removed) = filter.removed_from_work {
+            query.insert(
+                "removed_from_work_at",
+                if removed {
+                    mongodb::bson::Bson::Document(doc! { "$ne": null })
+                } else {
+                    mongodb::bson::Bson::Null
+                },
+            );
+        }
         self.page(SUBMISSIONS, query, limit, before).await
     }
 

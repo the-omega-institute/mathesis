@@ -102,3 +102,36 @@ it.each(['publication', 'review_only'] as const)(
     expect(screen.queryByText(/new results?/)).toBeNull();
   },
 );
+
+it('removes only the submitter’s withdrawn work and lets them restore it', async () => {
+  const withdrawn = { ...submission, status: { state: 'withdrawn' as const } };
+  const removed = { ...withdrawn, removed_from_work_at: '2026-11-19T07:00:00Z' };
+  let isRemoved = false;
+  const api = fakeApi(
+    {
+      listSubmissions: vi.fn(async (scope) => ({
+        items: scope === 'removed' ? (isRemoved ? [removed] : []) : isRemoved ? [] : [withdrawn],
+        next_before: null,
+      })),
+      removeSubmission: vi.fn(async () => {
+        isRemoved = true;
+        return removed;
+      }),
+      restoreSubmission: vi.fn(async () => {
+        isRemoved = false;
+        return withdrawn;
+      }),
+    },
+    author,
+  );
+  renderWithApp(<SubmissionsPage scope="mine" />, api);
+  await userEvent.click(await screen.findByRole('button', { name: 'Remove from my work' }));
+  expect(await screen.findByText('You have not submitted work yet.')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Removed submissions' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Restore to my work' }));
+  expect(await screen.findByText('No removed submissions.')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Back to my work' }));
+  expect(await screen.findByRole('link', { name: withdrawn.title })).toBeVisible();
+  expect(api.removeSubmission).toHaveBeenCalledWith(submission.id);
+  expect(api.restoreSubmission).toHaveBeenCalledWith(submission.id);
+});

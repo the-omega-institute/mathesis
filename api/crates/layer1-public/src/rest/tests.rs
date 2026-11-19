@@ -336,6 +336,78 @@ async fn submission_queue_requires_a_review_role() {
     let (status, json, _) = call(&router, "GET", "/submissions", Some("someone"), None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["items"], serde_json::json!([]));
+    let (status, _, _) = call(
+        &router,
+        "GET",
+        "/submissions?scope=all",
+        Some("someone"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn withdrawn_removal_routes_keep_files_and_restore_the_same_record() {
+    let router = router();
+    let (_, paper, _) = upload(&router, "author", b"\\documentclass{article}").await;
+    let id = paper["id"].as_str().unwrap();
+    let path = format!("/submissions/{id}");
+    let (status, _, _) = call(&router, "DELETE", &path, Some("author"), None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    let (status, _, _) = call(
+        &router,
+        "POST",
+        &format!("{path}/withdraw"),
+        Some("author"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _, _) = call(&router, "DELETE", &path, Some("stranger"), None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, removed, _) = call(&router, "DELETE", &path, Some("author"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(removed["removed_from_work_at"].is_string());
+    let (_, listing, _) = call(
+        &router,
+        "GET",
+        "/submissions?scope=mine",
+        Some("author"),
+        None,
+    )
+    .await;
+    assert_eq!(listing["items"], serde_json::json!([]));
+    let (_, listing, _) = call(
+        &router,
+        "GET",
+        "/submissions?scope=removed",
+        Some("author"),
+        None,
+    )
+    .await;
+    assert_eq!(listing["items"][0]["id"], id);
+    let (status, _, _) = call(
+        &router,
+        "GET",
+        &format!("{path}/files/source"),
+        Some("author"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, restored, _) = call(
+        &router,
+        "POST",
+        &format!("{path}/restore"),
+        Some("author"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(restored.get("removed_from_work_at").is_none());
+    assert_eq!(restored["id"], id);
+    assert_eq!(restored["versions"], paper["versions"]);
 }
 
 #[tokio::test]

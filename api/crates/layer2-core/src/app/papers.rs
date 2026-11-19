@@ -25,8 +25,12 @@ pub struct Upload {
 pub enum SubmissionScope {
     /// Papers the caller submitted or is a linked author of.
     Mine,
+    /// The caller's withdrawn submissions removed from My work.
+    Removed,
     /// Papers in review; editors and reviewers only.
     Queue,
+    /// Complete private inventory; administrators only.
+    All,
 }
 
 /// A file to hand back: content type and bytes.
@@ -267,6 +271,7 @@ impl App {
             identity
         });
         let submission = Submission {
+            removed_from_work_at: None,
             intake: preparing.then(SubmissionIntake::default),
             manuscript,
             purpose: new.purpose,
@@ -774,6 +779,29 @@ impl App {
         Ok(submission)
     }
 
+    /// Remove a withdrawn paper from My work, or restore that same record.
+    /// This never changes manuscript state, file ownership or delivery identity.
+    pub async fn set_removed_from_work(
+        &self,
+        caller: &Caller,
+        id: &SubmissionId,
+        removed: bool,
+    ) -> CoreResult<Submission> {
+        let mut submission = self.load(id).await?;
+        Self::require_submitter(caller, &submission)?;
+        if submission.status != SubmissionStatus::Withdrawn {
+            return Err(CoreError::conflict(
+                "only withdrawn submissions can be removed",
+            ));
+        }
+        if submission.removed_from_work_at.is_some() == removed {
+            return Ok(submission);
+        }
+        submission.removed_from_work_at = removed.then(|| self.ports.clock.now());
+        self.save(&mut submission).await?;
+        Ok(submission)
+    }
+
     /// After acceptance the author decides whether readers see the analysis.
     pub async fn set_analysis_visibility(
         &self,
@@ -855,6 +883,12 @@ impl App {
             SubmissionScope::Mine => SubmissionFilter {
                 involving: Some(caller.person.clone()),
                 status: None,
+                removed_from_work: Some(false),
+            },
+            SubmissionScope::Removed => SubmissionFilter {
+                involving: Some(caller.person.clone()),
+                status: Some("withdrawn".into()),
+                removed_from_work: Some(true),
             },
             SubmissionScope::Queue => {
                 if !Self::is_staff(caller) {
@@ -865,7 +899,12 @@ impl App {
                 SubmissionFilter {
                     involving: None,
                     status: Some("in_review".into()),
+                    removed_from_work: None,
                 }
+            }
+            SubmissionScope::All => {
+                caller.require(Role::Admin)?;
+                SubmissionFilter::default()
             }
         };
         self.ports

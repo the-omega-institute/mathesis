@@ -53,6 +53,8 @@ pub trait PersonStore: Send + Sync {
 pub struct SubmissionFilter {
     pub involving: Option<PersonId>,
     pub status: Option<String>,
+    /// None includes both; Some selects before cursor pagination.
+    pub removed_from_work: Option<bool>,
 }
 
 #[async_trait]

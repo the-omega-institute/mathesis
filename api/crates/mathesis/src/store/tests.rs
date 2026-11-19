@@ -208,6 +208,7 @@ async fn knowledge_archive_upload_rejects_changed_or_oversized_bytes() {
 
 fn submission(id: &str, submitter: &str, status: SubmissionStatus) -> Submission {
     Submission {
+        removed_from_work_at: None,
         intake: None,
         manuscript: None,
         purpose: Default::default(),
@@ -295,6 +296,7 @@ async fn people_submissions_and_revision_fencing() {
     let mine = SubmissionFilter {
         involving: Some("u1".into()),
         status: None,
+        removed_from_work: None,
     };
     let first = SubmissionStore::list(s, &mine, 2, None).await.unwrap();
     assert_eq!(
@@ -319,6 +321,7 @@ async fn people_submissions_and_revision_fencing() {
     let queue = SubmissionFilter {
         involving: None,
         status: Some("in_review".into()),
+        removed_from_work: None,
     };
     assert_eq!(
         SubmissionStore::list(s, &queue, 10, None)
@@ -352,6 +355,24 @@ async fn people_submissions_and_revision_fencing() {
         SubmissionStore::replace(s, &ghost, 0).await,
         Err(CoreError::NotFound { .. })
     ));
+    let mut removed = submission("z-removed", "u1", SubmissionStatus::Withdrawn);
+    removed.removed_from_work_at = Some(Utc::now());
+    SubmissionStore::insert(s, &removed).await.unwrap();
+    let visible = SubmissionFilter {
+        removed_from_work: Some(false),
+        ..mine.clone()
+    };
+    let page = SubmissionStore::list(s, &visible, 1, None).await.unwrap();
+    assert_eq!(page.items[0].id.as_str(), "s4");
+    let removed_only = SubmissionFilter {
+        removed_from_work: Some(true),
+        ..mine
+    };
+    let page = SubmissionStore::list(s, &removed_only, 1, None)
+        .await
+        .unwrap();
+    assert_eq!(page.items[0].id.as_str(), "z-removed");
+    assert!(page.next_before.is_none());
     db.drop().await;
 }
 
