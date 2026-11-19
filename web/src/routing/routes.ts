@@ -1,5 +1,6 @@
 import type { TaskKind } from '../api/types';
 import { findSubject } from '../lib/subjects';
+import { normaliseDoi } from '../lib/links';
 
 export type Route =
   | { kind: 'home' }
@@ -73,6 +74,12 @@ export function parseRoute(pathname: string, search = ''): Route {
   const segments = path.slice(1).split('/').map(decodeSegment);
   if (segments.some((s) => s === null)) return notFound;
   const [first, second] = segments as string[];
+  if (first === 'papers' && second === 'doi' && segments.length >= 4) {
+    const doi = segments.slice(2).join('/');
+    if (!/^10\.\d{4,9}\/[^\s]+$/.test(doi)) return notFound;
+    const version = new URLSearchParams(search).get('version');
+    return { kind: 'paper', record: 'doi:' + doi, ...(version ? { version } : {}) };
+  }
 
   // Previously shared collection URLs remain readable as ordinary paper/archive links.
   if (path === '/projects/trureturing') return { kind: 'papers' };
@@ -292,7 +299,12 @@ export function routePath(route: Route): string {
       return `/papers${params.size ? `?${params}` : ''}`;
     }
     case 'paper':
-      return `/papers/${seg(route.record)}${route.version ? `?version=${seg(route.version)}` : ''}`;
+      return (
+        (route.record.startsWith('doi:')
+          ? '/papers/doi/' + route.record.slice(4).split('/').map(seg).join('/')
+          : `/papers/${seg(route.record)}`) +
+        (route.version ? `?version=${seg(route.version)}` : '')
+      );
     case 'policy':
       return '/policy';
     case 'learn_lean':
@@ -343,4 +355,17 @@ export function routePath(route: Route): string {
     case 'not_found':
       return route.path;
   }
+}
+
+export function paperRoute(
+  record: string,
+  doi?: string,
+  version?: string,
+): Extract<Route, { kind: 'paper' }> {
+  const bare = doi ? normaliseDoi(doi) : '';
+  return {
+    kind: 'paper',
+    record: /^10\.\d{4,9}\/\S+$/.test(bare) ? 'doi:' + bare : record,
+    ...(version ? { version } : {}),
+  };
 }

@@ -2,35 +2,54 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAsync } from '../api/useAsync';
 import { useApi } from '../api/context';
 import { listDirectoryNotes } from '../lib/paperDirectory';
-import { sharedLibraryFocus } from '../lib/sharedLibrary';
 import type { CollectedPaper } from '../api/types';
+import {
+  formalizationLibrary,
+  layoutFormalizationLibrary,
+  type FormalizationLibrary,
+  type FormalizationNode,
+} from '../lib/formalizationLibrary';
+import { findSubject, subjectGroups } from '../lib/subjects';
 import { Link } from '../routing/router';
-import { t } from '../i18n/locale';
-import { loadSharedLibrary, type LibraryNode, type SharedLibrary } from '../lib/sharedLibrary';
+import { paperRoute } from '../routing/routes';
+import { t, useLocale } from '../i18n/locale';
+import { loadSharedLibrary } from '../lib/sharedLibrary';
 import { Async, ExternalLink } from './ui';
 import { LatexText } from './Markdown';
 
 export function SharedLibraryGraph({ focus }: { focus?: string }) {
   const api = useApi();
-  const papers = useAsync(
-    useCallback((signal: AbortSignal) => listDirectoryNotes(api, {}, signal), [api]),
+  const library = useAsync(
+    useCallback(
+      async (signal: AbortSignal) => {
+        const [source, papers] = await Promise.all([
+          loadSharedLibrary(signal),
+          listDirectoryNotes(api, {}, signal),
+        ]);
+        const knowledge = [];
+        for (let start = 0; start < papers.items.length; start += 6) {
+          const batch = await Promise.allSettled(
+            papers.items
+              .slice(start, start + 6)
+              .map((paper) => api.collectedKnowledge(paper.id, paper.revision, { signal })),
+          );
+          for (const result of batch)
+            if (result.status === 'fulfilled') knowledge.push(result.value);
+        }
+        if (signal.aborted) throw signal.reason;
+        return formalizationLibrary(source, papers.items, knowledge, focus);
+      },
+      [api, focus],
+    ),
   );
-  const library = useAsync(useCallback((signal: AbortSignal) => loadSharedLibrary(signal), []));
   return (
     <Async state={library.state} onRetry={library.reload}>
-      {(data) => (
-        <LibraryExplorer
-          data={data}
-          onRefresh={library.reload}
-          initialFocus={focus}
-          papers={papers.value?.items ?? []}
-        />
-      )}
+      {(data) => <LibraryExplorer data={data} onRefresh={library.reload} initialFocus={focus} />}
     </Async>
   );
 }
 const HEIGHT = 600;
-function frame(nodes: LibraryNode[], width: number) {
+function frame(nodes: { x: number; y: number }[], width: number) {
   let left = Infinity,
     right = -Infinity,
     top = Infinity,
@@ -54,15 +73,13 @@ function LibraryExplorer({
   data,
   onRefresh,
   initialFocus,
-  papers,
 }: {
-  data: SharedLibrary;
+  data: FormalizationLibrary;
   onRefresh: () => void;
   initialFocus?: string;
-  papers: CollectedPaper[];
 }) {
+  const locale = useLocale();
   const [domain, setDomain] = useState('');
-  const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(initialFocus ?? '');
   const [viewport, setViewport] = useState<{ zoom: number; x: number; y: number; anchor?: string }>(
     { zoom: initialFocus ? 5 : 1, x: 0, y: 0, anchor: initialFocus },
@@ -70,22 +87,21 @@ function LibraryExplorer({
   const [width, setWidth] = useState(900);
   const canvas = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
-  const byId = useMemo(() => new Map(data.nodes.map((node) => [node.id, node])), [data]);
-  const domains = useMemo(() => [...new Set(data.nodes.map((node) => node.domain))].sort(), [data]);
-  const visible = useMemo(
-    () => data.nodes.filter((node) => !domain || node.domain === domain),
-    [data, domain],
-  );
+  const layout = useMemo(() => layoutFormalizationLibrary(data, domain), [data, domain]);
+  const visible = layout.nodes;
+  const byId = useMemo(() => new Map(visible.map((node) => [node.id, node])), [visible]);
+  const allById = useMemo(() => new Map(data.nodes.map((node) => [node.id, node])), [data]);
   const ids = useMemo(() => new Set(visible.map((node) => node.id)), [visible]);
   const edges = useMemo(
     () => data.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to)),
     [data, ids],
   );
-  const geometry = useMemo(() => frame(visible, width), [visible, width]);
-  const node = byId.get(selected);
-  const linkedPapers = papers.filter(
-    (paper) => sharedLibraryFocus(paper.lean?.url) === `module:${selected}`,
+  const geometry = useMemo(
+    () => frame([...visible, ...layout.labels], width),
+    [visible, layout, width],
   );
+  const node = byId.get(selected);
+  const linkedPapers = node?.papers ?? [];
   const related = useMemo(
     () =>
       new Set(
@@ -95,18 +111,8 @@ function LibraryExplorer({
       ),
     [data, selected],
   );
-  const matches = useMemo(
-    () =>
-      query.trim()
-        ? data.nodes
-            .filter((node) =>
-              `${node.title} ${node.id}`.toLowerCase().includes(query.trim().toLowerCase()),
-            )
-            .slice(0, 12)
-        : [],
-    [data, query],
-  );
-  const formalized = data.nodes.filter((node) => node.formalized).length;
+  const paperNodes = visible.filter((node) => node.papers.length && !node.claim);
+  const formalized = visible.filter((node) => node.formalized).length;
 
   useEffect(() => {
     const element = canvas.current;
@@ -138,7 +144,7 @@ function LibraryExplorer({
     element.height = HEIGHT * dpr;
     context.scale(dpr, dpr);
     const origin = byId.get(viewport.anchor ?? '') ?? geometry;
-    const point = (node: LibraryNode) => ({
+    const point = (node: { x: number; y: number }) => ({
       x: width / 2 + viewport.x + (node.x - origin.x) * geometry.scale * viewport.zoom,
       y: HEIGHT / 2 + viewport.y + (node.y - origin.y) * geometry.scale * viewport.zoom,
     });
@@ -146,28 +152,65 @@ function LibraryExplorer({
       point.x >= -20 && point.x <= width + 20 && point.y >= -20 && point.y <= HEIGHT + 20;
     context.lineWidth = 0.5;
     context.strokeStyle = '#7e948926';
-    context.beginPath();
-    for (const edge of edges) {
-      const from = point(byId.get(edge.from)!),
-        to = point(byId.get(edge.to)!);
-      if (!onScreen(from) && !onScreen(to)) continue;
-      context.moveTo(from.x, from.y);
-      context.lineTo(to.x, to.y);
-    }
-    context.stroke();
-    if (selected) {
+    for (const contextual of [false, true]) {
+      context.setLineDash(contextual ? [3, 4] : []);
       context.beginPath();
+      for (const edge of edges) {
+        if (Boolean(edge.context) !== contextual) continue;
+        const from = point(byId.get(edge.from)!),
+          to = point(byId.get(edge.to)!);
+        if (!onScreen(from) && !onScreen(to)) continue;
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+      }
+      context.stroke();
+    }
+    if (selected) {
       context.strokeStyle = '#9c6b34';
       context.lineWidth = 1.5;
-      for (const edge of data.edges)
+      for (const edge of edges)
         if (edge.from === selected || edge.to === selected) {
           const from = point(byId.get(edge.from)!),
             to = point(byId.get(edge.to)!);
+          context.setLineDash(edge.context ? [3, 4] : []);
+          context.beginPath();
           context.moveTo(from.x, from.y);
           context.lineTo(to.x, to.y);
+          context.stroke();
+          if (!edge.context) {
+            const angle = Math.atan2(to.y - from.y, to.x - from.x);
+            context.setLineDash([]);
+            context.beginPath();
+            context.moveTo(to.x - 5 * Math.cos(angle), to.y - 5 * Math.sin(angle));
+            context.lineTo(to.x - 12 * Math.cos(angle - 0.35), to.y - 12 * Math.sin(angle - 0.35));
+            context.lineTo(to.x - 12 * Math.cos(angle + 0.35), to.y - 12 * Math.sin(angle + 0.35));
+            context.closePath();
+            context.fillStyle = '#9c6b34';
+            context.fill();
+          }
         }
-      context.stroke();
     }
+    context.setLineDash([]);
+    if (!domain)
+      for (const label of layout.labels) {
+        const p = point(label);
+        context.fillStyle = '#26352e';
+        context.font = '13px sans-serif';
+        const limit = 270 * geometry.scale * viewport.zoom;
+        const words = t(findSubject(label.code)!.title).split(' ');
+        let line = '',
+          row = 0;
+        for (const word of words) {
+          const next = line ? line + ' ' + word : word;
+          if (line && context.measureText(next).width > limit) {
+            context.fillText(line, p.x, p.y + row * 15, limit);
+            row++;
+            line = word;
+            if (row === 2) break;
+          } else line = next;
+        }
+        if (row < 2) context.fillText(line, p.x, p.y + row * 15, limit);
+      }
     for (const node of visible) {
       const p = point(node);
       if (!onScreen(p)) continue;
@@ -179,7 +222,9 @@ function LibraryExplorer({
           ? 4
           : neighbor
             ? 3
-            : Math.min(3, 0.6 + viewport.zoom * 0.12);
+            : node.papers.length
+              ? 3
+              : Math.min(3, 0.6 + viewport.zoom * 0.12);
       context.beginPath();
       context.arc(p.x, p.y, radius, 0, 2 * Math.PI);
       context.fillStyle = active ? '#9c6b34' : neighbor ? '#365d4e' : '#557965';
@@ -195,27 +240,42 @@ function LibraryExplorer({
         context.fillText(node.title, p.x + 7, p.y + 4, 260);
       }
     }
-  }, [byId, data, edges, geometry, related, selected, viewport, visible, width]);
+  }, [
+    byId,
+    data,
+    edges,
+    geometry,
+    related,
+    selected,
+    viewport,
+    visible,
+    width,
+    domain,
+    layout,
+    locale,
+  ]);
   function focus(id: string) {
-    const node = byId.get(id);
+    const node = allById.get(id);
     if (!node) return;
-    setDomain('');
+    setDomain(node.subjects[0] ?? '');
     setSelected(id);
-    setQuery('');
-    setViewport({ zoom: 5, x: 0, y: 0, anchor: id });
+    setViewport({ zoom: 1.4, x: 0, y: 0, anchor: id });
   }
   const neighbors = (direction: 'before' | 'after') =>
     data.edges
-      .filter((edge) => (direction === 'before' ? edge.to === selected : edge.from === selected))
-      .map((edge) => byId.get(direction === 'before' ? edge.from : edge.to)!)
+      .filter(
+        (edge) =>
+          !edge.context && (direction === 'before' ? edge.to === selected : edge.from === selected),
+      )
+      .map((edge) => allById.get(direction === 'before' ? edge.from : edge.to)!)
       .filter(Boolean);
   return (
-    <section className="shared-library" aria-label={t('Shared mathematical library')}>
+    <section className="shared-library" aria-label={t('Mathematical knowledge')}>
       <div className="shared-library-toolbar">
         <p>
           {t('{count} formalized modules', { count: formalized.toLocaleString() })}
           {' · '}
-          {t('{count} open', { count: data.nodes.length - formalized })}
+          {t('{count} open', { count: visible.length - formalized })}
         </p>
         <label>
           {t('Subject')}{' '}
@@ -227,8 +287,14 @@ function LibraryExplorer({
             }}
           >
             <option value="">{t('All fields')}</option>
-            {domains.map((domain) => (
-              <option key={domain}>{domain}</option>
+            {subjectGroups.map((group) => (
+              <optgroup key={group.title} label={t(group.title)}>
+                {group.subjects.map((subject) => (
+                  <option key={subject.code} value={subject.code}>
+                    {t(subject.title)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -236,9 +302,24 @@ function LibraryExplorer({
           {t('Refresh library')}
         </button>
       </div>
+      <nav className="archive-subjects" aria-label={t('Browse by subject')}>
+        {['', '05', '11', '81', '15'].map((code) => (
+          <button
+            key={code}
+            className="text-button"
+            aria-pressed={domain === code}
+            onClick={() => {
+              setDomain(code);
+              setViewport({ zoom: 1, x: 0, y: 0 });
+            }}
+          >
+            {t(code ? findSubject(code)!.title : 'All subjects')}
+          </button>
+        ))}
+      </nav>
       <p className="shared-library-intro">
         {t(
-          'Explore the shared Lean library and its published dependencies. Select a node to read the mathematics and see what builds on it.',
+          'Explore formalized mathematics by subject, connect it to research papers, and find the next proof to contribute.',
         )}
       </p>
       <div className="shared-library-workspace">
@@ -283,7 +364,7 @@ function LibraryExplorer({
             ref={canvas}
             role="img"
             tabIndex={0}
-            aria-label={t('Shared Lean dependency graph. Drag to move and scroll to zoom.')}
+            aria-label={t('Mathematical dependency graph. Drag to move and scroll to zoom.')}
             style={{ width: '100%', height: HEIGHT }}
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -304,7 +385,7 @@ function LibraryExplorer({
                 const rect = event.currentTarget.getBoundingClientRect(),
                   x = event.clientX - rect.left,
                   y = event.clientY - rect.top;
-                let chosen: LibraryNode | undefined,
+                let chosen: FormalizationNode | undefined,
                   distance = 12;
                 for (const node of visible) {
                   const dx =
@@ -348,48 +429,47 @@ function LibraryExplorer({
               }
             }}
           />
+          {!visible.length ? <p>{t('No formalizations are listed in this subject yet.')}</p> : null}
         </div>
         <aside className="shared-library-detail">
-          <label>
-            {t('Find a result')}
-            <input
-              type="search"
-              maxLength={200}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('Title or mathematical topic…')}
-            />
-          </label>
-          {matches.length ? (
-            <ul className="shared-library-results">
-              {matches.map((node) => (
-                <li key={node.id}>
-                  <button className="text-button" onClick={() => focus(node.id)}>
-                    {node.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
           {node ? (
             <>
               <h3>{node.title}</h3>
               <p className="muted">
-                {node.domain}
+                {node.subjects.map((code) => t(findSubject(code)!.title)).join(' · ')}
                 {' · '}
                 {t(node.formalized ? 'Formalized' : 'Open')}
               </p>
               {node.abstract ? <LatexText source={node.abstract} /> : null}
               <p>
-                <ExternalLink href={node.source}>{t('Lean source')}</ExternalLink>
+                {node.claim && linkedPapers[0] ? (
+                  <Link
+                    to={{
+                      kind: 'result',
+                      record: linkedPapers[0].id,
+                      version: linkedPapers[0].revision,
+                      claim: node.claim,
+                    }}
+                  >
+                    {t('Read result')}
+                  </Link>
+                ) : (
+                  <ExternalLink href={node.source}>{t('Lean source')}</ExternalLink>
+                )}
               </p>
               {linkedPapers.length ? (
                 <section>
-                  <h4>{t('Papers with this Lean source')}</h4>
+                  <h4>{t('Related papers')}</h4>
                   <ul>
                     {linkedPapers.map((paper) => (
                       <li key={paper.id}>
-                        <Link to={{ kind: 'paper', record: paper.id, version: paper.revision }}>
+                        <Link
+                          to={paperRoute(
+                            paper.id,
+                            paper.archive?.doi,
+                            paper.archive?.doi ? undefined : paper.revision,
+                          )}
+                        >
                           {paper.title}
                         </Link>
                       </li>
@@ -436,13 +516,67 @@ function LibraryExplorer({
               {t('Select a node to explore its result, prerequisites and later uses.')}
             </p>
           )}
-          <p>
-            <ExternalLink href="https://www.trureturing.org/atlas.html">
-              {t('Open the full library atlas')}
-            </ExternalLink>
-          </p>
+          {linkedPapers.length ? <PaperRequests papers={linkedPapers} /> : null}
+          {!node && paperNodes.length ? (
+            <section>
+              <h3>{t('Papers in this graph')}</h3>
+              <ul className="shared-library-results">
+                {paperNodes.slice(0, 8).map((item) => (
+                  <li key={item.id}>
+                    <button className="text-button" onClick={() => focus(item.id)}>
+                      {item.papers[0]!.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {paperNodes.length > 8 ? (
+                <details>
+                  <summary>
+                    {t('Show all')} ({paperNodes.length})
+                  </summary>
+                  <ul className="shared-library-results">
+                    {paperNodes.slice(8).map((item) => (
+                      <li key={item.id}>
+                        <button className="text-button" onClick={() => focus(item.id)}>
+                          {item.papers[0]!.title}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </section>
+          ) : null}
+          {domain ? (
+            <p>
+              <Link to={{ kind: 'subject', msc: domain }}>{t('Research papers')}</Link>
+            </p>
+          ) : null}
         </aside>
       </div>
+    </section>
+  );
+}
+
+function PaperRequests({ papers }: { papers: CollectedPaper[] }) {
+  const requests = [
+    ...new Map(
+      papers
+        .flatMap((paper) => paper.materials?.formalization_requests ?? [])
+        .map((request) => [request.url, request]),
+    ).values(),
+  ];
+  if (!requests.length) return null;
+  return (
+    <section>
+      <h4>{t('Formalization requests')}</h4>
+      <ul>
+        {requests.map((request) => (
+          <li key={request.url}>
+            <ExternalLink href={request.url}>{request.label}</ExternalLink>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

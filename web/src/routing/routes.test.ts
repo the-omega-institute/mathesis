@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute, routePath, type Route } from './routes';
+import { parseRoute, routePath, paperRoute, type Route } from './routes';
 
 const ROUTES: Route[] = [
   { kind: 'home' },
   { kind: 'subjects' },
   { kind: 'subject', msc: '11' },
   { kind: 'paper', record: 'a-note', version: '2' },
+  { kind: 'paper', record: 'doi:10.5281/zenodo.24212412' },
+  { kind: 'paper', record: 'doi:10.1000/a/b(with)?query#fragment' },
   { kind: 'papers' },
   { kind: 'papers', q: 'Ada Example' },
   { kind: 'submission', id: 'sub-1', staff: true },
@@ -58,6 +60,8 @@ describe('routes', () => {
     '/subjects/Number%20theory',
     '/papers/a/b',
     '/papers/%',
+    '/papers/doi/not-a-doi/a-title',
+    '/papers/doi/10.5281/..',
     '/submissions/..',
     '/wishes',
     '/ledger',
@@ -65,6 +69,13 @@ describe('routes', () => {
   ])('rejects %s', (p) => {
     expect(parseRoute(p)).toEqual({ kind: 'not_found', path: p });
   });
+});
+
+it('uses the recorded DOI for public paper addresses and retains an identifier without a DOI', () => {
+  expect(
+    routePath(paperRoute('a-long-paper-title', 'https://doi.org/10.5281/zenodo.24212412')),
+  ).toBe('/papers/doi/10.5281/zenodo.24212412');
+  expect(routePath(paperRoute('no-doi'))).toBe('/papers/no-doi');
 });
 
 it('round-trips a shareable academic search and a permanent result link', () => {

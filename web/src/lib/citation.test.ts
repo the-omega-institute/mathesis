@@ -8,7 +8,7 @@ describe('paperCitation', () => {
     expect(citation).toContain(
       'doi:10.48550/arXiv.2609.33421 (https://doi.org/10.48550/arXiv.2609.33421).',
     );
-    expect(citation).toContain('https://wishpool.example/papers/WP-2026-0001');
+    expect(citation).toContain('https://wishpool.example/papers/doi/10.48550/arXiv.2609.33421');
   });
 
   it('omits the DOI when the paper has none', () => {

@@ -212,6 +212,14 @@ export const zh: Record<string, string> = {
   'Interactive explanation {number}': '交互讲解 {number}',
   'Open interactive explanation': '打开交互讲解',
   'Shared mathematical library': '共享数学知识库',
+  'View in dependency graph': '在依赖图中查看',
+  'Related papers': '相关论文',
+  'Papers in this graph': '图中的论文',
+  'Explore formalized mathematics by subject, connect it to research papers, and find the next proof to contribute.':
+    '按学科浏览已形式化的数学，了解它们与论文的联系，寻找下一项可以参与的证明。',
+  'Mathematical dependency graph. Drag to move and scroll to zoom.':
+    '数学依赖图。拖动平移，滚动缩放。',
+  'No formalizations are listed in this subject yet.': '这个学科暂时还没有形式化条目。',
   'Paper results and contributions': '论文结果与社区贡献',
   'Graph collection': '知识图谱范围',
   '{count} formalized modules': '{count} 个已形式化模块',

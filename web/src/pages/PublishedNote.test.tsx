@@ -273,7 +273,7 @@ it('preserves a live exact-version DOI through archive, paper citation and refer
   );
   expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
     'href',
-    `${window.location.origin}/papers/${live.id}?version=${live.revision}`,
+    `${window.location.origin}/papers/doi/${live.archive.doi}`,
   );
   expect(document.querySelector('meta[name="citation_journal_title"]')).toBeNull();
   paper.unmount();
