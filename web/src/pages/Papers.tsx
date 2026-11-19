@@ -10,6 +10,9 @@ import {
 import { researchEntries } from '../lib/researchEntries';
 import { findSubject, subjectGroups, type Subject } from '../lib/subjects';
 import { listDirectoryNotes } from '../lib/paperDirectory';
+import { resolvePaperDoi } from '../lib/paperDoi';
+import { paperRoute } from '../routing/routes';
+import { NotFoundPage } from './NotFound';
 import { PaperDirectoryEntry } from '../components/PaperDirectoryEntry';
 import { PublishedNotePage } from './PublishedNote';
 import { ProblemLinks } from './ResearchProblems';
@@ -17,7 +20,7 @@ import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
 import { ManuscriptSources } from '../components/ManuscriptSources';
 import { ReportError, ErrorReports } from '../components/ErrorReports';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { pdfHref, type PaperQuery } from '../api/client';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -264,10 +267,29 @@ export function PapersPage({
 }
 
 export function PaperPage({ record, version }: { record: string; version?: string }) {
+  if (record.startsWith('doi:')) return <DoiPaperPage doi={record.slice(4)} version={version} />;
   return record.startsWith('WP-') ? (
     <ReviewedPaperPage record={record} />
   ) : (
     <CollectedPaperPage record={record} version={version} />
+  );
+}
+
+function DoiPaperPage({ doi, version }: { doi: string; version?: string }) {
+  const api = useApi();
+  const paper = useAsync(
+    useCallback((signal: AbortSignal) => resolvePaperDoi(api, doi, signal), [api, doi]),
+  );
+  return (
+    <Async state={paper.state} onRetry={paper.reload}>
+      {(resolved) =>
+        resolved && (!version || version === resolved.version) ? (
+          <PaperPage record={resolved.record} version={resolved.version} />
+        ) : (
+          <NotFoundPage path={'/papers/doi/' + doi} />
+        )
+      }
+    </Async>
   );
 }
 
@@ -313,6 +335,16 @@ function ReviewedPaperPage({ record }: { record: string }) {
 }
 
 export function PaperView({ paper }: { paper: PublicPaper }) {
+  const { route, navigate } = useRouter();
+  const routeRecord = route.kind === 'paper' ? route.record : undefined;
+  const canonicalRecord = paperRoute(
+    paper.summary.record,
+    paper.archive?.doi ?? paper.summary.doi,
+  ).record;
+  useEffect(() => {
+    if (routeRecord && routeRecord !== canonicalRecord)
+      navigate({ kind: 'paper', record: canonicalRecord }, { replace: true });
+  }, [routeRecord, navigate, canonicalRecord]);
   const s = paper.summary;
   const versions = paper.versions ?? [];
   const latest = versions.at(-1);

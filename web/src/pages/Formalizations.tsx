@@ -17,6 +17,7 @@ import { useRouter } from '../routing/router';
 import { useEffect } from 'react';
 import { ApiError } from '../api/client';
 import { publishedLeanSource } from '../lib/publishedLean';
+import { SharedLibraryGraph } from '../components/SharedLibraryGraph';
 
 export function FormalizationsPage({
   focus,
@@ -70,7 +71,13 @@ export function FormalizationsPage({
       {view === 'list' ? (
         <FormalizationOpportunities initialQuery={q} />
       ) : (
-        <ResearchGraphPage embedded focus={focus} q={q} before={before} />
+        <>
+          {!focus || focus.startsWith('module:') ? (
+            <SharedLibraryGraph focus={focus?.startsWith('module:') ? focus.slice(7) : undefined} />
+          ) : (
+            <ResearchGraphPage embedded focus={focus} q={q} before={before} />
+          )}
+        </>
       )}
     </div>
   );

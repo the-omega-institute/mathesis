@@ -230,7 +230,7 @@ describe('public paper page', () => {
     renderWithApp(<PapersPage />, api);
     expect(await screen.findByRole('link', { name: 'On sums of integers' })).toHaveAttribute(
       'href',
-      '/papers/WP-2026-0001',
+      '/papers/doi/10.48550/arXiv.2609.33421',
     );
     const entry = screen.getByRole('link', { name: 'On sums of integers' }).closest('article')!;
     expect(entry).not.toHaveTextContent(paperSummary.authors[0]!.name);

@@ -2878,6 +2878,146 @@ button.research-map-node.is-connected {
   line-height: 1.75;
 }
 
+#materials iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: var(--paper);
+}
+.material-reading-preview {
+  height: min(75vh, 48rem);
+  margin-block: 1rem;
+}
+.material-slides-preview {
+  height: min(65vh, 36rem);
+  margin-block: 1rem;
+}
+.material-visualization iframe {
+  min-height: 32rem;
+}
+.material-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+.material-video {
+  margin: 1.5rem 0;
+}
+.material-video video {
+  display: block;
+  width: 100%;
+  max-height: 36rem;
+  background: #111;
+}
+.material-video figcaption {
+  margin-block: 0.65rem;
+}
+.shared-library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 2rem;
+  margin-top: 1.5rem;
+}
+.shared-library-toolbar p {
+  margin: 0;
+}
+.shared-library-toolbar label {
+  margin-left: auto;
+}
+.shared-library-toolbar select {
+  max-width: 20rem;
+  margin-left: 0.5rem;
+}
+.shared-library-intro {
+  max-width: 65rem;
+  color: var(--muted);
+}
+.shared-library-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
+  gap: 2rem;
+  margin-block: 1.5rem;
+}
+.shared-library-map {
+  min-width: 0;
+}
+.shared-library-map canvas {
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.shared-library-map canvas:active {
+  cursor: grabbing;
+}
+.shared-library-controls {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+.shared-library-controls > span {
+  margin-left: auto;
+  color: var(--muted);
+}
+.shared-library-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 1px solid #557965;
+  border-radius: 50%;
+  background: #557965;
+  margin-right: 0.35rem;
+}
+.shared-library-dot.is-open {
+  background: transparent;
+}
+.shared-library-detail {
+  max-height: 43rem;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+.shared-library-detail label {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+.shared-library-detail input {
+  width: 100%;
+}
+.shared-library-detail h3 {
+  margin-top: 1.5rem;
+  font-size: 1.35rem;
+}
+.shared-library-detail h4 {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+.shared-library-detail ul {
+  padding-left: 1.1rem;
+}
+.shared-library-detail li {
+  margin-block: 0.35rem;
+}
+.shared-library-detail .text-button {
+  text-align: left;
+  line-height: 1.5;
+}
+@media (max-width: 55rem) {
+  .shared-library-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shared-library-toolbar label {
+    margin-left: 0;
+  }
+  .shared-library-detail {
+    max-height: none;
+  }
+}
+
 /* Compact bibliographic entries; full abstracts belong on work pages. */
 .research-archive-list {
   display: grid;

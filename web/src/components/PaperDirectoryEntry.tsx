@@ -3,6 +3,7 @@ import { publicationSubjects } from '../lib/projectNoteSubjects';
 import type { ResearchEntry } from '../lib/researchEntries';
 import { findSubject } from '../lib/subjects';
 import { Link } from '../routing/router';
+import { paperRoute } from '../routing/routes';
 import { InlineLatex } from './Markdown';
 import { ExternalLink } from './ui';
 
@@ -32,7 +33,7 @@ export function PaperDirectoryEntry({ entry }: { entry: ResearchEntry }) {
           </ul>
         ) : null}
         <h2>
-          <Link to={{ kind: 'paper', record }}>
+          <Link to={paperRoute(record, doi)}>
             <InlineLatex source={title} />
           </Link>
         </h2>
@@ -47,7 +48,7 @@ export function PaperDirectoryEntry({ entry }: { entry: ResearchEntry }) {
           {t('Read PDF')}
         </a>
       ) : (
-        <Link className="paper-directory-pdf" to={{ kind: 'paper', record }}>
+        <Link className="paper-directory-pdf" to={paperRoute(record, doi)}>
           {t('View paper')}
         </Link>
       )}

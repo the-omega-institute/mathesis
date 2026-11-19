@@ -9,20 +9,31 @@ function languageName(language: string): string {
 }
 
 export function PaperMaterials({ materials }: { materials?: Materials }) {
-  useLocale();
+  const locale = useLocale();
   if (!materials) return null;
+  const reading =
+    materials.reading[locale] ?? materials.reading.en ?? Object.values(materials.reading)[0];
+  const localizedSlides = materials.slides.filter(
+    (slides) => slides.language === locale || (locale === 'zh' && slides.language === 'zh-Hans'),
+  );
+  const slidesToShow = localizedSlides.length
+    ? localizedSlides
+    : materials.slides.filter((slides) => slides.language === 'en');
   return (
     <section id="materials" aria-labelledby="materials-h">
       <h2 id="materials-h">{t('Materials')}</h2>
-      <p>
-        {t(
-          'Prepared by Mathesis from the manuscript; explanations and illustrations are not verification.',
-        )}
-      </p>
       {Object.keys(materials.reading).length ? (
         <>
           <h3>{t('Plain-language reading')}</h3>
-          <ul>
+          {reading ? (
+            <iframe
+              className="material-reading-preview"
+              src={reading}
+              title={t('Plain-language reading')}
+              loading="lazy"
+            />
+          ) : null}
+          <ul className="material-downloads">
             {Object.entries(materials.reading).map(([language, url]) => (
               <li key={language}>
                 <ExternalLink href={url}>{languageName(language)}</ExternalLink>
@@ -34,10 +45,23 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
       {materials.slides.length ? (
         <>
           <h3>{t('Seminar slides')}</h3>
-          <ul>
+          <div className="material-slide-previews">
+            {slidesToShow
+              .filter((slides) => slides.pdf_url)
+              .map((slides) => (
+                <iframe
+                  key={`${slides.id}:${slides.language}`}
+                  className="material-slides-preview"
+                  src={slides.pdf_url!}
+                  title={`${t('Seminar slides')} · ${languageName(slides.language)} · ${slides.id}`}
+                  loading="lazy"
+                />
+              ))}
+          </div>
+          <ul className="material-downloads">
             {materials.slides.map((slides) => (
               <li key={`${slides.id}:${slides.language}`}>
-                {languageName(slides.language)} · {slides.id}
+                {languageName(slides.language)}
                 {slides.pdf_url ? (
                   <>
                     {' '}
@@ -58,27 +82,40 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
       {materials.visualizations.length ? (
         <>
           <h3>{t('Interactive visualizations')}</h3>
-          <ul>
-            {materials.visualizations.map((item) => (
-              <li key={item.id}>
-                <ExternalLink href={item.url}>{item.id}</ExternalLink>
-              </li>
-            ))}
-          </ul>
+          {materials.visualizations.map((item, index) => (
+            <div className="material-visualization" key={item.id}>
+              <iframe
+                src={item.url}
+                title={t('Interactive explanation {number}', { number: index + 1 })}
+                loading="lazy"
+                allow="fullscreen"
+              />
+              <p>
+                <ExternalLink href={item.url}>{t('Open interactive explanation')}</ExternalLink>
+              </p>
+            </div>
+          ))}
         </>
       ) : null}
       {materials.videos?.length ? (
         <>
           <h3>{t('Video explanations')}</h3>
-          <ul>
-            {materials.videos.map((video) => (
-              <li key={video.id}>
+          {materials.videos.map((video) => (
+            <figure className="material-video" key={video.id}>
+              <video
+                controls
+                preload="metadata"
+                poster={video.poster_url ?? undefined}
+                aria-label={video.title}
+              >
+                <source src={video.mp4_url} type="video/mp4" />
+                <a href={video.mp4_url}>{t('Watch video')}</a>
+              </video>
+              <figcaption>
                 <ExternalLink href={video.url}>{video.title}</ExternalLink>
-                {' · '}
-                <ExternalLink href={video.mp4_url}>{t('Watch video')}</ExternalLink>
-              </li>
-            ))}
-          </ul>
+              </figcaption>
+            </figure>
+          ))}
         </>
       ) : null}
       {materials.formalization_requests?.length ? (

@@ -21,3 +21,26 @@ a proof DAG. Retain original mathematical authorship and formalizer credit separ
 This graph interface queues no review or proof jobs. Collected statements now use
 the separate automatic proof pipeline below; extracting Mathlib declaration
 dependencies remains separate work.
+
+The default formalization graph consumes the current published shared Lean evidence
+using its manifest and compact startup view. Fetch
+the existing public artifacts with CORS and revalidate the mutable manifest/index;
+check content digests, exact release/source identities, complete node order and
+Lean admission records before rendering. Preserve published module dependencies
+separately from affinities and Blueprint relationships. Solid nodes represent the
+shared library's admitted formalizations; hollow nodes retain its explicit Open
+state. Mathesis supplies its own presentation, grouped by the same MSC subjects as
+the paper directory and laid out independently of upstream coordinates. Exact paper
+MSC metadata overrides editorial topic placement. Project directories and internal
+upstream topic labels are not shown as reader-facing disciplines.
+The default collection starts with Mathesis's public paper source modules and
+their actual prerequisite closure. It does not reproduce every upstream project
+node or its Atlas presentation. A directly linked module can open its own closure.
+
+Connect papers only to their recorded Lean module, without interpreting that link
+as whole-paper certification. Add exact-version platform proof targets and matching
+verification receipts to this view; dashed paper-context links are distinct from
+proof dependencies. GitHub request links remain contribution links: neither a link
+nor an issue closure is converted into a proof state. Importing these data starts no
+review/build and grants no Mathesis receipt or leaderboard credit. Existing exact
+statement and citation views remain available through their links.

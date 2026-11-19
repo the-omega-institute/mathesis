@@ -1,9 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
 import { publishedLeanSource } from '../lib/publishedLean';
+import { sharedLibraryFocus } from '../lib/sharedLibrary';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperMaterials } from '../components/PaperMaterials';
 import { PaperExplanation } from '../components/PaperExplanation';
@@ -11,14 +12,14 @@ import { InlineLatex, LatexText } from '../components/Markdown';
 import { DateText, ExternalLink } from '../components/ui';
 import { sourceHref, sourceLabel } from '../lib/links';
 import { CitationMetadata } from '../components/PaperMetadata';
-import { routePath } from '../routing/routes';
+import { routePath, paperRoute } from '../routing/routes';
 import {
   projectCitation,
   projectNotes,
   projectNoteVersions,
   type ProjectNote,
 } from '../lib/projectNotes';
-import { Link } from '../routing/router';
+import { Link, useRouter } from '../routing/router';
 import { NotFoundPage } from './NotFound';
 import '../styles/published-note.css';
 
@@ -27,7 +28,7 @@ export function PublishedNoteEntry({ note }: { note: ProjectNote }) {
     <article className="paper-entry research-entry">
       <div className="research-entry-body">
         <h3>
-          <Link to={{ kind: 'paper', record: note.id }}>
+          <Link to={paperRoute(note.id, note.archive?.doi)}>
             <InlineLatex source={note.title} />
           </Link>
         </h3>
@@ -64,6 +65,13 @@ export function PublishedNotePage({
   const note = version
     ? versions.find((note) => note.revision === version)
     : (supplied ?? projectNotes.find((note) => note.id === id));
+  const { route, navigate } = useRouter();
+  const routeRecord = route.kind === 'paper' ? route.record : undefined;
+  const canonicalRecord = note ? paperRoute(note.id, note.archive?.doi).record : undefined;
+  useEffect(() => {
+    if (canonicalRecord?.startsWith('doi:') && routeRecord && routeRecord !== canonicalRecord)
+      navigate({ kind: 'paper', record: canonicalRecord }, { replace: true });
+  }, [canonicalRecord, routeRecord, navigate]);
   if (!note) return <NotFoundPage path={`/papers/${id}`} />;
   return (
     <article className="page published-note paper-reading">
@@ -73,7 +81,7 @@ export function PublishedNotePage({
         doi={note.archive?.doi}
         abstract={note.abstract}
         publicationDate={note.published_on}
-        canonicalUrl={`${window.location.origin}${routePath({ kind: 'paper', record: note.id, version: note.revision })}`}
+        canonicalUrl={`${window.location.origin}${routePath(paperRoute(note.id, note.archive?.doi, note.archive?.doi ? undefined : note.revision))}`}
         pdfUrl={new URL(note.pdf.url, window.location.origin).href}
       />
       <Link to={{ kind: 'papers' }}>{t('Research archive')}</Link>
@@ -95,6 +103,11 @@ export function PublishedNotePage({
           {t('Download source')}
         </a>
         {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
+        {sharedLibraryFocus(note.lean?.url) ? (
+          <Link to={{ kind: 'formalizations', focus: sharedLibraryFocus(note.lean?.url) }}>
+            {t('View in dependency graph')}
+          </Link>
+        ) : null}
         {note.materials ? (
           <ExternalLink href={note.materials.repository_url}>{t('Repository')}</ExternalLink>
         ) : null}
@@ -202,7 +215,13 @@ export function PublishedNotePage({
               <ul className="version-list">
                 {versions.map((item) => (
                   <li key={item.revision}>
-                    <Link to={{ kind: 'paper', record: id, version: item.revision }}>
+                    <Link
+                      to={paperRoute(
+                        id,
+                        item.archive?.doi,
+                        item.archive?.doi ? undefined : item.revision,
+                      )}
+                    >
                       {t('Version {version}', { version: item.revision })}
                     </Link>
                     {' · '}

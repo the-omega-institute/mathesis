@@ -4,7 +4,7 @@ import { formatDate } from './format';
 import { formatAuthors } from './labels';
 import { sourceHref } from './links';
 import { resultLabel } from './statements';
-import { routePath } from '../routing/routes';
+import { routePath, paperRoute } from '../routing/routes';
 
 export type CitationLocator = { claim?: PublicClaim; version?: number };
 
@@ -18,7 +18,7 @@ export function citationUrl(
     routePath(
       locator.claim
         ? { kind: 'result', record: paper.record, claim: locator.claim.id }
-        : { kind: 'paper', record: paper.record },
+        : paperRoute(paper.record, paper.doi),
     )
   );
 }
