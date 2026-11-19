@@ -8,41 +8,45 @@ describe('paper materials', () => {
   it('renders available readings, slides, notes, visualizations and repository with translated copy', () => {
     render(<PaperMaterials materials={materials} />);
     const section = screen.getByRole('region', { name: 'Materials' });
-    expect(within(section).getByRole('link', { name: 'English' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Read full explanation' })).toHaveAttribute(
       'href',
       materials.reading.en,
-    );
-    expect(within(section).getByRole('link', { name: 'Simplified Chinese' })).toHaveAttribute(
-      'href',
-      materials.reading.zh,
     );
     expect(within(section).getAllByRole('link', { name: 'PDF' })).toHaveLength(1);
     expect(within(section).getAllByRole('link', { name: 'Notes' })).toHaveLength(2);
     expect(
-      within(section).getByRole('link', { name: 'Open interactive explanation' }),
+      within(screen.getByRole('region', { name: 'Visualizations' })).getByRole('link', {
+        name: 'Open interactive explanation',
+      }),
     ).toHaveAttribute('href', materials.visualizations[0]!.url);
-    expect(within(section).getByRole('link', { name: 'Repository' })).toHaveAttribute(
-      'href',
-      materials.repository_url,
+    expect(screen.getByTitle('Interactive explanation 1')).toHaveAttribute(
+      'src',
+      materials.visualizations[0]!.url,
     );
     expect(section).not.toHaveTextContent('not verification');
     act(() => setLocale('zh'));
     expect(screen.getByRole('heading', { name: '论文资料' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '阅读全文解读' })).toHaveAttribute(
+      'href',
+      materials.reading.zh,
+    );
     expect(screen.queryByText('由 Mathesis 根据原稿编写；解读与图示不代表验证。')).toBeNull();
     expect(screen.getByRole('heading', { name: '研讨会幻灯片' })).toBeInTheDocument();
   });
 
-  it('omits absent materials and missing media groups, retaining a published repository', () => {
+  it('omits empty sections and falls back to the available explanation', () => {
     const { container, rerender } = render(<PaperMaterials />);
     expect(container).toBeEmptyDOMElement();
     rerender(
-      <PaperMaterials materials={{ ...materials, reading: {}, slides: [], visualizations: [] }} />,
+      <PaperMaterials
+        materials={{ ...materials, reading: {}, slides: [], visualizations: [] }}
+        text={{ en: 'Short explanation', zh: '简短解读' }}
+      />,
     );
-    expect(screen.getAllByRole('link')).toHaveLength(2);
+    expect(screen.getByText('Short explanation')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Materials' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Seminar slides' })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: 'Interactive visualizations' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Visualizations' })).not.toBeInTheDocument();
   });
 
   it('shows playable video and named shared requests without claiming verification', () => {

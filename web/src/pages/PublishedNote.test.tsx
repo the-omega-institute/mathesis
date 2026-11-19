@@ -137,11 +137,18 @@ describe('published manuscripts', () => {
     );
   });
 
-  it('pins version navigation and rejects unknown versions', () => {
-    renderWithApp(<PublishedNotePage id="wang-conjecture326" />, fakeApi());
-    expect(
-      document.querySelector('a[href="/papers/wang-conjecture326?version=2"]'),
-    ).toHaveAttribute('href', '/papers/wang-conjecture326?version=2');
+  it('links the preceding version and marks the current version', () => {
+    const note = {
+      ...projectNotes.find((item) => item.id === 'wang-conjecture326')!,
+      previous_version: '1',
+    };
+    renderWithApp(<PublishedNotePage id={note.id} note={note} />, fakeApi());
+    const history = screen.getByRole('region', { name: 'Version history' });
+    expect(history.querySelector('[aria-current="page"]')).toHaveTextContent('Version 2');
+    expect(within(history).getByRole('link', { name: 'Version 1' })).toHaveAttribute(
+      'href',
+      '/papers/wang-conjecture326?version=1',
+    );
   });
 
   it('does not fall back to a newer version when the requested version is absent', () => {
@@ -377,10 +384,18 @@ it('carries live collected materials through the paper adapter and omits them on
       getCollectedPaper: vi.fn(async () => live),
     }),
   );
-  const section = await screen.findByRole('region', { name: 'Materials' });
-  expect(within(section).getByRole('link', { name: 'Repository' })).toHaveAttribute(
+  await screen.findByRole('region', { name: 'Materials' });
+  expect(screen.getByRole('link', { name: 'Repository' })).toHaveAttribute(
     'href',
     paperMaterials.repository_url,
+  );
+  expect(screen.getAllByRole('heading', { name: 'In plain language' })).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Visualizations' })).toHaveAttribute(
+    'href',
+    '#visualizations',
+  );
+  expect(screen.getByRole('region', { name: 'Visualizations' })).toContainElement(
+    screen.getByTitle('Interactive explanation 1'),
   );
   page.unmount();
   renderWithApp(

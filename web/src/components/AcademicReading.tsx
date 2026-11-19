@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAsync } from '../api/useAsync';
 import { t } from '../i18n/locale';
 
@@ -51,7 +51,7 @@ export function academicReading(html: string, url: string): string {
   return '<!doctype html>' + document.documentElement.outerHTML;
 }
 
-export function AcademicReading({ url }: { url: string }) {
+export function AcademicReading({ url, fallback }: { url: string; fallback?: ReactNode }) {
   const holder = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(false);
   const load = useCallback(
@@ -93,9 +93,12 @@ export function AcademicReading({ url }: { url: string }) {
           {t('Preview reading')}
         </button>
       ) : (
-        <p className="muted">
-          {t(reading.state.status === 'error' ? 'Preview unavailable' : 'Loading…')}
-        </p>
+        <>
+          <p className="muted">
+            {t(reading.state.status === 'error' ? 'Preview unavailable' : 'Loading…')}
+          </p>
+          {reading.state.status === 'error' ? fallback : null}
+        </>
       )}
     </div>
   );
