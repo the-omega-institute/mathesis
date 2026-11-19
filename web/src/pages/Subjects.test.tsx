@@ -38,6 +38,12 @@ describe('subject browsing', () => {
       { msc: '81', before: null, limit: 25 },
       expect.anything(),
     );
+    await user.selectOptions(screen.getByLabelText('Choose a subject'), '11');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Number theory' })).toBeVisible();
+    expect(window.location.pathname).toBe('/subjects/11');
+    expect(screen.getByRole('link', { name: numberNote.title })).toBeVisible();
+    await user.selectOptions(screen.getByLabelText('Choose a subject'), '81');
+    await screen.findByRole('heading', { level: 1, name: 'Quantum theory' });
     act(() => setLocale('zh'));
     expect(screen.getByRole('heading', { level: 1, name: '量子理论' })).toBeVisible();
     expect(document.title).toBe('量子理论 · Mathesis');

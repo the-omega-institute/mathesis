@@ -8,8 +8,10 @@ import {
   projectNoteVersions,
 } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
-import type { Subject } from '../lib/subjects';
-import { PublishedNoteEntry, PublishedNotePage } from './PublishedNote';
+import { findSubject, subjectGroups, type Subject } from '../lib/subjects';
+import { listDirectoryNotes } from '../lib/paperDirectory';
+import { PaperDirectoryEntry } from '../components/PaperDirectoryEntry';
+import { PublishedNotePage } from './PublishedNote';
 import { ProblemLinks } from './ResearchProblems';
 import { Bibliography } from '../components/Bibliography';
 import { InlineLatex } from '../components/Markdown';
@@ -79,16 +81,13 @@ export function PapersPage({
   );
   const paged = usePaged(fetchPage);
   const collected = useAsync(
-    useCallback(
-      (signal: AbortSignal) => api.listCollectedPapers({ ...query, limit: 100 }, { signal }),
-      [api, query],
-    ),
+    useCallback((signal: AbortSignal) => listDirectoryNotes(api, query, signal), [api, query]),
   );
   // A locally published manuscript appears once, on the first archive page.
   // Following the API cursor must not repeat it on every subsequent page.
   const notes =
     paged.page === 1
-      ? mergeCollectedNotes(collected.value?.items ?? [], findProjectNotes(query))
+      ? findProjectNotes(query, mergeCollectedNotes(collected.value?.items ?? []))
       : [];
   const entries = researchEntries(paged.value?.items ?? [], notes);
   return (
@@ -101,60 +100,89 @@ export function PapersPage({
       ) : null}
       <header className="page-head">
         <div>
-          <h1>{t(subject?.title ?? 'Research archive')}</h1>
-          {subject ? (
-            <p className="muted">
-              {t('Recent publications')} · MSC {subject.code}
-            </p>
-          ) : (
-            <p className="lede">
-              {t('Papers, short notes and conjectures, with their sources and formal proofs.')}{' '}
-              <Link to={{ kind: 'policy' }}>{t('Review policy')}</Link>
-            </p>
-          )}
+          <h1>{t(subject?.title ?? 'Papers')}</h1>
+          {subject ? <p className="muted">MSC {subject.code}</p> : null}
         </div>
       </header>
-      {subject ? null : (
-        <form
-          className="archive-search"
-          role="search"
-          aria-label={t('Search papers')}
-          onSubmit={(event) => {
-            event.preventDefault();
-            setQuery({ ...draft });
-            navigate({
-              kind: 'papers',
-              q: draft.q?.trim(),
-              author: draft.author?.trim(),
-              msc: draft.msc?.trim(),
-              work: draft.kind || undefined,
-            });
-          }}
-        >
-          <div className="archive-search-main">
-            <label htmlFor="paper-query">{t('Find research')}</label>
-            <div className="archive-search-input">
-              <input
-                id="paper-query"
-                type="search"
-                maxLength={300}
-                placeholder={t('Title, author, abstract, DOI or record…')}
-                value={draft.q ?? ''}
-                onChange={(e) => setDraft({ ...draft, q: e.target.value })}
-              />
-              <button className="button" type="submit">
-                {t('Search')}
-              </button>
-            </div>
-          </div>
-          <details
-            className="archive-search-advanced"
-            open={
-              Boolean(initialFilters.author || initialFilters.msc || initialFilters.kind) ||
-              undefined
-            }
+      <div className="archive-browse">
+        <nav className="archive-subjects" aria-label={t('Browse by subject')}>
+          <Link to={{ kind: 'papers' }} aria-current={!query.msc ? 'page' : undefined}>
+            {t('All papers')}
+          </Link>
+          {['05', '11', '81', '15'].map((code) => (
+            <Link
+              key={code}
+              to={{ kind: 'subject', msc: code }}
+              aria-current={query.msc === code ? 'page' : undefined}
+            >
+              {t(findSubject(code)!.title)}
+            </Link>
+          ))}
+        </nav>
+        <label className="archive-subject-picker">
+          <span className="visually-hidden">{t('Choose a subject')}</span>
+          <select
+            value={query.msc?.slice(0, 2) ?? ''}
+            onChange={(event) => {
+              const msc = event.target.value;
+              navigate(msc ? { kind: 'subject', msc } : { kind: 'papers' });
+            }}
           >
-            <summary>{t('Advanced search')}</summary>
+            <option value="">{t('All subjects')}</option>
+            {subjectGroups.map((group) => (
+              <optgroup key={group.title} label={t(group.title)}>
+                {group.subjects.map((subject) => (
+                  <option key={subject.code} value={subject.code}>
+                    {t(subject.title)}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      </div>
+      {subject ? null : (
+        <details
+          className="archive-search-disclosure"
+          open={
+            Boolean(
+              initialQuery || initialFilters.author || initialFilters.msc || initialFilters.kind,
+            ) || undefined
+          }
+        >
+          <summary>{t('Search and filters')}</summary>
+          <form
+            className="archive-search"
+            role="search"
+            aria-label={t('Search papers')}
+            onSubmit={(event) => {
+              event.preventDefault();
+              setQuery({ ...draft });
+              navigate({
+                kind: 'papers',
+                q: draft.q?.trim(),
+                author: draft.author?.trim(),
+                msc: draft.msc?.trim(),
+                work: draft.kind || undefined,
+              });
+            }}
+          >
+            <div className="archive-search-main">
+              <label htmlFor="paper-query">{t('Find research')}</label>
+              <div className="archive-search-input">
+                <input
+                  id="paper-query"
+                  type="search"
+                  maxLength={300}
+                  placeholder={t('Title, author, abstract, DOI or record…')}
+                  value={draft.q ?? ''}
+                  onChange={(e) => setDraft({ ...draft, q: e.target.value })}
+                />
+                <button className="button" type="submit">
+                  {t('Search')}
+                </button>
+              </div>
+            </div>
             <div className="archive-search-filters">
               <label>
                 {t('Author')}
@@ -200,30 +228,23 @@ export function PapersPage({
                 {t('Clear filters')}
               </button>
             </div>
-          </details>
-          <p className="hint">
-            {t('Search papers, notes and conjectures by title, author, abstract or identifier.')}
-          </p>
-        </form>
+          </form>
+        </details>
       )}
       {entries.length ? (
         <ol className="entry-list research-archive-list">
-          {entries.map((entry) =>
-            entry.kind === 'note' ? (
-              <li key={`note:${entry.note.id}`}>
-                <PublishedNoteEntry note={entry.note} />
-              </li>
-            ) : (
-              <li key={`paper:${entry.paper.record}`}>
-                <PaperEntry paper={entry.paper} />
-              </li>
-            ),
-          )}
+          {entries.map((entry) => (
+            <li
+              key={entry.kind === 'note' ? `note:${entry.note.id}` : `paper:${entry.paper.record}`}
+            >
+              <PaperDirectoryEntry entry={entry} />
+            </li>
+          ))}
         </ol>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
-          listing.items.length === 0 && notes.length === 0 ? (
+          listing.items.length === 0 && notes.length === 0 && collected.state.status === 'ok' ? (
             <p className="muted">
               {t(
                 subject
@@ -233,6 +254,9 @@ export function PapersPage({
             </p>
           ) : null
         }
+      </Async>
+      <Async state={collected.state} onRetry={collected.reload}>
+        {() => null}
       </Async>
       <Pager paged={paged} />
     </div>

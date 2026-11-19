@@ -1,8 +1,45 @@
 /** Mathesis subject indexing from the published titles and abstracts.
  * These broad classes do not assert a review or verification outcome.
- * A version's supplied MSC metadata takes precedence in findProjectNotes.
+ * A version's nonempty supplied MSC metadata takes precedence.
  */
 export const noteSubjects: Readonly<Record<string, readonly string[]>> = {
+  'abbott-2019-sequential-weak-pointer-bound': ['81', '15'],
+  'ta-2025-problem-11-7-good-involution-bound-refutation': ['20'],
+  'bouafia-diversity-negative-type': ['51', '49'],
+  'aks2610-twin-free-theta-separation': ['05', '15'],
+  'he-tubbenhauer-2025-null-tensor-summand': ['20', '16'],
+  'schnell-ketzmerick-eckardt-2018-bose-selection-cubic-refutation': ['82', '81'],
+  'oeis-a208509-affine-polynomial-pair-binomial-coefficients': ['05', '11'],
+  'mukherjee-banerjee-sengupta-sen-2021-bubble-eigenstate-degeneracy': ['81', '05'],
+  'narasimhachar-gour-2015-cooling-map-thermal-operation-refutation': ['81'],
+  'wiseman-a344611': ['05', '11'],
+  'a320043-square-values-refutation': ['11'],
+  'chen-chen-step-m-eulerian-parity-positivity': ['05'],
+  'oeis-a189733-curtz-denominator-conjecture': ['11', '05'],
+  'kmvq31-sl3-obstruction': ['17', '20'],
+  'oeis-a381423-hermite-differences': ['33', '05'],
+  'mathoverflow-469781-weighted-orthogonal-minors': ['15'],
+  'chiral-event-parity-minimality': ['55', '81'],
+  'huang-stoica-xia-zhong-2020-tree-equations-nonconstant': ['83', '05'],
+  'bajnok-beatty-original-conjecture-4-1': ['20', '05'],
+  'okada-2020-premerged-determinant-nonpalindromic': ['05', '15'],
+  'stepanov-herrmann-guhr-2021-correlation-top-eigenvector-weight': ['15'],
+  'koljancic-oblak-2026-question-5-11-even-loop-path': ['15', '05'],
+  'peled-teeni-carmi-cohen-2021-correlation-minor-norm-fnf': ['81', '15'],
+  ggps2025: ['33', '30'],
+  'mathoverflow-513954-singular-diagonal-downdate-inertia': ['15'],
+  'malkoun-2026-mo512579-jordan-elementary': ['15'],
+  'kamin-shchukin-schmidt-van-loock-2023-swap-earliest-dephasing': ['81', '90'],
+  'consiglio-apollaro-wiesniak-2022-xmems-css-shape': ['81'],
+  'koljancic-oblak-2026-nssp-minimum-arcs-problem-1-8': ['15', '05'],
+  'hexagon-perp-line-counterexamples': ['81', '51'],
+  'pozsgay-wanless-nonlinear-classical-factors': ['81', '05'],
+  'alikhani-griswold-2026-connected-minus-four-family': ['05'],
+  'xu-et-al-2023-noisy-ghz-witness-bound-gap': ['81'],
+  'radsarar-anando-2026-apollonian-second-eigenvalue': ['05', '15'],
+  'tarabunga-frau-haug-tirrito-piroli-2025-shannon-branch-bound': ['81', '94'],
+  'oeis-a378495-difference-conjectures': ['05', '11'],
+  'hardin-barker-a209723-edge-differences': ['05'],
   'b164660-chebfloor': ['11', '33'],
   'bu-gu-jaffe-2025-mixed-state-inverse-sumset': ['81', '94'],
   'denis-lacaille-martin-serrano-ensastiga-2026-anticoherence-trace-distance': ['81'],
@@ -13,4 +50,11 @@ export const noteSubjects: Readonly<Record<string, readonly string[]>> = {
   'oeis-a396659-edge-collision-ratio': ['05'],
   'user3-2026-orthogonal-absolute-product-minimum': ['15'],
   'wang-conjecture326': ['13', '20'],
+  kurk396563: ['05', '15'],
+  bala295462: ['11'],
 };
+
+/** Editorial browsing labels never change a manuscript's deposited metadata. */
+export function publicationSubjects(id: string, msc?: readonly string[]): readonly string[] {
+  return msc?.length ? msc : (noteSubjects[id] ?? []);
+}
