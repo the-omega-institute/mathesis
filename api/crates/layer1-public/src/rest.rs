@@ -68,6 +68,7 @@ pub(crate) fn routes() -> Router<Arc<App>> {
         .route("/research-graph", get(research_graph))
         .route("/knowledge/capabilities", get(knowledge_capabilities))
         .route("/policy", get(policy))
+        .route("/staff/processing", get(processing_status))
         .route("/me", get(me))
         .route("/people", get(list_people))
         .route("/people/{id}/roles", put(set_roles))
@@ -128,6 +129,13 @@ const STAGES: [(Stage, &str, &str); 4] = [
 
 async fn knowledge_capabilities(State(app): AppState) -> impl IntoResponse {
     Json(app.knowledge_capabilities())
+}
+
+async fn processing_status(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+) -> ApiResult<Json<Vec<mathesis_core::ports::ProcessingLane>>> {
+    Ok(Json(app.processing_status(&caller).await?))
 }
 
 async fn policy(State(app): AppState) -> impl IntoResponse {

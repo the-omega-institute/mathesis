@@ -1,3 +1,4 @@
+import { ProcessingStatus } from '../components/ProcessingStatus';
 import { t } from '../i18n/locale';
 import type { Submission } from '../api/types';
 import { InlineLatex } from '../components/Markdown';
@@ -91,6 +92,7 @@ export function SubmissionsPage({ scope }: { scope: PageScope }) {
           </Link>
         ) : null}
       </header>
+      {scope === 'queue' && hasRole(person, 'admin') ? <ProcessingStatus /> : null}
       <Async state={errorNotifications.state} onRetry={errorNotifications.reload}>
         {(reports) =>
           reports.length ? (

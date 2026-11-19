@@ -90,6 +90,9 @@ impl MongoStore {
         // GridFS only creates these indexes automatically for an empty bucket.
         // Restored/populated buckets still need a bounded lookup of each file's
         // chunks, rather than a scan of all stored manuscript/knowledge bytes.
+        self.raw("processing_workers")
+            .create_index(ttl("expires_at"))
+            .await?;
         let chunks = self.raw("papers.chunks");
         let mut indexed = false;
         match chunks.list_indexes().await {

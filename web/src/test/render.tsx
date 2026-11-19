@@ -21,6 +21,7 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     ),
     logout: vi.fn(async () => undefined),
     policy: vi.fn(async () => policy),
+    processingStatus: vi.fn(async () => []),
     me: vi.fn(notFound),
     getCma: vi.fn(async () => ({
       enabled: false,

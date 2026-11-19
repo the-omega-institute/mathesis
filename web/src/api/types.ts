@@ -1844,3 +1844,22 @@ export type CollectedProblemNote = {
   public_path: string;
   lean?: { url: string; revision: string };
 };
+
+/** Private operational observations, available only to administrators. */
+export interface ProcessingLane {
+  lane: 'compile' | 'review' | 'collection' | 'verify';
+  queued: number;
+  running: number;
+  failed: number;
+  retries: number;
+  oldest_queued_at: string | null;
+  last_success: { submission: string; stage: string; at: string; reason: string | null } | null;
+  last_failure: { submission: string; stage: string; at: string; reason: string | null } | null;
+  workers: {
+    worker: string;
+    capacity: number;
+    workspace: string | null;
+    observed_at: string;
+    expires_at: string;
+  }[];
+}

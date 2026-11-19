@@ -309,6 +309,25 @@ impl Composition {
             }
             None => None,
         };
+        let collection_advisor: Option<Arc<dyn mathesis_review::advisor::Advisor>> =
+            match (&cma, &config.cma_collection_workspace) {
+                (Some(external), Some(workspace)) => {
+                    Some(Arc::new(mathesis_review::cma::CmaAdvisor {
+                        client: Arc::new(mathesis_review::cma::Client {
+                            workspace: workspace.clone(),
+                            transport: external.transport.clone(),
+                            profile: external.profile.clone(),
+                            poll: external.poll,
+                        }),
+                        timeout: Duration::from_secs(config.advisor_timeout_secs),
+                        audit_timeout: Duration::from_secs(config.audit_timeout_secs),
+                    }))
+                }
+                // Local development also has separate queue capacity. In CMA
+                // mode an absent internal workspace must never borrow external.
+                (None, _) => advisor.clone(),
+                _ => None,
+            };
         let formalizer: Option<Arc<dyn mathesis_review::lean::Formalizer>> =
             match (&config.lean_workspace, &config.advisor) {
                 (Some(workspace), Some(AdvisorConfig::Codex { program, model })) => {
@@ -344,6 +363,8 @@ impl Composition {
                 },
             ),
             review_concurrency: config.review_concurrency,
+            collection_concurrency: config.collection_concurrency,
+            collection_advisor,
             cma_factory: cma.as_ref().map(|operator| {
                 Arc::new(crate::cma_tokens::CmaFactory {
                     operator: operator.clone(),
@@ -367,7 +388,6 @@ impl Composition {
             oracle,
             advisor,
             formalizer,
-            cma_formalization_workspace: config.cma_formalization_workspace.clone(),
             oracle_poll: Duration::from_secs(config.oracle_poll_secs),
             advisor_work_dir: config.advisor_work_dir.clone().into(),
             audit_budget: Duration::from_secs(if cma.is_some() {

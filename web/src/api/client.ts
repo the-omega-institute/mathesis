@@ -344,6 +344,7 @@ export interface ApiClient {
   session(options?: RequestOptions): Promise<Session>;
   logout(): Promise<void>;
   policy(options?: RequestOptions): Promise<PolicyDocument>;
+  processingStatus(options?: RequestOptions): Promise<import('./types').ProcessingLane[]>;
   me(options?: RequestOptions): Promise<Person>;
   listPeople(page?: PageParams, options?: RequestOptions): Promise<Listing<Person>>;
   setRoles(id: string, roles: Role[]): Promise<Person>;
@@ -606,6 +607,7 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
       request('POST', api(`/bindings/${seg(id)}/${seg(key)}/contributions`), input),
     challengeBinding: (id, key, input) =>
       request('POST', api(`/bindings/${seg(id)}/${seg(key)}/challenges`), input),
+    processingStatus: (o) => request('GET', api('/staff/processing'), undefined, o),
     knowledgeCapabilities: (o) => request('GET', api('/knowledge/capabilities'), undefined, o),
     research: (id, o) => request('GET', sub(id, '/research'), undefined, o),
     adoptResearch: (id, input) => request('POST', sub(id, '/research'), input),

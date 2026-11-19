@@ -184,10 +184,11 @@ impl JobLease for MemoryJobs {
         // enqueue preserves in-flight work and resets other jobs for replay.
         while let Some(job) = self.stores.take_job().await {
             let key = memory_job_key(&job.submission, job.kind);
-            if jobs
-                .get(&key)
-                .is_some_and(|entry| matches!(entry.state, MemoryJobState::Leased(_)))
-            {
+            if jobs.get(&key).is_some_and(|entry| {
+                matches!(entry.state, MemoryJobState::Leased(_))
+                    || (job.kind.lane() == JobLane::Collection
+                        && matches!(entry.state, MemoryJobState::Queued(_)))
+            }) {
                 continue;
             }
             jobs.insert(
@@ -253,6 +254,18 @@ impl JobLease for MemoryJobs {
         {
             entry.state = MemoryJobState::Queued(tokio::time::Instant::now() + delay);
             entry.job.attempts -= 1;
+            entry.job.lease.clear();
+        }
+        Ok(())
+    }
+
+    async fn fail(&self, job: &LeasedJob, _error: &str) -> CoreResult<()> {
+        let mut jobs = self.jobs.lock().await;
+        if let Some(entry) = jobs
+            .get_mut(&memory_job_key(&job.submission, job.kind))
+            .filter(|entry| entry.owns(job))
+        {
+            entry.state = MemoryJobState::Failed;
             entry.job.lease.clear();
         }
         Ok(())

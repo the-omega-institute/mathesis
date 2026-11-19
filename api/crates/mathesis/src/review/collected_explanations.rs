@@ -89,7 +89,7 @@ impl Worker {
             .collected_explanation_input(&self.reviewer, work, version)
             .await?;
         let advisor = self
-            .advisor
+            .collection_advisor
             .as_ref()
             .ok_or_else(|| Failure::Transient("explanation service unavailable".into()))?;
         let store = CollectionRun {
@@ -103,6 +103,9 @@ impl Worker {
             revision: tokio::sync::Mutex::new(None),
         };
         let result = if paper.explanation.text.is_none() {
+            if let Some(client) = advisor.managed_client() {
+                self.collection_admission(client, &store).await?;
+            }
             let source = self.app.collected_file(work, version, "source").await?;
             let input = AdvisorInput {
                 letter_contract: 0,

@@ -13,6 +13,8 @@ data:
   WISHPOOL_PUBLIC_URL: "https://mathesis.example.org"
   WISHPOOL_ROLE: "api"
   WISHPOOL_REVIEW_CONCURRENCY: "2"
+  # Internal collection work never consumes external review admission.
+  WISHPOOL_COLLECTION_CONCURRENCY: "1"
   # Immutable downstream index revision, imported into this deployment's MongoDB.
   WISHPOOL_KNOWLEDGE_INDEX: ""
   WISHPOOL_STORAGE: "mongo"
@@ -57,6 +59,8 @@ data:
   # NyxID user access tokens only; provision the mounted token file out of band.
   WISHPOOL_AGENT_BACKEND: ""
   WISHPOOL_CMA_WORKSPACE: ""
+  # Must resolve to a different live sandbox; no fallback to external review.
+  WISHPOOL_CMA_COLLECTION_WORKSPACE: ""
   WISHPOOL_CMA_FORMALIZATION_WORKSPACE: ""
   # Pin a published profile readable by executing accounts; required for all CMA modes.
   WISHPOOL_CMA_AGENT_PROFILE: ""

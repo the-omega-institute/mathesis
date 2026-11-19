@@ -179,17 +179,52 @@ pub enum JobKind {
     AgentAttempt,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum JobLane {
     Compile,
     Review,
+    Collection,
     Verify,
+}
+
+/// Staff-only observations of durable work, not manuscript decisions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessingWorker {
+    pub worker: String,
+    pub lane: JobLane,
+    pub capacity: u32,
+    pub workspace: Option<String>,
+    pub observed_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobObservation {
+    pub submission: SubmissionId,
+    pub stage: String,
+    pub at: DateTime<Utc>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessingLane {
+    pub lane: JobLane,
+    pub queued: u64,
+    pub running: u64,
+    pub failed: u64,
+    pub retries: u64,
+    pub oldest_queued_at: Option<DateTime<Utc>>,
+    pub last_success: Option<JobObservation>,
+    pub last_failure: Option<JobObservation>,
+    pub workers: Vec<ProcessingWorker>,
 }
 
 impl JobKind {
     pub fn lane(self) -> JobLane {
         match self {
             Self::Compile => JobLane::Compile,
+            Self::CollectedExplanation | Self::CollectedFormalization => JobLane::Collection,
             Self::VerifyAttempt | Self::VerifyResearch | Self::CollectedProblemTarget => {
                 JobLane::Verify
             }
@@ -227,6 +262,22 @@ pub trait JobLease: Send + Sync {
     /// Return the job for a later retry, or park it as failed after the
     /// implementation's retry limit.
     async fn retry(&self, job: &LeasedJob, error: &str) -> CoreResult<()>;
+    /// Preserve a terminal operational failure; it is not a successful result.
+    async fn fail(&self, job: &LeasedJob, _error: &str) -> CoreResult<()> {
+        self.complete(job).await
+    }
+    async fn wait(
+        &self,
+        job: &LeasedJob,
+        delay: std::time::Duration,
+        _reason: &str,
+    ) -> CoreResult<()> {
+        self.defer(job, delay).await
+    }
+    /// Short-lived worker heartbeat. Capacity expires if its worker disappears.
+    async fn observe_worker(&self, _worker: &ProcessingWorker) -> CoreResult<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,6 +291,11 @@ pub struct ReviewJob {
 pub trait ReviewQueue: Send + Sync {
     /// Enqueue unless an unfinished job of the same kind exists.
     async fn enqueue(&self, submission: &SubmissionId, kind: JobKind) -> CoreResult<()>;
+    async fn processing_status(&self) -> CoreResult<Vec<ProcessingLane>> {
+        Err(crate::CoreError::Unavailable(
+            "processing observations unavailable".into(),
+        ))
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

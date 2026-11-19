@@ -1,5 +1,17 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'Processing queues': '处理队列',
+  'Internal paper production and external submissions have separate capacity. Waiting for a service does not change a paper’s decision.':
+    '内部论文材料生产与外部投稿使用独立容量。等待服务不会改变论文的接收决定。',
+  'Internal paper production': '内部论文材料生产',
+  'External submissions': '外部投稿',
+  Capacity: '容量',
+  'Oldest waiting:': '最早等待：',
+  'Retries:': '重试次数：',
+  'Last completed:': '最近完成：',
+  'No completed work recorded yet.': '尚无已完成记录。',
+  'Needs attention:': '需要处理：',
+
   'Video explanations': '视频讲解',
   'Watch video': '观看视频',
   'Reading and materials': '解读与论文资料',
