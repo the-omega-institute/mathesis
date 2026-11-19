@@ -32,6 +32,26 @@
 .formalization-work {
   margin-top: 1.5rem;
 }
+.formalization-subjects {
+  margin-top: 2rem;
+}
+.formalization-subjects > h2 {
+  font-size: 1.5rem;
+}
+.formalization-subjects .subject-directory {
+  margin-top: 2rem;
+}
+.formalization-subjects .subject-group h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+.shared-library-toolbar h2 {
+  margin: 0 0 0.5rem;
+}
+.shared-library > .subject-navigation {
+  margin-top: 1.5rem;
+}
 .formalization-work > p {
   max-width: 80ch;
   color: var(--ink-soft);

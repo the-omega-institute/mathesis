@@ -20,11 +20,13 @@ import { publishedLeanSource } from '../lib/publishedLean';
 import { SharedLibraryGraph } from '../components/SharedLibraryGraph';
 
 export function FormalizationsPage({
+  msc,
   focus,
   q,
   before,
   view,
 }: {
+  msc?: string;
   focus?: string;
   q?: string;
   before?: string;
@@ -73,7 +75,10 @@ export function FormalizationsPage({
       ) : (
         <>
           {!focus || focus.startsWith('module:') ? (
-            <SharedLibraryGraph focus={focus?.startsWith('module:') ? focus.slice(7) : undefined} />
+            <SharedLibraryGraph
+              msc={msc}
+              focus={focus?.startsWith('module:') ? focus.slice(7) : undefined}
+            />
           ) : (
             <ResearchGraphPage embedded focus={focus} q={q} before={before} />
           )}

@@ -63,7 +63,7 @@ export type FormalizationLibrary = Omit<SharedLibrary, 'nodes' | 'edges'> & {
   nodes: FormalizationNode[];
   edges: { from: string; to: string; context?: boolean }[];
 };
-const codes = (paper: CollectedPaper) => [
+export const formalizationPaperSubjects = (paper: { id: string; msc?: string[] }) => [
   ...new Set(
     publicationSubjects(paper.id, paper.msc)
       .map((code) => code.slice(0, 2))
@@ -104,7 +104,7 @@ export function formalizationLibrary(
     .filter((node) => included.has(node.id))
     .map((node) => {
       const associated = byModule.get(node.id) ?? [];
-      const supplied = [...new Set(associated.flatMap(codes))];
+      const supplied = [...new Set(associated.flatMap(formalizationPaperSubjects))];
       return {
         ...node,
         subjects: supplied.length ? supplied : [topicSubjects[node.domain] ?? '00'],
@@ -143,7 +143,9 @@ export function formalizationLibrary(
         formalized,
         x: 0,
         y: 0,
-        subjects: codes(paper).length ? codes(paper) : ['00'],
+        subjects: formalizationPaperSubjects(paper).length
+          ? formalizationPaperSubjects(paper)
+          : ['00'],
         papers: [paper],
         claim: claim.id,
       });
@@ -154,59 +156,79 @@ export function formalizationLibrary(
   return { ...library, nodes, edges };
 }
 
-/** Mathesis lays out each subject independently, without copying upstream coordinates. */
+/** One subject's mathematics and its actual prerequisites, never the union of fields. */
+export function subjectFormalizationLibrary(
+  library: FormalizationLibrary,
+  subject: string,
+): FormalizationLibrary {
+  if (!findSubject(subject)) return { ...library, nodes: [], edges: [] };
+  const included = new Set(
+    library.nodes.filter((node) => node.subjects.includes(subject)).map((node) => node.id),
+  );
+  const prerequisites = new Map<string, string[]>();
+  for (const edge of library.edges) {
+    if (edge.context) continue;
+    prerequisites.set(edge.to, [...(prerequisites.get(edge.to) ?? []), edge.from]);
+  }
+  const queue = [...included];
+  for (let i = 0; i < queue.length; i++)
+    for (const id of prerequisites.get(queue[i]!) ?? []) {
+      if (included.has(id)) continue;
+      included.add(id);
+      queue.push(id);
+    }
+  return {
+    ...library,
+    nodes: library.nodes.filter((node) => included.has(node.id)),
+    edges: library.edges.filter((edge) => included.has(edge.from) && included.has(edge.to)),
+  };
+}
+
+/** Prefer the result's mathematical topic when it is also a recorded paper subject. */
+export function primaryFormalizationSubject(node: FormalizationNode): string | undefined {
+  const topic = topicSubjects[node.domain];
+  return topic && node.subjects.includes(topic) ? topic : node.subjects[0];
+}
+
+/** Lay out one subject's DAG from its own edges; source coordinates are not used. */
 export function layoutFormalizationLibrary(
   library: FormalizationLibrary,
   subject: string,
-): { nodes: FormalizationNode[]; labels: { code: string; x: number; y: number }[] } {
-  const groups = new Map<string, FormalizationNode[]>();
-  for (const node of library.nodes) {
-    if (subject && !node.subjects.includes(subject)) continue;
-    const code = subject || node.subjects[0]!;
-    groups.set(code, [...(groups.get(code) ?? []), node]);
+): { nodes: FormalizationNode[] } {
+  const graph = subjectFormalizationLibrary(library, subject);
+  const outgoing = new Map<string, string[]>();
+  const indegree = new Map(graph.nodes.map((node) => [node.id, 0]));
+  const depth = new Map(graph.nodes.map((node) => [node.id, 0]));
+  for (const edge of graph.edges) {
+    if (edge.context) continue;
+    outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge.to]);
+    indegree.set(edge.to, indegree.get(edge.to)! + 1);
   }
-  const labels: { code: string; x: number; y: number }[] = [];
+  const ready = graph.nodes
+    .filter((node) => !indegree.get(node.id))
+    .map((node) => node.id)
+    .sort();
+  for (let i = 0; i < ready.length; i++)
+    for (const to of outgoing.get(ready[i]!) ?? []) {
+      depth.set(to, Math.max(depth.get(to)!, depth.get(ready[i]!)! + 1));
+      indegree.set(to, indegree.get(to)! - 1);
+      if (!indegree.get(to)) ready.push(to);
+    }
+  // A paper-context link places its exact targets after its source module,
+  // without treating that association as a mathematical proof dependency.
+  for (const edge of graph.edges)
+    if (edge.context) depth.set(edge.to, Math.max(depth.get(edge.to)!, depth.get(edge.from)! + 1));
+  const layers = new Map<number, FormalizationNode[]>();
+  for (const node of graph.nodes) {
+    const rank = depth.get(node.id)!;
+    layers.set(rank, [...(layers.get(rank) ?? []), node]);
+  }
   const nodes: FormalizationNode[] = [];
-  const columns = subject ? 1 : Math.min(6, Math.ceil(Math.sqrt(groups.size * 1.6)));
-  [...groups]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .forEach(([code, items], index) => {
-      const originX = (index % columns) * 300;
-      const originY = Math.floor(index / columns) * 230;
-      labels.push({ code, x: originX, y: originY });
-      const ids = new Set(items.map((node) => node.id));
-      const links = library.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
-      const indegree = new Map(items.map((node) => [node.id, 0]));
-      const depth = new Map(items.map((node) => [node.id, 0]));
-      for (const edge of links) indegree.set(edge.to, indegree.get(edge.to)! + 1);
-      const ready = items
-        .filter((node) => !indegree.get(node.id))
-        .map((node) => node.id)
-        .sort();
-      for (let i = 0; i < ready.length; i++)
-        for (const edge of links.filter((edge) => edge.from === ready[i])) {
-          depth.set(edge.to, Math.max(depth.get(edge.to)!, depth.get(edge.from)! + 1));
-          indegree.set(edge.to, indegree.get(edge.to)! - 1);
-          if (!indegree.get(edge.to)) ready.push(edge.to);
-        }
-      const layers = new Map<number, FormalizationNode[]>();
-      for (const node of items) {
-        const rank = depth.get(node.id)!;
-        const list = layers.get(rank) ?? [];
-        list.push(node);
-        layers.set(rank, list);
-      }
-      const maxDepth = Math.max(...layers.keys(), 1);
-      for (const [rank, layer] of layers)
-        layer
-          .sort((a, b) => a.id.localeCompare(b.id))
-          .forEach((node, i) => {
-            nodes.push({
-              ...node,
-              x: originX + 20 + ((i + 0.5) * 240) / layer.length,
-              y: originY + 85 + (rank * 120) / maxDepth,
-            });
-          });
-    });
-  return { nodes, labels };
+  for (const [rank, layer] of layers)
+    layer
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .forEach((node, index) => {
+        nodes.push({ ...node, x: rank * 200, y: (index - (layer.length - 1) / 2) * 36 });
+      });
+  return { nodes };
 }

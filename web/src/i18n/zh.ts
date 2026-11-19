@@ -211,6 +211,14 @@ export const zh: Record<string, string> = {
   'Open interactive explanation': '打开交互讲解',
   'Shared mathematical library': '共享数学知识库',
   'View in dependency graph': '在依赖图中查看',
+  'Subject graphs': '各学科依赖图',
+  '{count} papers': '{count} 篇论文',
+  '1 paper': '1 篇论文',
+  'Each subject has its own dependency graph. Choose a subject to explore its results and the mathematics they build on.':
+    '每个学科都有独立的依赖图。选择学科，查看其中的结果及其数学基础。',
+  'This graph shows results in this subject and their prerequisites. Shared foundations appear where they are used.':
+    '这张图展示本学科的结果及其前置依赖，共同的数学基础会在被使用的位置出现。',
+  'Prerequisite from another subject': '来自其他学科的前置依赖',
   'Related papers': '相关论文',
   'Papers in this graph': '图中的论文',
   'Preview unavailable': '暂时无法预览',

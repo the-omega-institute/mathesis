@@ -168,6 +168,7 @@ function Page({ route }: { route: Route }) {
       return (
         <FormalizationsPage
           key={routePath(route)}
+          msc={route.msc}
           focus={route.focus}
           q={route.q}
           before={route.before}

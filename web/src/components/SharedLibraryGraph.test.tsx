@@ -1,0 +1,100 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { fakeApi, renderWithApp } from '../test/render';
+import type { CollectedPaper } from '../api/types';
+import type { SharedLibrary } from '../lib/sharedLibrary';
+import { loadSharedLibrary } from '../lib/sharedLibrary';
+import { SharedLibraryGraph } from './SharedLibraryGraph';
+
+vi.mock('../lib/sharedLibrary', async (original) => ({
+  ...(await original<typeof import('../lib/sharedLibrary')>()),
+  loadSharedLibrary: vi.fn(),
+}));
+const commit = 'b'.repeat(40);
+const source = (module: string) =>
+  `https://github.com/the-omega-institute/trureturing/blob/${commit}/${module}.lean`;
+const papers = [
+  {
+    id: 'quantum-paper',
+    revision: '1',
+    title: 'Projection bounds',
+    msc: ['81P15'],
+    lean: { url: source('Quantum/Bound'), revision: commit },
+  },
+  {
+    id: 'integer-paper',
+    revision: '1',
+    title: 'Integer identities',
+    msc: ['11A41'],
+    lean: { url: source('Arith/Identity'), revision: commit },
+  },
+] as CollectedPaper[];
+const library: SharedLibrary = {
+  sourceCommit: commit,
+  digest: 'sha256:' + 'a'.repeat(64),
+  nodes: ['Quantum/Bound', 'Arith/Identity', 'Algebra/Base'].map((id) => ({
+    id,
+    title: id,
+    abstract: '',
+    domain: id.split('/')[0]!,
+    source: source(id),
+    formalized: true,
+    x: 0,
+    y: 0,
+  })),
+  edges: [{ from: 'Algebra/Base', to: 'Quantum/Bound' }],
+};
+beforeEach(() => {
+  window.history.replaceState(null, '', '/formalizations');
+  vi.mocked(loadSharedLibrary).mockReset().mockResolvedValue(library);
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+});
+it('starts with independent subject links, without loading or drawing a combined graph', async () => {
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: papers, next_before: null })),
+  });
+  renderWithApp(<SharedLibraryGraph />, api);
+  expect(await screen.findByRole('link', { name: 'Quantum theory' })).toHaveAttribute(
+    'href',
+    '/formalizations?msc=81',
+  );
+  expect(screen.getByRole('link', { name: 'Number theory' })).toHaveAttribute(
+    'href',
+    '/formalizations?msc=11',
+  );
+  expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  expect(loadSharedLibrary).not.toHaveBeenCalled();
+  expect(api.collectedKnowledge).not.toHaveBeenCalled();
+});
+it('loads only the selected subject and keeps a cross-subject prerequisite inside that graph', async () => {
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: papers, next_before: null })),
+  });
+  renderWithApp(<SharedLibraryGraph msc="81" focus="Quantum/Bound" />, api);
+  expect(await screen.findByRole('heading', { name: 'Quantum theory' })).toBeInTheDocument();
+  expect(api.collectedKnowledge).toHaveBeenCalledTimes(1);
+  expect(api.collectedKnowledge).toHaveBeenCalledWith('quantum-paper', '1', expect.anything());
+  expect(screen.getByRole('heading', { name: 'Builds on (1)' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Algebra/Base' }));
+  expect(screen.getByText('Prerequisite from another subject')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Quantum theory' })).toBeInTheDocument();
+  expect(screen.queryByText('Integer identities')).not.toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Subject' }), '11');
+  await waitFor(() => expect(window.location.search).toBe('?msc=11'));
+});
+it('preserves old paper-to-module links by resolving them into the matching subject URL', async () => {
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: papers, next_before: null })),
+  });
+  renderWithApp(<SharedLibraryGraph focus="Quantum/Bound" />, api);
+  await waitFor(() => expect(new URLSearchParams(window.location.search).get('msc')).toBe('81'));
+  expect(new URLSearchParams(window.location.search).get('focus')).toBe('module:Quantum/Bound');
+});

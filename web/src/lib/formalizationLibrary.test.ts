@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CollectedPaper, CollectedKnowledge } from '../api/types';
 import type { SharedLibrary } from './sharedLibrary';
-import { formalizationLibrary, layoutFormalizationLibrary } from './formalizationLibrary';
+import {
+  formalizationLibrary,
+  layoutFormalizationLibrary,
+  subjectFormalizationLibrary,
+} from './formalizationLibrary';
 
 const commit = 'b'.repeat(40);
 const library: SharedLibrary = {
@@ -58,16 +62,48 @@ describe('Mathesis formalization presentation', () => {
   });
   it('uses its own subject layout rather than upstream graph coordinates', () => {
     const graph = formalizationLibrary(library, [paper]);
-    const before = layoutFormalizationLibrary(graph, '');
+    const before = layoutFormalizationLibrary(graph, '81');
     const after = layoutFormalizationLibrary(
       { ...graph, nodes: graph.nodes.map((node) => ({ ...node, x: -99, y: 12345 })) },
-      '',
+      '81',
     );
     expect(after).toEqual(before);
-    expect(before.labels.map((label) => label.code)).toEqual(['11', '15']);
-    expect(layoutFormalizationLibrary(graph, '81').nodes.map((node) => node.id)).toEqual([
-      'Quantum/Base',
+    expect(before.nodes.find((node) => node.id === 'Quantum/Base')!.x).toBeGreaterThan(
+      before.nodes.find((node) => node.id === 'Arith/Base')!.x,
+    );
+    expect(layoutFormalizationLibrary(graph, '').nodes).toEqual([]);
+  });
+  it('retains required foundations across subjects without pulling in their unrelated results or later uses', () => {
+    const arithmeticPaper = {
+      ...paper,
+      id: 'arithmetic-paper',
+      msc: ['11A41'],
+      lean: {
+        ...paper.lean,
+        url: `https://github.com/the-omega-institute/trureturing/blob/${commit}/Arith/Other.lean`,
+      },
+    } as CollectedPaper;
+    const unrelated = {
+      ...library.nodes[1]!,
+      id: 'Arith/Other',
+      source: arithmeticPaper.lean!.url,
+    };
+    const graph = formalizationLibrary(
+      {
+        ...library,
+        nodes: [...library.nodes, unrelated],
+        edges: [...library.edges, { from: 'Arith/Base', to: 'Arith/Other' }],
+      },
+      [paper, arithmeticPaper],
+    );
+    const quantum = subjectFormalizationLibrary(graph, '81');
+    expect(quantum.nodes.map((node) => node.id)).toEqual(['Quantum/Base', 'Arith/Base']);
+    expect(quantum.edges).toEqual([{ from: 'Arith/Base', to: 'Quantum/Base' }]);
+    expect(subjectFormalizationLibrary(graph, '11').nodes.map((node) => node.id)).toEqual([
+      'Arith/Base',
+      'Arith/Other',
     ]);
+    expect(subjectFormalizationLibrary(graph, '99').nodes).toEqual([]);
   });
   it('shows current version proof targets without turning source associations into proof dependencies', () => {
     const knowledge = {

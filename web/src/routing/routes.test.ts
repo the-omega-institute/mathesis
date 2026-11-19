@@ -12,6 +12,7 @@ const ROUTES: Route[] = [
   { kind: 'papers', q: 'Ada Example' },
   { kind: 'submission', id: 'sub-1', staff: true },
   { kind: 'formalizations' },
+  { kind: 'formalizations', msc: '81', focus: 'module:Quantum/Base' },
   { kind: 'learn_lean' },
   { kind: 'formalizations', view: 'list', q: 'gaps' },
   { kind: 'leaderboard', category: 'formalization' },
@@ -48,6 +49,13 @@ describe('routes', () => {
 
   it('tolerates a trailing slash', () => {
     expect(parseRoute('/papers/')).toEqual({ kind: 'papers' });
+  });
+
+  it('rejects unrecognized formalization subjects instead of showing a combined graph', () => {
+    expect(parseRoute('/formalizations', '?msc=99')).toEqual({
+      kind: 'not_found',
+      path: '/formalizations',
+    });
   });
 
   it('ignores an unknown task kind in the query', () => {
