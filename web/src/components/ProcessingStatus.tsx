@@ -22,8 +22,8 @@ export function ProcessingStatus() {
       </button>
       <Async state={status.state} onRetry={status.reload}>
         {(lanes) => (
-          <div className="table-scroll">
-            <table>
+          <div className="table-wrap">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>{t('Queue')}</th>
