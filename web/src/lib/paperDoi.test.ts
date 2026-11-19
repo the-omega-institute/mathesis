@@ -12,6 +12,42 @@ function api(papers: unknown[]) {
   } as unknown as ApiClient;
 }
 describe('public DOI paper resolution', () => {
+  it('resolves an older Zenodo DOI through its concept and the public version chain', async () => {
+    const client = api([
+      {
+        id: 'paper',
+        revision: '3',
+        previous_version: '2',
+        archive: { doi: '10.5281/zenodo.300', concept_doi: '10.5281/zenodo.100' },
+      },
+    ]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              attributes: {
+                relatedIdentifiers: [
+                  { relationType: 'IsVersionOf', relatedIdentifier: '10.5281/zenodo.100' },
+                ],
+              },
+            },
+          }),
+        ),
+      ),
+    );
+    vi.mocked(client.getCollectedPaper).mockResolvedValue({
+      id: 'paper',
+      revision: '2',
+      archive: { doi: '10.5281/zenodo.200' },
+    } as never);
+    expect(await resolvePaperDoi(client, '10.5281/zenodo.200', signal)).toEqual({
+      record: 'paper',
+      version: '2',
+    });
+    expect(client.getCollectedPaper).toHaveBeenCalledWith('paper', '2', { signal });
+  });
   it('resolves the exact archived paper version without interpreting the DOI suffix', async () => {
     const client = api([
       { id: 'different-title', revision: '2', archive: { doi: '10.5281/zenodo.24212412' } },

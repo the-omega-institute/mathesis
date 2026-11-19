@@ -30,6 +30,7 @@ import { SubmitPage } from './pages/Submit';
 import { TaskPage, TasksPage } from './pages/Tasks';
 import { useRouter } from './routing/router';
 import { routePath, type Route } from './routing/routes';
+import { texToText } from './lib/texText';
 
 function titleFor(route: Route): string {
   switch (route.kind) {
@@ -225,7 +226,14 @@ export function App() {
   const { route } = useRouter();
   const locale = useLocale();
   useEffect(() => {
-    const title = route.kind === 'author' ? route.name : t(titleFor(route));
+    const citation = document.querySelector<HTMLMetaElement>(
+      'meta[name="citation_title"]',
+    )?.content;
+    const title = citation
+      ? texToText(citation)
+      : route.kind === 'author'
+        ? route.name
+        : t(titleFor(route));
     document.title = title === 'Mathesis' ? 'Mathesis' : `${title} · Mathesis`;
   }, [route, locale]);
   return (

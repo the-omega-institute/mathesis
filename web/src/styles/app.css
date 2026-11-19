@@ -2888,6 +2888,25 @@ button.research-map-node.is-connected {
   height: min(75vh, 48rem);
   margin-block: 1rem;
 }
+.material-pdf-preview {
+  margin-block: 1rem;
+  min-height: 8rem;
+}
+.material-pdf-preview canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.material-pdf-preview canvas[hidden] {
+  display: none;
+}
+.material-pdf-preview nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block: 0.75rem;
+}
 .material-slides-preview {
   height: min(65vh, 36rem);
   margin-block: 1rem;

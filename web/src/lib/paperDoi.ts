@@ -18,6 +18,39 @@ export async function resolvePaperDoi(
   const exact = papers.items.filter((paper) => same(paper.archive?.doi, doi));
   if (exact.length === 1) return { record: exact[0]!.id, version: exact[0]!.revision };
   if (exact.length > 1) throw new Error('This DOI is associated with more than one public paper.');
+  if (doi.toLowerCase().startsWith('10.5281/zenodo.')) {
+    const registry = await fetch('https://api.datacite.org/dois/' + encodeURIComponent(doi), {
+      signal,
+    });
+    if (registry.ok) {
+      const metadata = (await registry.json()) as {
+        data?: {
+          attributes?: {
+            relatedIdentifiers?: { relationType: string; relatedIdentifier: string }[];
+          };
+        };
+      };
+      const concepts = (metadata.data?.attributes?.relatedIdentifiers ?? [])
+        .filter((item) => item.relationType === 'IsVersionOf')
+        .map((item) => item.relatedIdentifier);
+      const candidates = papers.items.filter((paper) =>
+        concepts.some((concept) => same(paper.archive?.concept_doi, normaliseDoi(concept))),
+      );
+      if (candidates.length === 1) {
+        let paper = candidates[0]!;
+        const visited = new Set([paper.revision]);
+        while (paper.previous_version && visited.size < 100) {
+          const previous = paper.previous_version;
+          if (visited.has(previous)) break;
+          visited.add(previous);
+          const older = await api.getCollectedPaper(paper.id, previous, { signal });
+          if (older.id !== paper.id || older.revision !== previous) break;
+          if (same(older.archive?.doi, doi)) return { record: older.id, version: older.revision };
+          paper = older;
+        }
+      }
+    }
+  }
   let before: string | null = null;
   const seen = new Set<string>();
   do {
