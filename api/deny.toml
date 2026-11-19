@@ -8,6 +8,12 @@ ignore = [
     # timing side channel this advisory describes has nothing to observe.
     # Production verifies RS256 with jsonwebtoken's aws-lc-rs backend.
     { id = "RUSTSEC-2023-0071", reason = "dev-only test key generation; no private-key operation in shipped code" },
+    # This is an informational maintenance notice, with no patched chrono
+    # release and no reported vulnerability. Existing persisted timestamps and
+    # MongoDB's chrono adapter still use 0.4. Replacing that representation is
+    # a separate compatibility migration; keep shipping tested fixes meanwhile.
+    # Only this notice is accepted: future chrono vulnerabilities still fail.
+    { id = "RUSTSEC-2026-0543", reason = "existing chrono/BSON timestamp compatibility; maintenance-only notice with no patched release; see docs/DEPENDENCY_MAINTENANCE.md" },
 ]
 
 [licenses]
