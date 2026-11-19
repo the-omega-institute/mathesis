@@ -26,6 +26,8 @@ const ARCHIVE_INDEX_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct Worker {
     pub knowledge: Option<Arc<dyn crate::knowledge::KnowledgeSource>>,
     pub review_concurrency: usize,
+    pub collection_concurrency: usize,
+    pub collection_advisor: Option<Arc<dyn mathesis_review::advisor::Advisor>>,
     pub cma_factory: Option<Arc<crate::cma_tokens::CmaFactory>>,
     pub app: Arc<App>,
     pub jobs: Arc<dyn JobLease>,
@@ -38,7 +40,6 @@ pub struct Worker {
     pub oracle: Option<Arc<dyn mathesis_review::oracle::Oracle>>,
     pub advisor: Option<Arc<dyn mathesis_review::advisor::Advisor>>,
     pub formalizer: Option<Arc<dyn mathesis_review::lean::Formalizer>>,
-    pub cma_formalization_workspace: Option<String>,
     pub oracle_poll: Duration,
     pub advisor_work_dir: std::path::PathBuf,
     pub audit_budget: Duration,
@@ -84,8 +85,88 @@ impl Worker {
             .chain(std::iter::repeat_n(
                 JobLane::Review,
                 self.review_concurrency,
+            ))
+            .chain(std::iter::repeat_n(
+                JobLane::Collection,
+                self.collection_concurrency,
             ));
-        futures::future::join_all(lanes.map(|lane| self.run_lane(lane, shutdown.clone()))).await;
+        let loops =
+            futures::future::join_all(lanes.map(|lane| self.run_lane(lane, shutdown.clone())));
+        tokio::join!(loops, self.observe_capacity(shutdown));
+    }
+
+    /// New admissions must resolve to separate live sandboxes. Saved provider
+    /// intents resume without rebinding their workspace or request bytes.
+    pub(super) async fn collection_admission(
+        &self,
+        client: &mathesis_review::cma::Client,
+        store: &dyn mathesis_review::cma::RunStore,
+    ) -> Result<(), Failure> {
+        if store.load().await.map_err(model_failure)?.is_some() {
+            return Ok(());
+        }
+        client.preflight().await.map_err(|e| {
+            Failure::Transient(format!("Internal CMA environment unavailable: {e}"))
+        })?;
+        if let Some(external) = self.advisor.as_ref().and_then(|a| a.managed_client()) {
+            let internal = mathesis_review::cma::resources::workspace_facts(
+                client.transport.as_ref(),
+                &client.workspace,
+            )
+            .await
+            .map_err(model_failure)?;
+            let external = mathesis_review::cma::resources::workspace_facts(
+                external.transport.as_ref(),
+                &external.workspace,
+            )
+            .await
+            .map_err(model_failure)?;
+            if internal.sandbox_id == external.sandbox_id {
+                return Err(Failure::Transient("Internal and external CMA lanes resolve to the same sandbox; internal admission paused".into()));
+            }
+        }
+        Ok(())
+    }
+
+    async fn observe_capacity(&self, mut shutdown: watch::Receiver<bool>) {
+        let worker = crate::auth::random_token();
+        loop {
+            if *shutdown.borrow() {
+                break;
+            }
+            let now = chrono::Utc::now();
+            for (lane, capacity, advisor) in [
+                (JobLane::Review, self.review_concurrency, &self.advisor),
+                (
+                    JobLane::Collection,
+                    self.collection_concurrency,
+                    &self.collection_advisor,
+                ),
+            ] {
+                let observation = mathesis_core::ports::ProcessingWorker {
+                    worker: worker.clone(),
+                    lane,
+                    capacity: if advisor.is_some() {
+                        capacity as u32
+                    } else {
+                        0
+                    },
+                    workspace: advisor
+                        .as_ref()
+                        .and_then(|a| a.managed_client())
+                        .map(|c| c.workspace.clone()),
+                    observed_at: now,
+                    expires_at: now + chrono::Duration::seconds(90),
+                };
+                if let Err(error) = self.jobs.observe_worker(&observation).await {
+                    tracing::warn!(%error, "could not record processing capacity");
+                }
+            }
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(30)) => {},
+                _ = shutdown.changed() => {},
+            }
+        }
     }
 
     async fn run_lane(&self, lane: JobLane, mut shutdown: watch::Receiver<bool>) {
@@ -209,19 +290,21 @@ impl Worker {
             }
             Err(Failure::Permanent(reason)) => {
                 tracing::warn!(reason, "job abandoned");
-                self.jobs.complete(&job).await
+                self.jobs.fail(&job, &reason).await
             }
             Err(Failure::Transient(reason)) => {
                 tracing::warn!(reason, "job will be retried");
                 if matches!(
                     job.kind,
-                    JobKind::CollectedFormalization | JobKind::CollectedProblemTarget
+                    JobKind::CollectedFormalization
+                        | JobKind::CollectedExplanation
+                        | JobKind::CollectedProblemTarget
                 ) {
                     // Provider recovery is an ordinary wait, not a failed proof
                     // generation. Keep the same durable job and remote handles.
                     // A curated target likewise waits for the verifier: its check
                     // is idempotent and writes at most once.
-                    self.jobs.defer(&job, Duration::from_secs(60)).await
+                    self.jobs.wait(&job, Duration::from_secs(60), &reason).await
                 } else {
                     self.jobs.retry(&job, &reason).await
                 }

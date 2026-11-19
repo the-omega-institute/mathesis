@@ -951,9 +951,13 @@ async fn sessions_attempts_and_job_retries() {
     );
     JobLease::complete(s, &again).await.unwrap();
     assert_eq!(
-        s.raw(REVIEW_JOBS).count_documents(doc! {}).await.unwrap(),
-        0
+        s.raw(REVIEW_JOBS)
+            .count_documents(doc! {"state":"completed"})
+            .await
+            .unwrap(),
+        1
     );
+    assert!(JobLease::claim(s).await.unwrap().is_none());
     ReviewQueue::enqueue(s, &sub, JobKind::Stage(Stage::Literature))
         .await
         .unwrap();
@@ -3548,5 +3552,115 @@ async fn materials_sidecar_replacement_is_durable_atomic_and_revision_fenced() {
         0
     );
     reopened.shutdown().await;
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn collection_and_external_admission_are_independent_and_observed_after_restart() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let s = &db.store;
+    let internal: SubmissionId = "collected:capacity-note:1".into();
+    let external: SubmissionId = "external-author-paper".into();
+    ReviewQueue::enqueue(s, &internal, JobKind::CollectedExplanation)
+        .await
+        .unwrap();
+    ReviewQueue::enqueue(s, &external, JobKind::Referee)
+        .await
+        .unwrap();
+    let collection = s
+        .claim_in(Some(JobLane::Collection))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(collection.submission, internal);
+    assert!(
+        s.claim_in(Some(JobLane::Collection))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let review = s.claim_in(Some(JobLane::Review)).await.unwrap().unwrap();
+    assert_eq!(review.submission, external);
+    s.wait(
+        &collection,
+        std::time::Duration::from_secs(3600),
+        "sandbox_not_ready",
+    )
+    .await
+    .unwrap();
+    ReviewQueue::enqueue(s, &internal, JobKind::CollectedExplanation)
+        .await
+        .unwrap();
+    assert!(
+        s.claim_in(Some(JobLane::Collection))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    s.complete(&review).await.unwrap();
+    let now = Utc::now();
+    for (worker, lane, expires_at) in [
+        (
+            "live",
+            JobLane::Collection,
+            now + chrono::Duration::minutes(1),
+        ),
+        (
+            "expired",
+            JobLane::Review,
+            now - chrono::Duration::minutes(1),
+        ),
+    ] {
+        s.observe_worker(&ProcessingWorker {
+            worker: worker.into(),
+            lane,
+            capacity: 1,
+            workspace: Some("wks_internal".into()),
+            observed_at: now,
+            expires_at,
+        })
+        .await
+        .unwrap();
+    }
+    let restarted = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    let snapshot = ReviewQueue::processing_status(&restarted).await.unwrap();
+    let collection = snapshot
+        .iter()
+        .find(|s| s.lane == JobLane::Collection)
+        .unwrap();
+    assert_eq!(
+        (collection.queued, collection.running, collection.retries),
+        (1, 0, 1)
+    );
+    assert!(collection.oldest_queued_at.is_some());
+    assert_eq!(
+        collection.last_failure.as_ref().unwrap().reason.as_deref(),
+        Some("sandbox_not_ready")
+    );
+    assert_eq!(collection.workers.len(), 1);
+    let review = snapshot.iter().find(|s| s.lane == JobLane::Review).unwrap();
+    assert!(review.workers.is_empty());
+    assert_eq!(review.last_success.as_ref().unwrap().submission, external);
+    ReviewQueue::enqueue(s, &external, JobKind::PaperExplanation)
+        .await
+        .unwrap();
+    let failed = s.claim_in(Some(JobLane::Review)).await.unwrap().unwrap();
+    s.fail(&failed, "invalid source").await.unwrap();
+    let snapshot = ReviewQueue::processing_status(s).await.unwrap();
+    let review = snapshot.iter().find(|s| s.lane == JobLane::Review).unwrap();
+    assert_eq!(review.failed, 1);
+    assert_eq!(
+        review.last_failure.as_ref().unwrap().stage,
+        "paper_explanation"
+    );
+    assert_eq!(review.last_success.as_ref().unwrap().stage, "referee");
+    restarted.shutdown().await;
     db.drop().await;
 }

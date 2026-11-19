@@ -135,3 +135,46 @@ it('removes only the submitter’s withdrawn work and lets them restore it', asy
   expect(api.removeSubmission).toHaveBeenCalledWith(submission.id);
   expect(api.restoreSubmission).toHaveBeenCalledWith(submission.id);
 });
+
+it('shows independent internal capacity only to administrators', async () => {
+  const processingStatus = vi.fn(async () => [
+    {
+      lane: 'collection' as const,
+      queued: 8,
+      running: 1,
+      failed: 0,
+      retries: 2,
+      oldest_queued_at: '2026-11-19T01:00:00Z',
+      last_success: null,
+      last_failure: {
+        submission: 'collected:example:1',
+        stage: 'collected_explanation',
+        at: '2026-11-19T02:00:00Z',
+        reason: 'sandbox_not_ready',
+      },
+      workers: [
+        {
+          worker: 'worker',
+          capacity: 1,
+          workspace: 'wks_internal',
+          observed_at: '2026-11-19T02:00:00Z',
+          expires_at: '2026-11-19T02:01:30Z',
+        },
+      ],
+    },
+  ]);
+  const api = fakeApi({ processingStatus }, { ...editor, roles: ['admin'] });
+  renderWithApp(<SubmissionsPage scope="queue" />, api);
+  await userEvent.click(await screen.findByText('Processing queues'));
+  expect(await screen.findByText('Internal paper production')).toBeVisible();
+  expect(screen.getByText(/sandbox_not_ready/)).toBeVisible();
+  expect(processingStatus).toHaveBeenCalledOnce();
+});
+
+it('does not request processing observations for authors', async () => {
+  const api = fakeApi({}, author);
+  renderWithApp(<SubmissionsPage scope="mine" />, api);
+  expect(await screen.findByText('Research submissions')).toBeVisible();
+  expect(screen.queryByText('Processing queues')).toBeNull();
+  expect(api.processingStatus).not.toHaveBeenCalled();
+});

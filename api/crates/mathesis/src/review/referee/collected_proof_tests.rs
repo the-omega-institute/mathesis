@@ -211,17 +211,16 @@ async fn collected_world_with(
         .await
         .unwrap();
     let mock = Arc::new(CollectedTransport::default());
-    w.worker.advisor = Some(Arc::new(mathesis_review::cma::CmaAdvisor {
+    w.worker.collection_advisor = Some(Arc::new(mathesis_review::cma::CmaAdvisor {
         client: Arc::new(mathesis_review::cma::Client {
             transport: mock.clone(),
-            workspace: "wks_review".into(),
+            workspace: "wks_proofs".into(),
             profile: Some(json!({"id":"agp_fixture","revision":1})),
             poll: Duration::from_millis(1),
         }),
         timeout: Duration::from_secs(60),
         audit_timeout: Duration::from_secs(60),
     }));
-    w.worker.cma_formalization_workspace = Some("wks_proofs".into());
     w.worker.formal_budget = Duration::from_secs(60);
     w.worker.audit_budget = Duration::from_secs(60);
     (w, mock, verifier)
@@ -239,7 +238,7 @@ async fn collected_batch_runs_through_the_worker_dispatch_and_verification_lanes
     let (w, mock) = collected_world().await;
     let job = w
         .jobs
-        .claim_in(Some(JobLane::Review))
+        .claim_in(Some(JobLane::Collection))
         .await
         .unwrap()
         .unwrap();
@@ -341,9 +340,11 @@ async fn paper_batch_reuses_inspection_across_results_and_recovers_cleanup_witho
     ReviewQueue::enqueue(w.stores.as_ref(), &job.submission, job.kind)
         .await
         .unwrap();
+    tokio::time::pause();
+    tokio::time::advance(Duration::from_secs(31)).await;
     let resumed = w
         .jobs
-        .claim_in(Some(JobLane::Review))
+        .claim_in(Some(JobLane::Collection))
         .await
         .unwrap()
         .unwrap();
@@ -452,9 +453,11 @@ async fn missing_proof_gets_focused_gap_work_then_stays_open_without_endless_ret
     ReviewQueue::enqueue(w.stores.as_ref(), &job.submission, job.kind)
         .await
         .unwrap();
+    tokio::time::pause();
+    tokio::time::advance(Duration::from_secs(31)).await;
     let resumed = w
         .jobs
-        .claim_in(Some(JobLane::Review))
+        .claim_in(Some(JobLane::Collection))
         .await
         .unwrap()
         .unwrap();
@@ -665,4 +668,30 @@ async fn new_work_on_a_library_enabled_verifier_pins_the_library_and_proves_libr
     let rules = admitted_prompt(&prepare[0]).split('\n').nth(1).unwrap();
     assert!(rules.contains("Set reused_from to the exact existing_lean object"));
     assert!(rules.contains("A Target never imports a library"));
+}
+
+#[tokio::test]
+async fn internal_admission_refuses_two_workspaces_in_the_same_sandbox() {
+    let (mut w, mock) = collected_world().await;
+    w.worker.advisor = Some(Arc::new(mathesis_review::cma::CmaAdvisor {
+        client: Arc::new(mathesis_review::cma::Client {
+            transport: mock.clone(),
+            workspace: "wks_external".into(),
+            profile: Some(json!({"id":"agp_fixture","revision":1})),
+            poll: Duration::from_millis(1),
+        }),
+        timeout: Duration::from_secs(60),
+        audit_timeout: Duration::from_secs(60),
+    }));
+    let job = w
+        .jobs
+        .claim_in(Some(JobLane::Collection))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        matches!(w.worker.collected_proof_job(&job).await, Err(crate::review::worker::Failure::Transient(reason)) if reason.contains("same sandbox"))
+    );
+    assert_eq!(mock.created.load(Ordering::SeqCst), 0);
+    assert_eq!(w.oracle.submitted.load(Ordering::SeqCst), 0);
 }

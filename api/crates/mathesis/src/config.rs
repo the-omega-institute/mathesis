@@ -134,6 +134,8 @@ pub struct Config {
     /// Optional public catalog of exact-version reading and media links.
     pub materials_index_url: Option<String>,
     pub review_concurrency: usize,
+    pub collection_concurrency: usize,
+    pub cma_collection_workspace: Option<String>,
     pub cma_byok: Option<CmaByokConfig>,
     pub verifier_program: String,
     pub verifier_url: Option<String>,
@@ -165,8 +167,6 @@ pub struct Config {
     /// A Lean project with Mathlib built; with the Codex advisor, rounds
     /// try a private formalization probe in it.
     pub lean_workspace: Option<String>,
-    /// Prepared remote CMA environment for venue-funded collected proof work.
-    pub cma_formalization_workspace: Option<String>,
     pub formal_timeout_secs: u64,
     /// The TeX Live bin directory (`pdflatex`, `xelatex`, `lualatex`,
     /// `bibtex`) that compiles uploaded sources.
@@ -515,7 +515,19 @@ impl Config {
             bail!("WISHPOOL_FORMAL_TIMEOUT_SECS must be at most 3600 seconds");
         }
         let lean_workspace = get("WISHPOOL_LEAN_WORKSPACE");
+        // Accepted for deployment compatibility; saved run intents retain legacy routing.
         let cma_formalization_workspace = get("WISHPOOL_CMA_FORMALIZATION_WORKSPACE");
+        let cma_collection_workspace = get("WISHPOOL_CMA_COLLECTION_WORKSPACE");
+        if let Some(workspace) = &cma_collection_workspace {
+            if !workspace.starts_with("wks_") || workspace.len() > 100 {
+                bail!("WISHPOOL_CMA_COLLECTION_WORKSPACE requires a CMA workspace identity");
+            }
+            if let Some(AdvisorConfig::Cma(settings)) = &advisor
+                && settings.workspace == *workspace
+            {
+                bail!("collection and external CMA workspaces must be distinct");
+            }
+        }
         if cma_formalization_workspace
             .as_ref()
             .is_some_and(|s| !s.starts_with("wks_") || s.len() > 100)
@@ -682,6 +694,14 @@ impl Config {
                 }
                 concurrency as usize
             },
+            collection_concurrency: {
+                let concurrency = seconds("WISHPOOL_COLLECTION_CONCURRENCY", 1)?;
+                if concurrency > 4 {
+                    bail!("WISHPOOL_COLLECTION_CONCURRENCY must be between 1 and 4");
+                }
+                concurrency as usize
+            },
+            cma_collection_workspace,
             review_model,
             oracle,
             oracle_poll_secs,
@@ -693,7 +713,6 @@ impl Config {
             advisor_work_dir: get("WISHPOOL_ADVISOR_WORK_DIR")
                 .unwrap_or_else(|| "/tmp/wishpool-advisor".into()),
             lean_workspace,
-            cma_formalization_workspace,
             formal_timeout_secs,
             review_account,
             hosted,

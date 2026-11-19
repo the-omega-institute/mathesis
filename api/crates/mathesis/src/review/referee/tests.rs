@@ -599,6 +599,8 @@ impl World {
         let worker = Worker {
             knowledge: Some(Arc::new(LocalKnowledge::new())),
             review_concurrency: 2,
+            collection_concurrency: 1,
+            collection_advisor: Some(advisor.clone()),
             cma_factory: None,
             app,
             jobs: jobs.clone(),
@@ -616,7 +618,6 @@ impl World {
             oracle: Some(oracle.clone()),
             advisor: Some(advisor.clone()),
             formalizer: Some(formalizer.clone()),
-            cma_formalization_workspace: None,
             oracle_poll: Duration::ZERO,
             advisor_work_dir: work.path().into(),
             audit_budget: Duration::from_secs(3900),

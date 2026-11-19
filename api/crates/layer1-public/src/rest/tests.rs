@@ -2504,3 +2504,24 @@ async fn a_curated_lean_target_is_projected_by_its_documented_schema_before_any_
         "#/components/schemas/CuratedLeanTarget"
     );
 }
+
+#[tokio::test]
+async fn processing_observations_require_admin_before_storage_is_read() {
+    let app = router();
+    assert_eq!(
+        call(&app, "GET", "/staff/processing", None, None).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            "/staff/processing",
+            Some("ordinary-author"),
+            None
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+}

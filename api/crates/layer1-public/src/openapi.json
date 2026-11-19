@@ -4489,6 +4489,39 @@
           }
         }
       }
+    },
+    "/staff/processing": {
+      "get": {
+        "summary": "Admin-only queue and live worker capacity observations",
+        "description": "Separate collection and external review lanes; expired capacity is omitted. A waiting provider stage is not a manuscript rejection. Contains private work identities.",
+        "tags": [
+          "Staff"
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue counts, waiting age, retries, last success/failure and live capacity/workspace per lane",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Admin required"
+          },
+          "503": {
+            "description": "Observations unavailable"
+          }
+        }
+      }
     }
   },
   "components": {
