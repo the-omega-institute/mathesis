@@ -1,6 +1,5 @@
 import { t } from '../i18n/locale';
-import { PaperMaterials } from '../components/PaperMaterials';
-import { PaperExplanation } from '../components/PaperExplanation';
+import { PaperMaterialLinks, PaperMaterials } from '../components/PaperMaterials';
 import {
   collectedPaperNote,
   findProjectNotes,
@@ -389,12 +388,6 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
             {paper.materials ? (
               <ExternalLink href={paper.materials.repository_url}>{t('Repository')}</ExternalLink>
             ) : null}
-            <a
-              href="#citation"
-              onClick={() => document.getElementById('citation')?.setAttribute('open', '')}
-            >
-              {t('Cite')}
-            </a>
             {repo ? <ExternalLink href={repo}>{t('Formal proofs')}</ExternalLink> : null}
           </nav>
         </header>
@@ -406,11 +399,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           </p>
         ) : null}
         <nav className="paper-sections" aria-label={t('On this page')}>
-          {s.abstract_text ? <a href="#abstract-h">{t('Abstract')}</a> : null}
-          {paper.plain_language?.en.trim() && paper.plain_language.zh.trim() ? (
-            <a href="#plain-language">{t('In plain language')}</a>
-          ) : null}
-          {paper.materials ? <a href="#materials">{t('Materials')}</a> : null}
+          <PaperMaterialLinks materials={paper.materials} text={paper.plain_language} />
           {claims.length ? <a href="#results-h">{t('Results')}</a> : null}
           {paper.publication ? <a href="#references-h">{t('References and connections')}</a> : null}
           <a
@@ -428,8 +417,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                 <LatexText source={s.abstract_text} className="abstract" />
               </section>
             ) : null}
-            <PaperExplanation text={paper.plain_language} />
-            <PaperMaterials materials={paper.materials} />
+            <PaperMaterials materials={paper.materials} text={paper.plain_language} />
             {claims.length ? (
               <PaperResults paper={paper} />
             ) : (
@@ -520,7 +508,7 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                         {version.number}
                       </strong>{' '}
                       · <DateText iso={version.uploaded_at} />
-                      {version.has_pdf && s.submission ? (
+                      {version.number !== latest?.number && version.has_pdf && s.submission ? (
                         <>
                           {' '}
                           ·{' '}

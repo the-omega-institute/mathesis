@@ -288,10 +288,11 @@ it('shows the complete public version history', async () => {
     'href',
     '/api/v1/submissions/sub-acc/files/pdf?version=1',
   );
-  expect(within(history).getByRole('link', { name: 'Version 3 PDF' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'View PDF' })).toHaveAttribute(
     'href',
     '/api/v1/submissions/sub-acc/files/pdf?version=3',
   );
+  expect(within(history).queryByRole('link', { name: 'Version 3 PDF' })).toBeNull();
   expect(within(history).queryByRole('link', { name: 'Version 2 PDF' })).toBeNull();
   expect(history.querySelectorAll('time')).toHaveLength(3);
 });
@@ -465,8 +466,8 @@ it('shows public accepted-paper materials and omits the section when absent', as
       getPaper: vi.fn(async () => ({ ...publicPaper, materials: paperMaterials })),
     }),
   );
-  const section = await screen.findByRole('region', { name: 'Materials' });
-  expect(within(section).getByRole('link', { name: 'Repository' })).toHaveAttribute(
+  await screen.findByRole('region', { name: 'Materials' });
+  expect(screen.getByRole('link', { name: 'Repository' })).toHaveAttribute(
     'href',
     paperMaterials.repository_url,
   );

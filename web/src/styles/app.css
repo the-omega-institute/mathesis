@@ -2878,7 +2878,8 @@ button.research-map-node.is-connected {
   line-height: 1.75;
 }
 
-#materials iframe {
+#visualizations iframe,
+.material-reading-preview {
   display: block;
   width: 100%;
   border: 0;
@@ -2912,7 +2913,7 @@ button.research-map-node.is-connected {
   margin-block: 1rem;
 }
 .material-visualization iframe {
-  min-height: 32rem;
+  height: clamp(28rem, 72vh, 48rem);
 }
 .material-downloads {
   display: flex;

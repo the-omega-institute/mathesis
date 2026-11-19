@@ -7,8 +7,7 @@ import { publishedLeanSource } from '../lib/publishedLean';
 import { sharedLibraryFocus } from '../lib/sharedLibrary';
 import { formalizationPaperSubjects } from '../lib/formalizationLibrary';
 import { AuthorLine } from '../components/AuthorLine';
-import { PaperMaterials } from '../components/PaperMaterials';
-import { PaperExplanation } from '../components/PaperExplanation';
+import { PaperMaterialLinks, PaperMaterials } from '../components/PaperMaterials';
 import { InlineLatex, LatexText } from '../components/Markdown';
 import { DateText, ExternalLink } from '../components/ui';
 import { sourceHref, sourceLabel } from '../lib/links';
@@ -68,11 +67,15 @@ export function PublishedNotePage({
     : (supplied ?? projectNotes.find((note) => note.id === id));
   const { route, navigate } = useRouter();
   const routeRecord = route.kind === 'paper' ? route.record : undefined;
+  const routeVersion = route.kind === 'paper' ? route.version : undefined;
   const canonicalRecord = note ? paperRoute(note.id, note.archive?.doi).record : undefined;
   useEffect(() => {
     if (canonicalRecord?.startsWith('doi:') && routeRecord && routeRecord !== canonicalRecord)
-      navigate({ kind: 'paper', record: canonicalRecord }, { replace: true });
-  }, [canonicalRecord, routeRecord, navigate]);
+      navigate(
+        { kind: 'paper', record: canonicalRecord, version: routeVersion },
+        { replace: true },
+      );
+  }, [canonicalRecord, routeRecord, routeVersion, navigate]);
   if (!note) return <NotFoundPage path={`/papers/${id}`} />;
   return (
     <article className="page published-note paper-reading">
@@ -120,11 +123,7 @@ export function PublishedNotePage({
         ) : null}
       </nav>
       <nav className="paper-sections" aria-label={t('On this page')}>
-        <a href="#abstract-h">{t('Abstract')}</a>
-        {note.plain_language?.en.trim() && note.plain_language.zh.trim() ? (
-          <a href="#plain-language">{t('In plain language')}</a>
-        ) : null}
-        {note.materials ? <a href="#materials">{t('Materials')}</a> : null}
+        <PaperMaterialLinks materials={note.materials} text={note.plain_language} />
         {note.problems.length ? (
           <a
             href="#related-questions"
@@ -146,8 +145,7 @@ export function PublishedNotePage({
             <h2 id="abstract-h">{t('Abstract')}</h2>
             <LatexText source={note.abstract} className="abstract" />
           </section>
-          <PaperExplanation text={note.plain_language} />
-          <PaperMaterials materials={note.materials} />
+          <PaperMaterials materials={note.materials} text={note.plain_language} />
           <PublishedFormalizations
             work={note.id}
             version={note.revision}
@@ -216,29 +214,45 @@ export function PublishedNotePage({
             <summary>{t('Cite this paper')}</summary>
             <p>{projectCitation(note)}</p>
           </details>
-          {versions.length ? (
+          {versions.length > 1 || note.previous_version ? (
             <section className="paper-versions" aria-labelledby="public-versions-h">
               <h2 id="public-versions-h">{t('Version history')}</h2>
               <ul className="version-list">
                 {versions.map((item) => (
                   <li key={item.revision}>
-                    <Link
-                      to={paperRoute(
-                        id,
-                        item.archive?.doi,
-                        item.archive?.doi ? undefined : item.revision,
-                      )}
-                    >
-                      {t('Version {version}', { version: item.revision })}
-                    </Link>
+                    {item.revision === note.revision ? (
+                      <span aria-current="page">
+                        {t('Version {version}', { version: item.revision })}
+                      </span>
+                    ) : (
+                      <Link
+                        to={paperRoute(
+                          id,
+                          item.archive?.doi,
+                          item.archive?.doi ? undefined : item.revision,
+                        )}
+                      >
+                        {t('Version {version}', { version: item.revision })}
+                      </Link>
+                    )}
                     {' · '}
                     <DateText iso={item.published_on} />
-                    <div className="paper-version-files">
-                      <a href={item.pdf.url}>PDF</a>
-                      <a href={item.source.url}>{t('Source files')}</a>
-                    </div>
+                    {item.revision !== note.revision ? (
+                      <div className="paper-version-files">
+                        <a href={item.pdf.url}>PDF</a>
+                        <a href={item.source.url}>{t('Source files')}</a>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
+                {note.previous_version &&
+                !versions.some((item) => item.revision === note.previous_version) ? (
+                  <li>
+                    <Link to={paperRoute(id, undefined, note.previous_version)}>
+                      {t('Version {version}', { version: note.previous_version })}
+                    </Link>
+                  </li>
+                ) : null}
               </ul>
             </section>
           ) : null}
@@ -268,12 +282,6 @@ function PublishedFormalizations({
   return (
     <section aria-labelledby="formalization-h">
       <h2 id="formalization-h">{t('Formalization')}</h2>
-      {leanSource ? (
-        <p>
-          {t('Published Lean formalization is available with this paper.')}{' '}
-          <ExternalLink href={leanSource}>{t('Read the Lean source')}</ExternalLink>
-        </p>
-      ) : null}
       <p>
         <Link
           to={{

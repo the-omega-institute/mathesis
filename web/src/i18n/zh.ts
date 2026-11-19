@@ -11,6 +11,7 @@ export const zh: Record<string, string> = {
   'Plain-language reading': '通俗解读',
   'Seminar slides': '研讨会幻灯片',
   'Interactive visualizations': '交互式可视化',
+  Visualizations: '可视化',
   Repository: '代码仓库',
   Notes: '讲稿',
   PDF: 'PDF',
