@@ -11,6 +11,7 @@ mod manuscripts;
 mod materials;
 mod preparation;
 mod problem_library;
+mod removal;
 mod research;
 mod research_graph;
 

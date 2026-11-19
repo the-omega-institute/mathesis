@@ -257,6 +257,9 @@ impl SubmissionStore for MemoryStores {
         Ok(page(&*self.submissions.lock().await, limit, before, |s| {
             filter.involving.as_ref().is_none_or(|p| s.involves(p))
                 && filter
+                    .removed_from_work
+                    .is_none_or(|removed| s.removed_from_work_at.is_some() == removed)
+                && filter
                     .status
                     .as_deref()
                     .is_none_or(|st| s.status.name() == st)

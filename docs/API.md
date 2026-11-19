@@ -125,12 +125,14 @@ well-posed, open, content reading. Human-stage and endorsement gates are unchang
 | GET | `/people` | admin | → `Listing<Person>` |
 | PUT | `/people/{id}/roles` | admin | `{ roles: Role[] }` → `Person` |
 | POST | `/submissions` | signed in | multipart: `metadata` (JSON `NewPaper`), `source` (file; omitted for typed conjecture) → 201 `Submission` |
-| GET | `/submissions?scope=mine\|queue` | signed in; `queue`: editors, reviewers, admins | → `Listing<Submission>` |
+| GET | `/submissions?scope=mine\|removed\|queue\|all` | signed in; `queue`: staff; `all`: admins only | → `Listing<Submission>`; `mine` excludes removed work, `removed` lists the caller's removed withdrawn work |
 | GET | `/submissions/{id}` | authors, staff | → `Submission` |
 | POST | `/submissions/{id}/claims` | submitting author | `{ claims: ClaimConfirmation[] }` → `Submission` |
 | POST | `/submissions/{id}/lean-statement/response` | submitting author, cookie session only | `{ digest, confirm: bool, comment?: string }` → `Submission`; reject requires comment and queues a new attempt |
 | POST | `/submissions/{id}/versions` | submitting author (draft, in review, not accepted, accepted with pinned publication) | multipart: `source` (file), `note` (text), `processing_consent` (current version string) → `Submission` (back to `draft`) |
 | POST | `/submissions/{id}/withdraw` | submitting author (draft, in review) | → `Submission` |
+| DELETE | `/submissions/{id}` | submitting author, withdrawn only | → `Submission`; reversibly removes it from My work without changing source, delivery receipt or withdrawal state |
+| POST | `/submissions/{id}/restore` | submitting author, withdrawn only | → `Submission`; restores the same record to My work |
 | PUT | `/submissions/{id}/contributors` | submitting author | `{ open: bool }` → `Submission` |
 | PUT | `/submissions/{id}/visibility` | submitting author, accepted | `{ visibility: "public"\|"private" }` → `Submission` |
 | GET | `/submissions/{id}/review-summary` | authors, staff | → `ReviewSummary`: current round/version/claims revision, delivered_at, in_progress, interrupted, has_execution_limits; no report bodies |

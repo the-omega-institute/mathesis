@@ -38,7 +38,11 @@ pub(super) fn routes() -> Router<Arc<App>> {
             )),
         )
         .route("/submissions/{id}/submit", post(submit_prepared))
-        .route("/submissions/{id}", get(get_submission))
+        .route(
+            "/submissions/{id}",
+            get(get_submission).delete(remove_submission),
+        )
+        .route("/submissions/{id}/restore", post(restore_submission))
         .route("/submissions/{id}/plain-language", put(record_explanation))
         .route(
             "/submissions/{id}/plain-language/request",
@@ -356,6 +360,28 @@ async fn withdraw(
     Path(id): Path<String>,
 ) -> ApiResult<impl IntoResponse> {
     Ok(Json(app.withdraw(&caller, &SubmissionId(id)).await?))
+}
+
+async fn remove_submission(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.set_removed_from_work(&caller, &SubmissionId(id), true)
+            .await?,
+    ))
+}
+
+async fn restore_submission(
+    State(app): AppState,
+    AuthenticatedCaller(caller): AuthenticatedCaller,
+    Path(id): Path<String>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(
+        app.set_removed_from_work(&caller, &SubmissionId(id), false)
+            .await?,
+    ))
 }
 
 #[derive(Debug, Deserialize)]

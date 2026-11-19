@@ -2,7 +2,7 @@ import { t } from '../i18n/locale';
 import type { Submission } from '../api/types';
 import { InlineLatex } from '../components/Markdown';
 import { LeanWorkspace } from '../components/LeanDeposit';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { SubmissionScope } from '../api/client';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
@@ -10,12 +10,13 @@ import { usePaged } from '../api/usePaged';
 import { hasRole, useSession } from '../auth/session';
 import { SubmissionStatusBadge } from '../components/badges';
 import { Pager } from '../components/Pager';
-import { Async, DateText, Loading, SignInPrompt } from '../components/ui';
+import { Async, DateText, InlineError, Loading, SignInPrompt } from '../components/ui';
 import { formatAuthors, SUBMISSION_KIND_LABELS, newResults } from '../lib/labels';
 import { Link } from '../routing/router';
 import { awaitingDecision, decisionWaitingMessage } from '../lib/authorStanding';
 
-const COPY: { [K in SubmissionScope]: { title: string; lede: string; empty: string } } = {
+type PageScope = 'mine' | 'queue';
+const COPY: { [K in PageScope]: { title: string; lede: string; empty: string } } = {
   mine: {
     title: 'My work',
     lede: 'Your Lean contributions and research submissions. Track verification, read reviews, and return to work in progress.',
@@ -52,15 +53,17 @@ function newResultCount(s: import('../api/types').Submission): number {
   ).length;
 }
 
-export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
+export function SubmissionsPage({ scope }: { scope: PageScope }) {
   const { session, person } = useSession();
   const api = useApi();
+  const [showRemoved, setShowRemoved] = useState(false);
+  const listingScope: SubmissionScope = scope === 'mine' && showRemoved ? 'removed' : scope;
   const allowed =
     scope === 'mine' ? person !== null : hasRole(person, 'editor', 'reviewer', 'admin');
   const fetchPage = useCallback(
     (before: string | null, signal: AbortSignal) =>
-      api.listSubmissions(scope, { before, limit: 20 }, { signal }),
-    [api, scope],
+      api.listSubmissions(listingScope, { before, limit: 20 }, { signal }),
+    [api, listingScope],
   );
   const paged = usePaged(allowed ? fetchPage : null);
   const copy = COPY[scope];
@@ -136,16 +139,27 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
         <>
           <LeanWorkspace />
           <h2>{t('Research submissions')}</h2>
+          <p className="small">
+            <button
+              type="button"
+              className="button button-quiet button-small"
+              onClick={() => setShowRemoved((value) => !value)}
+            >
+              {t(showRemoved ? 'Back to my work' : 'Removed submissions')}
+            </button>
+          </p>
         </>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>
           listing.items.length === 0 ? (
-            <p className="muted">{t(copy.empty)}</p>
+            <p className="muted">
+              {t(listingScope === 'removed' ? 'No removed submissions.' : copy.empty)}
+            </p>
           ) : (
             <ul className="entry-list">
               {listing.items.map((s) => (
-                <SubmissionRow key={s.id} submission={s} scope={scope} />
+                <SubmissionRow key={s.id} submission={s} scope={scope} onChanged={paged.reload} />
               ))}
             </ul>
           )
@@ -159,11 +173,29 @@ export function SubmissionsPage({ scope }: { scope: SubmissionScope }) {
 function SubmissionRow({
   submission: s,
   scope,
+  onChanged,
 }: {
   submission: Submission;
-  scope: SubmissionScope;
+  scope: PageScope;
+  onChanged: () => void;
 }) {
   const api = useApi();
+  const { person } = useSession();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const removed = !!s.removed_from_work_at;
+  const changeRemoval = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await (removed ? api.restoreSubmission(s.id) : api.removeSubmission(s.id));
+      onChanged();
+    } catch (error) {
+      setError(error);
+    } finally {
+      setBusy(false);
+    }
+  };
   const load = useCallback(
     (signal: AbortSignal) => api.reviewSummary(s.id, { signal }),
     [api, s.id],
@@ -247,6 +279,19 @@ function SubmissionRow({
         </p>
       ) : null}
       {waitingForDecision ? <p className="small">{decisionWaitingMessage(s)}</p> : null}
+      {scope === 'mine' && person?.id === s.submitter && s.status.state === 'withdrawn' ? (
+        <div className="small">
+          <button
+            type="button"
+            className="button button-quiet button-small"
+            disabled={busy}
+            onClick={() => void changeRemoval()}
+          >
+            {t(removed ? 'Restore to my work' : 'Remove from my work')}
+          </button>
+          <InlineError error={error} />
+        </div>
+      ) : null}
       {summary.state.status === 'error' ? (
         <p className="small">
           {t('Your manuscript is saved.')}{' '}
