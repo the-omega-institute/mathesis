@@ -18,22 +18,22 @@ describe('paper materials', () => {
     );
     expect(within(section).getAllByRole('link', { name: 'PDF' })).toHaveLength(1);
     expect(within(section).getAllByRole('link', { name: 'Notes' })).toHaveLength(2);
-    expect(within(section).getByRole('link', { name: 'parity-demo' })).toHaveAttribute(
-      'href',
-      materials.visualizations[0]!.url,
-    );
+    expect(
+      within(section).getByRole('link', { name: 'Open interactive explanation' }),
+    ).toHaveAttribute('href', materials.visualizations[0]!.url);
     expect(within(section).getByRole('link', { name: 'Repository' })).toHaveAttribute(
       'href',
       materials.repository_url,
     );
-    expect(section).toHaveTextContent(
-      'Prepared by Mathesis from the manuscript; explanations and illustrations are not verification.',
+    expect(section).not.toHaveTextContent('not verification');
+    expect(screen.getByTitle('Plain-language reading')).toHaveAttribute(
+      'src',
+      materials.reading.en,
     );
     act(() => setLocale('zh'));
     expect(screen.getByRole('heading', { name: '论文资料' })).toBeInTheDocument();
-    expect(
-      screen.getByText('由 Mathesis 根据原稿编写；解读与图示不代表验证。'),
-    ).toBeInTheDocument();
+    expect(screen.queryByText('由 Mathesis 根据原稿编写；解读与图示不代表验证。')).toBeNull();
+    expect(screen.getByTitle('通俗解读')).toHaveAttribute('src', materials.reading.zh);
     expect(screen.getByRole('heading', { name: '研讨会幻灯片' })).toBeInTheDocument();
   });
 
@@ -76,10 +76,9 @@ describe('paper materials', () => {
       'href',
       materials.site_url + 'films/',
     );
-    expect(screen.getByRole('link', { name: 'Watch video' })).toHaveAttribute(
-      'href',
-      materials.site_url + 'intro.mp4',
-    );
+    const video = screen.getByLabelText('Why parity matters');
+    expect(video).toHaveAttribute('controls');
+    expect(video.querySelector('source')).toHaveAttribute('src', materials.site_url + 'intro.mp4');
     expect(screen.getByRole('link', { name: 'Theorem 1' })).toHaveAttribute(
       'href',
       'https://github.com/the-omega-institute/trureturing-requests/issues/2',

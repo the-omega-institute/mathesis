@@ -21,3 +21,14 @@ a proof DAG. Retain original mathematical authorship and formalizer credit separ
 This graph interface queues no review or proof jobs. Collected statements now use
 the separate automatic proof pipeline below; extracting Mathlib declaration
 dependencies remains separate work.
+
+The default formalization graph additionally consumes the current published shared
+Lean Atlas using its manifest, compact startup view and precomputed layout. Fetch
+the existing public artifacts with CORS and revalidate the mutable manifest/index;
+check content digests, exact release/source identities, complete node order and
+Lean admission records before rendering. Preserve published module dependencies
+separately from affinities and Blueprint relationships. Solid nodes represent the
+shared library's admitted formalizations; hollow nodes retain its explicit Open
+state. Importing the graph starts no review/build and grants no Mathesis proof
+receipt or leaderboard credit. The separate paper-result graph remains available,
+including exact statement links, local targets and checked contributions.

@@ -4,6 +4,7 @@ import { useAsync } from '../api/useAsync';
 import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
 import { publishedLeanSource } from '../lib/publishedLean';
+import { sharedLibraryFocus } from '../lib/sharedLibrary';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperMaterials } from '../components/PaperMaterials';
 import { PaperExplanation } from '../components/PaperExplanation';
@@ -95,6 +96,11 @@ export function PublishedNotePage({
           {t('Download source')}
         </a>
         {note.lean ? <ExternalLink href={note.lean.url}>{t('Lean source')}</ExternalLink> : null}
+        {sharedLibraryFocus(note.lean?.url) ? (
+          <Link to={{ kind: 'formalizations', focus: sharedLibraryFocus(note.lean?.url) }}>
+            {t('View in shared library')}
+          </Link>
+        ) : null}
         {note.materials ? (
           <ExternalLink href={note.materials.repository_url}>{t('Repository')}</ExternalLink>
         ) : null}

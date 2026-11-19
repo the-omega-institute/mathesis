@@ -23,9 +23,10 @@ previous sidecar intact. Public projections recheck live visibility and current
 public version; historical and unpublished versions cannot borrow links. Delivery
 digests, receipts, statements, review work and contribution credit never change.
 
-Both paper readers show only available material groups and the repository, with:
-“Prepared by Mathesis from the manuscript; explanations and illustrations are not
-verification.” The Chinese copy lives in `zh.ts`. No materials means no section.
+Both paper readers show available material groups and the repository. Published
+readers, slide PDFs, interactive explanations and actual videos offer inline previews;
+global language selects the reading and slide edition. Do not add defensive process
+boilerplate to the materials section. No materials means no section.
 Materials are exposition, never proof receipts or archive/DOI authority. The
 server performs no publisher write and holds no publisher credential.
 

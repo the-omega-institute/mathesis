@@ -17,6 +17,7 @@ import { useRouter } from '../routing/router';
 import { useEffect } from 'react';
 import { ApiError } from '../api/client';
 import { publishedLeanSource } from '../lib/publishedLean';
+import { SharedLibraryGraph } from '../components/SharedLibraryGraph';
 
 export function FormalizationsPage({
   focus,
@@ -30,6 +31,9 @@ export function FormalizationsPage({
   view?: 'list';
 }) {
   const { route, navigate } = useRouter();
+  const [graphSource, setGraphSource] = useState<'library' | 'papers'>(
+    focus?.startsWith('module:') ? 'library' : focus || q ? 'papers' : 'library',
+  );
   useEffect(() => {
     if (route.kind === 'research_graph')
       navigate({ kind: 'formalizations', focus, q, before }, { replace: true });
@@ -70,7 +74,29 @@ export function FormalizationsPage({
       {view === 'list' ? (
         <FormalizationOpportunities initialQuery={q} />
       ) : (
-        <ResearchGraphPage embedded focus={focus} q={q} before={before} />
+        <>
+          <div className="filter-row" role="group" aria-label={t('Graph collection')}>
+            <button
+              className="text-button"
+              aria-pressed={graphSource === 'library'}
+              onClick={() => setGraphSource('library')}
+            >
+              {t('Shared mathematical library')}
+            </button>
+            <button
+              className="text-button"
+              aria-pressed={graphSource === 'papers'}
+              onClick={() => setGraphSource('papers')}
+            >
+              {t('Paper results and contributions')}
+            </button>
+          </div>
+          {graphSource === 'library' ? (
+            <SharedLibraryGraph focus={focus?.startsWith('module:') ? focus.slice(7) : undefined} />
+          ) : (
+            <ResearchGraphPage embedded focus={focus} q={q} before={before} />
+          )}
+        </>
       )}
     </div>
   );
