@@ -26,14 +26,9 @@ describe('paper materials', () => {
       materials.repository_url,
     );
     expect(section).not.toHaveTextContent('not verification');
-    expect(screen.getByTitle('Plain-language reading')).toHaveAttribute(
-      'src',
-      materials.reading.en,
-    );
     act(() => setLocale('zh'));
     expect(screen.getByRole('heading', { name: '论文资料' })).toBeInTheDocument();
     expect(screen.queryByText('由 Mathesis 根据原稿编写；解读与图示不代表验证。')).toBeNull();
-    expect(screen.getByTitle('通俗解读')).toHaveAttribute('src', materials.reading.zh);
     expect(screen.getByRole('heading', { name: '研讨会幻灯片' })).toBeInTheDocument();
   });
 

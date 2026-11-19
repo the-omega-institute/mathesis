@@ -1,6 +1,8 @@
 import { t, useLocale } from '../i18n/locale';
 import type { PaperMaterials as Materials } from '../api/types';
 import { ExternalLink } from './ui';
+import { AcademicReading } from './AcademicReading';
+import { PdfPreview } from './PdfPreview';
 
 function languageName(language: string): string {
   if (language === 'en') return t('English');
@@ -25,13 +27,11 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
       {Object.keys(materials.reading).length ? (
         <>
           <h3>{t('Plain-language reading')}</h3>
+          {reading ? <AcademicReading url={reading} /> : null}
           {reading ? (
-            <iframe
-              className="material-reading-preview"
-              src={reading}
-              title={t('Plain-language reading')}
-              loading="lazy"
-            />
+            <p>
+              <ExternalLink href={reading}>{t('Read full explanation')}</ExternalLink>
+            </p>
           ) : null}
           <ul className="material-downloads">
             {Object.entries(materials.reading).map(([language, url]) => (
@@ -49,12 +49,10 @@ export function PaperMaterials({ materials }: { materials?: Materials }) {
             {slidesToShow
               .filter((slides) => slides.pdf_url)
               .map((slides) => (
-                <iframe
+                <PdfPreview
                   key={`${slides.id}:${slides.language}`}
-                  className="material-slides-preview"
-                  src={slides.pdf_url!}
+                  url={slides.pdf_url!}
                   title={`${t('Seminar slides')} · ${languageName(slides.language)} · ${slides.id}`}
-                  loading="lazy"
                 />
               ))}
           </div>

@@ -16,8 +16,6 @@ export const zh: Record<string, string> = {
   PDF: 'PDF',
   English: '英语',
   'Simplified Chinese': '简体中文',
-  'Prepared by Mathesis from the manuscript; explanations and illustrations are not verification.':
-    '由 Mathesis 根据原稿编写；解读与图示不代表验证。',
 
   'Add author': '添加作者',
   'Add contributor': '添加贡献者',
@@ -215,6 +213,14 @@ export const zh: Record<string, string> = {
   'View in dependency graph': '在依赖图中查看',
   'Related papers': '相关论文',
   'Papers in this graph': '图中的论文',
+  'Preview unavailable': '暂时无法预览',
+  'Open PDF': '打开 PDF',
+  'Preview slides': '预览幻灯片',
+  'Preview reading': '预览解读',
+  'Read full explanation': '阅读全文解读',
+  'Slide navigation': '幻灯片翻页',
+  'Previous slide': '上一页',
+  'Next slide': '下一页',
   'Explore formalized mathematics by subject, connect it to research papers, and find the next proof to contribute.':
     '按学科浏览已形式化的数学，了解它们与论文的联系，寻找下一项可以参与的证明。',
   'Mathematical dependency graph. Drag to move and scroll to zoom.':
