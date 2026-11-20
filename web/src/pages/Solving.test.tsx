@@ -186,20 +186,16 @@ describe('solving pages', () => {
     expect(screen.getAllByText('Agent').length).toBeGreaterThan(0);
   });
 
-  it('requests status-filtered conjectures and gives a submit link for an empty filter', async () => {
-    const user = userEvent.setup();
+  it('requests only open conjectures and offers the conjecture submission entry', async () => {
     const listConjectures = vi.fn(async () => ({ items: [], next_before: null }));
     renderWithApp(<ConjecturesPage />, fakeApi({ listConjectures }));
-    await user.click(screen.getByRole('button', { name: 'Open questions' }));
-    await screen.findByText('No open conjectures here yet.');
-    await user.click(screen.getByRole('button', { name: 'Disproved in Lean' }));
     await waitFor(() =>
       expect(listConjectures).toHaveBeenLastCalledWith(
-        { before: null, limit: 25, status: 'disproved' },
+        { before: null, limit: 25, status: 'open' },
         expect.anything(),
       ),
     );
-    expect(screen.getByRole('link', { name: 'Submit a conjecture' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Propose a conjecture' })).toHaveAttribute(
       'href',
       '/submit?type=conjecture',
     );

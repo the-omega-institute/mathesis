@@ -250,6 +250,10 @@ export const zh: Record<string, string> = {
   'Paper results and contributions': '论文结果与社区贡献',
   'Graph collection': '知识图谱范围',
   '{count} formalized modules': '{count} 个已形式化模块',
+  '{count} formalized results': '{count} 个已形式化结果',
+  'Results in this subject': '该领域的数学结果',
+  'Explore collected open problems and conjectures, including questions with partial progress. Read the original statement and sources, or contribute a solution.':
+    '探索我们收集的未解难题与猜想，包括已有部分进展的问题。阅读原始命题与来源，或参与求解。',
   '{count} open': '{count} 个开放节点',
   'Refresh library': '刷新知识库',
   'View in shared library': '在共享知识库中查看',

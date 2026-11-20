@@ -3,8 +3,8 @@ import { findSubject } from './subjects';
 import { publicationSubjects } from './projectNoteSubjects';
 import { sharedLibraryFocus, type SharedLibrary, type LibraryNode } from './sharedLibrary';
 
-// Editorial browsing only. Paper-supplied MSC codes take precedence over these
-// broad topic translations; none of them asserts statement-level proof coverage.
+// Knowledge follows its mathematical topic. Paper metadata is only a fallback
+// for an unclassified source; these browsing labels assert no proof coverage.
 const topicSubjects: Record<string, string> = {
   Combinatorics: '05',
   Words: '05',
@@ -71,14 +71,13 @@ export const formalizationPaperSubjects = (paper: { id: string; msc?: string[] }
   ),
 ];
 
-/** Adapt published evidence into Mathesis's paper subjects and contribution work.
- * Source associations stay distinct from Lean dependencies and carry no points.
+/** Present the whole published knowledge base, independently of the paper archive.
+ * Paper links enrich a node; they never determine which mathematics exists.
  */
 export function formalizationLibrary(
   library: SharedLibrary,
   papers: CollectedPaper[],
   knowledge: CollectedKnowledge[] = [],
-  focus?: string,
   relatedPapers: CollectedPaper[] = papers,
 ): FormalizationLibrary {
   const byModule = new Map<string, CollectedPaper[]>();
@@ -86,38 +85,16 @@ export function formalizationLibrary(
     const module = sharedLibraryFocus(paper.lean?.url)?.slice(7);
     if (module) byModule.set(module, [...(byModule.get(module) ?? []), paper]);
   }
-  const included = new Set([
-    ...papers.flatMap((paper) => {
-      const module = sharedLibraryFocus(paper.lean?.url)?.slice(7);
-      return module ? [module] : [];
-    }),
-    ...(focus ? [focus] : []),
-  ]);
-  const prerequisites = new Map<string, string[]>();
-  for (const edge of library.edges) {
-    const list = prerequisites.get(edge.to) ?? [];
-    list.push(edge.from);
-    prerequisites.set(edge.to, list);
-  }
-  const queue = [...included];
-  for (let i = 0; i < queue.length; i++)
-    for (const id of prerequisites.get(queue[i]!) ?? []) {
-      if (!included.has(id)) {
-        included.add(id);
-        queue.push(id);
-      }
-    }
-  const nodes: FormalizationNode[] = library.nodes
-    .filter((node) => included.has(node.id))
-    .map((node) => {
-      const associated = byModule.get(node.id) ?? [];
-      const supplied = [...new Set(associated.flatMap(formalizationPaperSubjects))];
-      return {
-        ...node,
-        subjects: supplied.length ? supplied : [topicSubjects[node.domain] ?? '00'],
-        papers: associated,
-      };
-    });
+  const nodes: FormalizationNode[] = library.nodes.map((node) => {
+    const associated = byModule.get(node.id) ?? [];
+    const supplied = [...new Set(associated.flatMap(formalizationPaperSubjects))];
+    const topic = topicSubjects[node.domain];
+    return {
+      ...node,
+      subjects: topic ? [topic] : supplied.length ? supplied : ['00'],
+      papers: associated,
+    };
+  });
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const edges: FormalizationLibrary['edges'] = library.edges.filter(
     (edge) => byId.has(edge.from) && byId.has(edge.to),

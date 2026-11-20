@@ -58,22 +58,18 @@ beforeEach(() => {
   );
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
 });
-it('starts with independent subject links, without loading or drawing a combined graph', async () => {
+it('opens the existing knowledge graph independently of the paper archive', async () => {
   const api = fakeApi({
     listCollectedPapers: vi.fn(async () => ({ items: papers, next_before: null })),
   });
   renderWithApp(<FormalizationsPage focus="library:all" />, api);
-  expect(await screen.findByRole('link', { name: 'Quantum theory' })).toHaveAttribute(
-    'href',
-    '/formalizations?msc=81',
-  );
-  expect(screen.getByRole('link', { name: 'Number theory' })).toHaveAttribute(
-    'href',
-    '/formalizations?msc=11',
-  );
-  expect(screen.queryByRole('img')).not.toBeInTheDocument();
-  expect(loadSharedLibrary).not.toHaveBeenCalled();
+  expect(await screen.findByRole('heading', { name: 'Number theory' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: /Mathematical dependency graph/ })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'Quantum theory' })).toBeInTheDocument();
+  expect(loadSharedLibrary).toHaveBeenCalled();
+  expect(api.listCollectedPapers).not.toHaveBeenCalled();
   expect(api.collectedKnowledge).not.toHaveBeenCalled();
+  expect(screen.queryByText('Papers in this graph')).not.toBeInTheDocument();
 });
 it('loads only the selected subject and keeps a cross-subject prerequisite inside that graph', async () => {
   const api = fakeApi({
@@ -81,8 +77,8 @@ it('loads only the selected subject and keeps a cross-subject prerequisite insid
   });
   renderWithApp(<SharedLibraryGraph msc="81" focus="Quantum/Bound" />, api);
   expect(await screen.findByRole('heading', { name: 'Quantum theory' })).toBeInTheDocument();
-  expect(api.collectedKnowledge).toHaveBeenCalledTimes(1);
-  expect(api.collectedKnowledge).toHaveBeenCalledWith('quantum-paper', '1', expect.anything());
+  expect(api.collectedKnowledge).not.toHaveBeenCalled();
+  expect(api.listCollectedPapers).not.toHaveBeenCalled();
   expect(screen.getByRole('heading', { name: 'Builds on (1)' })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Algebra/Base' }));
   expect(screen.getByText('Prerequisite from another subject')).toBeInTheDocument();

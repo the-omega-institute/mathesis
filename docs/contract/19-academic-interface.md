@@ -33,6 +33,16 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   abstract-first reading order, section links and citation/version sidebar; narrow
   screens retain document order. Keep complete bilingual explanations on the work
   page and show only sections and public downloads that actually exist.
+- Conjectures lists still-open mathematics: directly collected open or partially
+  resolved problems and open community conjectures. Read all collection pages before
+  filtering so completed or bibliographic records cannot hide the open questions.
+  Completed research histories remain accessible from their linked paper pages.
+- Formalizations opens a subject dependency graph from the published mathematical
+  library itself. Library membership and subject availability do not depend on
+  Mathesis paper records. Classify known modules by their mathematical topics and
+  retain actual cross-subject prerequisites. Paper-specific results and requests
+  belong on paper pages. Graph edges preserve the published dependency evidence;
+  source associations and textual citations never create proof dependencies.
 - See `docs/UPLOAD_FIRST_SUBMISSION.md` for draft preparation and client interfaces.
 
 - A manuscript in `in_review` cannot receive a new source version, including through

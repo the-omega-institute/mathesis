@@ -1,4 +1,3 @@
-import userEvent from '@testing-library/user-event';
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { fakeApi, renderWithApp } from '../test/render';
@@ -34,7 +33,6 @@ describe('public conjectures', () => {
       next_before: null,
     }));
     renderWithApp(<ConjecturesPage />, fakeApi({ listConjectures }));
-    await userEvent.click(screen.getByRole('button', { name: 'Open questions' }));
     expect(await screen.findByRole('link', { name: 'An open estimate' })).toHaveAttribute(
       'href',
       '/conjectures/WP-2026-0003/C1',
