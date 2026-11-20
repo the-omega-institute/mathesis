@@ -1,7 +1,7 @@
 import { t } from '../i18n/locale';
 import { ResearchProblems } from './ResearchProblems';
 import { InlineLatex } from '../components/Markdown';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { usePaged } from '../api/usePaged';
 import type { ConjectureSummary } from '../api/types';
@@ -47,23 +47,21 @@ export function ConjectureEntry({ conjecture: c }: { conjecture: ConjectureSumma
 }
 export function ConjecturesPage() {
   const api = useApi();
-  const [status, setStatus] = useState<'research' | 'open' | 'solved' | 'disproved'>('research');
   const fetchPage = useCallback(
     (before: string | null, signal: AbortSignal) =>
-      api.listConjectures(
-        { before, limit: 25, status: status === 'research' ? 'open' : status },
-        { signal },
-      ),
-    [api, status],
+      api.listConjectures({ before, limit: 25, status: 'open' }, { signal }),
+    [api],
   );
-  const paged = usePaged(status === 'research' ? null : fetchPage);
+  const paged = usePaged(fetchPage);
   return (
     <div className="page">
       <header className="page-head">
         <div>
           <h1>{t('Conjectures')}</h1>
           <p className="lede">
-            {t('Follow a problem through new results, readable notes and formal proofs.')}
+            {t(
+              'Explore collected open problems and conjectures, including questions with partial progress. Read the original statement and sources, or contribute a solution.',
+            )}
           </p>
           <p>
             <Link to={{ kind: 'submit', intake: 'conjecture' }}>{t('Propose a conjecture')}</Link>
@@ -72,53 +70,22 @@ export function ConjecturesPage() {
           </p>
         </div>
       </header>
-      <div className="filter-row" aria-label={t('Status')}>
-        {(['research', 'open', 'solved', 'disproved'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            className="filter-chip"
-            aria-pressed={status === v}
-            onClick={() => setStatus(v)}
-          >
-            {v === 'research'
-              ? t('Research record')
-              : v === 'open'
-                ? t('Open questions')
-                : v === 'solved'
-                  ? t('Proved in Lean')
-                  : t('Disproved in Lean')}
-          </button>
-        ))}
-      </div>
-      {status === 'research' ? (
-        <ResearchProblems />
-      ) : (
-        <>
-          <Async state={paged.state} onRetry={paged.reload}>
-            {(listing) => {
-              const items = listing.items.filter((c) => (c.status ?? 'open') === status);
-              return items.length === 0 ? (
-                <div className="empty-state">
-                  <p>{t('No {status} conjectures here yet.', { status: t(status) })}</p>
-                  <Link className="button" to={{ kind: 'submit', intake: 'conjecture' }}>
-                    {t('Submit a conjecture')}
-                  </Link>
-                </div>
-              ) : (
-                <ul className="entry-list">
-                  {items.map((c) => (
-                    <li key={`${c.record}:${c.claim}`}>
-                      <ConjectureEntry conjecture={c} />
-                    </li>
-                  ))}
-                </ul>
-              );
-            }}
-          </Async>
-          <Pager paged={paged} />
-        </>
-      )}
+      <ResearchProblems />
+      <Async state={paged.state} onRetry={paged.reload}>
+        {(listing) => {
+          const items = listing.items.filter((c) => (c.status ?? 'open') === 'open');
+          return items.length ? (
+            <ul className="entry-list">
+              {items.map((c) => (
+                <li key={`${c.record}:${c.claim}`}>
+                  <ConjectureEntry conjecture={c} />
+                </li>
+              ))}
+            </ul>
+          ) : null;
+        }}
+      </Async>
+      <Pager paged={paged} />
     </div>
   );
 }

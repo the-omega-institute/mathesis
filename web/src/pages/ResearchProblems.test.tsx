@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, within, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { fakeApi, renderWithApp } from '../test/render';
 import { ConjecturesPage } from './Conjectures';
@@ -106,6 +106,28 @@ const curated: ResearchProblem = {
 };
 
 describe('directly collected curated problems', () => {
+  it('finds open problems beyond a page containing only completed or related work', async () => {
+    const listResearchProblems = vi.fn(async (query) => ({
+      items: query?.before
+        ? [curated.summary]
+        : [
+            problem.summary,
+            { ...problem.summary, id: 'related', status: 'related_research' as const },
+          ],
+      next_before: query?.before ? null : 'older-problems',
+    }));
+    renderWithApp(<ConjecturesPage />, fakeApi({ listResearchProblems }));
+    expect(await screen.findByRole('link', { name: curated.summary.title })).toHaveAttribute(
+      'href',
+      '/problems/curated-problem',
+    );
+    expect(screen.queryByRole('link', { name: problem.summary.title })).not.toBeInTheDocument();
+    expect(listResearchProblems).toHaveBeenLastCalledWith(
+      { before: 'older-problems', limit: 100 },
+      expect.anything(),
+    );
+  });
+
   it('lists a curated problem under its dated curator reading before any work names it', async () => {
     renderWithApp(
       <ConjecturesPage />,
@@ -129,12 +151,10 @@ describe('directly collected curated problems', () => {
       name: 'An alternating-sum formula in OEIS A391810',
     });
     expect(open).toHaveAttribute('href', '/problems/curated-problem');
-    expect(open.closest('li')).toHaveTextContent(
-      'Curated · Open as of 10 November 2026 · 0 papers and notes',
-    );
+    expect(open.closest('li')).toHaveTextContent('Curated · Open as of 10 November 2026');
     expect(
       screen.getByRole('link', { name: 'A partly resolved question' }).closest('li'),
-    ).toHaveTextContent('Curated · Partially resolved as of 10 November 2026 · 2 papers and notes');
+    ).toHaveTextContent('Curated · Partially resolved as of 10 November 2026');
     expect(screen.queryByText(/Settled|Reviewed research/)).not.toBeInTheDocument();
   });
 
@@ -270,7 +290,7 @@ describe('directly collected curated problems', () => {
 });
 
 describe('problem-centred research records', () => {
-  it('starts with stable research records and links a problem independently of its note', async () => {
+  it('excludes settled questions and paper histories from the open problem directory', async () => {
     const listConjectures = vi.fn(async () => ({ items: [], next_before: null }));
     renderWithApp(
       <ConjecturesPage />,
@@ -279,12 +299,13 @@ describe('problem-centred research records', () => {
         listConjectures,
       }),
     );
-    expect(await screen.findByRole('link', { name: 'A named conjecture' })).toHaveAttribute(
-      'href',
-      '/problems/stable-problem',
+    await waitFor(() => expect(listConjectures).toHaveBeenCalled());
+    expect(screen.queryByRole('link', { name: 'A named conjecture' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Settled · 1 paper or note/)).not.toBeInTheDocument();
+    expect(listConjectures).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'open' }),
+      expect.anything(),
     );
-    expect(screen.getByText(/Settled · 1 paper or note/)).toBeInTheDocument();
-    expect(listConjectures).not.toHaveBeenCalled();
   });
 
   it('keeps original problem credit, note authors, version and external Lean evidence distinct', async () => {

@@ -1,176 +1,59 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAsync } from '../api/useAsync';
-import { useApi } from '../api/context';
-import { listDirectoryNotes } from '../lib/paperDirectory';
-import type { CollectedPaper } from '../api/types';
 import {
   formalizationLibrary,
-  formalizationPaperSubjects,
   primaryFormalizationSubject,
   layoutFormalizationLibrary,
   type FormalizationLibrary,
   type FormalizationNode,
 } from '../lib/formalizationLibrary';
 import { findSubject, subjectGroups } from '../lib/subjects';
-import { Link, useRouter } from '../routing/router';
+import { useRouter } from '../routing/router';
 import '../styles/subjects.css';
-import { paperRoute } from '../routing/routes';
 import { t, useLocale } from '../i18n/locale';
 import { loadSharedLibrary } from '../lib/sharedLibrary';
 import { Async, ExternalLink } from './ui';
 import { LatexText } from './Markdown';
 
+/** The mathematical library is available before and without any paper records. */
 export function SharedLibraryGraph({ focus, msc }: { focus?: string; msc?: string }) {
-  const api = useApi();
-  const papers = useAsync(
-    useCallback((signal: AbortSignal) => listDirectoryNotes(api, {}, signal), [api]),
+  const { navigate } = useRouter();
+  const library = useAsync(
+    useCallback(async (signal: AbortSignal) => {
+      const source = await loadSharedLibrary(signal);
+      return formalizationLibrary(source, []);
+    }, []),
   );
+  const data = library.value;
+  const target = data?.nodes.find((node) => node.id === focus);
+  const available = new Set(data?.nodes.flatMap((node) => node.subjects) ?? []);
+  const subject =
+    msc ??
+    (target ? primaryFormalizationSubject(target) : undefined) ??
+    (available.has('11') ? '11' : [...available][0]);
+  useEffect(() => {
+    if (!msc && focus && target && subject)
+      navigate(
+        { kind: 'formalizations', msc: subject, focus: 'module:' + focus },
+        { replace: true },
+      );
+  }, [msc, focus, target, subject, navigate]);
   return (
-    <Async state={papers.state} onRetry={papers.reload}>
-      {(page) =>
-        msc || focus ? (
-          <SubjectGraphSource
-            papers={page.items}
-            msc={msc}
-            focus={focus}
-            onRefresh={papers.reload}
+    <Async state={library.state} onRetry={library.reload}>
+      {(data) =>
+        subject ? (
+          <LibraryExplorer
+            key={subject}
+            data={data}
+            domain={subject}
+            initialFocus={target?.id}
+            onRefresh={library.reload}
           />
         ) : (
-          <SubjectDirectory papers={page.items} />
+          <p>{t('No formalizations are listed in this subject yet.')}</p>
         )
       }
     </Async>
-  );
-}
-
-function SubjectDirectory({ papers }: { papers: CollectedPaper[] }) {
-  const counts = new Map<string, number>();
-  for (const paper of papers)
-    for (const code of formalizationPaperSubjects(paper))
-      counts.set(code, (counts.get(code) ?? 0) + 1);
-  return (
-    <section className="formalization-subjects" aria-label={t('Subject graphs')}>
-      <h2>{t('Browse by subject')}</h2>
-      <p className="shared-library-intro">
-        {t(
-          'Each subject has its own dependency graph. Choose a subject to explore its results and the mathematics they build on.',
-        )}
-      </p>
-      <div className="subject-directory">
-        {subjectGroups.map((group) => {
-          const subjects = group.subjects.filter((subject) => counts.has(subject.code));
-          return subjects.length ? (
-            <section className="subject-group" key={group.title}>
-              <h3>{t(group.title)}</h3>
-              <ul>
-                {subjects.map((subject) => (
-                  <li key={subject.code}>
-                    <Link to={{ kind: 'formalizations', msc: subject.code }}>
-                      {t(subject.title)}
-                    </Link>
-                    <span className="muted">
-                      {' '}
-                      ·{' '}
-                      {counts.get(subject.code) === 1
-                        ? t('1 paper')
-                        : t('{count} papers', { count: counts.get(subject.code)! })}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null;
-        })}
-      </div>
-      {!counts.size ? <p>{t('No formalizations are listed in this subject yet.')}</p> : null}
-    </section>
-  );
-}
-
-function SubjectGraphSource({
-  papers,
-  focus,
-  msc,
-  onRefresh,
-}: {
-  papers: CollectedPaper[];
-  focus?: string;
-  msc?: string;
-  onRefresh: () => void;
-}) {
-  const api = useApi();
-  const library = useAsync(
-    useCallback(
-      async (signal: AbortSignal) => {
-        const selectedPapers = msc
-          ? papers.filter((paper) => formalizationPaperSubjects(paper).includes(msc))
-          : papers;
-        const source = await loadSharedLibrary(signal);
-        const knowledge = [];
-        for (let start = 0; start < selectedPapers.length; start += 6) {
-          const batch = await Promise.allSettled(
-            selectedPapers
-              .slice(start, start + 6)
-              .map((paper) => api.collectedKnowledge(paper.id, paper.revision, { signal })),
-          );
-          for (const result of batch)
-            if (result.status === 'fulfilled') knowledge.push(result.value);
-        }
-        if (signal.aborted) throw signal.reason;
-        return formalizationLibrary(
-          source,
-          selectedPapers,
-          knowledge,
-          msc ? undefined : focus,
-          papers,
-        );
-      },
-      [api, papers, focus, msc],
-    ),
-  );
-  return (
-    <Async state={library.state} onRetry={onRefresh}>
-      {(data) => (
-        <SubjectGraph data={data} papers={papers} msc={msc} focus={focus} onRefresh={onRefresh} />
-      )}
-    </Async>
-  );
-}
-
-function SubjectGraph({
-  data,
-  papers,
-  msc,
-  focus,
-  onRefresh,
-}: {
-  data: FormalizationLibrary;
-  papers: CollectedPaper[];
-  msc?: string;
-  focus?: string;
-  onRefresh: () => void;
-}) {
-  const { navigate } = useRouter();
-  const target = data.nodes.find((node) => node.id === focus);
-  const subject = msc ?? (target ? primaryFormalizationSubject(target) : undefined);
-  useEffect(() => {
-    if (!msc && subject)
-      navigate(
-        { kind: 'formalizations', msc: subject, ...(focus ? { focus: 'module:' + focus } : {}) },
-        { replace: true },
-      );
-  }, [msc, subject, focus, navigate]);
-  return subject ? (
-    <LibraryExplorer
-      key={subject}
-      data={data}
-      domain={subject}
-      papers={papers}
-      initialFocus={focus}
-      onRefresh={onRefresh}
-    />
-  ) : (
-    <SubjectDirectory papers={papers} />
   );
 }
 const HEIGHT = 600;
@@ -199,13 +82,11 @@ function LibraryExplorer({
   onRefresh,
   initialFocus,
   domain,
-  papers,
 }: {
   data: FormalizationLibrary;
   onRefresh: () => void;
   initialFocus?: string;
   domain: string;
-  papers: CollectedPaper[];
 }) {
   const locale = useLocale();
   const { navigate } = useRouter();
@@ -227,7 +108,6 @@ function LibraryExplorer({
   );
   const geometry = useMemo(() => frame(visible, width), [visible, width]);
   const node = byId.get(selected);
-  const linkedPapers = node?.papers ?? [];
   const related = useMemo(
     () =>
       new Set(
@@ -237,9 +117,7 @@ function LibraryExplorer({
       ),
     [edges, selected],
   );
-  const paperNodes = visible.filter(
-    (node) => node.subjects.includes(domain) && node.papers.length && !node.claim,
-  );
+  const subjectNodes = visible.filter((node) => node.subjects.includes(domain));
   const formalized = visible.filter((node) => node.formalized).length;
 
   useEffect(() => {
@@ -279,7 +157,11 @@ function LibraryExplorer({
     const onScreen = (point: { x: number; y: number }) =>
       point.x >= -20 && point.x <= width + 20 && point.y >= -20 && point.y <= HEIGHT + 20;
     context.lineWidth = 0.5;
-    context.strokeStyle = '#7e948926';
+    const colors = getComputedStyle(element);
+    const ink = colors.getPropertyValue('--ink');
+    const accent = colors.getPropertyValue('--accent');
+    const rule = colors.getPropertyValue('--rule-strong');
+    context.strokeStyle = rule;
     for (const contextual of [false, true]) {
       context.setLineDash(contextual ? [3, 4] : []);
       context.beginPath();
@@ -294,7 +176,7 @@ function LibraryExplorer({
       context.stroke();
     }
     if (selected) {
-      context.strokeStyle = '#9c6b34';
+      context.strokeStyle = accent;
       context.lineWidth = 1.5;
       for (const edge of edges)
         if (edge.from === selected || edge.to === selected) {
@@ -313,7 +195,7 @@ function LibraryExplorer({
             context.lineTo(to.x - 12 * Math.cos(angle - 0.35), to.y - 12 * Math.sin(angle - 0.35));
             context.lineTo(to.x - 12 * Math.cos(angle + 0.35), to.y - 12 * Math.sin(angle + 0.35));
             context.closePath();
-            context.fillStyle = '#9c6b34';
+            context.fillStyle = accent;
             context.fill();
           }
         }
@@ -335,15 +217,15 @@ function LibraryExplorer({
               : Math.min(3, 0.6 + viewport.zoom * 0.12);
       context.beginPath();
       context.arc(p.x, p.y, radius, 0, 2 * Math.PI);
-      context.fillStyle = active ? '#9c6b34' : neighbor ? '#365d4e' : '#557965';
-      context.strokeStyle = active ? '#9c6b34' : '#557965';
+      context.fillStyle = active ? accent : neighbor ? accent : accent;
+      context.strokeStyle = active ? accent : accent;
       if (node.formalized) context.fill();
       else {
         context.lineWidth = 1.5;
         context.stroke();
       }
       if (active || neighbor || viewport.zoom > 12) {
-        context.fillStyle = '#26352e';
+        context.fillStyle = ink;
         context.font = '12px sans-serif';
         context.fillText(node.title, p.x + 7, p.y + 4, 260);
       }
@@ -366,7 +248,7 @@ function LibraryExplorer({
     const node = byId.get(id);
     if (!node) return;
     setSelected(id);
-    setViewport({ zoom: 1.4, x: 0, y: 0, anchor: id });
+    setViewport({ zoom: Math.max(1.4, Math.min(100, 1 / geometry.scale)), x: 0, y: 0, anchor: id });
   }
   const neighbors = (direction: 'before' | 'after') =>
     edges
@@ -378,15 +260,11 @@ function LibraryExplorer({
       .filter(Boolean);
   return (
     <section className="shared-library" aria-label={t('Mathematical knowledge')}>
-      <nav className="subject-navigation" aria-label={t('Subject graphs')}>
-        <Link to={{ kind: 'formalizations' }}>{t('All subjects')}</Link>
-        <Link to={{ kind: 'subject', msc: domain }}>{t('Research papers')}</Link>
-      </nav>
       <div className="shared-library-toolbar">
         <div>
           <h2>{t(findSubject(domain)!.title)}</h2>
           <p>
-            {t('{count} formalized modules', { count: formalized.toLocaleString() })}
+            {t('{count} formalized results', { count: formalized.toLocaleString() })}
             {visible.length > formalized ? (
               <> · {t('{count} open', { count: visible.length - formalized })}</>
             ) : null}
@@ -399,7 +277,7 @@ function LibraryExplorer({
               const subjects = group.subjects.filter(
                 (subject) =>
                   subject.code === domain ||
-                  papers.some((paper) => formalizationPaperSubjects(paper).includes(subject.code)),
+                  data.nodes.some((node) => node.subjects.includes(subject.code)),
               );
               return subjects.length ? (
                 <optgroup key={group.title} label={t(group.title)}>
@@ -457,7 +335,7 @@ function LibraryExplorer({
               {t('Formalized')}
               {'  '}
               <i className="shared-library-dot is-open" />
-              {t('Open')}
+              {t('Awaiting formalization')}
             </span>
           </div>
           <canvas
@@ -538,48 +416,15 @@ function LibraryExplorer({
               <p className="muted">
                 {node.subjects.map((code) => t(findSubject(code)!.title)).join(' · ')}
                 {' · '}
-                {t(node.formalized ? 'Formalized' : 'Open')}
+                {t(node.formalized ? 'Formalized' : 'Awaiting formalization')}
               </p>
               {!node.subjects.includes(domain) ? (
                 <p className="muted">{t('Prerequisite from another subject')}</p>
               ) : null}
               {node.abstract ? <LatexText source={node.abstract} /> : null}
               <p>
-                {node.claim && linkedPapers[0] ? (
-                  <Link
-                    to={{
-                      kind: 'result',
-                      record: linkedPapers[0].id,
-                      version: linkedPapers[0].revision,
-                      claim: node.claim,
-                    }}
-                  >
-                    {t('Read result')}
-                  </Link>
-                ) : (
-                  <ExternalLink href={node.source}>{t('Lean source')}</ExternalLink>
-                )}
+                <ExternalLink href={node.source}>{t('Lean source')}</ExternalLink>
               </p>
-              {linkedPapers.length ? (
-                <section>
-                  <h4>{t('Related papers')}</h4>
-                  <ul>
-                    {linkedPapers.map((paper) => (
-                      <li key={paper.id}>
-                        <Link
-                          to={paperRoute(
-                            paper.id,
-                            paper.archive?.doi,
-                            paper.archive?.doi ? undefined : paper.revision,
-                          )}
-                        >
-                          {paper.title}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
               {(['before', 'after'] as const).map((direction) => {
                 const items = neighbors(direction);
                 return items.length ? (
@@ -619,29 +464,28 @@ function LibraryExplorer({
               {t('Select a node to explore its result, prerequisites and later uses.')}
             </p>
           )}
-          {linkedPapers.length ? <PaperRequests papers={linkedPapers} /> : null}
-          {!node && paperNodes.length ? (
+          {!node && subjectNodes.length ? (
             <section>
-              <h3>{t('Papers in this graph')}</h3>
+              <h3>{t('Results in this subject')}</h3>
               <ul className="shared-library-results">
-                {paperNodes.slice(0, 8).map((item) => (
+                {subjectNodes.slice(0, 8).map((item) => (
                   <li key={item.id}>
                     <button className="text-button" onClick={() => focus(item.id)}>
-                      {item.papers[0]!.title}
+                      {item.title}
                     </button>
                   </li>
                 ))}
               </ul>
-              {paperNodes.length > 8 ? (
+              {subjectNodes.length > 8 ? (
                 <details>
                   <summary>
-                    {t('Show all')} ({paperNodes.length})
+                    {t('Show all')} ({subjectNodes.length})
                   </summary>
                   <ul className="shared-library-results">
-                    {paperNodes.slice(8).map((item) => (
+                    {subjectNodes.slice(8).map((item) => (
                       <li key={item.id}>
                         <button className="text-button" onClick={() => focus(item.id)}>
-                          {item.papers[0]!.title}
+                          {item.title}
                         </button>
                       </li>
                     ))}
@@ -650,36 +494,8 @@ function LibraryExplorer({
               ) : null}
             </section>
           ) : null}
-          {domain ? (
-            <p>
-              <Link to={{ kind: 'subject', msc: domain }}>{t('Research papers')}</Link>
-            </p>
-          ) : null}
         </aside>
       </div>
-    </section>
-  );
-}
-
-function PaperRequests({ papers }: { papers: CollectedPaper[] }) {
-  const requests = [
-    ...new Map(
-      papers
-        .flatMap((paper) => paper.materials?.formalization_requests ?? [])
-        .map((request) => [request.url, request]),
-    ).values(),
-  ];
-  if (!requests.length) return null;
-  return (
-    <section>
-      <h4>{t('Formalization requests')}</h4>
-      <ul>
-        {requests.map((request) => (
-          <li key={request.url}>
-            <ExternalLink href={request.url}>{request.label}</ExternalLink>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

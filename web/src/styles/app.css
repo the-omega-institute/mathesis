@@ -3039,6 +3039,21 @@ button.research-map-node.is-connected {
 }
 
 /* Compact bibliographic entries; full abstracts belong on work pages. */
+.conjecture-list {
+  display: grid;
+  gap: 1.5rem;
+  margin-block: 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+.conjecture-list > li {
+  padding: 0;
+  border: 0;
+}
+.conjecture-list .entry-title {
+  font-size: 1.15rem;
+  font-weight: 500;
+}
 .research-archive-list {
   display: grid;
   gap: 1.6rem;

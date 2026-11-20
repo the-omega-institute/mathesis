@@ -2,7 +2,6 @@ import { t } from '../i18n/locale';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
-import { usePaged } from '../api/usePaged';
 import type {
   CollectedProblemNote,
   CollectedProof,
@@ -14,7 +13,6 @@ import type {
 } from '../api/types';
 import { AuthorLine } from '../components/AuthorLine';
 import { InlineLatex, LatexText } from '../components/Markdown';
-import { Pager } from '../components/Pager';
 import { Async, DateText, ExternalLink, SourceLink } from '../components/ui';
 import { formatDate } from '../lib/format';
 import { safeHttpUrl, sourceHref, sourceLabel } from '../lib/links';
@@ -269,38 +267,52 @@ export function ProblemLinks({ links }: { links: ResearchProblemLink[] }) {
   );
 }
 
+/** This page collects open mathematics; associated paper histories stay on their own pages. */
 export function ResearchProblems() {
   const api = useApi();
   const load = useCallback(
-    (before: string | null, signal: AbortSignal) =>
-      api.listResearchProblems({ before, limit: 25 }, { signal }),
+    async (signal: AbortSignal) => {
+      const items: ResearchProblemSummary[] = [];
+      const visited = new Set<string>();
+      let before: string | null = null;
+      do {
+        const page = await api.listResearchProblems({ before, limit: 100 }, { signal });
+        items.push(
+          ...page.items.filter(
+            (problem) =>
+              problem.status === 'curated_open' || problem.status === 'curated_partially_resolved',
+          ),
+        );
+        before = page.next_before;
+        if (before && visited.has(before))
+          throw new Error('The problem directory could not finish loading.');
+        if (before) visited.add(before);
+      } while (before);
+      return items;
+    },
     [api],
   );
-  const paged = usePaged(load);
+  const problems = useAsync(load);
   return (
-    <>
-      <p>{t('Original problems and the papers and notes that build on them.')}</p>
-      <Async state={paged.state} onRetry={paged.reload}>
-        {(page) =>
-          page.items.length ? (
-            <ul className="entry-list">
-              {page.items.map((p) => (
-                <li key={p.id}>
-                  <Link className="entry-title" to={{ kind: 'research_problem', id: p.id }}>
-                    <InlineLatex source={p.title} />
-                  </Link>
-                  <p className="entry-meta">
-                    {statusText(p)} · {p.notes}{' '}
-                    {p.notes === 1 ? t('paper or note') : t('papers and notes')}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : null
-        }
-      </Async>
-      <Pager paged={paged} />
-    </>
+    <Async state={problems.state} onRetry={problems.reload}>
+      {(items) =>
+        items.length ? (
+          <ul className="entry-list conjecture-list">
+            {items.map((p) => (
+              <li key={p.id}>
+                <Link className="entry-title" to={{ kind: 'research_problem', id: p.id }}>
+                  <InlineLatex source={p.title} />
+                </Link>
+                <p className="entry-meta">
+                  <span>{statusText(p)}</span>
+                  {p.source ? <SourceLink source={p.source} /> : null}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : null
+      }
+    </Async>
   );
 }
 

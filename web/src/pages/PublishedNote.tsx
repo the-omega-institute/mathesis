@@ -5,7 +5,6 @@ import { MacrosProvider } from '../components/Markdown';
 import { t } from '../i18n/locale';
 import { publishedLeanSource } from '../lib/publishedLean';
 import { sharedLibraryFocus } from '../lib/sharedLibrary';
-import { formalizationPaperSubjects } from '../lib/formalizationLibrary';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperMaterialLinks, PaperMaterials } from '../components/PaperMaterials';
 import { InlineLatex, LatexText } from '../components/Markdown';
@@ -111,7 +110,6 @@ export function PublishedNotePage({
           <Link
             to={{
               kind: 'formalizations',
-              msc: formalizationPaperSubjects(note)[0],
               focus: sharedLibraryFocus(note.lean?.url),
             }}
           >

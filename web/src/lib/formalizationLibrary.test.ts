@@ -45,17 +45,24 @@ const paper = {
 } as CollectedPaper;
 
 describe('Mathesis formalization presentation', () => {
-  it('selects the public paper source and its real prerequisites without importing unrelated projects', () => {
+  it('retains published knowledge even without an associated Mathesis paper', () => {
     const unrelated = { ...library.nodes[0]!, id: 'Quantum/Unrelated' };
     const graph = formalizationLibrary({ ...library, nodes: [...library.nodes, unrelated] }, [
       paper,
     ]);
-    expect(graph.nodes.map((node) => node.id)).toEqual(['Quantum/Base', 'Arith/Base']);
-    expect(formalizationLibrary(library, []).nodes).toEqual([]);
+    expect(graph.nodes.map((node) => node.id)).toEqual([
+      'Quantum/Base',
+      'Arith/Base',
+      'Quantum/Unrelated',
+    ]);
+    expect(formalizationLibrary(library, []).nodes.map((node) => node.id)).toEqual([
+      'Quantum/Base',
+      'Arith/Base',
+    ]);
   });
-  it('uses paper MSC classifications and relates only exact shared source modules', () => {
+  it('classifies knowledge by its mathematics and retains exact paper associations separately', () => {
     const graph = formalizationLibrary(library, [paper]);
-    expect(graph.nodes[0]!.subjects).toEqual(['15', '81']);
+    expect(graph.nodes[0]!.subjects).toEqual(['81']);
     expect(graph.nodes[0]!.papers).toEqual([paper]);
     expect(graph.nodes[1]!.subjects).toEqual(['11']);
     expect(graph.nodes[1]!.papers).toEqual([]);
@@ -116,10 +123,13 @@ describe('Mathesis formalization presentation', () => {
       { ...library, nodes: [...library.nodes, unrelated] },
       [paper],
       [],
-      undefined,
       [paper, foundationPaper, arithmeticPaper],
     );
-    expect(scoped.nodes.map((node) => node.id)).toEqual(['Quantum/Base', 'Arith/Base']);
+    expect(scoped.nodes.map((node) => node.id)).toEqual([
+      'Quantum/Base',
+      'Arith/Base',
+      'Arith/Other',
+    ]);
     expect(scoped.nodes.find((node) => node.id === 'Arith/Base')!.papers).toEqual([
       foundationPaper,
     ]);
