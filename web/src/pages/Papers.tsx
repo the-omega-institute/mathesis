@@ -234,7 +234,7 @@ export function PapersPage({
         </details>
       )}
       {entries.length ? (
-        <ol className="entry-list research-archive-list">
+        <ul className="entry-list research-archive-list" role="list">
           {entries.map((entry) => (
             <li
               key={entry.kind === 'note' ? `note:${entry.note.id}` : `paper:${entry.paper.record}`}
@@ -242,7 +242,7 @@ export function PapersPage({
               <PaperDirectoryEntry entry={entry} />
             </li>
           ))}
-        </ol>
+        </ul>
       ) : null}
       <Async state={paged.state} onRetry={paged.reload}>
         {(listing) =>

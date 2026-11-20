@@ -3041,19 +3041,14 @@ button.research-map-node.is-connected {
 /* Compact bibliographic entries; full abstracts belong on work pages. */
 .research-archive-list {
   display: grid;
-  gap: 1.1rem;
-  margin-block: 1.25rem;
-  padding-inline-start: 2.25rem;
-  list-style: decimal;
+  gap: 1.6rem;
+  margin-block: 2rem;
+  padding: 0;
+  list-style: none;
 }
 .research-archive-list > li {
   padding: 0;
   border: 0;
-}
-.research-archive-list > li::marker {
-  content: '[' counter(list-item) '] ';
-  font-size: 0.85rem;
-  color: var(--muted);
 }
 .research-entry h3,
 .home-papers .research-entry h3 {
@@ -3126,21 +3121,11 @@ button.research-map-node.is-connected {
 .research-archive-list .research-entry .author-name {
   font-size: 0.9rem;
 }
-.research-archive-list {
-  gap: 1.6rem;
-  margin-block: 2rem;
-}
 .paper-directory-entry {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 0.5rem 2rem;
-}
-.paper-directory-body {
   min-width: 0;
 }
 .paper-directory-entry h2 {
-  margin: 0.2rem 0 0;
+  margin: 0;
   padding: 0;
   border: 0;
   font-size: 1.15rem;
@@ -3155,6 +3140,16 @@ button.research-map-node.is-connected {
   color: var(--accent);
   text-decoration: underline;
 }
+.paper-directory-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.25rem;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
 .paper-directory-subjects {
   display: flex;
   flex-wrap: wrap;
@@ -3162,8 +3157,6 @@ button.research-map-node.is-connected {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.8rem;
-  line-height: 1.5;
 }
 .paper-directory-subjects a {
   color: var(--muted);
@@ -3174,9 +3167,7 @@ button.research-map-node.is-connected {
   text-decoration: underline;
 }
 .paper-directory-doi {
-  margin: 0.3rem 0 0;
-  color: var(--muted);
-  font-size: 0.8rem;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 .paper-directory-doi a {
@@ -3187,14 +3178,9 @@ button.research-map-node.is-connected {
   text-decoration: underline;
 }
 .paper-directory-pdf {
-  margin-top: 1.65rem;
-  font-size: 0.85rem;
   white-space: nowrap;
 }
 @media (max-width: 45rem) {
-  .paper-directory-entry {
-    column-gap: 1rem;
-  }
   .paper-directory-entry h2 {
     font-size: 1.05rem;
   }
