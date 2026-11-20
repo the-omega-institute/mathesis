@@ -22,9 +22,14 @@ export function PaperDirectoryEntry({ entry }: { entry: ResearchEntry }) {
   }));
   return (
     <article className="paper-entry paper-directory-entry">
-      <div className="paper-directory-body">
+      <h2>
+        <Link to={paperRoute(record, doi)}>
+          <InlineLatex source={title} />
+        </Link>
+      </h2>
+      <div className="paper-directory-meta">
         {subjects.length ? (
-          <ul className="paper-directory-subjects" aria-label={t('Subjects')}>
+          <ul className="paper-directory-subjects" aria-label={t('Subjects')} role="list">
             {subjects.map((subject) => (
               <li key={subject.code}>
                 <Link to={{ kind: 'subject', msc: subject.code }}>{t(subject.title)}</Link>
@@ -32,26 +37,21 @@ export function PaperDirectoryEntry({ entry }: { entry: ResearchEntry }) {
             ))}
           </ul>
         ) : null}
-        <h2>
-          <Link to={paperRoute(record, doi)}>
-            <InlineLatex source={title} />
-          </Link>
-        </h2>
         {doi ? (
           <p className="paper-directory-doi">
             DOI <ExternalLink href={`https://doi.org/${doi}`}>{doi}</ExternalLink>
           </p>
         ) : null}
+        {pdf ? (
+          <a className="paper-directory-pdf" href={pdf}>
+            {t('Read PDF')}
+          </a>
+        ) : (
+          <Link className="paper-directory-pdf" to={paperRoute(record, doi)}>
+            {t('View paper')}
+          </Link>
+        )}
       </div>
-      {pdf ? (
-        <a className="paper-directory-pdf" href={pdf}>
-          {t('Read PDF')}
-        </a>
-      ) : (
-        <Link className="paper-directory-pdf" to={paperRoute(record, doi)}>
-          {t('View paper')}
-        </Link>
-      )}
     </article>
   );
 }
