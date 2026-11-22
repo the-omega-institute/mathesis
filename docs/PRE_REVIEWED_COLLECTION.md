@@ -34,6 +34,31 @@ upstream result, and ordinary external submissions continue through
 `/manuscript-deliveries` and the independent Mathesis review pipeline. A real delivery is collected only when the producer calls this endpoint; a
 source repository or an archive DOI alone does not create a Mathesis paper.
 
+## Outreach engine integration
+
+The active Outreach coordinator and publication worker now run from
+[`the-omega-institute/trureturing-outreach-engine`](https://github.com/the-omega-institute/trureturing-outreach-engine).
+Its operative private data uses the `data` branch of
+`the-omega-institute/trureturing-outreach`; task state, selected scientific
+artifacts and Zenodo publication receipts remain in that private repository's
+Releases. The engine's Coordinator workflow runs its delivery job after each
+tick. Check that workflow for current execution health; historical runs in the
+private repository do not describe the new coordinator's availability.
+
+This repository split preserves the existing `mathesis.pre-reviewed-delivery.v1`
+interface and `producer: trureturing-outreach` identity. Keep the same authorized
+operator, work IDs, exact file hashes, receipt handles and version predecessors.
+The source-code repository name is not a new producer or a reason to redeliver
+historical papers. Mathesis's API has no dependency on the coordinator's source
+repository and needs no endpoint or trust-policy change for this split.
+
+Zenodo publication and Mathesis collection may finish in either order. Consume
+published exact-version receipts from the private data repository, then use the
+archive enrichment endpoint below for a DOI obtained after collection. Keep
+the original delivery immutable. A successful Coordinator or delivery job alone
+does not establish that every queued publication succeeded: inspect its
+per-note publication state and verify the final public Mathesis response.
+
 ## Independent reading guide
 
 A successful collection saves its reviewed scientific files immediately and queues
