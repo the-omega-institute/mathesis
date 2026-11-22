@@ -95,6 +95,14 @@ Long CMA work cannot hold the compile or verification lane. This is bounded
 concurrency, not automatic scaling; model quotas, CPU and memory still constrain
 throughput. Start with the default and measure provider failures and job latency.
 
+The internal collection lane reports zero capacity and leaves its durable jobs
+unclaimed when `WISHPOOL_CMA_COLLECTION_WORKSPACE` has no configured advisor.
+This does not consume retries or repeatedly overwrite the same provider error.
+Ordinary review, compilation, verification and capacity observations continue.
+After configuring a valid internal workspace, restart the worker to resume the
+same queued paper/version jobs. This does not provision a sandbox or change the
+separate catalog material-production queue or shared formalization requests.
+
 ## Review history and storage recovery
 
 Referee aggregates larger than 512 KiB of JSON are saved as complete GridFS
