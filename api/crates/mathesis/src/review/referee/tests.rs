@@ -1746,6 +1746,48 @@ async fn running_worker_compiles_another_submission_during_a_long_audit() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn unconfigured_collection_lane_preserves_attempts_while_review_progresses() {
+    use mathesis_core::ports::{JobLane, ReviewQueue};
+    let mut world = World::new(vec![completed("accept")], true).await;
+    let audit = prepare_audit(&world).await;
+    world.jobs.defer(&audit, Duration::ZERO).await.unwrap();
+    let collection = "collected:waiting-for-workspace:1".into();
+    ReviewQueue::enqueue(&*world.stores, &collection, JobKind::CollectedFormalization)
+        .await
+        .unwrap();
+    world.worker.collection_advisor = None;
+    let jobs = world.jobs.clone();
+    let advisor = Arc::new(FakeAdvisor {
+        audit_delay: Duration::from_secs(3600),
+        ..Default::default()
+    });
+    world.worker.advisor = Some(advisor.clone());
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let running = tokio::spawn(world.worker.run(receiver));
+    tokio::time::timeout(Duration::from_secs(60), async {
+        while advisor.audits.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("ordinary review remains independent of the disabled collection lane");
+    tokio::time::advance(Duration::from_secs(120)).await;
+    shutdown.send(true).unwrap();
+    running.await.unwrap();
+    let pending = jobs
+        .claim_in(Some(JobLane::Collection))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pending.submission, collection);
+    assert_eq!(
+        pending.attempts, 1,
+        "the unavailable worker must spend no attempts"
+    );
+    assert_eq!(pending.kind, JobKind::CollectedFormalization);
+}
+
+#[tokio::test(start_paused = true)]
 async fn heartbeat_allows_audit_to_finish_past_the_original_lease() {
     let mut w = World::new(vec![completed("accept")], true).await;
     let advisor = Arc::new(FakeAdvisor {

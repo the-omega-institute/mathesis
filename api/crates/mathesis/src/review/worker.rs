@@ -170,6 +170,15 @@ impl Worker {
     }
 
     async fn run_lane(&self, lane: JobLane, mut shutdown: watch::Receiver<bool>) {
+        if lane == JobLane::Collection && self.collection_advisor.is_none() {
+            // Capacity is reported as zero. Claiming these jobs anyway spends
+            // attempts and rewrites the same unavailable-provider error every
+            // few seconds. Preserve queued identities until a configured worker
+            // can resume them. Other lanes and capacity heartbeats keep running.
+            tracing::info!("collection worker disabled: no internal CMA advisor configured");
+            let _ = shutdown.wait_for(|requested| *requested).await;
+            return;
+        }
         tracing::info!(
             model = self.model.as_ref().map(|m| m.model()),
             "paper worker started"
