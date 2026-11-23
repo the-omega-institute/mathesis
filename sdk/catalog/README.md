@@ -77,6 +77,29 @@ The publisher workflow and fake-API tests live in `mathesis-papers/catalog`.
 This SDK remains an anonymous-read-only generator; it never creates repositories,
 issues, GitHub commits, Zenodo deposits or DOI registrations.
 
+## Material queue decisions
+
+`mathesis-catalog material-plan` additionally reads one JSON request from stdin
+(at most 8 MiB) and returns one JSON decision. It performs no network or ledger
+writes. Schema `mathesis.material-policy.v1` supports `admission`, `resume_build`
+and `adapt_template`. The hosted publisher uses this exact pinned binary for
+these decisions; Python supplies transports and rendering adapters.
+
+Admission validates all phases before provider calls and bounds active authoring
+and saved-source backlog separately. Build recovery requires an explicit operation
+id, matching source archive and toolchain, and the host-build failure stage; an
+operation can be consumed once. Running jobs and provider failures cannot be
+restarted through build recovery. Template upgrades reuse saved source and retain
+the original mathematical identity, provider handles and publication history.
+Unknown phases and malformed requests fail with nonzero exit and no decision.
+The caller persists an accepted transition through its existing optimistic ledger
+write before proceeding. These decisions confer no review, DOI or Lean credit.
+
+```sh
+echo '{"schema":"mathesis.material-policy.v1","action":"admission","capacity":6,"jobs":[{"phase":"authoring"}]}' \
+  | mathesis-catalog material-plan
+```
+
 
 The public `materials-index.json` sets `generated_at` to the snapshot's `captured_at` and
 sorted entries of `kind`, `id`, `version`, `repository_url`, `site_url`, `reading`,
