@@ -8,7 +8,24 @@ fn parse_arg(args: &mut impl Iterator<Item = String>, name: &str) -> Result<Stri
 pub fn run_cli<I: Iterator<Item = String>>(mut args: I) -> Result<()> {
     let command = args
         .next()
-        .ok_or_else(|| msg("command required: snapshot, fetch, render or check"))?;
+        .ok_or_else(|| msg("command required: snapshot, fetch, render, check or material-plan"))?;
+    if command == "material-plan" {
+        if args.next().is_some() {
+            return Err(msg(
+                "material-plan reads one JSON request from stdin; no flags allowed",
+            ));
+        }
+        let mut input = Vec::new();
+        io::stdin()
+            .take(8 * 1024 * 1024 + 1)
+            .read_to_end(&mut input)?;
+        if input.len() > 8 * 1024 * 1024 {
+            return Err(msg("material policy input exceeds 8 MiB"));
+        }
+        let request = serde_json::from_slice(&input)?;
+        println!("{}", material_policy::decide(request)?);
+        return Ok(());
+    }
     let mut api = None;
     let mut output = None;
     let mut snapshot_root = None;

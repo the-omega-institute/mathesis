@@ -304,6 +304,7 @@ mod check;
 mod cli;
 mod fetch;
 mod formalization;
+pub mod material_policy;
 mod model;
 mod publishing;
 mod render;
