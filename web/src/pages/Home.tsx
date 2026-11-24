@@ -8,8 +8,7 @@ import { ResearchCycle } from '../components/ResearchCycle';
 import { mergeCollectedNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
 import { homeSubjects } from '../lib/subjects';
-import { PublishedNoteEntry } from './PublishedNote';
-import { PaperEntry } from './Papers';
+import { PaperDirectoryEntry } from '../components/PaperDirectoryEntry';
 import { Link } from '../routing/router';
 import '../styles/home.css';
 import '../styles/subjects.css';
@@ -122,17 +121,13 @@ export function HomePage() {
           <Link to={{ kind: 'papers' }}>{t('All research')}</Link>
         </div>
         <ul className="home-papers">
-          {recent.map((entry) =>
-            entry.kind === 'note' ? (
-              <li key={`note:${entry.note.id}`}>
-                <PublishedNoteEntry note={entry.note} />
-              </li>
-            ) : (
-              <li key={`paper:${entry.paper.record}`}>
-                <PaperEntry paper={entry.paper} />
-              </li>
-            ),
-          )}
+          {recent.map((entry) => (
+            <li
+              key={entry.kind === 'note' ? `note:${entry.note.id}` : `paper:${entry.paper.record}`}
+            >
+              <PaperDirectoryEntry entry={entry} />
+            </li>
+          ))}
           {contribution ? (
             <li className="home-contribution">
               <p className="entry-meta">
