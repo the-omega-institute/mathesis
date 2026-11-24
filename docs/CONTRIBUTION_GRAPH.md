@@ -90,10 +90,14 @@ No test publication or real-manuscript publication is needed to validate this.
 
 This is the downstream storage and presentation of actual contribution records,
 not an assertion that all upstream results have already been synchronized.
-The current Outreach `outreach-mathesis-handoff.v1` preparation package must be
-translated into the existing `mathesis.manuscript-delivery.v1` envelope by the
-Mathesis consumer; missing source attribution must remain missing. No upstream
-code or publication contract needs changing to support older deliveries.
+Outreach's scientific `outreach-mathesis-handoff.v1` preparation package is not
+a delivery receipt. Its authorized exact-PASS short notes use the existing
+[`mathesis.pre-reviewed-delivery.v1` collection envelope](PRE_REVIEWED_COLLECTION.md)
+with the selected PDF and source ZIP; ordinary external submissions use
+`mathesis.manuscript-delivery.v1`. Changing the coordinator's source repository
+to `trureturing-outreach-engine` changes neither producer identity nor channel.
+Missing source attribution must remain missing. No new upstream publication
+format is required to consume older deliveries.
 
 General cross-paper entailment or minimal-dependency claims still require the exact statement identities,
 proof location, substitutions, hypothesis discharge and public evidence described
