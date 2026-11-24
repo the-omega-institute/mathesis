@@ -1,5 +1,11 @@
 # Versioned manuscript delivery
 
+This document describes ordinary manuscript submissions, including external
+papers. Already reviewed Outreach notes use the separate
+[pre-reviewed collection intake](PRE_REVIEWED_COLLECTION.md), which creates no
+ordinary referee round or claim-confirmation requirement. The engine repository
+split preserves that existing collection contract and producer identity.
+
 Mathesis is the downstream review and publication venue. A producer supplies an
 actual PDF/TeX/archive, ordered authors, original problem associations and scoped
 evidence. Mathesis reads that source, accepts the submitting account's exact
