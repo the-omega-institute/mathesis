@@ -34,7 +34,7 @@ import { PaperResults } from '../components/PaperResults';
 import { LatexText, MacrosProvider } from '../components/Markdown';
 import { Pager } from '../components/Pager';
 import { Async, DateText, ExternalLink, MscList } from '../components/ui';
-import { SUBMISSION_KIND_LABELS } from '../lib/labels';
+import { isOpenKind, SUBMISSION_KIND_LABELS } from '../lib/labels';
 import { safeHttpUrl, sourceHref } from '../lib/links';
 import { Link, useRouter } from '../routing/router';
 
@@ -403,7 +403,9 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
         <nav className="paper-sections" aria-label={t('On this page')}>
           {claims.length ? <a href="#further-work-h">{t('Continue this research')}</a> : null}
           <PaperMaterialLinks materials={paper.materials} text={paper.plain_language} />
-          {claims.length ? <a href="#results-h">{t('Results')}</a> : null}
+          {claims.some((claim) => !isOpenKind(claim.kind)) ? (
+            <a href="#results-h">{t('Results')}</a>
+          ) : null}
           {paper.publication ? <a href="#references-h">{t('References and connections')}</a> : null}
           <a
             href="#citation"
