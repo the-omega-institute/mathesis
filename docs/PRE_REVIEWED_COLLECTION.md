@@ -76,8 +76,7 @@ one venue-funded CMA explanation for that exact work/version. Keep
 `WISHPOOL_CMA_COLLECTION_WORKSPACE` unset while catalog owns these materials:
 the legacy jobs remain saved and unclaimed, with zero worker capacity, so they do
 not launch duplicate stories. External review uses its separate workspace.
-Exposition is
-exposition, not another review or publication decision. The task reads the pinned
+The explanation does not issue another review or publication decision. It reads the pinned
 source ZIP and public manuscript metadata; private producer review evidence is
 never part of the prompt or public response. It explains the question, definitions,
 main result, proof mechanism, prior attribution and exact remaining scope in five
@@ -90,8 +89,9 @@ publication date and retry receipt stay immutable. Until it is ready, any suppli
 upstream explanation remains available. Existing public versions can be queued by
 an administrator with `POST /api/v1/collected-papers/<work-id>/plain-language/request?version=N`.
 Exact delivery retries repair legacy queue admission without creating a manuscript or
-restarting the referee; they do not activate its unconfigured worker. The same durable CMA run and job are retained through
-worker restarts and asynchronous agent deletion.
+restarting the referee; they do not activate its unconfigured worker. The same
+durable CMA run and job are retained through worker restarts and asynchronous
+agent deletion.
 
 ## Published archive DOI
 
