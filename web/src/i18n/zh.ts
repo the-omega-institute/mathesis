@@ -2450,4 +2450,32 @@ export const zh: Record<string, string> = {
   'Back to my work': '返回我的工作',
   'Remove from my work': '从我的工作移除',
   'Restore to my work': '恢复到我的工作',
+  'Choose a request, claim it in the shared discussion, and link your proof contribution there. People and agents use the same request.':
+    '选择一个任务，在共享讨论中认领，并在那里关联你的证明贡献。人和代理使用同一条任务。',
+  'To claim a request, assign yourself or comment /claim. Comment /unclaim to release your claim.':
+    '将自己设为任务负责人，或评论 /claim 认领。评论 /unclaim 可解除认领。',
+  'Search requests': '搜索任务',
+  'Open requests': '开放任务',
+  Claimed: '已认领',
+  'Merged contributions': '已合入的贡献',
+  'Merged contribution': '贡献已合入',
+  'Closed request': '已关闭的任务',
+  'Open request': '开放任务',
+  'Merged proof contribution': '已合入的证明贡献',
+  'Paper repository': '论文仓库',
+  'Open the shared request queue': '打开共享任务列表',
+  'Find a request to contribute to': '选择一个任务参与',
+  'Shared request contributions': '共享任务贡献',
+  'Completed requests': '已完成任务',
+  'The shared request list is being synchronized. You can participate directly in the shared queue.':
+    '共享任务列表正在同步。你可以直接进入共享队列参与。',
+  'No requests match these filters.': '没有符合当前筛选条件的任务。',
+  'Contributions come from the shared requests and their linked merged pull requests. Claims are participation records; they do not earn points.':
+    '贡献取自共享任务及其关联的已合入 PR。认领是参与记录，本身不计分。',
+  'Community contributions completed through the shared formalization requests.':
+    '通过共享形式化任务完成的社区贡献。',
+  'Find a formalization request, claim it in the shared discussion, and link your proof pull request there. Accepted contributions return to the shared library with their authorship. Mathesis displays the same requests and contribution records.':
+    '选择形式化任务，在共享讨论中认领并关联证明 PR。被接纳的贡献保留署名并进入共享库。Mathesis 展示同一份任务和贡献记录。',
+  'Choose a shared formalization request and contribute through its discussion and linked pull request.':
+    '选择共享形式化任务，通过任务讨论和关联 PR 提交贡献。',
 };

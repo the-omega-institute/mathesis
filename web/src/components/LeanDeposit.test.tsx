@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { it, expect, vi } from 'vitest';
 import { fakeApi, renderWithApp } from '../test/render';
 import { author, paperSummary } from '../test/fixtures';
-import { SubmitPage } from '../pages/Submit';
+import { LeanDepositForm } from './LeanDeposit';
 import type { NewLeanDeposit } from '../api/types';
 
 it('deposits source and original attribution without presenting it as verified', async () => {
@@ -18,12 +18,10 @@ it('deposits source and original attribution without presenting it as verified',
     revision: 0,
   }));
   const api = fakeApi({ submitFormalization }, author);
-  renderWithApp(<SubmitPage />, api);
+  renderWithApp(<LeanDepositForm />, api);
   const user = userEvent.setup();
-  await screen.findByLabelText('Choose manuscript files');
-  await user.click(screen.getByRole('button', { name: 'Community formalization' }));
   await user.click(
-    screen.getByText('Deposit an existing formalization without a linked statement'),
+    await screen.findByText('Deposit an existing formalization without a linked statement'),
   );
   await user.type(screen.getByLabelText('Title', { exact: true }), 'A formal proof');
   await user.clear(screen.getByLabelText('Original authors 1'));
@@ -111,10 +109,7 @@ it('prefills the confirmed statement and binds a multi-file verification request
     },
     author,
   );
-  renderWithApp(
-    <SubmitPage initialIntake="lean" targetRecord={detail.record} targetClaim="C1" />,
-    api,
-  );
+  renderWithApp(<LeanDepositForm targetRecord={detail.record} targetClaim="C1" />, api);
   expect(await screen.findByLabelText('Lean / Mathlib version pin')).toHaveValue(
     'pinned-toolchain',
   );
@@ -167,7 +162,7 @@ it('deposits a linked Lean source with its revision and separate author credits'
   }));
   const api = fakeApi({ submitFormalization }, author);
   try {
-    renderWithApp(<SubmitPage initialIntake="lean" />, api);
+    renderWithApp(<LeanDepositForm />, api);
     const user = userEvent.setup();
     await user.click(
       await screen.findByText('Deposit an existing formalization without a linked statement'),
@@ -240,7 +235,7 @@ it('opens community proof contribution for a collected result and preserves its 
     },
     author,
   );
-  renderWithApp(<SubmitPage initialIntake="lean" targetRecord="gap-note" targetClaim="s2" />, api);
+  renderWithApp(<LeanDepositForm targetRecord="gap-note" targetClaim="s2" />, api);
   expect(await screen.findByLabelText('Original authors 1')).toHaveValue('Original Author');
   expect(screen.getByLabelText('Mathematical statement')).toHaveValue('A precise bound.');
   expect(api.getCollectedPaper).toHaveBeenCalledWith('gap-note', '2', expect.any(Object));
@@ -282,7 +277,7 @@ it('keeps pending result context and authors while saving Lean work without veri
     },
     author,
   );
-  renderWithApp(<SubmitPage initialIntake="lean" targetRecord="gap-note" targetClaim="s1" />, api);
+  renderWithApp(<LeanDepositForm targetRecord="gap-note" targetClaim="s1" />, api);
   expect(await screen.findByLabelText('Original authors 1')).toHaveValue('Original Author');
   expect(screen.getByLabelText('Mathematical statement')).toHaveValue('A precise bound.');
   expect(screen.getByLabelText('Original research or source URL').getAttribute('value')).toMatch(
@@ -335,7 +330,7 @@ it('prefills Lean work for a curated open problem with its statement and origina
     },
   }));
   const api = fakeApi({ getResearchProblem }, author);
-  renderWithApp(<SubmitPage initialIntake="lean" targetProblem="curated-problem" />, api);
+  renderWithApp(<LeanDepositForm targetProblem="curated-problem" />, api);
   expect(await screen.findByLabelText('Title', { exact: true })).toHaveValue(
     'An alternating-sum formula in OEIS A391810',
   );

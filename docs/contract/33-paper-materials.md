@@ -38,16 +38,18 @@ paper adapter. Requests link only to canonical positive-number issues in
 shared work registrations, not evidence of verification, mathematical openness,
 completion, dependency or newly earned credit. GitHub remains the live work
 queue; issue closure does not confer a proof receipt. Public formalization
-navigation links this shared queue alongside platform targets and contributions.
+navigation, claims and the current contribution leaderboard consume this shared queue (§28–29).
 
-Collected exposition and proof preparation use a dedicated `collection` queue
+Collected exposition uses the `collection` queue
 with `WISHPOOL_COLLECTION_CONCURRENCY` slots, independently of external review.
 New CMA collection admissions require `WISHPOOL_CMA_COLLECTION_WORKSPACE` and
 an active sandbox distinct from the external review workspace's sandbox. Missing
 or unavailable collection capacity leaves its original durable job waiting;
 it never borrows external capacity. Saved CMA create intents retain their exact
 workspace, prompts and operation identities across routing changes. The deprecated
-formalization workspace key is accepted for configuration compatibility only.
+formalization workspace key is accepted for configuration compatibility only;
+it never admits automatic proof generation. Proof execution uses the shared
+request workflow, not this collection lane (§28).
 
 Administrators can inspect `/staff/processing` and the review queue's processing
 panel. Mongo retains latest completion/failure per job identity, waiting reason,

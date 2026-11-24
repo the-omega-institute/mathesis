@@ -3664,3 +3664,68 @@ async fn collection_and_external_admission_are_independent_and_observed_after_re
     restarted.shutdown().await;
     db.drop().await;
 }
+
+#[tokio::test]
+async fn shared_requests_survive_restart_and_retire_only_obsolete_unleased_jobs() {
+    let Some(db) = TestDb::open().await else {
+        return;
+    };
+    let now = mongodb::bson::DateTime::now();
+    let expired = mongodb::bson::DateTime::from_millis(now.timestamp_millis() - 1000);
+    let live = mongodb::bson::DateTime::from_millis(now.timestamp_millis() + 60_000);
+    db.store.raw(REVIEW_JOBS).insert_many([
+        doc! {"_id":"obsolete", "kind":"collected_formalization", "state":"queued", "retries":11_i64},
+        doc! {"_id":"expired", "kind":"collected_formalization", "state":"leased", "lease_until":expired},
+        doc! {"_id":"live", "kind":"collected_formalization", "state":"leased", "lease_until":live},
+        doc! {"_id":"receipt", "kind":"collected_formalization", "state":"done"},
+        doc! {"_id":"reading", "kind":"collected_explanation", "state":"queued"},
+    ]).await.unwrap();
+    let snapshot = SharedRequestsSnapshot {
+        revision: 1,
+        observed_at: Some(Utc::now()),
+        requests: vec![],
+    };
+    db.store
+        .replace_shared_requests(&snapshot, 0)
+        .await
+        .unwrap();
+    let reopened = MongoStore::connect(
+        &std::env::var("WISHPOOL_TEST_MONGODB_URI").unwrap(),
+        &db.name,
+    )
+    .await
+    .unwrap();
+    assert_eq!(reopened.load_shared_requests().await.unwrap(), snapshot);
+    assert!(matches!(
+        reopened.replace_shared_requests(&snapshot, 0).await,
+        Err(CoreError::StaleRevision { .. })
+    ));
+    for (id, state) in [
+        ("obsolete", "superseded"),
+        ("expired", "superseded"),
+        ("live", "leased"),
+        ("receipt", "done"),
+        ("reading", "queued"),
+    ] {
+        let saved = reopened
+            .raw(REVIEW_JOBS)
+            .find_one(doc! {"_id":id})
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.get_str("state").unwrap(), state);
+    }
+    assert_eq!(
+        db.store.load_materials().await.unwrap(),
+        MaterialsSidecar::default()
+    );
+    assert!(
+        reopened
+            .processing_status()
+            .await
+            .unwrap()
+            .iter()
+            .all(|lane| lane.retries == 0)
+    );
+    db.drop().await;
+}

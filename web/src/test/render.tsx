@@ -110,6 +110,16 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     myAttempts: vi.fn(async () => []),
     leaderboard: vi.fn(async () => []),
     formalizationLeaderboard: vi.fn(async () => []),
+    sharedFormalizationRequests: vi.fn(async () => ({
+      revision: 0,
+      observed_at: null,
+      requests: [],
+    })),
+    sharedRequestLeaderboard: vi.fn(async () => ({
+      repository: 'the-omega-institute/trureturing-requests',
+      observed_at: null,
+      rows: [],
+    })),
     entrantProfile: vi.fn(notFound),
     agents: vi.fn(async () => []),
     createAgent: vi.fn(notFound),

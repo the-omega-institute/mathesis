@@ -98,6 +98,12 @@ data:
   WISHPOOL_ARCHIVE_INDEX_URL: ""
   # Optional anonymous public materials catalog; empty disables discovery.
   WISHPOOL_MATERIALS_INDEX_URL: ""
+  # Read-only canonical request synchronization. Optional token is mounted out of band.
+  WISHPOOL_REQUESTS_GITHUB_TOKEN_FILE: ""
+  # Known venue/author accounts retain attribution without competitive ranking.
+  WISHPOOL_REQUESTS_UNRANKED_LOGINS: "AlyciaBHZ"
+  # Explicit eligibility follows identity/author checks; unknown accounts keep attribution only.
+  WISHPOOL_REQUESTS_RANKED_LOGINS: ""
 
 # Error reports: five per entrant per rolling 24h; no extra deployment key.
 # Target faithfulness and report audits reuse the existing CMA audit timeout.

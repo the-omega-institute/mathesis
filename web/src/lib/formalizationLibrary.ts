@@ -1,4 +1,4 @@
-import type { CollectedPaper, CollectedKnowledge } from '../api/types';
+import type { CollectedPaper, CollectedKnowledge, SharedFormalizationRequest } from '../api/types';
 import { findSubject } from './subjects';
 import { publicationSubjects } from './projectNoteSubjects';
 import { sharedLibraryFocus, type SharedLibrary, type LibraryNode } from './sharedLibrary';
@@ -58,6 +58,7 @@ export type FormalizationNode = LibraryNode & {
   subjects: string[];
   papers: CollectedPaper[];
   claim?: string;
+  request?: SharedFormalizationRequest;
 };
 export type FormalizationLibrary = Omit<SharedLibrary, 'nodes' | 'edges'> & {
   nodes: FormalizationNode[];
@@ -79,6 +80,7 @@ export function formalizationLibrary(
   papers: CollectedPaper[],
   knowledge: CollectedKnowledge[] = [],
   relatedPapers: CollectedPaper[] = papers,
+  requests: SharedFormalizationRequest[] = [],
 ): FormalizationLibrary {
   const byModule = new Map<string, CollectedPaper[]>();
   for (const paper of relatedPapers) {
@@ -136,6 +138,26 @@ export function formalizationLibrary(
       // Context locates a target within its paper; it is not a proof dependency.
       if (source && byId.has(source)) edges.push({ from: source, to: id, context: true });
     }
+  }
+  for (const request of requests) {
+    if (!['open', 'claimed'].includes(request.state)) continue;
+    const source = sharedLibraryFocus(request.lean_source ?? undefined)?.slice(7);
+    const context = source ? byId.get(source) : undefined;
+    const id = `request:${request.number}`;
+    nodes.push({
+      id,
+      title: request.title,
+      abstract: '',
+      domain: context?.domain ?? '',
+      source: request.url,
+      formalized: false,
+      x: 0,
+      y: 0,
+      subjects: context?.subjects ?? ['00'],
+      papers: [],
+      request,
+    });
+    if (source && context) edges.push({ from: source, to: id, context: true });
   }
   return { ...library, nodes, edges };
 }

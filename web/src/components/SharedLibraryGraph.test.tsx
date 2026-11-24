@@ -95,3 +95,15 @@ it('preserves old paper-to-module links by resolving them into the matching subj
   await waitFor(() => expect(new URLSearchParams(window.location.search).get('msc')).toBe('81'));
   expect(new URLSearchParams(window.location.search).get('focus')).toBe('module:Quantum/Bound');
 });
+
+it('keeps the published library available when the shared request feed is unavailable', async () => {
+  const api = fakeApi({
+    sharedFormalizationRequests: vi.fn(async () => {
+      throw new Error('temporarily unavailable');
+    }),
+  });
+  renderWithApp(<SharedLibraryGraph msc="81" />, api);
+  expect(await screen.findByRole('heading', { name: 'Quantum theory' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: /Mathematical dependency graph/ })).toBeInTheDocument();
+  expect(api.sharedFormalizationRequests).toHaveBeenCalled();
+});

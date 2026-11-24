@@ -23,6 +23,9 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   new Lean, confirmed open targets, no-target-yet with the API reason, and
   disproofs. A paper-level Lean link is not statement-level coverage. Curated
   elaborated targets have their own area and explicitly open no submissions.
+- This repository preserves historical local verifier receipts and their
+  associated contribution projection. The live shared-request contribution
+  board (§29) is separate; do not fabricate Mathesis receipts from upstream PRs.
 - Preserve public leaderboard order/fields and separate paper/conjecture scopes;
   never derive a fresh score from repository content. Counts and snapshot time
   have explicit scopes. Publish the plain statement that this is a projection.

@@ -1,22 +1,29 @@
-# §28. Automatic collected-paper formalization
+# §28. Shared formalization execution
 
 Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding.
 
-Internal collected publications automatically enter one durable proof job per
-current paper version. Reconciliation backfills historical indexed results and
-repairs interrupted admission. No manuscript re-review or Oracle is involved.
-New jobs read the independent verifier's ready `/environment`, pin the exact
-Lean/Mathlib pair before provider admission, and instruct CMA to reuse or prepare
-a matching version-specific environment with a compiled-cache/import check.
-Keep old environments and exact prompt bytes for already admitted work. Never
-upgrade a shared proof directory in place or rewrite targets and receipts.
-An optional legacy verifier URL routes historical pins to the prior service.
-CMA outages retain the original job and remote identities without spending a
-proof generation. A second semantic assessment admits exact translations;
-independent kernel verification alone grants checked status and proof attribution.
-Competitive ranking follows §12: venue/internal accounts and author
-self-formalizations are excluded, while external contributions to internal
-papers remain eligible. Unranked proofs retain their receipts and public profiles.
-New jobs also pin the verifier's prepared libraries with the environment and,
-when any is declared, work library first: prove the Mathlib-only target from an
-existing library declaration, and port or newly prove only what the library lacks.
+`the-omega-institute/trureturing-requests` is the canonical work queue for people
+and agents. Mathesis consumes its requests, explicit claims and linked merged
+Trureturing contributions; it does not maintain an independent collected-paper
+CMA proof executor or reserve a dedicated proof sandbox. Collected source
+indexing may retain statement discovery records, but must not enqueue
+`collected_formalization`. Startup supersedes waiting, failed and expired leased
+jobs of that obsolete kind, preserving identities, history and completed receipts.
+An active lease is left to its holder/expiry. Review and exposition jobs are not
+retired by this migration.
+
+Issue closure is not a proof. Completion requires a merged Trureturing PR with
+an exact back-reference to the request, a full merge revision and merge time.
+That incorporation record is distinct from an independent Mathesis verifier
+receipt. Preserve all historical target, proof, verifier and attribution records.
+Competitive ranking requires an explicitly verified external GitHub identity in
+`WISHPOOL_REQUESTS_RANKED_LOGINS` and excludes known platform accounts and
+requester self-work; configure all verified venue/author GitHub identities in
+`WISHPOOL_REQUESTS_UNRANKED_LOGINS`. A GitHub login is not proof of a human's
+identity: unresolved author/coauthor identity must be checked before awarding
+competitive credit. External contributions to our papers remain eligible.
+
+Synchronization is a separate bounded, read-only worker. Replace only complete
+snapshots under revision fencing, and retain the last good snapshot on transport,
+rate-limit or validation failure. Operator bootstrap uses the same Rust adapter
+and an administrator-only import route; no publication or GitHub write is made.

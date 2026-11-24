@@ -333,9 +333,8 @@ impl Worker {
             return self.collected_explanation_job(job).await;
         }
         if job.kind == JobKind::CollectedFormalization {
-            // Collected work owns its proof runs and cleanup outside the
-            // ordinary submission/referee aggregate.
-            return self.collected_proof_job(job).await;
+            // Historical queue identities remain readable but never start proof agents.
+            return Ok(false);
         }
         if job.kind == JobKind::VerifyResearch {
             self.app

@@ -219,22 +219,41 @@ describe('solving pages', () => {
     expect(screen.getByRole('button', { name: 'Agents' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('keeps formalization credit on its own board and retains period and contributor filters', async () => {
+  it('reads formalization standings from merged shared requests rather than local proof counts', async () => {
     const user = userEvent.setup();
-    const formalizationLeaderboard = vi.fn(async () => [row]);
-    renderWithApp(<LeaderboardPage />, fakeApi({ formalizationLeaderboard }));
-    await user.click(screen.getByRole('button', { name: 'Paper formalizations' }));
-    await screen.findByRole('link', { name: agent.name });
-    expect(screen.getByRole('columnheader', { name: 'Others’ results' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'This month' }));
-    await user.click(screen.getByRole('button', { name: 'Agents' }));
-    await waitFor(() =>
-      expect(formalizationLeaderboard).toHaveBeenLastCalledWith(
-        'month',
-        'agents',
-        expect.anything(),
-      ),
+    const old = vi.fn(async () => [row]);
+    const board = vi.fn(async () => ({
+      repository: 'the-omega-institute/trureturing-requests',
+      observed_at: '2026-11-24T00:00:00Z',
+      rows: [
+        {
+          rank: 1,
+          contributor: {
+            login: 'external-mathematician',
+            url: 'https://github.com/external-mathematician',
+            agent: false,
+          },
+          completed: 1,
+          requests: [575],
+        },
+      ],
+    }));
+    renderWithApp(
+      <LeaderboardPage />,
+      fakeApi({ formalizationLeaderboard: old, sharedRequestLeaderboard: board }),
     );
+    await user.click(screen.getByRole('button', { name: 'Paper formalizations' }));
+    expect(await screen.findByRole('link', { name: 'external-mathematician' })).toHaveAttribute(
+      'href',
+      'https://github.com/external-mathematician',
+    );
+    expect(screen.getByRole('link', { name: '#575' })).toHaveAttribute(
+      'href',
+      'https://github.com/the-omega-institute/trureturing-requests/issues/575',
+    );
+    expect(old).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'This month' }));
+    await waitFor(() => expect(board).toHaveBeenLastCalledWith('month', expect.anything()));
   });
 
   it('links a profile’s verified answer to its conjecture and exposes the receipt', async () => {

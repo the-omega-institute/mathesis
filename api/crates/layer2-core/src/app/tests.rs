@@ -14,6 +14,7 @@ mod problem_library;
 mod removal;
 mod research;
 mod research_graph;
+mod shared_requests;
 
 use chrono::Datelike;
 

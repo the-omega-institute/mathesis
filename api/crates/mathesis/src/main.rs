@@ -34,8 +34,36 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let config = Config::from_env()?;
     let arguments: Vec<_> = std::env::args().skip(1).collect();
+    if arguments.first().map(String::as_str) == Some("--requests-snapshot") {
+        anyhow::ensure!(
+            arguments.len() == 3,
+            "use --requests-snapshot PREVIOUS.json UNRANKED_LOGINS"
+        );
+        let previous = serde_json::from_slice(&tokio::fs::read(&arguments[1]).await?)?;
+        let excluded = arguments[2]
+            .split(',')
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let eligible = std::env::var("MATHESIS_REQUESTS_RANKED_LOGINS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let snapshot = review::shared_requests::fetch(
+            &previous,
+            std::env::var("MATHESIS_PUBLIC_GITHUB_TOKEN").ok(),
+            &excluded,
+            &eligible,
+        )
+        .await
+        .map_err(anyhow::Error::msg)?;
+        println!("{}", serde_json::to_string(&snapshot)?);
+        return Ok(());
+    }
+    let config = Config::from_env()?;
     if matches!(
         arguments.first().map(String::as_str),
         Some("--knowledge-import" | "--knowledge-query")
@@ -118,6 +146,13 @@ async fn main() -> anyhow::Result<()> {
             shutdown_rx.clone(),
             config.archive_index_url.clone(),
             config.materials_index_url.clone(),
+        )));
+        background.push(tokio::spawn(review::shared_requests::run(
+            composition.app.clone(),
+            shutdown_rx.clone(),
+            config.requests_github_token_file.clone(),
+            config.requests_unranked_logins.clone(),
+            config.requests_ranked_logins.clone(),
         )));
         if let Some(hosted) = composition.hosted {
             background.push(tokio::spawn(hosted.run(shutdown_rx.clone())));

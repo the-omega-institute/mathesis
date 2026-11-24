@@ -1,4 +1,5 @@
 import { t } from '../i18n/locale';
+import { SHARED_REQUESTS } from '../components/SharedRequests';
 import { GitHubLink } from '../components/GitHubLink';
 import { MyCma } from '../components/MyCma';
 import { useCallback, useState, type FormEvent } from 'react';
@@ -15,6 +16,7 @@ import {
   InlineError,
   Loading,
   SignInPrompt,
+  ExternalLink,
 } from '../components/ui';
 import {
   DEFAULT_MONTHLY_CAP,
@@ -73,8 +75,10 @@ export function ContributePage() {
             )}
           </p>
           <p>
-            <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link> ·{' '}
-            <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
+            <ExternalLink href={SHARED_REQUESTS}>
+              {t('Find a request to contribute to')}
+            </ExternalLink>{' '}
+            · <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
           </p>
         </div>
       </header>
@@ -109,11 +113,11 @@ export function ContributePage() {
         <h2>{t('Formalize')}</h2>
         <p>
           {t(
-            'Build on an author-approved statement, or contribute a useful intermediate lemma. Upload a Lean project or import a permanent link to existing code. Independently verified proofs connect to the original result, crediting both the mathematics and its formalizers.',
+            'Find a formalization request, claim it in the shared discussion, and link your proof pull request there. Accepted contributions return to the shared library with their authorship. Mathesis displays the same requests and contribution records.',
           )}
         </p>
         <p>
-          <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link>
+          <ExternalLink href={SHARED_REQUESTS}>{t('Find a request to contribute to')}</ExternalLink>
         </p>
         <p>
           {t('New to Lean?')}{' '}

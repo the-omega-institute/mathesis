@@ -175,8 +175,8 @@ substantial disk space; runtime verification has no egress.
 
 `/readyz` checks the pinned manifest, installed Lean executable and built Mathlib
 artifact. `/environment` returns those resolved pins only after that readiness
-check succeeds. New collected proof jobs pin this response before CMA admission
-and automatically prepare a separate matching CMA workspace directory. Keep the
+check succeeds. Historical Mathesis proof checks retain their original pins;
+new formalization execution uses shared Trureturing requests (§28–29). Keep the
 previous service available through `WISHPOOL_VERIFIER_LEGACY_URL` before changing
 the primary verifier; historical targets and active conversations keep their
 original environment. `/healthz` only checks that the process is serving. Ordinary Rust tests
@@ -214,3 +214,26 @@ verifier that lists libraries. See [LIBRARY_BINDING.md](LIBRARY_BINDING.md).
 ### Automatic image publication
 
 After a push to `develop` or `main` passes the required `CI` workflow, `Publish images after CI` checks out that exact tested commit and publishes digest-addressable `mathesis-web`, `mathesis-api`, `mathesis-lean` and `mathesis-verifier` packages to GHCR. It also publishes a branch tag for operator use and stores immutable image receipts as workflow artifacts. The workflow never publishes a commit whose CI run failed; a manual dispatch is available for an explicitly selected ref.
+
+
+## Shared request synchronization
+
+The Rust worker reads canonical `trureturing-requests` hourly and keeps the last
+complete snapshot on failure. Bootstrap/import routes and the read-only CLI are
+in [API.md](API.md#shared-formalization-requests). Supply a mounted public-read
+GitHub token via `WISHPOOL_REQUESTS_GITHUB_TOKEN_FILE` if traffic exceeds the
+anonymous quota. The token is never sent to a source-provided URL.
+
+All merged contributors keep attribution. Competitive ranking requires a verified
+external identity in `WISHPOOL_REQUESTS_RANKED_LOGINS`, and is always refused for
+request authors and `WISHPOOL_REQUESTS_UNRANKED_LOGINS`. This prevents
+unknown author/coauthor GitHub identities from automatically receiving points.
+For CLI bootstrap the corresponding eligibility environment variable is
+`MATHESIS_REQUESTS_RANKED_LOGINS`; it defaults to empty. Review source authorship
+before adding an identity; do not equate the issue creator with every author.
+An administrator importing a curated snapshot is responsible for the same rule.
+
+There is no dedicated collected-proof CMA sandbox or proof-generation queue.
+Startup supersedes only obsolete `collected_formalization` jobs that are waiting,
+failed or whose leases expired; proofs, receipts, active leases, exposition and
+review histories are retained.

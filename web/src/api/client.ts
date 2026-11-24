@@ -266,6 +266,13 @@ export function versionBody(source: File, note: string, processingConsent?: stri
 }
 
 export interface ApiClient {
+  sharedFormalizationRequests(
+    options?: RequestOptions,
+  ): Promise<import('./types').SharedRequestsSnapshot>;
+  sharedRequestLeaderboard(
+    period: 'all' | 'month',
+    options?: RequestOptions,
+  ): Promise<import('./types').SharedRequestBoard>;
   listResearchProblems(
     page?: PageParams,
     options?: RequestOptions,
@@ -699,6 +706,15 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     leaderboard: (period = 'all', entrants = 'all', o) =>
       request('GET', api(`/leaderboard${buildQuery({ period, entrants })}`), undefined, o),
     entrantProfile: (id, o) => request('GET', api(`/entrants/${seg(id)}`), undefined, o),
+    sharedFormalizationRequests: (o) =>
+      request('GET', api('/formalization-requests'), undefined, o),
+    sharedRequestLeaderboard: (period, o) =>
+      request(
+        'GET',
+        api(`/formalization-requests/leaderboard${buildQuery({ period })}`),
+        undefined,
+        o,
+      ),
     formalizationLeaderboard: (period = 'all', entrants = 'all', o) =>
       request(
         'GET',

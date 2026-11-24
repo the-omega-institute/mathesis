@@ -225,5 +225,8 @@ async fn request_proof(
         .ok_or_else(|| Problem(CoreError::invalid("name the exact publication version")))?;
     app.request_collected_proof(&caller, &id, version, &claim.into())
         .await?;
-    Ok(axum::http::StatusCode::ACCEPTED)
+    Ok(Json(serde_json::json!({
+        "status": "shared_request_queue",
+        "url": "https://github.com/the-omega-institute/trureturing-requests/issues",
+    })))
 }

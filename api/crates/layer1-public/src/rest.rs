@@ -27,6 +27,7 @@ mod network;
 mod papers;
 mod research;
 mod review;
+mod shared_requests;
 mod solving;
 
 pub(crate) type AppState = State<Arc<App>>;
@@ -47,6 +48,7 @@ pub(crate) struct Query<T>(pub(crate) T);
 pub(crate) fn routes() -> Router<Arc<App>> {
     Router::new()
         .merge(solving::routes())
+        .merge(shared_requests::routes())
         .merge(papers::routes())
         .merge(collected::routes())
         .merge(review::routes())

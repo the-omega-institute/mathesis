@@ -1,6 +1,6 @@
 import { t } from '../i18n/locale';
 import { useState, type FormEvent } from 'react';
-import { LeanDepositForm } from '../components/LeanDeposit';
+import { SharedRequests } from '../components/SharedRequests';
 import { useApi } from '../api/context';
 import { PROCESSING_REQUEST_VERSION } from '../api/types';
 import type { AiUseLevel, Submission } from '../api/types';
@@ -27,10 +27,6 @@ import { useRouter } from '../routing/router';
 
 export function SubmitPage({
   initialIntake,
-  targetRecord,
-  targetClaim,
-  targetVersion,
-  targetProblem,
   initialSubmission,
   onSubmitted,
 }: {
@@ -60,7 +56,7 @@ export function SubmitPage({
           {intake === 'lean' ? (
             <p>
               {t(
-                'Submit a Lean proof of an existing conjecture or theorem. Verified contributions credit the original authors and the formalizers.',
+                'Choose a shared formalization request and contribute through its discussion and linked pull request.',
               )}
             </p>
           ) : null}
@@ -75,8 +71,9 @@ export function SubmitPage({
           </button>
         ) : null}
       </header>
-      {session.status === 'loading' ? <Loading /> : null}
-      {session.status !== 'loading' && person === null ? (
+      {intake === 'lean' ? <SharedRequests /> : null}
+      {intake !== 'lean' && session.status === 'loading' ? <Loading /> : null}
+      {intake !== 'lean' && session.status !== 'loading' && person === null ? (
         <SignInPrompt what="submit your work" />
       ) : null}
       {person ? (
@@ -91,14 +88,7 @@ export function SubmitPage({
               onSubmitted={onSubmitted}
             />
           )
-        ) : (
-          <LeanDepositForm
-            targetRecord={targetRecord}
-            targetClaim={targetClaim}
-            targetVersion={targetVersion}
-            targetProblem={targetProblem}
-          />
-        )
+        ) : null
       ) : null}
       {person && intake !== 'lean' && !initialSubmission ? (
         <p className="small intake-alternative">
