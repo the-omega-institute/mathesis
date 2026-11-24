@@ -256,6 +256,7 @@ async fn historical_internal_papers_enter_the_pool_without_a_manual_request() {
     let first = w.app.collected_proofs("a-note", 1).await.unwrap();
     assert_eq!(first.len(), 1);
     assert_eq!(first[0].state, "preparing");
+    assert!(first[0].next_step.contains("shared requests"));
     let claim = "s1".into();
     let before = w
         .app

@@ -192,7 +192,7 @@ impl App {
             .claim(claim)
             .filter(|c| !c.kind.is_open())
             .ok_or_else(|| CoreError::invalid("select an indexed proved result"))?;
-        self.enqueue_collected_formalizations(&saved).await
+        self.index_collected_formalizations(&saved).await
     }
 
     async fn enqueue_collected_result(
@@ -264,7 +264,7 @@ impl App {
     }
 
     /// Index collected statements without admitting a second proof execution queue.
-    pub(crate) async fn enqueue_collected_formalizations(
+    pub(crate) async fn index_collected_formalizations(
         &self,
         saved: &CollectedVersion,
     ) -> CoreResult<()> {
@@ -283,16 +283,12 @@ impl App {
             self.enqueue_collected_result(saved, &statement.id.clone().into())
                 .await?;
         }
-        if !results.statements.iter().any(|s| !s.kind.is_open()) {
-            return Ok(());
-        }
         // Discovery keeps statement records; execution belongs to the canonical request.
         Ok(())
     }
 
     pub(crate) async fn reconcile_collected_proofs(&self) -> CoreResult<()> {
-        // Repair historical intake and interrupted queue admission without an
-        // operator having to POST every old publication again.
+        // Repair historical statement discovery without admitting proof execution.
         let mut before = None;
         loop {
             let page = self
@@ -326,7 +322,7 @@ impl App {
                         .is_none();
                 }
                 if missing {
-                    self.enqueue_collected_formalizations(&saved).await?;
+                    self.index_collected_formalizations(&saved).await?;
                 }
             }
             before = page.next_before;
@@ -793,12 +789,8 @@ impl App {
                 next_step: match state {
                     "verified" => "Read the checked proof and its credits.",
                     "disproved" => "A checked counterexample is available. The mathematical statement needs correction.",
-                    "open" => "Contribute a proof of this exact statement.",
-                    "needs_attention" => p
-                        .blocked
-                        .as_deref()
-                        .unwrap_or("Further proof work is needed."),
-                    _ => "Existing Lean evidence is being checked before new proof work.",
+                    "open" => "Contribute through the shared formalization requests.",
+                    _ => "Formalization work is coordinated through the shared requests.",
                 }
                 .into(),
                 proofs,

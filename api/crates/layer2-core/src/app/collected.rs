@@ -361,7 +361,7 @@ impl App {
                     ));
                 }
                 self.enqueue_collected_explanation(&existing).await?;
-                self.enqueue_collected_formalizations(&existing).await?;
+                self.index_collected_formalizations(&existing).await?;
                 return Ok(receipt(&existing));
             }
             if delivery.previous_version != Some(current.delivery.version) {
@@ -429,14 +429,14 @@ impl App {
                     && saved.request_digest == version.request_digest
                 {
                     self.enqueue_collected_explanation(&saved).await?;
-                    self.enqueue_collected_formalizations(&saved).await?;
+                    self.index_collected_formalizations(&saved).await?;
                     return Ok(receipt(&saved));
                 }
             }
             return Err(error);
         }
         self.enqueue_collected_explanation(&version).await?;
-        self.enqueue_collected_formalizations(&version).await?;
+        self.index_collected_formalizations(&version).await?;
         Ok(receipt(&version))
     }
 
