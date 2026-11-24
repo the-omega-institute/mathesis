@@ -16,7 +16,11 @@ describe('subject browsing', () => {
     const listPapers = vi.fn(async () => ({ items: [], next_before: null }));
     renderWithApp(<App />, fakeApi({ listPapers }));
     const user = userEvent.setup();
-    await user.click(screen.getByRole('link', { name: 'Number theory' }));
+    await user.click(
+      within(screen.getByRole('region', { name: 'Browse by subject' })).getByRole('link', {
+        name: 'Number theory',
+      }),
+    );
     expect(await screen.findByRole('heading', { level: 1, name: 'Number theory' })).toBeVisible();
     expect(window.location.pathname).toBe('/subjects/11');
     expect(window.location.search).toBe('');

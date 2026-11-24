@@ -2485,8 +2485,7 @@ export const zh: Record<string, string> = {
   'Formalization and contributions': '形式化与贡献',
   'Open for contribution': '欢迎贡献',
   'Read the contribution': '阅读这项贡献',
-  'Related work from this paper’s repository; consult the request for its exact scope.':
-    '此任务关联本论文仓库；具体范围见任务说明。',
+  'Related formalization work': '相关形式化工作',
   'Claim a task in its shared discussion and link your proof pull request there. The request records its scope, contributors and outcome.':
     '在任务的共享讨论中认领，并附上证明的合并请求。任务中保留具体范围、贡献者和结果。',
   'Propose a further question': '提出后续问题',

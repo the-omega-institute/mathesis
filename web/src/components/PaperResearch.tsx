@@ -94,9 +94,15 @@ export function PaperResearch({
         ) : null}
         {requests.length || missingLinks.length ? (
           <>
-            <h3>{t('Formalization and contributions')}</h3>
+            <h3>
+              {t(
+                requests.some((row) => row.association === 'repository')
+                  ? 'Related formalization work'
+                  : 'Formalization and contributions',
+              )}
+            </h3>
             <ul className="paper-request-list">
-              {requests.map(({ association, request }) => (
+              {requests.map(({ request }) => (
                 <li key={request.number}>
                   <ExternalLink href={request.url}>
                     <InlineLatex source={request.title} />
@@ -118,13 +124,6 @@ export function PaperResearch({
                       </span>
                     ))}
                   </p>
-                  {association === 'repository' ? (
-                    <p className="small muted">
-                      {t(
-                        'Related work from this paper’s repository; consult the request for its exact scope.',
-                      )}
-                    </p>
-                  ) : null}
                   {request.completions.map((done) => (
                     <p key={done.url} className="small">
                       <ExternalLink href={done.url}>{t('Read the contribution')}</ExternalLink> ·{' '}

@@ -84,7 +84,7 @@ it('shows named mathematics and scoped shared contributions without inventing pa
     'href',
     '/papers/a-note/results/C2?version=2',
   );
-  expect(screen.getByText(/Related work from this paper/)).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Related formalization work' })).toBeVisible();
   expect(screen.getByRole('link', { name: 'Read the contribution' })).toHaveAttribute(
     'href',
     reading.requests[0]!.request.completions[0]!.url,
