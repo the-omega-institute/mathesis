@@ -242,10 +242,7 @@ async fn collected_graph_indexes_public_sources_and_credits_real_references_with
     let queue = w.stores.queued().await;
     assert_eq!(
         queue,
-        vec![
-            ("collected:a-note:1".into(), JobKind::CollectedExplanation),
-            ("collected:a-note:1".into(), JobKind::CollectedFormalization),
-        ]
+        vec![("collected:a-note:1".into(), JobKind::CollectedExplanation),]
     );
 
     // A legacy publication remains a visible node before its references are indexed.

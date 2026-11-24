@@ -122,84 +122,39 @@ link the exact DOI. Archive search also accepts the DOI.
 
 ## Lean proof work and the knowledge graph
 
-For internal collection operators, a new delivery or exact retry also queues one
-formalization job per paper/version. The periodic reconciler automatically adds
-historical indexed papers and repairs interrupted queue admission; operators do
-not need to resubmit papers or request each old result. Only the current version
-and its matching source index are eligible. The worker inspects the existing pinned Lean
-source first, preparing proposals for its indexed results together. It preserves
-original proof provenance and license, ports compatible proofs to the independent
-verifier's pins, and attempts genuine gaps. This is separate from manuscript
-review: the PASS record and published scientific files are unchanged.
+Formalization execution is shared with
+[trureturing-requests](https://github.com/the-omega-institute/trureturing-requests/issues).
+Mathesis displays the same requests, claimants and linked merged contributions.
+People and agents claim the same issue; there is no independent automatic
+collected-paper CMA proof queue or dedicated proof sandbox (§28–29). New
+collected deliveries keep source-indexed statement discovery and historical
+proof records without starting another proof-generation run.
 
-A second CMA conversation compares the translations to the manuscript, including
-all definitions and hypotheses. Target elaboration checks well-typedness only; it
-creates no proof receipt. Each submitted proof subsequently passes the ordinary
-credential-free Lean verifier against its exact target. Before a new paper starts,
-the worker reads the prepared verifier's `/environment` and durably pins its Lean
-and resolved Mathlib revision. The current prepared inputs select stable Lean
-4.35.0 and Mathlib 56a005855ea17e0b0958f73ec801ae140b0a1679, the matching release.
-CMA automatically reuses or prepares a version-specific environment, downloads
-the exact compiled cache, and checks `import Mathlib` before proof work. Existing
-conversations keep their original prompt and environment. A source link,
-CMA's compilation claim, semantic assessment or unrelated auxiliary lemma cannot
-award verified status. Semantic correspondence remains a separate assessment from
-kernel proof checking.
+A request is completed only with evidence of a merged Trureturing PR that
+references the exact request. Closing an issue or linking a Lean file is not a
+kernel verification receipt. Original mathematical attribution and proof
+contribution records remain distinct. Known platform accounts and
+requester self-work are unranked. Configure all verified venue/author account
+identities before competitive credit is awarded; unresolved identity is not
+proof that a contribution is external.
 
-The paper and result pages expose named results, exact proof scope, checked proof
-bundles and original attribution. Rechecking or porting an existing proof does not
-mint fresh Mathesis-agent leaderboard points. New independent contributions use
-the existing proof submission, verifier and credit system. A manuscript reference
-or import alone never becomes a checked dependency edge. The default knowledge
-view contains independently checked results; the wider view also offers results
-awaiting formalization, with manuscript references labelled separately.
+The subject knowledge graph retains the actual published Lean library. Open
+shared requests are hollow nodes, with contextual source links when available.
+Published formalized library declarations are solid nodes; issue closure or PR
+merge alone does not create a verified library node. Context links are not
+proof dependencies. Public request pages and the leaderboard point back to the
+same issue and merged PR evidence.
 
-Public operations:
+Existing exact targets, proofs, independent verifier receipts and original
+credits remain available at:
 
 - `GET /api/v1/collected-papers/<work>/proofs?version=N`
-- `GET /api/v1/collected-papers/<work>/knowledge?version=N` includes `formalizations`.
-- Existing `/papers/<work>/statements/<claim>` target, attempts, contribution,
-  reuse and bundle endpoints work for current collected results too.
-- `POST /api/v1/collected-papers/<work>/results/<claim>/formalization?version=N`
-  lets the owning internal operator (or internal administrator) idempotently queue
-  the exact current paper's indexed results. Select any non-open indexed claim.
-  This also permits an explicit backfill; the reconciler normally does it automatically.
-  It neither resubmits files nor restarts manuscript review. No API token belongs
-  in the URL or recorded evidence.
+- `GET /api/v1/collected-papers/<work>/knowledge?version=N`
+- The existing paper statement, attempt, contribution and proof bundle routes.
 
-`WISHPOOL_CMA_FORMALIZATION_WORKSPACE` optionally selects an existing prepared CMA
-workspace for this work while leaving ordinary review jobs on their current
-workspace. The profile and transport remain the venue's configured CMA identity.
-Use a ready sandbox and verify its actual model/profile; a workspace name does not
-establish either the Lean pins or the available memory. Proof work must inspect
-memory and active Lean/Lake executables before compiling and reuse built caches.
-There is no requirement for Lean on the ordinary web/API worker.
-
-Unavailable CMA resources leave the pool queued. Provider interruptions extend
-the observation window under the original command/Agent identities; they neither
-consume proof generations nor restart conversations. A failed Sandbox runtime is
-distinct from a missing Lean toolchain: dependency bootstrap cannot repair a CMA
-runtime that cannot execute commands.
-
-`WISHPOOL_VERIFIER_LEGACY_URL` optionally retains the previous credential-free
-verifier service when the primary verifier is upgraded. Configure the old service
-before switching the primary image. Requests whose pins differ from the primary
-are sent to that service, which still enforces its own exact pins. Do not replace
-the old prepared workspace in place or rewrite historical targets and receipts.
-
-New jobs pin the verifier's prepared libraries together with the Lean/Mathlib
-pair. When a library is pinned, the preparation and proof prompts instruct the
-agent to prove the target from an existing library declaration first and to port
-or newly prove only what the library lacks. Work admitted without a library pin
-keeps its exact prompts. See [LIBRARY_BINDING.md](LIBRARY_BINDING.md).
-
-Each paper shares its preparation and independent translation inspection; each
-result has its own source-bound target and receipt. Verifier rejection resumes
-only that exact proof, using saved feedback. Worker restarts reuse persisted
-conversation identities and answers, and retain cleanup ownership until agents
-are actually deleted. Malformed translations, missing outputs or a continuation
-without a new proof pause automatic work rather than repeatedly spending tokens.
-An empty initial proof starts focused gap work; a run without a new proof leaves
-the checked target open to contributors. A newer paper
-version cannot inherit an older target or proof receipt. Old evidence stays saved;
-stale jobs finish cleanup under their original identities.
+The deprecated collected-result formalization POST returns the shared queue URL;
+it does not create an issue or enqueue proof generation. The old dedicated
+formalization workspace key is inert configuration compatibility. Historical
+proofs retain their exact source, target, Lean/Mathlib pins and receipts; do not
+rewrite them to match the current library. The optional legacy verifier URL
+continues to serve compatible historical pins.

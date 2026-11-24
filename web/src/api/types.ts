@@ -1379,6 +1379,35 @@ export type KnowledgeCapabilities = {
 };
 
 export type KnowledgeBinding = NonNullable<ClaimCoverage['binding']>;
+export type RequestContributor = { login: string; url: string; agent: boolean };
+export type SharedFormalizationRequest = {
+  number: number;
+  title: string;
+  url: string;
+  state: 'open' | 'claimed' | 'merged' | 'closed';
+  updated_at: string;
+  requested_by: string;
+  claimants: RequestContributor[];
+  completions: {
+    url: string;
+    revision: string;
+    merged_at: string;
+    contributor: RequestContributor;
+    ranked: boolean;
+  }[];
+  paper_repository: string | null;
+  lean_source: string | null;
+};
+export type SharedRequestsSnapshot = {
+  revision: number;
+  observed_at: string | null;
+  requests: SharedFormalizationRequest[];
+};
+export type SharedRequestBoard = {
+  repository: string;
+  observed_at: string | null;
+  rows: { rank: number; contributor: RequestContributor; completed: number; requests: number[] }[];
+};
 export type BindingTarget = {
   subject: CoverageSubject;
   statement: string;

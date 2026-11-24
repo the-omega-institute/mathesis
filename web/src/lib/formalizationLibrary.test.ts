@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CollectedPaper, CollectedKnowledge } from '../api/types';
+import type { CollectedPaper, CollectedKnowledge, SharedFormalizationRequest } from '../api/types';
 import type { SharedLibrary } from './sharedLibrary';
 import {
   formalizationLibrary,
@@ -171,5 +171,32 @@ describe('Mathesis formalization presentation', () => {
       },
     } as CollectedPaper;
     expect(formalizationLibrary(library, [withLinks]).nodes).toHaveLength(2);
+  });
+  it('projects only live shared requests as hollow nodes with contextual source links', () => {
+    const request = {
+      number: 575,
+      title: 'A sharper bound',
+      state: 'claimed',
+      url: 'https://github.com/the-omega-institute/trureturing-requests/issues/575',
+      lean_source: library.nodes[0]!.source,
+    } as SharedFormalizationRequest;
+    const graph = formalizationLibrary(
+      library,
+      [],
+      [],
+      [],
+      [
+        request,
+        { ...request, number: 576, state: 'closed' },
+        { ...request, number: 577, state: 'merged' },
+      ],
+    );
+    const node = graph.nodes.find((node) => node.id === 'request:575')!;
+    expect(node.formalized).toBe(false);
+    expect(node.subjects).toEqual(['81']);
+    expect(graph.nodes).toHaveLength(3);
+    expect(graph.edges.at(-1)).toEqual({ from: 'Quantum/Base', to: node.id, context: true });
+    expect(subjectFormalizationLibrary(graph, '81').nodes).toContain(node);
+    expect(subjectFormalizationLibrary(graph, '11').nodes).not.toContain(node);
   });
 });

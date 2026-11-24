@@ -3161,7 +3161,7 @@
           {
             "name": "focus",
             "in": "query",
-            "description": "Node identity returned by the API. paper:WP-\u2026 returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
+            "description": "Node identity returned by the API. paper:WP-… returns a forward neighborhood; DOI/arXiv/reference identities find citing manuscripts in the scanned page.",
             "required": false,
             "schema": {
               "type": "string"
@@ -3189,7 +3189,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Matching public accepted source records per page, clamped to 1\u201320 (default 10). Matching and live visibility precede pagination.",
+            "description": "Matching public accepted source records per page, clamped to 1–20 (default 10). Matching and live visibility precede pagination.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -3887,7 +3887,7 @@
         ],
         "responses": {
           "200": {
-            "description": "LeaderboardRow[]; others counts other researchers\u2019 results and total includes own results"
+            "description": "LeaderboardRow[]; others counts other researchers’ results and total includes own results"
           },
           "422": {
             "description": "Invalid filter"
@@ -4166,7 +4166,7 @@
     "/api/v1/collected-papers/{work}/results/{claim}/formalization": {
       "post": {
         "operationId": "request_collected_formalization",
-        "summary": "Request venue-funded Lean proof work for an internal collection. Reuses source inspection across this paper\u2019s results; never re-runs manuscript review.",
+        "summary": "Index the exact current collected result and return the canonical shared request queue. Does not enqueue proof generation.",
         "security": [
           {
             "nyxid": []
@@ -4200,9 +4200,6 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Idempotently queued against the exact current source."
-          },
           "403": {
             "description": "Owning internal operator or internal administrator required."
           },
@@ -4211,8 +4208,31 @@
           },
           "422": {
             "description": "An indexed non-open result is required."
+          },
+          "200": {
+            "description": "Shared queue URL; no independent proof job was queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "url"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "shared_request_queue"
+                    },
+                    "url": {
+                      "const": "https://github.com/the-omega-institute/trureturing-requests/issues"
+                    }
+                  }
+                }
+              }
+            }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/api/v1/papers/{record}/source": {
@@ -4519,6 +4539,106 @@
           },
           "503": {
             "description": "Observations unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/formalization-requests": {
+      "get": {
+        "operationId": "shared_formalization_requests",
+        "summary": "Read canonical Trureturing requests, claims and linked merged contributions. No local proof work is admitted.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Last complete canonical request projection; a failed refresh preserves this snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedRequestsSnapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/formalization-requests/leaderboard": {
+      "get": {
+        "operationId": "shared_request_leaderboard",
+        "summary": "Rank eligible merged contributions once per request and contributor; a claim or issue closure alone earns no credit.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "month"
+              ],
+              "default": "all"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Last complete canonical request projection; a failed refresh preserves this snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedRequestBoard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid period"
+          }
+        }
+      }
+    },
+    "/api/v1/staff/formalization-requests/snapshot": {
+      "put": {
+        "operationId": "import_shared_requests",
+        "summary": "Seed an operator-fetched public snapshot with atomic revision fencing. Administrator only.",
+        "security": [
+          {
+            "nyxid": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedRequestsSnapshot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Last complete canonical request projection; a failed refresh preserves this snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedRequestsSnapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Administrator required"
+          },
+          "409": {
+            "description": "Snapshot revision changed; refetch before replacing"
+          },
+          "422": {
+            "description": "Invalid canonical evidence, links or state"
           }
         }
       }
@@ -10630,6 +10750,201 @@
           "pdf",
           "source"
         ]
+      },
+      "RequestContributor": {
+        "type": "object",
+        "required": [
+          "login",
+          "url",
+          "agent"
+        ],
+        "properties": {
+          "login": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "agent": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RequestCompletion": {
+        "type": "object",
+        "required": [
+          "url",
+          "revision",
+          "merged_at",
+          "contributor",
+          "ranked"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{40}$"
+          },
+          "merged_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "contributor": {
+            "$ref": "#/components/schemas/RequestContributor"
+          },
+          "ranked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SharedFormalizationRequest": {
+        "type": "object",
+        "required": [
+          "number",
+          "title",
+          "url",
+          "state",
+          "updated_at",
+          "requested_by",
+          "claimants",
+          "completions",
+          "paper_repository",
+          "lean_source"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "claimed",
+              "merged",
+              "closed"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requested_by": {
+            "type": "string"
+          },
+          "claimants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequestContributor"
+            }
+          },
+          "completions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequestCompletion"
+            }
+          },
+          "paper_repository": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lean_source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SharedRequestsSnapshot": {
+        "type": "object",
+        "required": [
+          "revision",
+          "observed_at",
+          "requests"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "requests": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/components/schemas/SharedFormalizationRequest"
+            }
+          }
+        }
+      },
+      "SharedRequestBoard": {
+        "type": "object",
+        "required": [
+          "repository",
+          "observed_at",
+          "rows"
+        ],
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "rank",
+                "contributor",
+                "completed",
+                "requests"
+              ],
+              "properties": {
+                "rank": {
+                  "type": "integer"
+                },
+                "contributor": {
+                  "$ref": "#/components/schemas/RequestContributor"
+                },
+                "completed": {
+                  "type": "integer"
+                },
+                "requests": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

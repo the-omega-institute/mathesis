@@ -11,7 +11,6 @@
 mod agent_store;
 mod bindings;
 mod collected_explanations;
-mod collected_proofs;
 mod error_reports;
 mod explanations;
 mod feedback;
@@ -25,6 +24,7 @@ mod methodology_tests;
 mod open_problems;
 mod referee;
 mod research;
+pub(crate) mod shared_requests;
 mod sources;
 mod worker;
 

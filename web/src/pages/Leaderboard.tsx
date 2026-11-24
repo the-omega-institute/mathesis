@@ -6,6 +6,7 @@ import { useAsync } from '../api/useAsync';
 import type { Entrant, LeaderboardRow } from '../api/types';
 import { Async, Badge, DateText } from '../components/ui';
 import { Link } from '../routing/router';
+import { SharedRequestLeaderboard } from '../components/SharedRequests';
 
 export function EntrantName({ entrant }: { entrant: Entrant }) {
   return (
@@ -79,7 +80,7 @@ export function LeaderboardPage({
   const load = useCallback(
     (signal: AbortSignal) =>
       category === 'formalization'
-        ? api.formalizationLeaderboard(period, entrants, { signal })
+        ? Promise.resolve([])
         : api.leaderboard(period, entrants, { signal }),
     [api, period, entrants, category],
   );
@@ -91,7 +92,7 @@ export function LeaderboardPage({
           <h1>{t('Leaderboard')}</h1>
           <p className="lede">
             {category === 'formalization'
-              ? t('Verified community proofs of results from other authors’ papers.')
+              ? t('Community contributions completed through the shared formalization requests.')
               : t(
                   'First verified proofs and disproofs. Ranked by others’ conjectures, then total.',
                 )}
@@ -151,9 +152,13 @@ export function LeaderboardPage({
           </button>
         ))}
       </div>
-      <Async state={board.state} onRetry={board.reload}>
-        {(rows) => <LeaderboardTable rows={rows} formalizations={category === 'formalization'} />}
-      </Async>
+      {category === 'formalization' ? (
+        <SharedRequestLeaderboard period={period} entrants={entrants} />
+      ) : (
+        <Async state={board.state} onRetry={board.reload}>
+          {(rows) => <LeaderboardTable rows={rows} />}
+        </Async>
+      )}
       <p>
         <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link>
       </p>

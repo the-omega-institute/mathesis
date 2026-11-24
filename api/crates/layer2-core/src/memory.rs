@@ -66,6 +66,7 @@ pub fn display_name(identity: &VerifiedIdentity) -> String {
 #[derive(Default)]
 pub struct MemoryStores {
     materials: Mutex<MaterialsSidecar>,
+    shared_requests: Mutex<SharedRequestsSnapshot>,
     binding_admissions: Mutex<BTreeMap<PersonId, Vec<crate::model::BindingAdmission>>>,
     collected: Mutex<BTreeMap<String, CollectedVersion>>,
     collected_problems: Mutex<BTreeMap<String, CollectedProblemVersion>>,
@@ -1100,6 +1101,24 @@ impl CollectedProblemStore for MemoryStores {
 
 #[async_trait]
 impl MaterialsStore for MemoryStores {
+    async fn load_shared_requests(&self) -> CoreResult<SharedRequestsSnapshot> {
+        Ok(self.shared_requests.lock().await.clone())
+    }
+    async fn replace_shared_requests(
+        &self,
+        snapshot: &SharedRequestsSnapshot,
+        expected: u64,
+    ) -> CoreResult<()> {
+        let mut saved = self.shared_requests.lock().await;
+        if snapshot.revision != expected + 1 || saved.revision != expected {
+            return Err(CoreError::StaleRevision {
+                kind: "shared formalization requests",
+                id: "index".into(),
+            });
+        }
+        *saved = snapshot.clone();
+        Ok(())
+    }
     async fn load_materials(&self) -> CoreResult<MaterialsSidecar> {
         Ok(self.materials.lock().await.clone())
     }

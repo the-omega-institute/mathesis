@@ -1364,3 +1364,34 @@ remove old links); failed transport or invalid envelopes preserve it. Materials
 are explanations and illustrations, never independent verification or credit.
 See [PAPER_REPOSITORIES.md](PAPER_REPOSITORIES.md) and
 [§33](contract/33-paper-materials.md) for bounds and publication semantics.
+
+
+### Shared formalization requests
+
+`GET /api/v1/formalization-requests` returns the last complete snapshot with
+`revision`, `observed_at` and `requests`. Each request has its canonical issue
+URL, state (`open`, `claimed`, `merged`, `closed`), claimants and linked merged
+PRs. A completion includes its merge commit, time, contributor and ranking
+eligibility. An unseeded snapshot has a null observation time. The worker keeps
+the last snapshot on refresh failures.
+
+`GET /api/v1/formalization-requests/leaderboard?period=all|month` returns
+`repository`, `observed_at` and `rows` with rank, contributor, completed count
+and request numbers. Counting requires linked merged contributions; claiming
+or closing an issue earns no points. Known platform accounts and self-work is
+unranked. These records are not Mathesis verifier receipts.
+
+`PUT /api/v1/staff/formalization-requests/snapshot` is administrator-only and
+accepts a complete snapshot with revision exactly one greater than the current
+revision. Conflicting imports return 409; invalid source URLs, contributor links
+or evidence states return 422. Bootstrap with the read-only Rust command
+`mathesis --requests-snapshot PREVIOUS.json UNRANKED_LOGINS`; optionally supply
+`MATHESIS_PUBLIC_GITHUB_TOKEN` in the process environment. Never commit tokens.
+The worker optionally reads a mounted `WISHPOOL_REQUESTS_GITHUB_TOKEN_FILE`.
+The runtime uses read-only fixed GitHub endpoints and refreshes hourly.
+
+The legacy collected-result formalization POST now returns 200 with
+`{"status":"shared_request_queue","url":"https://github.com/the-omega-institute/trureturing-requests/issues"}`.
+It indexes the source-bound result for compatibility, but does not enqueue a
+proof task or create a request. Formalization execution and claims use the
+canonical queue; historical proof and receipt routes remain readable.

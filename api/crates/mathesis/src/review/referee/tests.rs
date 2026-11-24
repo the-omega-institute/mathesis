@@ -36,9 +36,6 @@ use crate::{
 #[path = "proof_lifecycle_tests.rs"]
 mod proof_lifecycle;
 
-#[path = "collected_proof_tests.rs"]
-mod collected_proofs;
-
 const SOURCE: &str = r"\documentclass{article}
 \newtheorem{theorem}{Theorem}
 \newtheorem{conjecture}{Conjecture}

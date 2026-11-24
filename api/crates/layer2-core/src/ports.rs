@@ -402,6 +402,12 @@ pub trait GrantStore: Send + Sync {
 /// Everything Layer 2 needs, bundled for composition.
 #[async_trait]
 pub trait MaterialsStore: Send + Sync {
+    async fn load_shared_requests(&self) -> CoreResult<crate::model::SharedRequestsSnapshot>;
+    async fn replace_shared_requests(
+        &self,
+        snapshot: &crate::model::SharedRequestsSnapshot,
+        expected: u64,
+    ) -> CoreResult<()>;
     async fn load_materials(&self) -> CoreResult<crate::model::MaterialsSidecar>;
     async fn replace_materials(
         &self,

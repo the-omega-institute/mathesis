@@ -2525,3 +2525,79 @@ async fn processing_observations_require_admin_before_storage_is_read() {
         StatusCode::FORBIDDEN
     );
 }
+
+#[tokio::test]
+async fn shared_request_snapshot_requires_admin_and_conflicting_retries_do_not_replace_it() {
+    let stores = Arc::new(MemoryStores::default());
+    let app = App::new(
+        stores.ports(Arc::new(SystemClock), Arc::new(OneTheorem)),
+        Policy::default(),
+        BTreeSet::from(["admin".into()]),
+    );
+    let router =
+        crate::router(app.clone()).layer(middleware::from_fn_with_state(app.clone(), test_auth));
+    let snapshot =
+        serde_json::json!({"revision":1,"observed_at":"2026-11-24T00:00:00Z","requests":[]});
+    let path = "/staff/formalization-requests/snapshot";
+    assert_eq!(
+        call(&router, "PUT", path, None, Some(snapshot.clone()))
+            .await
+            .0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        call(
+            &router,
+            "PUT",
+            path,
+            Some("visitor"),
+            Some(snapshot.clone())
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        call(&router, "PUT", path, Some("admin"), Some(snapshot.clone()))
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        call(&router, "PUT", path, Some("admin"), Some(snapshot.clone()))
+            .await
+            .0,
+        StatusCode::CONFLICT
+    );
+    let (status, saved, _) = call(&router, "GET", "/formalization-requests", None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(saved, snapshot);
+    let (status, board, _) = call(
+        &router,
+        "GET",
+        "/formalization-requests/leaderboard?period=month",
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(board["rows"], serde_json::json!([]));
+    assert_eq!(
+        call(
+            &router,
+            "GET",
+            "/formalization-requests/leaderboard?period=nonsense",
+            None,
+            None
+        )
+        .await
+        .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert!(
+        app.formalization_leaderboard("all", "all")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}

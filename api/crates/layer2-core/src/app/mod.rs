@@ -16,6 +16,7 @@ mod lean_statements;
 mod manuscripts;
 mod materials;
 mod problem_library;
+mod shared_requests;
 pub use problem_library::*;
 mod papers;
 mod preparation;

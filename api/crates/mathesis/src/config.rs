@@ -133,6 +133,10 @@ pub struct Config {
     pub archive_index_url: Option<String>,
     /// Optional public catalog of exact-version reading and media links.
     pub materials_index_url: Option<String>,
+    /// Optional file containing a token used only for public canonical GitHub reads.
+    pub requests_github_token_file: Option<String>,
+    pub requests_unranked_logins: std::collections::BTreeSet<String>,
+    pub requests_ranked_logins: std::collections::BTreeSet<String>,
     pub review_concurrency: usize,
     pub collection_concurrency: usize,
     pub cma_collection_workspace: Option<String>,
@@ -666,6 +670,19 @@ impl Config {
             knowledge_index,
             archive_index_url,
             materials_index_url,
+            requests_github_token_file: get("WISHPOOL_REQUESTS_GITHUB_TOKEN_FILE"),
+            requests_unranked_logins: get("WISHPOOL_REQUESTS_UNRANKED_LOGINS")
+                .unwrap_or_default()
+                .split(',')
+                .map(|s| s.trim().to_lowercase())
+                .filter(|s| !s.is_empty())
+                .collect(),
+            requests_ranked_logins: get("WISHPOOL_REQUESTS_RANKED_LOGINS")
+                .unwrap_or_default()
+                .split(',')
+                .map(|s| s.trim().to_lowercase())
+                .filter(|s| !s.is_empty())
+                .collect(),
             cma_byok,
             verifier_program: get("WISHPOOL_VERIFIER_PROGRAM")
                 .unwrap_or_else(|| "mathesis-verifier".into()),

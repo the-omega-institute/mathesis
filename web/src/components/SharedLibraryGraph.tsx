@@ -14,17 +14,23 @@ import { t, useLocale } from '../i18n/locale';
 import { loadSharedLibrary } from '../lib/sharedLibrary';
 import { Async, ExternalLink } from './ui';
 import { LatexText } from './Markdown';
+import { useApi } from '../api/context';
 
 /** The mathematical library is available before and without any paper records. */
 export function SharedLibraryGraph({ focus, msc }: { focus?: string; msc?: string }) {
+  const api = useApi();
   const { navigate } = useRouter();
-  const library = useAsync(
-    useCallback(async (signal: AbortSignal) => {
-      const source = await loadSharedLibrary(signal);
-      return formalizationLibrary(source, []);
-    }, []),
+  const requests = useAsync(
+    useCallback((signal: AbortSignal) => api.sharedFormalizationRequests({ signal }), [api]),
   );
-  const data = library.value;
+  const library = useAsync(useCallback((signal: AbortSignal) => loadSharedLibrary(signal), []));
+  const data = useMemo(
+    () =>
+      library.value
+        ? formalizationLibrary(library.value, [], [], [], requests.value?.requests ?? [])
+        : undefined,
+    [library.value, requests.value],
+  );
   const target = data?.nodes.find((node) => node.id === focus);
   const available = new Set(data?.nodes.flatMap((node) => node.subjects) ?? []);
   const subject =
@@ -40,8 +46,8 @@ export function SharedLibraryGraph({ focus, msc }: { focus?: string; msc?: strin
   }, [msc, focus, target, subject, navigate]);
   return (
     <Async state={library.state} onRetry={library.reload}>
-      {(data) =>
-        subject ? (
+      {() =>
+        subject && data ? (
           <LibraryExplorer
             key={subject}
             data={data}
@@ -423,7 +429,9 @@ function LibraryExplorer({
               ) : null}
               {node.abstract ? <LatexText source={node.abstract} /> : null}
               <p>
-                <ExternalLink href={node.source}>{t('Lean source')}</ExternalLink>
+                <ExternalLink href={node.source}>
+                  {t(node.request ? 'Open request' : 'Lean source')}
+                </ExternalLink>
               </p>
               {(['before', 'after'] as const).map((direction) => {
                 const items = neighbors(direction);

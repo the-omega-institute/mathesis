@@ -70,6 +70,20 @@ impl MongoStore {
     }
 
     async fn ensure_indexes(&self) -> anyhow::Result<()> {
+        // Retain obsolete proof job identities and observations, but stop this
+        // duplicate execution queue. Live leases are left to their holder/expiry.
+        let now = mongodb::bson::DateTime::now();
+        self.raw(REVIEW_JOBS)
+            .update_many(
+                doc! {"kind":"collected_formalization", "$or":[
+                    {"state":{"$in":["queued","failed"]}},
+                    {"state":"leased","lease_until":{"$lte":now}}
+                ]},
+                doc! {"$set":{"state":"superseded","finished_at":now,
+                "superseded_by":"https://github.com/the-omega-institute/trureturing-requests"},
+                "$unset":{"lease":"","lease_until":""}},
+            )
+            .await?;
         let unique = |keys: Document| {
             IndexModel::builder()
                 .keys(keys)
