@@ -84,6 +84,7 @@ pub(super) fn routes() -> Router<Arc<App>> {
         .route("/research-problems/{id}", get(research_problem))
         .route("/sitemap.xml", get(sitemap))
         .route("/papers/{id}", get(paper))
+        .route("/papers/{id}/research", get(paper_research))
         .route("/papers/{id}/landing.html", get(paper_landing))
         .route("/papers/{id}/pdf", get(paper_pdf))
         .route("/papers/{id}/source", get(paper_source))
@@ -952,4 +953,17 @@ async fn request_explanation(
         app.request_paper_explanation(&caller, &SubmissionId(id))
             .await?,
     ))
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResearchVersion {
+    version: Option<u32>,
+}
+async fn paper_research(
+    State(app): AppState,
+    Path(id): Path<String>,
+    Query(q): Query<ResearchVersion>,
+) -> ApiResult<impl IntoResponse> {
+    Ok(Json(app.paper_research(&id, q.version).await?))
 }

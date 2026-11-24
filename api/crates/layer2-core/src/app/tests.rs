@@ -9,6 +9,7 @@ mod knowledge;
 mod library_binding;
 mod manuscripts;
 mod materials;
+mod paper_research;
 mod preparation;
 mod problem_library;
 mod removal;
@@ -2953,6 +2954,29 @@ async fn public_projection_serialization_excludes_all_private_reviews_and_ration
     assert_eq!(payload.summary.new_results, 1);
     assert_eq!(payload.new_content.len(), 1);
     assert_eq!(payload.new_content[0].lemmas, ["The gap estimate"]);
+    let reading = w
+        .app
+        .paper_research(record.as_str(), Some(1))
+        .await
+        .unwrap();
+    assert_eq!(reading.results.len(), 2);
+    assert!(reading.questions.is_empty());
+    assert!(
+        reading
+            .results
+            .iter()
+            .all(|result| result.state == "published")
+    );
+    let reading_json = serde_json::to_string(&reading).unwrap();
+    for forbidden in ["PRIVATE_", "audit", "referee", "advice"] {
+        assert!(!reading_json.contains(forbidden));
+    }
+    assert!(
+        w.app
+            .paper_research(record.as_str(), Some(2))
+            .await
+            .is_err()
+    );
     let text = serde_json::to_string(&payload).unwrap();
     for forbidden in [
         "correctness",
@@ -2974,6 +2998,7 @@ async fn public_projection_serialization_excludes_all_private_reviews_and_ration
         .set_analysis_visibility(&author, &paper.id, Visibility::Private)
         .await
         .unwrap();
+    assert!(w.app.paper_research(record.as_str(), None).await.is_err());
     let private = serde_json::to_value(w.app.paper(record).await.unwrap()).unwrap();
     assert_eq!(
         private.as_object().unwrap().keys().collect::<Vec<_>>(),

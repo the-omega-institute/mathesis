@@ -28,11 +28,13 @@ import type { PaperSummary, PublicPaper } from '../api/types';
 import { AuthorLine } from '../components/AuthorLine';
 import { Citation } from '../components/Citation';
 import { PaperMetadata } from '../components/PaperMetadata';
+import { PaperResearch } from '../components/PaperResearch';
+import { routePath } from '../routing/routes';
 import { PaperResults } from '../components/PaperResults';
 import { LatexText, MacrosProvider } from '../components/Markdown';
 import { Pager } from '../components/Pager';
 import { Async, DateText, ExternalLink, MscList } from '../components/ui';
-import { SUBMISSION_KIND_LABELS } from '../lib/labels';
+import { isOpenKind, SUBMISSION_KIND_LABELS } from '../lib/labels';
 import { safeHttpUrl, sourceHref } from '../lib/links';
 import { Link, useRouter } from '../routing/router';
 
@@ -399,8 +401,11 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
           </p>
         ) : null}
         <nav className="paper-sections" aria-label={t('On this page')}>
+          {claims.length ? <a href="#further-work-h">{t('Continue this research')}</a> : null}
           <PaperMaterialLinks materials={paper.materials} text={paper.plain_language} />
-          {claims.length ? <a href="#results-h">{t('Results')}</a> : null}
+          {claims.some((claim) => !isOpenKind(claim.kind)) ? (
+            <a href="#results-h">{t('Results')}</a>
+          ) : null}
           {paper.publication ? <a href="#references-h">{t('References and connections')}</a> : null}
           <a
             href="#citation"
@@ -417,12 +422,22 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
                 <LatexText source={s.abstract_text} className="abstract" />
               </section>
             ) : null}
-            <PaperMaterials materials={paper.materials} text={paper.plain_language} />
+            <ProblemLinks links={paper.problems ?? []} />
             {claims.length ? (
-              <PaperResults paper={paper} />
+              <PaperResearch
+                macros={paper.macros}
+                work={s.record}
+                version={paper.publication?.version ?? latest?.number ?? 1}
+                origin={
+                  new URL(routePath(paperRoute(s.record, archiveDoi)), window.location.origin).href
+                }
+                materials={paper.materials}
+                fallback={<PaperResults paper={paper} />}
+              />
             ) : (
               <p className="muted">{t('The author keeps the mathematical details private.')}</p>
             )}
+            <PaperMaterials materials={paper.materials} text={paper.plain_language} />
             {claims.length ? (
               <details className="history">
                 <summary>{t('Corrections')}</summary>
@@ -431,7 +446,6 @@ export function PaperView({ paper }: { paper: PublicPaper }) {
               </details>
             ) : null}
             <Bibliography paper={paper} />
-            <ProblemLinks links={paper.problems ?? []} />
             {paper.origin ? <ManuscriptSources origin={paper.origin} /> : null}
           </div>
           <aside className="paper-sidebar" aria-label={t('Publication details')}>

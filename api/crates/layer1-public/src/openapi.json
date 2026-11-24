@@ -4642,6 +4642,49 @@
           }
         }
       }
+    },
+    "/api/v1/papers/{record}/research": {
+      "get": {
+        "operationId": "paper_research",
+        "summary": "Read public mathematical results, source questions and shared follow-up work of one exact published version.",
+        "description": "Private referee advice is excluded. Exact published material links and repository associations locate shared requests; a repository or merged PR never certifies a statement-level Lean proof.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "record",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4294967295
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public reading of the requested version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaperResearch"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such public version or mathematical details are private"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10945,6 +10988,139 @@
             }
           }
         }
+      },
+      "ResearchResult": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "main",
+              "supporting",
+              null
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "section": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "published",
+              "verified",
+              "disproved"
+            ]
+          }
+        },
+        "required": [
+          "claim",
+          "kind",
+          "role",
+          "name",
+          "statement",
+          "section",
+          "state"
+        ]
+      },
+      "PaperResearch": {
+        "type": "object",
+        "properties": {
+          "work": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchProblemLink"
+            }
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchResult"
+            }
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchResult"
+            }
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "association": {
+                  "type": "string",
+                  "enum": [
+                    "paper_link",
+                    "repository"
+                  ]
+                },
+                "request": {
+                  "$ref": "#/components/schemas/SharedFormalizationRequest"
+                }
+              },
+              "required": [
+                "association",
+                "request"
+              ]
+            }
+          },
+          "lean_source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "macros": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "requests_observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "work",
+          "version",
+          "problems",
+          "results",
+          "questions",
+          "requests",
+          "lean_source",
+          "macros",
+          "requests_observed_at"
+        ]
       }
     }
   }

@@ -14,11 +14,7 @@ function languageName(language: string): string {
 type PaperReadingProps = { materials?: Materials; text?: PlainLanguageText };
 
 function hasSupplementaryMaterials(materials?: Materials): materials is Materials {
-  return Boolean(
-    materials?.slides.length ||
-    materials?.videos?.length ||
-    materials?.formalization_requests?.length,
-  );
+  return Boolean(materials?.slides.length || materials?.videos?.length);
 }
 
 export function PaperMaterialLinks({ materials, text }: PaperReadingProps) {
@@ -146,23 +142,6 @@ function SupplementaryMaterials({ materials }: { materials: Materials }) {
               </figcaption>
             </figure>
           ))}
-        </>
-      ) : null}
-      {materials.formalization_requests?.length ? (
-        <>
-          <h3>{t('Formalization requests')}</h3>
-          <p>
-            {t(
-              'Join the shared proof work on GitHub. Each request describes the result and its current progress.',
-            )}
-          </p>
-          <ul>
-            {materials.formalization_requests.map((request) => (
-              <li key={request.url}>
-                <ExternalLink href={request.url}>{request.label}</ExternalLink>
-              </li>
-            ))}
-          </ul>
         </>
       ) : null}
     </section>

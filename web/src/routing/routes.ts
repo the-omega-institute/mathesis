@@ -40,6 +40,7 @@ export type Route =
   | {
       kind: 'submit';
       intake?: 'lean' | 'review' | 'conjecture';
+      origin?: string;
       record?: string;
       claim?: string;
       version?: string;
@@ -163,6 +164,7 @@ export function parseRoute(pathname: string, search = ''): Route {
         const params = new URLSearchParams(search);
         return {
           kind: 'submit',
+          ...(params.get('origin') ? { origin: params.get('origin')!.slice(0, 2000) } : {}),
           ...(params.get('type') === 'lean'
             ? { intake: 'lean' as const }
             : params.get('type') === 'review'
@@ -331,6 +333,7 @@ export function routePath(route: Route): string {
     case 'submit': {
       const params = new URLSearchParams();
       if (route.intake) params.set('type', route.intake);
+      if (route.origin) params.set('origin', route.origin);
       if (route.record && route.claim) {
         params.set('record', route.record);
         params.set('claim', route.claim);

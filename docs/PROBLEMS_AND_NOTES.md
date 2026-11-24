@@ -183,3 +183,8 @@ actual prerequisites when assessing the underlying argument. Unknown provenance
 or prior status remains insufficient evidence. No source is automatically accepted,
 removed from query receipts or awarded a Mathesis verification badge. Existing
 rounds retain their admitted inputs; this context applies to new review rounds.
+
+
+The paper reading endpoint `GET /api/v1/papers/{record}/research?version=N` unifies accepted and collected public versions. It projects source statements as results or open questions, links stable original problem identities, and joins the canonical shared request snapshot by explicit published-material URL or exact repository. Repository associations are contextual; they do not certify a statement/version proof correspondence. Historical collected versions do not inherit current material associations. Statement verification requires the existing checked artifact/receipt, including the exact target digest for collected results. Private review suggestions are not inputs to this endpoint.
+
+Readers encounter abstract, original questions, named results and further work before supplementary stories, slides or video. Participation links can prefill an editable original-paper source on a new conjecture; this supplies context without inventing a resolution or dependency edge. Shared work remains in `trureturing-requests` rather than a second local formalization executor.

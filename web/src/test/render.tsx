@@ -152,6 +152,7 @@ export function fakeApi(overrides: Partial<ApiClient> = {}, person?: Person): Ap
     listPapers: vi.fn(empty),
     researchGraph: vi.fn(notFound),
     getPaper: vi.fn(notFound),
+    paperResearch: vi.fn(notFound),
     listCollectedPapers: vi.fn(empty),
     getCollectedPaper: vi.fn(notFound),
     collectedKnowledge: vi.fn(notFound),

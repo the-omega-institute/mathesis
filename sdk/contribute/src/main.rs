@@ -62,6 +62,20 @@ fn main() -> ExitCode {
         .collect::<Vec<_>>()
         .as_slice()
     {
+        ["account"] => print(client.get("/me")),
+        ["prepare-paper", source] => print(prepare_paper(&client, source, false)),
+        ["prepare-paper", source, "--review-only"] => print(prepare_paper(&client, source, true)),
+        ["paper-research", record] => print(client.paper_research(record, None)),
+        ["paper-research", record, version] => print(
+            version
+                .parse::<u32>()
+                .map_err(|_| client::ApiError {
+                    status: 422,
+                    detail: "version must be a positive integer".into(),
+                })
+                .and_then(|v| client.paper_research(record, Some(v))),
+        ),
+        ["formalization-requests"] => print(client.get("/formalization-requests")),
         ["prepare-submission", metadata, source] => print((|| {
             let metadata = read_json(metadata).map_err(|detail| client::ApiError {
                 status: 422,
@@ -358,7 +372,7 @@ fn main() -> ExitCode {
         },
         _ => {
             eprintln!(
-                "usage: mathesis-contribute prepare-submission <preparation.json> <source> | submission <id> | submit-prepared <id> <confirmation.json> | deliver-manuscript <metadata.json> <source> [--confirm claims.json] | manuscript-status <id> | find-manuscript <producer> <work-id> <publication|review_only> | confirm-manuscript <id> <confirmation.json> | formalization-opportunities [query] | formalizations | formalization-project <id> | papers [query] | paper <record> | research-problems [cursor] | research-problem <id> [cursor] | review <submission-id> | feedbacks <submission> | feedback <submission> <proposal> | preview-feedback <submission> <route.json> | prepare-feedback <submission> <proposal.json> | authorize-feedback <submission> <proposal> <authorization.json> | revoke-feedback <submission> <proposal> <reason> | export-feedback <submission> <proposal> | feedback-readback <submission> <proposal> <observation.json> | feedback-observation <submission> <proposal> <request> | knowledge-capabilities | binding-profile <person> [cursor] | bindings [cursor] | private-bindings <submission-id> | binding <submission-id> <board-id> | publish-binding <submission-id> <summary.json> | revoke-binding <submission-id> <board-id> <reason> | contribute-binding <submission-id> <board-id> <binding.json> | challenge-binding <submission-id> <board-id> <challenge.json> | research <submission-id> | adopt-research <submission-id> <obligation.json> | research-attempt <submission-id> <obligation-id> <attempt.json> | research-attempt-status <submission-id> <obligation-id> <attempt-id> | recheck-research <submission-id> <obligation-id> <attempt-id> | stop-research <submission-id> <obligation-id> <reason> | knowledge-response <submission-id> <receipt-id> | respond-review <submission-id> <response.json> | verification-bundle <record> <claim> <attempt> | proof-work <record> <claim> | control-proof-work <record> <claim> <authorization.json> | checked-propositions <record> <claim> | contribute-proposition <record> <claim> <proposition.json> | reuse-proof <record> <claim> <attempt.json> | result-uses <record> <claim> | contribution-bundle <attempt> | preflight-formalization <deposit.json> | submit-formalization <deposit.json> | formalization <id> | verify-formalization <id> <record> <claim> [Solution.lean] | conjectures | target <record> <claim> | attempt <record> <claim> <file> [--as-agent NAME] | attempt-status <id> | report <record> <report.json> | report-status <id> | tasks [kind] | show <task> | lease <task> | release <task> | submit <task> <result.json> | mcp"
+                "usage: mathesis-contribute account | prepare-paper <source> [--review-only] | paper-research <record> [version] | formalization-requests | prepare-submission <preparation.json> <source> | submission <id> | submit-prepared <id> <confirmation.json> | deliver-manuscript <metadata.json> <source> [--confirm claims.json] | manuscript-status <id> | find-manuscript <producer> <work-id> <publication|review_only> | confirm-manuscript <id> <confirmation.json> | formalization-opportunities [query] | formalizations | formalization-project <id> | papers [query] | paper <record> | research-problems [cursor] | research-problem <id> [cursor] | review <submission-id> | feedbacks <submission> | feedback <submission> <proposal> | preview-feedback <submission> <route.json> | prepare-feedback <submission> <proposal.json> | authorize-feedback <submission> <proposal> <authorization.json> | revoke-feedback <submission> <proposal> <reason> | export-feedback <submission> <proposal> | feedback-readback <submission> <proposal> <observation.json> | feedback-observation <submission> <proposal> <request> | knowledge-capabilities | binding-profile <person> [cursor] | bindings [cursor] | private-bindings <submission-id> | binding <submission-id> <board-id> | publish-binding <submission-id> <summary.json> | revoke-binding <submission-id> <board-id> <reason> | contribute-binding <submission-id> <board-id> <binding.json> | challenge-binding <submission-id> <board-id> <challenge.json> | research <submission-id> | adopt-research <submission-id> <obligation.json> | research-attempt <submission-id> <obligation-id> <attempt.json> | research-attempt-status <submission-id> <obligation-id> <attempt-id> | recheck-research <submission-id> <obligation-id> <attempt-id> | stop-research <submission-id> <obligation-id> <reason> | knowledge-response <submission-id> <receipt-id> | respond-review <submission-id> <response.json> | verification-bundle <record> <claim> <attempt> | proof-work <record> <claim> | control-proof-work <record> <claim> <authorization.json> | checked-propositions <record> <claim> | contribute-proposition <record> <claim> <proposition.json> | reuse-proof <record> <claim> <attempt.json> | result-uses <record> <claim> | contribution-bundle <attempt> | preflight-formalization <deposit.json> | submit-formalization <deposit.json> | formalization <id> | verify-formalization <id> <record> <claim> [Solution.lean] | conjectures | target <record> <claim> | attempt <record> <claim> <file> [--as-agent NAME] | attempt-status <id> | report <record> <report.json> | report-status <id> | tasks [kind] | show <task> | lease <task> | release <task> | submit <task> <result.json> | mcp"
             );
             ExitCode::from(2)
         }
@@ -430,6 +444,38 @@ fn read_json(file: &str) -> Result<serde_json::Value, String> {
     std::fs::read_to_string(file)
         .map_err(|e| e.to_string())
         .and_then(|s| serde_json::from_str(&s).map_err(|e| e.to_string()))
+}
+
+fn prepare_paper(
+    client: &Client,
+    source: &str,
+    review_only: bool,
+) -> client::ApiResult<serde_json::Value> {
+    let path = std::path::Path::new(source);
+    let length = std::fs::metadata(path)
+        .map_err(|e| client::ApiError {
+            status: 422,
+            detail: e.to_string(),
+        })?
+        .len();
+    if length == 0 || length > 30 * 1024 * 1024 {
+        return Err(client::ApiError {
+            status: 422,
+            detail: "manuscript must contain 1 byte to 30 MiB".into(),
+        });
+    }
+    let bytes = std::fs::read(path).map_err(|e| client::ApiError {
+        status: 422,
+        detail: e.to_string(),
+    })?;
+    let filename = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| client::ApiError {
+            status: 422,
+            detail: "invalid manuscript filename".into(),
+        })?;
+    client.prepare_paper(filename, &bytes, review_only)
 }
 
 #[cfg(test)]
@@ -524,7 +570,10 @@ mod tests {
                 "deliver-manuscript",
                 "manuscript-status",
                 "find-manuscript",
-                "confirm-manuscript"
+                "confirm-manuscript",
+                "account",
+                "paper-research",
+                "formalization-requests"
             ]
         );
         assert!(

@@ -180,6 +180,7 @@ function Page({ route }: { route: Route }) {
         <SubmitPage
           key={routePath(route)}
           initialIntake={route.intake}
+          initialOrigin={route.origin}
           targetRecord={route.record}
           targetClaim={route.claim}
           targetVersion={route.version}

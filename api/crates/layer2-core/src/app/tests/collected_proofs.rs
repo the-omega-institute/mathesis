@@ -569,6 +569,8 @@ async fn collected_result_reaches_shared_verifier_directory_bundle_and_credit_wi
     w.app.verify_attempt(&reviewer, &first.id).await.unwrap();
     let view = w.app.collected_proofs(work, 1).await.unwrap();
     assert_eq!(view[0].state, "verified");
+    let reading = w.app.paper_research("a-note", Some(1)).await.unwrap();
+    assert_eq!(reading.results[0].state, "verified");
     assert_eq!(view[0].proofs.len(), 1);
     assert!(directory(&w, Some("unverified")).await.is_empty());
     assert_eq!(directory(&w, Some("verified")).await.len(), 1);

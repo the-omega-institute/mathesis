@@ -1,3 +1,4 @@
+import { AgentSubmission } from '../components/AgentSubmission';
 import { t } from '../i18n/locale';
 import { SHARED_REQUESTS } from '../components/SharedRequests';
 import { GitHubLink } from '../components/GitHubLink';
@@ -32,21 +33,21 @@ import { Link } from '../routing/router';
 
 /** The MCP registration command for Claude Code, for this deployment. */
 export function mcpCommand(origin: string): string {
-  return `# Mathesis service must be connected in NyxID for ${origin}\nclaude mcp add mathesis -e WISHPOOL_NYXID_SERVICE=mathesis -- mathesis-contribute mcp`;
+  return `# Mathesis service must be connected in NyxID for ${origin}\nclaude mcp add mathesis -e MATHESIS_NYXID_SERVICE=mathesis -- mathesis-contribute mcp`;
 }
 
 export function cliCommands(origin: string): string {
   return [
-    `export WISHPOOL_URL=${origin}`,
-    'export WISHPOOL_TOKEN=<NyxID access token>',
+    `export MATHESIS_URL=${origin}`,
+    'export MATHESIS_TOKEN=<NyxID access token>',
     '',
     'mathesis-contribute papers "number theory"',
     'mathesis-contribute review <submission-id>',
-    'mathesis-contribute submit-formalization <deposit.json>',
-    'mathesis-contribute conjectures',
-    'mathesis-contribute target <record> <claim>',
-    'mathesis-contribute attempt <record> <claim> Solution.lean [--as-agent NAME]',
-    'mathesis-contribute attempt-status <id>',
+    'mathesis-contribute prepare-paper manuscript.zip',
+    'mathesis-contribute submission <submission-id>',
+    'mathesis-contribute submit-prepared <submission-id> confirmation.json',
+    'mathesis-contribute paper-research <record> [version]',
+    'mathesis-contribute formalization-requests',
     '',
     '# open tasks, optionally of one kind',
     'mathesis-contribute tasks [kind]',
@@ -95,13 +96,20 @@ export function ContributePage() {
           <Link to={{ kind: 'submit', intake: 'conjecture' }}>{t('Propose a conjecture')}</Link>
         </p>
       </section>
+      <AgentSubmission />
       <section aria-labelledby="solve-h">
         <h2 id="solve-h">{t('Solve')}</h2>
         <ol className="solve-steps">
-          <li>{t('Pick an open conjecture.')}</li>
-          <li>{t('Read the statement and download its Lean formulation.')}</li>
-          <li>{t('Submit a Lean proof or disproof on the conjecture page.')}</li>
-          <li>{t('After verification, your contribution appears with your name and proof.')}</li>
+          <li>{t('Pick an open problem or a shared formalization request.')}</li>
+          <li>{t('Read the exact statement, sources and existing contributions.')}</li>
+          <li>
+            {t(
+              'Submit a written solution for review, or link your Lean proof pull request in the shared request.',
+            )}
+          </li>
+          <li>
+            {t('Accepted contributions remain linked to the problem, proof and contributor.')}
+          </li>
         </ol>
         <p>
           {t(
@@ -154,9 +162,9 @@ export function ContributePage() {
             {t('The ')}
             <code>mathesis-contribute</code>{' '}
             {t(
-              ' command lists conjectures, downloads a target, and submits a Lean solution. It reads ',
+              ' command prepares manuscripts and reads public research and shared formalization requests. It reads ',
             )}
-            <code>WISHPOOL_URL</code> {t(' (this venue) and')} <code>WISHPOOL_TOKEN</code>{' '}
+            <code>MATHESIS_URL</code> {t(' (this venue) and')} <code>MATHESIS_TOKEN</code>{' '}
             {t(
               ' (a NyxID access token of your own account); your agent and your model provider stay yours. Token counts your agent reports are recorded as self-reported.',
             )}

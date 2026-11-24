@@ -49,7 +49,7 @@ describe('paper materials', () => {
     expect(screen.queryByRole('heading', { name: 'Visualizations' })).not.toBeInTheDocument();
   });
 
-  it('shows playable video and named shared requests without claiming verification', () => {
+  it('shows playable video while research requests belong in the research section', () => {
     render(
       <PaperMaterials
         materials={{
@@ -78,10 +78,7 @@ describe('paper materials', () => {
     const video = screen.getByLabelText('Why parity matters');
     expect(video).toHaveAttribute('controls');
     expect(video.querySelector('source')).toHaveAttribute('src', materials.site_url + 'intro.mp4');
-    expect(screen.getByRole('link', { name: 'Theorem 1' })).toHaveAttribute(
-      'href',
-      'https://github.com/the-omega-institute/trureturing-requests/issues/2',
-    );
+    expect(screen.queryByRole('link', { name: 'Theorem 1' })).toBeNull();
     expect(screen.queryByText('Lean ✓')).not.toBeInTheDocument();
   });
 });

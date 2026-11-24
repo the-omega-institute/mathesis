@@ -2,12 +2,13 @@ import { t } from '../i18n/locale';
 import { useCallback } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
+import { DateText, ExternalLink } from '../components/ui';
+import { InlineLatex } from '../components/Markdown';
 import { ResearchCycle } from '../components/ResearchCycle';
 import { mergeCollectedNotes } from '../lib/projectNotes';
 import { researchEntries } from '../lib/researchEntries';
 import { homeSubjects } from '../lib/subjects';
-import { PublishedNoteEntry } from './PublishedNote';
-import { PaperEntry } from './Papers';
+import { PaperDirectoryEntry } from '../components/PaperDirectoryEntry';
 import { Link } from '../routing/router';
 import '../styles/home.css';
 import '../styles/subjects.css';
@@ -22,10 +23,17 @@ export function HomePage() {
   const collected = useAsync(
     useCallback((signal: AbortSignal) => api.listCollectedPapers({ limit: 25 }, { signal }), [api]),
   );
+  const shared = useAsync(
+    useCallback((signal: AbortSignal) => api.sharedFormalizationRequests({ signal }), [api]),
+  );
+  const contributions = (shared.value?.requests ?? [])
+    .flatMap((request) => request.completions.map((done) => ({ request, done })))
+    .sort((a, b) => b.done.merged_at.localeCompare(a.done.merged_at));
+  const contribution = contributions[0];
   const recent = researchEntries(
     papers.value?.items ?? [],
     mergeCollectedNotes(collected.value?.items ?? []),
-  ).slice(0, 3);
+  ).slice(0, contribution ? 2 : 3);
   return (
     <div className="page home">
       <header className="home-hero">
@@ -51,6 +59,7 @@ export function HomePage() {
             <Link to={{ kind: 'learn_lean' }}>{t('Get familiar with Lean formalization')}</Link>
             <Link to={{ kind: 'research_graph' }}>{t('Explore the knowledge graph')}</Link>
             <Link to={{ kind: 'policy' }}>{t('How review works')}</Link>
+            <a href="/skill.md">{t('Agent submission guide')}</a>
           </nav>
         </div>
         <ResearchCycle />
@@ -112,17 +121,34 @@ export function HomePage() {
           <Link to={{ kind: 'papers' }}>{t('All research')}</Link>
         </div>
         <ul className="home-papers">
-          {recent.map((entry) =>
-            entry.kind === 'note' ? (
-              <li key={`note:${entry.note.id}`}>
-                <PublishedNoteEntry note={entry.note} />
-              </li>
-            ) : (
-              <li key={`paper:${entry.paper.record}`}>
-                <PaperEntry paper={entry.paper} />
-              </li>
-            ),
-          )}
+          {recent.map((entry) => (
+            <li
+              key={entry.kind === 'note' ? `note:${entry.note.id}` : `paper:${entry.paper.record}`}
+            >
+              <PaperDirectoryEntry entry={entry} />
+            </li>
+          ))}
+          {contribution ? (
+            <li className="home-contribution">
+              <p className="entry-meta">
+                {t('Recent proof contribution')} · <DateText iso={contribution.done.merged_at} />
+              </p>
+              <h3>
+                <ExternalLink href={contribution.request.url}>
+                  <InlineLatex source={contribution.request.title} />
+                </ExternalLink>
+              </h3>
+              <p>
+                <ExternalLink href={contribution.done.url}>
+                  {t('Read the contribution')}
+                </ExternalLink>{' '}
+                ·{' '}
+                <ExternalLink href={contribution.done.contributor.url}>
+                  {contribution.done.contributor.login}
+                </ExternalLink>
+              </p>
+            </li>
+          ) : null}
         </ul>
       </section>
       <section className="home-subjects" aria-labelledby="subjects-heading">

@@ -1,8 +1,6 @@
-import { useCallback, useEffect } from 'react';
-import { useApi } from '../api/context';
-import { useAsync } from '../api/useAsync';
-import { MacrosProvider } from '../components/Markdown';
+import { useEffect } from 'react';
 import { t } from '../i18n/locale';
+import { PaperResearch } from '../components/PaperResearch';
 import { publishedLeanSource } from '../lib/publishedLean';
 import { sharedLibraryFocus } from '../lib/sharedLibrary';
 import { AuthorLine } from '../components/AuthorLine';
@@ -121,6 +119,7 @@ export function PublishedNotePage({
         ) : null}
       </nav>
       <nav className="paper-sections" aria-label={t('On this page')}>
+        <a href="#further-work-h">{t('Continue this research')}</a>
         <PaperMaterialLinks materials={note.materials} text={note.plain_language} />
         {note.problems.length ? (
           <a
@@ -143,14 +142,8 @@ export function PublishedNotePage({
             <h2 id="abstract-h">{t('Abstract')}</h2>
             <LatexText source={note.abstract} className="abstract" />
           </section>
-          <PaperMaterials materials={note.materials} text={note.plain_language} />
-          <PublishedFormalizations
-            work={note.id}
-            version={note.revision}
-            leanSource={publishedLeanSource(note)}
-          />
           {note.problems.length ? (
-            <details className="paper-details" id="related-questions">
+            <details className="paper-details" id="related-questions" open>
               <summary>{t('Sources and related questions')}</summary>
               <ul className="paper-questions">
                 {note.problems.map((problem, index) => {
@@ -176,6 +169,25 @@ export function PublishedNotePage({
               </ul>
             </details>
           ) : null}
+          <PaperResearch
+            work={note.id}
+            version={Number(note.revision)}
+            origin={
+              new URL(
+                routePath(
+                  paperRoute(
+                    note.id,
+                    note.archive?.doi,
+                    note.archive?.doi ? undefined : note.revision,
+                  ),
+                ),
+                window.location.origin,
+              ).href
+            }
+            materials={note.materials}
+            leanSource={publishedLeanSource(note)}
+          />
+          <PaperMaterials materials={note.materials} text={note.plain_language} />
         </div>
         <aside className="paper-sidebar" aria-label={t('Publication details')}>
           <section>
@@ -257,95 +269,5 @@ export function PublishedNotePage({
         </aside>
       </div>
     </article>
-  );
-}
-
-function PublishedFormalizations({
-  work,
-  version,
-  leanSource,
-}: {
-  work: string;
-  version: string;
-  leanSource?: string;
-}) {
-  const api = useApi();
-  const load = useCallback(
-    (signal: AbortSignal) => api.collectedKnowledge(work, version, { signal }),
-    [api, work, version],
-  );
-  const knowledge = useAsync(load);
-  const rows = knowledge.value?.formalizations ?? [];
-  if (!rows.length && !leanSource) return null;
-  return (
-    <section aria-labelledby="formalization-h">
-      <h2 id="formalization-h">{t('Formalization')}</h2>
-      <p>
-        <Link
-          to={{
-            kind: 'formalizations',
-            focus: rows[0] ? `statement:${work}:${version}:${rows[0].claim}` : `paper:${work}`,
-          }}
-        >
-          {t('Explore mathematical results')}
-        </Link>
-      </p>
-      <MacrosProvider macros={knowledge.value?.macros ?? {}}>
-        <ul className="entry-list compact-formalizations">
-          {rows.slice(0, 3).map((row) => {
-            const claim = knowledge.value?.statements.find((c) => c.id === row.claim);
-            if (!claim) return null;
-            return (
-              <li key={row.claim}>
-                <Link to={{ kind: 'result', record: work, claim: row.claim, version }}>
-                  <InlineLatex source={claim.title ?? claim.name} />
-                </Link>
-                {' · '}
-                {t(
-                  row.state === 'verified'
-                    ? 'Verified in Lean'
-                    : row.state === 'disproved'
-                      ? 'Disproved in Lean'
-                      : row.state === 'open'
-                        ? 'Open for formalization'
-                        : leanSource
-                          ? 'Lean source available'
-                          : row.state === 'needs_attention'
-                            ? 'Formalization progress unavailable'
-                            : 'Awaiting a formal proof',
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {rows.length > 3 ? (
-          <details className="history">
-            <summary>{t('All formalization results ({count})', { count: rows.length })}</summary>
-            <ul className="entry-list compact-formalizations">
-              {rows.slice(3).map((row) => {
-                const claim = knowledge.value?.statements.find((c) => c.id === row.claim);
-                return claim ? (
-                  <li key={row.claim}>
-                    <Link to={{ kind: 'result', record: work, claim: row.claim, version }}>
-                      <InlineLatex source={claim.title ?? claim.name} />
-                    </Link>{' '}
-                    ·{' '}
-                    {t(
-                      row.state === 'verified'
-                        ? 'Verified in Lean'
-                        : row.state === 'disproved'
-                          ? 'Disproved in Lean'
-                          : leanSource
-                            ? 'Lean source available'
-                            : 'Awaiting a formal proof',
-                    )}
-                  </li>
-                ) : null;
-              })}
-            </ul>
-          </details>
-        ) : null}
-      </MacrosProvider>
-    </section>
   );
 }

@@ -485,3 +485,45 @@ it('shows public accepted-paper materials and omits the section when absent', as
   expect(screen.queryByRole('region', { name: 'Materials' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Materials' })).not.toBeInTheDocument();
 });
+
+it('keeps navigation on actual public questions for a conjecture-only manuscript', async () => {
+  renderWithApp(
+    <PaperPage record="WP-2026-0001" />,
+    fakeApi({
+      getPaper: vi.fn(async () => ({
+        ...publicPaper,
+        publication: { version: 1, claims_revision: 1 },
+        claims: [{ ...publicPaper.claims![0]!, kind: 'conjecture' as const }],
+      })),
+      paperResearch: vi.fn(async () => ({
+        work: 'WP-2026-0001',
+        version: 1,
+        problems: [],
+        results: [],
+        questions: [
+          {
+            claim: 'C1',
+            kind: 'conjecture' as const,
+            role: 'main' as const,
+            name: 'The original open question',
+            statement: 'Does the extension hold?',
+            section: null,
+            state: 'published' as const,
+          },
+        ],
+        requests: [],
+        lean_source: null,
+        macros: {},
+        requests_observed_at: null,
+      })),
+    }),
+  );
+  await screen.findByRole('link', { name: 'The original open question' });
+  const navigation = screen.getByRole('navigation', { name: 'On this page' });
+  expect(within(navigation).queryByRole('link', { name: 'Results' })).toBeNull();
+  expect(within(navigation).getByRole('link', { name: 'Continue this research' })).toHaveAttribute(
+    'href',
+    '#further-work-h',
+  );
+  expect(screen.getByRole('heading', { name: 'Questions in this paper' })).toBeVisible();
+});

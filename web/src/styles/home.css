@@ -215,3 +215,13 @@
     display: none;
   }
 }
+
+.home-contribution {
+  padding-block: 0.8rem;
+}
+.home-contribution h3 {
+  margin-block: 0.3rem;
+}
+.home-contribution p {
+  margin-block: 0.35rem;
+}

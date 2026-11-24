@@ -16,14 +16,15 @@ describe('ContributePage', () => {
     await userEvent.click(screen.getByText('Tools for developers and automated contributors'));
     const mcp = screen.getByLabelText('MCP setup command');
     expect(mcp).toHaveTextContent(
-      'claude mcp add mathesis -e WISHPOOL_NYXID_SERVICE=mathesis -- mathesis-contribute mcp',
+      'claude mcp add mathesis -e MATHESIS_NYXID_SERVICE=mathesis -- mathesis-contribute mcp',
     );
     const cli = screen.getByLabelText('Command-line usage');
     for (const cmd of [
-      'conjectures',
-      'target <record> <claim>',
-      'attempt <record> <claim> Solution.lean [--as-agent NAME]',
-      'attempt-status <id>',
+      'prepare-paper manuscript.zip',
+      'submission <submission-id>',
+      'submit-prepared <submission-id> confirmation.json',
+      'paper-research <record> [version]',
+      'formalization-requests',
       'tasks',
       'show <task>',
       'lease <task>',
@@ -34,7 +35,9 @@ describe('ContributePage', () => {
     expect(screen.getByText('Escape judgement')).toBeInTheDocument();
     expect(screen.getByText('Conjecture probe')).toBeInTheDocument();
     expect(
-      screen.getByText(/your contribution appears with your name and proof/),
+      screen.getByText(
+        /Accepted contributions remain linked to the problem, proof and contributor/,
+      ),
     ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/trureturing/i);
     expect(screen.getByRole('heading', { name: 'Researcher access' })).toBeVisible();
