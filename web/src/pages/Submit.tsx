@@ -1,5 +1,6 @@
 import { t } from '../i18n/locale';
 import { useState, type FormEvent } from 'react';
+import { AgentSubmission } from '../components/AgentSubmission';
 import { SharedRequests } from '../components/SharedRequests';
 import { useApi } from '../api/context';
 import { PROCESSING_REQUEST_VERSION } from '../api/types';
@@ -27,12 +28,14 @@ import { useRouter } from '../routing/router';
 
 export function SubmitPage({
   initialIntake,
+  initialOrigin,
   initialSubmission,
   onSubmitted,
 }: {
   initialSubmission?: Submission;
   onSubmitted?: (s: Submission) => void;
   initialIntake?: 'lean' | 'review' | 'conjecture';
+  initialOrigin?: string;
   targetRecord?: string;
   targetClaim?: string;
   targetVersion?: string;
@@ -71,7 +74,11 @@ export function SubmitPage({
           </button>
         ) : null}
       </header>
-      {intake === 'lean' ? <SharedRequests /> : null}
+      {intake === 'lean' ? (
+        <SharedRequests />
+      ) : !initialSubmission ? (
+        <AgentSubmission compact />
+      ) : null}
       {intake !== 'lean' && session.status === 'loading' ? <Loading /> : null}
       {intake !== 'lean' && session.status !== 'loading' && person === null ? (
         <SignInPrompt what="submit your work" />
@@ -79,7 +86,11 @@ export function SubmitPage({
       {person ? (
         intake !== 'lean' ? (
           typedEntry ? (
-            <SubmitForm key={intake} initiallyPrivate={initiallyPrivate} />
+            <SubmitForm
+              key={intake}
+              initiallyPrivate={initiallyPrivate}
+              initialOrigin={initialOrigin}
+            />
           ) : (
             <UploadSubmission
               key={intake}
@@ -103,7 +114,10 @@ export function SubmitPage({
   );
 }
 
-export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: boolean } = {}) {
+export function SubmitForm({
+  initiallyPrivate = false,
+  initialOrigin = '',
+}: { initiallyPrivate?: boolean; initialOrigin?: string } = {}) {
   const api = useApi();
   const { person } = useSession();
   const { navigate } = useRouter();
@@ -114,7 +128,7 @@ export function SubmitForm({ initiallyPrivate = false }: { initiallyPrivate?: bo
   const [abstract, setAbstract] = useState('');
   const [statement, setStatement] = useState('');
   const [background, setBackground] = useState('');
-  const [origin, setOrigin] = useState('');
+  const [origin, setOrigin] = useState(initialOrigin);
   const [authors, setAuthors] = useState<AuthorDraft[]>([emptyAuthor()]);
   const [aiLevel, setAiLevel] = useState<AiUseLevel>('none');
   const [msc, setMsc] = useState('');

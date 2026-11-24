@@ -233,6 +233,33 @@ impl Client {
         self.get(&format!("/submissions/{}/review", segment(id)))
     }
 
+    /// Upload-first intake requests compilation only; final submission remains separate.
+    pub fn prepare_paper(
+        &self,
+        filename: &str,
+        source: &[u8],
+        review_only: bool,
+    ) -> ApiResult<Value> {
+        self.prepare_submission(
+            &json!({"kind":"paper", "purpose":if review_only {"review_only"} else {"publication"},
+            "processing_consent":"ai-review-request-2026-10-29"}),
+            filename,
+            source,
+        )
+    }
+    pub fn paper_research(&self, record: &str, version: Option<u32>) -> ApiResult<Value> {
+        if version == Some(0) {
+            return Err(ApiError {
+                status: 422,
+                detail: "version must be a positive integer".into(),
+            });
+        }
+        let path = format!("/papers/{}/research", segment(record));
+        self.get(&match version {
+            Some(v) => format!("{path}?version={v}"),
+            None => path,
+        })
+    }
     pub fn prepare_submission(
         &self,
         metadata: &Value,
@@ -1003,6 +1030,93 @@ mod manuscript_tests {
         client
             .confirm_delivered_manuscript(receipt, &json!([{"id":"C1"}]))
             .unwrap();
+        server.join().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod reading_intake_tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    #[test]
+    fn agent_preparation_preserves_private_intake_and_exact_public_version_reads() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            for index in 0..3 {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .unwrap();
+                let mut bytes = vec![];
+                let head = loop {
+                    let mut buf = [0; 4096];
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    bytes.extend_from_slice(&buf[..n]);
+                    if let Some(p) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break p + 4;
+                    }
+                };
+                let headers = String::from_utf8(bytes[..head].to_vec())
+                    .unwrap()
+                    .to_lowercase();
+                let length = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.strip_prefix("content-length:")
+                            .map(|n| n.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap_or(0);
+                while bytes.len() < head + length {
+                    let mut buf = [0; 4096];
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    bytes.extend_from_slice(&buf[..n]);
+                }
+                if index < 2 {
+                    assert!(headers.starts_with("post /api/v1/submissions/prepare "));
+                    let body: Value = serde_json::from_slice(&bytes[head..]).unwrap();
+                    assert_eq!(body["filename"], "paper.zip");
+                    assert_eq!(body["source_base64"], "UEsA/w==");
+                    assert_eq!(
+                        body["metadata"]["purpose"],
+                        if index == 0 {
+                            "publication"
+                        } else {
+                            "review_only"
+                        }
+                    );
+                    assert_eq!(
+                        body["metadata"]["processing_consent"],
+                        "ai-review-request-2026-10-29"
+                    );
+                    assert!(body["metadata"].get("ai_disclosure").is_none());
+                    assert!(body["metadata"].get("archive_consent").is_none());
+                    assert!(
+                        body.get("claims").is_none(),
+                        "preparation cannot confirm claims or request review"
+                    );
+                } else {
+                    assert!(headers.starts_with("get /api/v1/papers/a%2fb/research?version=2 "));
+                }
+                let body = "{}";
+                write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
+            }
+        });
+        let client = Client::new(&origin, "test-token");
+        client
+            .prepare_paper("paper.zip", b"PK\x00\xff", false)
+            .unwrap();
+        client
+            .prepare_paper("paper.zip", b"PK\x00\xff", true)
+            .unwrap();
+        client.paper_research("a/b", Some(2)).unwrap();
+        assert_eq!(
+            client.paper_research("a/b", Some(0)).unwrap_err().status,
+            422
+        );
         server.join().unwrap();
     }
 }

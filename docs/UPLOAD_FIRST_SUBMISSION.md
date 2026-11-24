@@ -13,9 +13,14 @@ The web form defaults to “Make my results public once accepted.” in the fina
 
 Preparation grants no publication, contributor access, claimed authorship or AI verdict. Ordinary claim confirmation cannot skip incomplete metadata. Private review stays private. Final publication preference still takes effect only through acceptance. Existing submissions and producer manuscript deliveries are unchanged.
 
+The public agent guide is available at `/skill.md`, discoverable through `/llms.txt` and the submission/participation pages. The copyable instruction asks an agent to inspect the compiled PDF and preserve checked author metadata before submitting. It uses existing NyxID permissions; it never uploads agent sessions or private logs. The canonical source is `web/public/skills/mathesis-submit/SKILL.md`.
+
 CLI and MCP expose the same operations:
 
 ```sh
+mathesis-contribute account
+mathesis-contribute prepare-paper manuscript.zip
+# Or supply explicit metadata:
 mathesis-contribute prepare-submission preparation.json manuscript.zip
 mathesis-contribute submission SUBMISSION
 mathesis-contribute submit-prepared SUBMISSION confirmation.json

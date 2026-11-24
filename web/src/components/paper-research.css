@@ -1,0 +1,35 @@
+.paper-research-list,
+.paper-request-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.paper-research-list > li,
+.paper-request-list > li {
+  margin: 1rem 0;
+}
+.paper-research-list h3 {
+  display: inline;
+  margin: 0 0.6rem 0 0;
+  font-size: 1rem;
+}
+.result-statement {
+  margin-top: 0.3rem;
+}
+.result-statement summary,
+.paper-research-more summary {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.paper-research-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+.agent-submission-prompt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  max-width: 75ch;
+  color: var(--muted);
+}

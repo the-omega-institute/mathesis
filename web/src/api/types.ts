@@ -1892,3 +1892,25 @@ export interface ProcessingLane {
     expires_at: string;
   }[];
 }
+
+/** Public mathematical reading of one exact published version; never private review advice. */
+export type ResearchResult = {
+  claim: string;
+  kind: ClaimKind;
+  role: ClaimRole | null;
+  name: string;
+  statement: string;
+  section: string | null;
+  state: 'published' | 'verified' | 'disproved';
+};
+export type PaperResearch = {
+  work: string;
+  version: number;
+  problems: ResearchProblemLink[];
+  results: ResearchResult[];
+  questions: ResearchResult[];
+  requests: { association: 'paper_link' | 'repository'; request: SharedFormalizationRequest }[];
+  lean_source: string | null;
+  macros: Record<string, string>;
+  requests_observed_at: string | null;
+};

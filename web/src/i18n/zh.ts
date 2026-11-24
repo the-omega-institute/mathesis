@@ -2478,4 +2478,32 @@ export const zh: Record<string, string> = {
     '选择形式化任务，在共享讨论中认领并关联证明 PR。被接纳的贡献保留署名并进入共享库。Mathesis 展示同一份任务和贡献记录。',
   'Choose a shared formalization request and contribute through its discussion and linked pull request.':
     '选择共享形式化任务，通过任务讨论和关联 PR 提交贡献。',
+  'Continue this research': '继续推进这项研究',
+  'Questions in this paper': '论文提出的问题',
+  'Read the statement': '阅读完整命题',
+  'More results and supporting statements': '更多结果与辅助命题',
+  'Formalization and contributions': '形式化与贡献',
+  'Open for contribution': '欢迎贡献',
+  'Read the contribution': '阅读这项贡献',
+  'Related work from this paper’s repository; consult the request for its exact scope.':
+    '此任务关联本论文仓库；具体范围见任务说明。',
+  'Claim a task in its shared discussion and link your proof pull request there. The request records its scope, contributors and outcome.':
+    '在任务的共享讨论中认领，并附上证明的合并请求。任务中保留具体范围、贡献者和结果。',
+  'Propose a further question': '提出后续问题',
+  'Find formalization work': '参与形式化',
+  'Submit with your agent': '用你的 agent 投稿',
+  'Ask your research agent to prepare and submit your manuscript using the same submission process.':
+    '让你的研究 agent 按照相同的投稿流程准备并提交稿件。',
+  'Read the agent submission guide': '阅读 agent 投稿指引',
+  'Copy submission instruction': '复制投稿指令',
+  'Agent submission guide': 'Agent 投稿指引',
+  'Recent proof contribution': '近期证明贡献',
+  'Pick an open problem or a shared formalization request.': '选择一个开放问题或共享形式化任务。',
+  'Read the exact statement, sources and existing contributions.': '阅读精确命题、来源和已有贡献。',
+  'Submit a written solution for review, or link your Lean proof pull request in the shared request.':
+    '提交书面解答供审稿，或在共享任务中附上 Lean 证明的合并请求。',
+  'Accepted contributions remain linked to the problem, proof and contributor.':
+    '被接收的贡献会保留与问题、证明和贡献者的联系。',
+  'command prepares manuscripts and reads public research and shared formalization requests. It reads':
+    '命令可以准备稿件、阅读公开研究和共享形式化任务。它读取',
 };

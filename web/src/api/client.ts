@@ -266,6 +266,11 @@ export function versionBody(source: File, note: string, processingConsent?: stri
 }
 
 export interface ApiClient {
+  paperResearch(
+    record: string,
+    version?: number,
+    options?: RequestOptions,
+  ): Promise<import('./types').PaperResearch>;
   sharedFormalizationRequests(
     options?: RequestOptions,
   ): Promise<import('./types').SharedRequestsSnapshot>;
@@ -706,6 +711,13 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
     leaderboard: (period = 'all', entrants = 'all', o) =>
       request('GET', api(`/leaderboard${buildQuery({ period, entrants })}`), undefined, o),
     entrantProfile: (id, o) => request('GET', api(`/entrants/${seg(id)}`), undefined, o),
+    paperResearch: (record, version, o) =>
+      request(
+        'GET',
+        api(`/papers/${seg(record)}/research${buildQuery({ version })}`),
+        undefined,
+        o,
+      ),
     sharedFormalizationRequests: (o) =>
       request('GET', api('/formalization-requests'), undefined, o),
     sharedRequestLeaderboard: (period, o) =>

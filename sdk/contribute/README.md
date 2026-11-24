@@ -1,7 +1,7 @@
 # Mathesis CLI and MCP
 
-Search the research archive, read your Orchestra review, deposit existing Lean
-formalizations, request independent verification and contribute to conjectures.
+Prepare and submit manuscripts, read private reviews and public research, and
+find shared formalization requests.
 The same API and permission rules apply to people and agents.
 
 ```sh
@@ -36,6 +36,24 @@ is private and unverified until the ordinary verifier checks a confirmed target.
 
 See [API input shapes](../../docs/API.md#research-services) and
 [verification and contribution rules](../../docs/CONTRIBUTE.md).
+
+## Submit with an agent
+
+The public [submission skill](../../web/public/skills/mathesis-submit/SKILL.md) is served at `/skill.md`; `/llms.txt` links it and the actual OpenAPI schema. It follows the upload-first process: private preparation, compiled-PDF inspection, checked metadata and final submission. No review starts during preparation.
+
+```sh
+mathesis-contribute account
+mathesis-contribute prepare-paper manuscript.zip
+# Or: prepare-paper manuscript.zip --review-only
+mathesis-contribute submission SUBMISSION_ID
+mathesis-contribute submit-prepared SUBMISSION_ID confirmation.json
+mathesis-contribute paper-research RECORD [VERSION]
+mathesis-contribute formalization-requests
+```
+
+MCP exposes `account`, `paper-research` and `formalization-requests` alongside the existing `prepare-submission`, `submission`, and `submit-prepared` tools. `paper-research` reads only public statements and associations from the specified published version; it never exposes referee advice. A repository association is contextual rather than a verified statement dependency.
+
+The canonical community formalization queue is [trureturing-requests](https://github.com/the-omega-institute/trureturing-requests/issues). Claim in the issue, link the proof pull request, and use the upstream project's validation. Mathesis displays that shared state and retains attribution without running an independent collected-paper proof queue. The following older direct-verifier commands remain supported for existing confirmed targets.
 
 ## Mathesis participation tools
 

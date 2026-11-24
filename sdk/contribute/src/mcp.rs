@@ -118,6 +118,11 @@ fn tools() -> Value {
         .as_array_mut()
         .unwrap()
         .extend(manuscript_tools.as_array().unwrap().iter().cloned());
+    common.as_array_mut().unwrap().extend(json!([
+        {"name":"account","description":"Check the calling NyxID account before preparing a private submission.","inputSchema":{"type":"object","properties":{}}},
+        {"name":"paper-research","description":"Read named public results, original problems, open source questions and shared proof contributions for one exact published paper version. Contains no private review advice.","inputSchema":{"type":"object","properties":{"record":{"type":"string"},"version":{"type":"integer","minimum":1,"maximum":4294967295_u64}},"required":["record"]}},
+        {"name":"formalization-requests","description":"Read the canonical shared formalization requests, claimants and linked merged contributions. Claim work in its shared GitHub issue; this operation creates no local execution queue.","inputSchema":{"type":"object","properties":{}}}
+    ]).as_array().unwrap().iter().cloned());
     common
 }
 
@@ -140,6 +145,13 @@ fn call(client: &Client, name: &str, args: &Value) -> Result<Value, String> {
             if encoded.len() > 41943040 { return Err("manuscript exceeds 30 MiB".into()); }
             let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|_| "invalid source_base64")?;
             client.prepare_submission(&args["metadata"], required("filename")?, &bytes)
+        },
+        "account" => client.get("/me"),
+        "formalization-requests" => client.get("/formalization-requests"),
+        "paper-research" => {
+            let version = args.get("version").map(|v| v.as_u64().filter(|v| *v > 0 && *v <= u32::MAX as u64)
+                .map(|v| v as u32).ok_or_else(|| "version must be a positive 32-bit integer".to_owned())).transpose()?;
+            client.paper_research(required("record")?, version)
         },
         "submission" => client.submission(required("id")?),
         "submit-prepared" => client.submit_prepared(required("id")?, &args["confirmation"]),
