@@ -3674,7 +3674,7 @@ async fn shared_requests_survive_restart_and_retire_only_obsolete_unleased_jobs(
     let expired = mongodb::bson::DateTime::from_millis(now.timestamp_millis() - 1000);
     let live = mongodb::bson::DateTime::from_millis(now.timestamp_millis() + 60_000);
     db.store.raw(REVIEW_JOBS).insert_many([
-        doc! {"_id":"obsolete", "kind":"collected_formalization", "state":"queued"},
+        doc! {"_id":"obsolete", "kind":"collected_formalization", "state":"queued", "retries":11_i64},
         doc! {"_id":"expired", "kind":"collected_formalization", "state":"leased", "lease_until":expired},
         doc! {"_id":"live", "kind":"collected_formalization", "state":"leased", "lease_until":live},
         doc! {"_id":"receipt", "kind":"collected_formalization", "state":"done"},
@@ -3718,6 +3718,14 @@ async fn shared_requests_survive_restart_and_retire_only_obsolete_unleased_jobs(
     assert_eq!(
         db.store.load_materials().await.unwrap(),
         MaterialsSidecar::default()
+    );
+    assert!(
+        reopened
+            .processing_status()
+            .await
+            .unwrap()
+            .iter()
+            .all(|lane| lane.retries == 0)
     );
     db.drop().await;
 }

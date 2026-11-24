@@ -63,7 +63,9 @@ impl ReviewQueue for MongoStore {
             JobLane::Collection,
             JobLane::Verify,
         ] {
-            let filter = lane_filter(lane);
+            let mut filter = lane_filter(lane);
+            // Retired work keeps its history without inflating the live queue's retries.
+            filter.insert("state", doc! {"$ne":"superseded"});
             let mut status = ProcessingLane {
                 lane,
                 queued: 0,
