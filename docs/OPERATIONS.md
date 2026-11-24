@@ -103,6 +103,43 @@ After configuring a valid internal workspace, restart the worker to resume the
 same queued paper/version jobs. This does not provision a sandbox or change the
 separate catalog material-production queue or shared formalization requests.
 
+## Fixed Mathesis sandbox responsibilities
+
+The operator allocation is two sandboxes, with one fixed purpose per sandbox.
+Independent jobs run concurrently inside their assigned sandbox; one admitted
+job retains its original workspace and provider identity across restarts.
+
+| Responsibility | Sandbox | Workspace | Concurrent model jobs |
+| --- | --- | --- | --- |
+| Internal collected-paper materials, through `mathesis-papers/catalog` | `sbx_f62ac11bfe7c4fffb57921ade11b5271` | `wks_194616ce9af14633981515b6f557578c` | At most 6 authoring agents |
+| External submission review and further research | `sbx_d13f0b6ba767486ca93474b5c84af6de` | `wks_f5b364b780ab47608282887d2a4b2399` | At most 6 review jobs |
+
+Both allocations report 2000 CPU millis, 8192 MiB memory and 64 GiB disk.
+The internal setup check read the actual 8 GiB cgroup memory limit; its idle
+memory use was approximately 367 MiB. Six jobs follows Outreach's operating
+limit for the same allocation. This is a memory budget selected by the
+operator, not an automatic memory controller or a six-job load-test result.
+Heavy computational work needs a lower per-sandbox limit.
+
+Catalog's existing `authoring_concurrency: 6` is the sole internal material
+production scheduler. Its `CMA_COLLECTION_WORKSPACE` selects the internal
+workspace above; `CMA_EXTERNAL_WORKSPACE` identifies the review workspace.
+The platform worker's `WISHPOOL_REVIEW_CONCURRENCY` is six. Keep
+`WISHPOOL_CMA_COLLECTION_WORKSPACE` unset while catalog owns internal stories
+and materials, so the legacy exposition queue cannot launch a second copy.
+Catalog materials are consumed through the existing versioned material index.
+Saved older catalog operations retain their original workspace until their
+work and checked cleanup finish; changing the assignment affects new jobs.
+Formalization execution remains in the shared request workflow and consumes
+no additional dedicated Mathesis sandbox.
+
+The internal sandbox was created through CMA's authenticated public lifecycle
+API. The NyxID proxy's new-sandbox route still returns
+`cma_sandbox_account_slot_occupied` for the held historical reservation tracked
+in ChronoAIProject/NyxID#2590; using the public CMA API did not alter or release
+that reservation. Existing workspace observations and execution use their
+ordinary supported interfaces.
+
 ## Review history and storage recovery
 
 Referee aggregates larger than 512 KiB of JSON are saved as complete GridFS
