@@ -8,7 +8,9 @@ request's Markdown, mathematical notation, discussion and contribution evidence
 inside Mathesis. Task titles and leaderboard request numbers use stable in-site
 links. The original GitHub issue is a secondary source link; GitHub remains the
 authority for participation and Mathesis does not create a competing queue.
-Refreshes backfill old snapshots' missing descriptions and comments, and failed
+Repository-wide paginated comment reads keep synchronization within the public
+API budget instead of making one request per discussion. Refreshes backfill old
+snapshots' missing descriptions and comments, and failed
 refreshes retain the last complete snapshot. GitHub assignees and exact self-authored `/claim`
 comments are claims; `/unclaim` or `/release` releases a comment claim, without
 overriding assignment. Mentions, closure and claims alone earn no points. The
