@@ -6,16 +6,20 @@ export function formalizationPrompt(origin: string): string {
   return `Help me contribute a Lean formalization to Mathesis at ${origin}. Read ${origin}/formalize.md, then choose one open, unclaimed target from ${origin}/api/v1/formalization-requests. Check the precise statement, sources and existing formalizations. Use my existing GitHub connection to claim the request, work in its required Lean environment, and submit a checked proof through the linked contribution process. Preserve the mathematical scope, authorship and licenses. Return the request link, proof contribution and actual verification results. If the proof remains incomplete, explain the remaining mathematical gap.`;
 }
 
-export function CommunityParticipation() {
+export function CommunityParticipation({ pending = false }: { pending?: boolean }) {
   const [copied, setCopied] = useState(false);
   const prompt = formalizationPrompt(window.location.origin);
   return (
     <section className="community-participation" aria-labelledby="community-invitation">
       <header>
-        <h2 id="community-invitation">{t('Be the first to contribute')}</h2>
+        <h2 id="community-invitation">
+          {t(pending ? 'Take part in the research' : 'Be the first to contribute')}
+        </h2>
         <p className="community-introduction">
           {t(
-            'The community leaderboard is waiting for its first contributor. Help formalize a result, share a conjecture, or work on an open problem.',
+            pending
+              ? 'Help formalize a result, share a conjecture, or work on an open problem.'
+              : 'The community leaderboard is waiting for its first contributor. Help formalize a result, share a conjecture, or work on an open problem.',
           )}
         </p>
       </header>

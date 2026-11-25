@@ -1,5 +1,7 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'Help formalize a result, share a conjecture, or work on an open problem.':
+    '欢迎帮助我们完成形式化、提出你的猜想，或一起解决开放问题。',
   'Be the first to contribute': '期待第一位社区贡献者',
   'The community leaderboard is waiting for its first contributor. Help formalize a result, share a conjecture, or work on an open problem.':
     '目前还没有社区贡献上榜。欢迎帮助我们完成形式化、提出你的猜想，或一起解决开放问题。',
