@@ -10,7 +10,7 @@ const url = 'https://github.com/the-omega-institute/trureturing-requests/issues/
 const request: SharedFormalizationRequest = {
   number: 575,
   title: 'A sharp density bound',
-  body: 'The target is **available in Mathesis**.\n\n$$d(x,y) \\leq 1$$',
+  body: 'The target is **available in Mathesis**.\n\n$$d(x,y) \\leq 1$$\n\n<!-- hidden-source-marker -->',
   comments: [
     {
       id: 123,
@@ -56,6 +56,7 @@ it('takes requests and their claimants from the shared queue, without calling th
   expect(screen.getByText('boundary case')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Original on GitHub' })).toHaveAttribute('href', url);
   expect(document.querySelector('.katex')).not.toBeNull();
+  expect(document.body).not.toHaveTextContent('hidden-source-marker');
   await user.click(screen.getByRole('link', { name: 'Back to awaiting formalization' }));
   expect(old).not.toHaveBeenCalled();
   expect(screen.queryByRole('link', { name: 'Contribute a proof' })).not.toBeInTheDocument();

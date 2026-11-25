@@ -44,6 +44,7 @@ export function Markdown({
   className,
   lineBreaks = false,
   texDelimiters = false,
+  skipHtml = false,
 }: {
   text: string;
   className?: string;
@@ -51,6 +52,8 @@ export function Markdown({
   lineBreaks?: boolean;
   /** Reports may use conventional TeX delimiters as well as dollar math. */
   texDelimiters?: boolean;
+  /** Hide embedded HTML, including non-reader metadata comments from mirrored discussions. */
+  skipHtml?: boolean;
 }) {
   const macros = useContext(MacrosContext);
   const content = texDelimiters ? reportMath(text) : text;
@@ -60,6 +63,7 @@ export function Markdown({
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins(macros)}
         components={components}
+        skipHtml={skipHtml}
       >
         {lineBreaks ? hardBreaks(content) : content}
       </ReactMarkdown>

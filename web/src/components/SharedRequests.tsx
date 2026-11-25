@@ -124,7 +124,7 @@ export function SharedRequests({ initialQuery = '' }: { initialQuery?: string })
                     {selected === row.number ? (
                       <div className="formalization-request-detail">
                         {row.body ? (
-                          <Markdown text={row.body} />
+                          <Markdown text={row.body} skipHtml />
                         ) : (
                           <p className="muted">
                             {t('The request description is being synchronized.')}
@@ -189,7 +189,7 @@ export function SharedRequests({ initialQuery = '' }: { initialQuery?: string })
                                   {' · '}
                                   <DateText iso={comment.created_at} withTime />
                                 </p>
-                                <Markdown text={comment.body} />
+                                <Markdown text={comment.body} skipHtml />
                               </article>
                             ))}
                           </section>
