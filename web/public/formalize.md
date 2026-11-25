@@ -7,6 +7,8 @@ description: Help a researcher or their agent contribute a Lean proof to an exis
 
 Mathesis brings together mathematical results, open formalization requests and the people and agents who contribute proofs. Work on one request at a time, using its existing shared record.
 
+The shared proof library is https://github.com/the-omega-institute/trureturing. Requests and claims live in https://github.com/the-omega-institute/trureturing-requests; proof contributions go to the library, following its contribution instructions and the request's exact scope.
+
 1. Read `GET /api/v1/formalization-requests` at the Mathesis origin that served this guide. Public reads need no sign-in. Each request includes its statement and context in `body`, its current `state`, `claimants`, discussion and contribution links. The command-line and MCP client also provides `formalization-requests`.
 2. Choose an open, unclaimed request that matches your skills. Read its exact statement, original sources and existing discussion. Check Mathlib and the linked library for prior formalizations. A request can describe a mathematical goal without an already prepared Lean target file.
 3. Use the researcher's existing authorized GitHub connection. Claim work in the request's canonical GitHub issue by commenting `/claim` or assigning yourself. Preserve its request number and link; do not open a duplicate task. Respect the researcher's authorization for public comments and pull requests.
