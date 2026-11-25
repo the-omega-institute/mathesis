@@ -233,6 +233,33 @@ describe('solving pages', () => {
     );
   });
 
+  it('shows participation immediately while standings never return', async () => {
+    const sharedRequestLeaderboard = vi.fn(() => new Promise<never>(() => {}));
+    renderWithApp(
+      <LeaderboardPage initialCategory="formalization" />,
+      fakeApi({ sharedRequestLeaderboard }),
+    );
+    expect(screen.getByRole('link', { name: 'Explore formalization targets' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Submit your conjecture' })).toBeVisible();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Be the first to contribute' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('Let your agent contribute'));
+    expect(screen.getByText('Let your agent contribute').closest('details')).toHaveAttribute(
+      'open',
+    );
+  });
+
+  it('does not wait for the conjecture standings to read the formalization leaderboard', async () => {
+    const leaderboard = vi.fn(() => new Promise<never>(() => {}));
+    renderWithApp(<LeaderboardPage initialCategory="formalization" />, fakeApi({ leaderboard }));
+    expect(
+      await screen.findByRole('heading', { name: 'Be the first to contribute' }),
+    ).toBeVisible();
+    expect(leaderboard).not.toHaveBeenCalled();
+  });
+
   it('keeps filters available when a populated leaderboard has no monthly matches', async () => {
     const leaderboard = vi.fn(async (period: string | undefined) =>
       period === 'month' ? [] : [row],
@@ -285,7 +312,7 @@ describe('solving pages', () => {
       ],
     }));
     renderWithApp(
-      <LeaderboardPage />,
+      <LeaderboardPage initialCategory="formalization" />,
       fakeApi({ formalizationLeaderboard: old, sharedRequestLeaderboard: board }),
     );
     expect(await screen.findByRole('link', { name: 'external-mathematician' })).toHaveAttribute(

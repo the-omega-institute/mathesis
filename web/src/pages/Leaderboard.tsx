@@ -4,7 +4,8 @@ import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import type { Entrant, LeaderboardRow, SharedRequestBoard } from '../api/types';
-import { Async, Badge, DateText } from '../components/ui';
+import { Async, Badge, DateText, ErrorNotice } from '../components/ui';
+import type { ApiClient } from '../api/client';
 import { Link } from '../routing/router';
 import { SharedRequestLeaderboard } from '../components/SharedRequests';
 import { FormalizationNav } from '../components/FormalizationNav';
@@ -71,10 +72,28 @@ export function LeaderboardTable({
     </div>
   );
 }
-type CommunityStandings = {
-  solving: LeaderboardRow[];
-  formalization: SharedRequestBoard['rows'];
-};
+type CommunityStandings =
+  | { category: 'solving'; rows: LeaderboardRow[] }
+  | { category: 'formalization'; rows: SharedRequestBoard['rows'] };
+
+async function loadCommunityStandings(
+  api: ApiClient,
+  category: 'solving' | 'formalization',
+  period: 'all' | 'month',
+  entrants: 'all' | 'people' | 'agents',
+  signal: AbortSignal,
+): Promise<CommunityStandings> {
+  if (category === 'solving') {
+    return { category, rows: await api.leaderboard(period, entrants, { signal }) };
+  }
+  const board = await api.sharedRequestLeaderboard(period, { signal });
+  return {
+    category,
+    rows: board.rows.filter(
+      (row) => entrants === 'all' || row.contributor.agent === (entrants === 'agents'),
+    ),
+  };
+}
 
 export function LeaderboardPage({
   initialCategory = 'solving',
@@ -84,14 +103,8 @@ export function LeaderboardPage({
   const api = useApi();
   const initial = useAsync(
     useCallback(
-      async (signal: AbortSignal) => {
-        const [solving, formalization] = await Promise.all([
-          api.leaderboard('all', 'all', { signal }),
-          api.sharedRequestLeaderboard('all', { signal }),
-        ]);
-        return { solving, formalization: formalization.rows };
-      },
-      [api],
+      (signal: AbortSignal) => loadCommunityStandings(api, initialCategory, 'all', 'all', signal),
+      [api, initialCategory],
     ),
   );
   return (
@@ -103,50 +116,36 @@ export function LeaderboardPage({
         </div>
       </header>
       <FormalizationNav active="leaderboard" />
-      <Async state={initial.state} onRetry={initial.reload}>
-        {(standings) =>
-          standings.solving.length || standings.formalization.length ? (
-            <CommunityLeaderboard initial={standings} initialCategory={initialCategory} />
-          ) : (
-            <CommunityParticipation />
-          )
-        }
-      </Async>
+      {initial.state.status === 'ok' ? (
+        initial.state.value.rows.length ? (
+          <CommunityLeaderboard initial={initial.state.value} />
+        ) : (
+          <CommunityParticipation />
+        )
+      ) : (
+        <>
+          <CommunityParticipation pending />
+          {initial.state.status === 'error' ? (
+            <ErrorNotice error={initial.state.error} onRetry={initial.reload} />
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
 
-function CommunityLeaderboard({
-  initial,
-  initialCategory,
-}: {
-  initial: CommunityStandings;
-  initialCategory: 'solving' | 'formalization';
-}) {
+function CommunityLeaderboard({ initial }: { initial: CommunityStandings }) {
   const api = useApi();
   const [period, setPeriod] = useState<'all' | 'month'>('all');
   const [entrants, setEntrants] = useState<'all' | 'people' | 'agents'>('all');
-  const [category, setCategory] = useState<'solving' | 'formalization'>(
-    initial.solving.length === 0 && initial.formalization.length > 0
-      ? 'formalization'
-      : initialCategory,
-  );
+  const [category, setCategory] = useState<'solving' | 'formalization'>(initial.category);
   const board = useAsync(
     useCallback(
-      async (signal: AbortSignal) => {
-        if (period === 'all' && entrants === 'all') return initial;
-        const [solving, formalization] = await Promise.all([
-          api.leaderboard(period, entrants, { signal }),
-          api.sharedRequestLeaderboard(period, { signal }),
-        ]);
-        return {
-          solving,
-          formalization: formalization.rows.filter(
-            (row) => entrants === 'all' || row.contributor.agent === (entrants === 'agents'),
-          ),
-        };
-      },
-      [api, initial, period, entrants],
+      (signal: AbortSignal) =>
+        period === 'all' && entrants === 'all' && category === initial.category
+          ? Promise.resolve(initial)
+          : loadCommunityStandings(api, category, period, entrants, signal),
+      [api, initial, period, entrants, category],
     ),
   );
   return (
@@ -186,11 +185,11 @@ function CommunityLeaderboard({
       </div>
       <Async state={board.state} onRetry={board.reload}>
         {(rows) =>
-          (category === 'solving' ? rows.solving.length : rows.formalization.length) ? (
-            category === 'formalization' ? (
-              <SharedRequestLeaderboard rows={rows.formalization} />
+          rows.rows.length ? (
+            rows.category === 'formalization' ? (
+              <SharedRequestLeaderboard rows={rows.rows} />
             ) : (
-              <LeaderboardTable rows={rows.solving} />
+              <LeaderboardTable rows={rows.rows} />
             )
           ) : (
             <p>{t('No contributions match these filters.')}</p>
