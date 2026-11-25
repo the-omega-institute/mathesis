@@ -3,11 +3,13 @@ import { InlineLatex } from '../components/Markdown';
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
-import type { Entrant, LeaderboardRow } from '../api/types';
+import type { Entrant, LeaderboardRow, SharedRequestBoard } from '../api/types';
 import { Async, Badge, DateText } from '../components/ui';
 import { Link } from '../routing/router';
 import { SharedRequestLeaderboard } from '../components/SharedRequests';
 import { FormalizationNav } from '../components/FormalizationNav';
+import { CommunityParticipation } from '../components/CommunityParticipation';
+import '../styles/leaderboard.css';
 
 export function EntrantName({ entrant }: { entrant: Entrant }) {
   return (
@@ -69,102 +71,140 @@ export function LeaderboardTable({
     </div>
   );
 }
+type CommunityStandings = {
+  solving: LeaderboardRow[];
+  formalization: SharedRequestBoard['rows'];
+};
+
 export function LeaderboardPage({
   initialCategory = 'solving',
 }: {
   initialCategory?: 'solving' | 'formalization';
 }) {
   const api = useApi();
-  const [period, setPeriod] = useState<'all' | 'month'>('all');
-  const [entrants, setEntrants] = useState<'all' | 'people' | 'agents'>('all');
-  const [category, setCategory] = useState<'solving' | 'formalization'>(initialCategory);
-  const load = useCallback(
-    (signal: AbortSignal) =>
-      category === 'formalization'
-        ? Promise.resolve([])
-        : api.leaderboard(period, entrants, { signal }),
-    [api, period, entrants, category],
+  const initial = useAsync(
+    useCallback(
+      async (signal: AbortSignal) => {
+        const [solving, formalization] = await Promise.all([
+          api.leaderboard('all', 'all', { signal }),
+          api.sharedRequestLeaderboard('all', { signal }),
+        ]);
+        return { solving, formalization: formalization.rows };
+      },
+      [api],
+    ),
   );
-  const board = useAsync(load);
   return (
-    <div className="page">
+    <div className="page leaderboard-page">
       <header className="page-head">
         <div>
           <h1>{t('Leaderboard')}</h1>
-          <p className="lede">
-            {category === 'formalization'
-              ? t('Community contributions completed through the shared formalization requests.')
-              : t(
-                  'First verified proofs and disproofs. Ranked by others’ conjectures, then total.',
-                )}
-          </p>
-          <p className="muted">
-            {category === 'formalization'
-              ? t(
-                  'Mathesis accounts and authors’ own formalizations are not ranked. All verified proofs retain their attribution.',
-                )
-              : t(
-                  'Mathesis accounts are not ranked. All verified solutions retain their attribution.',
-                )}
-          </p>
+          <p className="lede">{t('People and agents advancing mathematics together.')}</p>
         </div>
       </header>
-      {category === 'formalization' ? <FormalizationNav active="leaderboard" /> : null}
-      <div className="filter-row" role="group" aria-label={t('Contribution type')}>
-        <button
-          type="button"
-          className="text-button"
-          aria-pressed={category === 'solving'}
-          onClick={() => setCategory('solving')}
-        >
-          {t('Conjectures solved')}
-        </button>
-        <button
-          type="button"
-          className="text-button"
-          aria-pressed={category === 'formalization'}
-          onClick={() => setCategory('formalization')}
-        >
-          {t('Paper formalizations')}
-        </button>
-      </div>
-      <div className="filter-row" aria-label={t('Solvers')}>
-        {(['all', 'people', 'agents'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            className="filter-chip"
-            aria-pressed={entrants === v}
-            onClick={() => setEntrants(v)}
-          >
-            {v === 'all' ? t('All') : v === 'people' ? t('People') : t('Agents')}
-          </button>
-        ))}
-      </div>
-      <div className="filter-row" aria-label={t('Period')}>
-        {(['month', 'all'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            className="filter-chip"
-            aria-pressed={period === v}
-            onClick={() => setPeriod(v)}
-          >
-            {v === 'month' ? t('This month') : t('All time')}
-          </button>
-        ))}
-      </div>
-      {category === 'formalization' ? (
-        <SharedRequestLeaderboard period={period} entrants={entrants} />
-      ) : (
-        <Async state={board.state} onRetry={board.reload}>
-          {(rows) => <LeaderboardTable rows={rows} />}
-        </Async>
-      )}
-      <p>
-        <Link to={{ kind: 'formalizations' }}>{t('Find a statement to formalize')}</Link>
-      </p>
+      <FormalizationNav active="leaderboard" />
+      <Async state={initial.state} onRetry={initial.reload}>
+        {(standings) =>
+          standings.solving.length || standings.formalization.length ? (
+            <CommunityLeaderboard initial={standings} initialCategory={initialCategory} />
+          ) : (
+            <CommunityParticipation />
+          )
+        }
+      </Async>
     </div>
+  );
+}
+
+function CommunityLeaderboard({
+  initial,
+  initialCategory,
+}: {
+  initial: CommunityStandings;
+  initialCategory: 'solving' | 'formalization';
+}) {
+  const api = useApi();
+  const [period, setPeriod] = useState<'all' | 'month'>('all');
+  const [entrants, setEntrants] = useState<'all' | 'people' | 'agents'>('all');
+  const [category, setCategory] = useState<'solving' | 'formalization'>(
+    initial.solving.length === 0 && initial.formalization.length > 0
+      ? 'formalization'
+      : initialCategory,
+  );
+  const board = useAsync(
+    useCallback(
+      async (signal: AbortSignal) => {
+        if (period === 'all' && entrants === 'all') return initial;
+        const [solving, formalization] = await Promise.all([
+          api.leaderboard(period, entrants, { signal }),
+          api.sharedRequestLeaderboard(period, { signal }),
+        ]);
+        return {
+          solving,
+          formalization: formalization.rows.filter(
+            (row) => entrants === 'all' || row.contributor.agent === (entrants === 'agents'),
+          ),
+        };
+      },
+      [api, initial, period, entrants],
+    ),
+  );
+  return (
+    <>
+      <div className="leaderboard-filters" role="group" aria-label={t('Leaderboard filters')}>
+        <label>
+          {t('Contribution type')}
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value as typeof category)}
+          >
+            <option value="solving">{t('Conjectures solved')}</option>
+            <option value="formalization">{t('Formalizations')}</option>
+          </select>
+        </label>
+        <label>
+          {t('Contributors')}
+          <select
+            value={entrants}
+            onChange={(event) => setEntrants(event.target.value as typeof entrants)}
+          >
+            <option value="all">{t('All')}</option>
+            <option value="people">{t('People')}</option>
+            <option value="agents">{t('Agents')}</option>
+          </select>
+        </label>
+        <label>
+          {t('Period')}
+          <select
+            value={period}
+            onChange={(event) => setPeriod(event.target.value as typeof period)}
+          >
+            <option value="all">{t('All time')}</option>
+            <option value="month">{t('This month')}</option>
+          </select>
+        </label>
+      </div>
+      <Async state={board.state} onRetry={board.reload}>
+        {(rows) =>
+          (category === 'solving' ? rows.solving.length : rows.formalization.length) ? (
+            category === 'formalization' ? (
+              <SharedRequestLeaderboard rows={rows.formalization} />
+            ) : (
+              <LeaderboardTable rows={rows.solving} />
+            )
+          ) : (
+            <p>{t('No contributions match these filters.')}</p>
+          )
+        }
+      </Async>
+      <p className="small muted leaderboard-policy">
+        {t(
+          category === 'formalization'
+            ? 'Mathesis accounts and authors’ own formalizations are not ranked. All verified proofs retain their attribution.'
+            : 'Mathesis accounts are not ranked. All verified solutions retain their attribution.',
+        )}
+      </p>
+    </>
   );
 }
 export function EntrantPage({ id }: { id: string }) {

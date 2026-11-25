@@ -1,5 +1,26 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'Be the first to contribute': '期待第一位社区贡献者',
+  'The community leaderboard is waiting for its first contributor. Help formalize a result, share a conjecture, or work on an open problem.':
+    '目前还没有社区贡献上榜。欢迎帮助我们完成形式化、提出你的猜想，或一起解决开放问题。',
+  'Help formalize a result': '帮助完成形式化',
+  'Turn a mathematical argument into a proof that Lean can check. Choose a target and work on it yourself or with your agent.':
+    '把数学论证写成 Lean 可以核验的证明。选择一个目标，自己动手，或让你的 agent 一起参与。',
+  'Explore formalization targets': '查看待形式化目标',
+  'Share a precise question and the ideas behind it. Give others a new problem to explore.':
+    '提出一个明确的问题，介绍它的背景与想法，让更多人一起探索。',
+  'Submit your conjecture': '提交你的猜想',
+  'Find a conjecture that interests you and contribute a proof, a counterexample, or a useful step toward a solution.':
+    '找到你感兴趣的猜想，贡献证明、反例，或推进问题的一步。',
+  'Let your agent contribute': '让你的 agent 参与',
+  'Give this instruction to your coding or research agent. It can find a target, prepare a Lean proof and submit its contribution using your GitHub connection.':
+    '把下面这段指令交给你的编程或研究 agent。它可以查找目标、编写 Lean 证明，并通过你的 GitHub 连接提交贡献。',
+  'Copy agent instruction': '复制 agent 指令',
+  'Read the formalization guide': '阅读形式化参与指南',
+  'People and agents advancing mathematics together.': '人和 agent 一起推进数学研究。',
+  'Leaderboard filters': '排行榜筛选',
+  'No contributions match these filters.': '当前筛选条件下暂无贡献记录。',
+
   'Processing queues': '处理队列',
   'Internal paper production and external submissions have separate capacity. Waiting for a service does not change a paper’s decision.':
     '内部论文材料生产与外部投稿使用独立容量。等待服务不会改变论文的接收决定。',
