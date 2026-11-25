@@ -418,7 +418,7 @@ mod tests {
     fn discussion_keeps_authorship_markdown_and_comment_edits() {
         let comment = json!({"id": 123, "user": {"login": "alice", "type": "User"},
             "body": "A **proof** of $x = x$", "created_at": "2026-11-24T00:00:00Z", "updated_at": "2026-11-24T01:00:00Z"});
-        let saved = discussion(&[comment.clone()]).unwrap();
+        let saved = discussion(std::slice::from_ref(&comment)).unwrap();
         assert_eq!(saved[0].author.login, "alice");
         assert_eq!(saved[0].body, "A **proof** of $x = x$");
         assert!(saved[0].updated_at > saved[0].created_at);
