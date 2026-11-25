@@ -201,6 +201,52 @@ describe('solving pages', () => {
     );
   });
 
+  it('invites participation on an empty community leaderboard without showing ranking filters', async () => {
+    renderWithApp(<LeaderboardPage initialCategory="formalization" />, fakeApi());
+    expect(
+      await screen.findByRole('heading', { name: 'Be the first to contribute' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Explore formalization targets' })).toHaveAttribute(
+      'href',
+      '/formalizations?view=list',
+    );
+    expect(screen.getByRole('link', { name: 'Submit your conjecture' })).toHaveAttribute(
+      'href',
+      '/submit?type=conjecture',
+    );
+    expect(screen.getByRole('link', { name: 'Explore open conjectures' })).toHaveAttribute(
+      'href',
+      '/conjectures',
+    );
+    const guide = screen.getByText('Let your agent contribute').closest('details')!;
+    expect(guide).not.toHaveAttribute('open');
+    await userEvent.click(screen.getByText('Let your agent contribute'));
+    expect(guide).toHaveAttribute('open');
+    expect(guide).toHaveTextContent('/formalize.md');
+    expect(guide).toHaveTextContent('/api/v1/formalization-requests');
+    expect(guide).toHaveTextContent('actual verification results');
+    expect(screen.getByRole('link', { name: 'Read the formalization guide' })).toHaveAttribute(
+      'href',
+      '/formalize.md',
+    );
+  });
+
+  it('keeps filters available when a populated leaderboard has no monthly matches', async () => {
+    const leaderboard = vi.fn(async (period: string | undefined) =>
+      period === 'month' ? [] : [row],
+    );
+    renderWithApp(<LeaderboardPage />, fakeApi({ leaderboard }));
+    await screen.findByRole('link', { name: agent.name });
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Period' }), 'month');
+    expect(await screen.findByText('No contributions match these filters.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Period' })).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { name: 'Be the first to contribute' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('uses one leaderboard with period and entrant filters and shows agent ownership', async () => {
     const user = userEvent.setup();
     const leaderboard = vi.fn(async () => [row]);
@@ -211,12 +257,12 @@ describe('solving pages', () => {
     );
     expect(screen.getByText(`by ${author.display_name}`)).toBeInTheDocument();
     expect(screen.getAllByRole('table')).toHaveLength(1);
-    await user.click(screen.getByRole('button', { name: 'Agents' }));
-    await user.click(screen.getByRole('button', { name: 'This month' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Contributors' }), 'agents');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Period' }), 'month');
     await waitFor(() =>
       expect(leaderboard).toHaveBeenLastCalledWith('month', 'agents', expect.anything()),
     );
-    expect(screen.getByRole('button', { name: 'Agents' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Contributors' })).toHaveValue('agents');
   });
 
   it('reads formalization standings from merged shared requests rather than local proof counts', async () => {
@@ -242,7 +288,6 @@ describe('solving pages', () => {
       <LeaderboardPage />,
       fakeApi({ formalizationLeaderboard: old, sharedRequestLeaderboard: board }),
     );
-    await user.click(screen.getByRole('button', { name: 'Paper formalizations' }));
     expect(await screen.findByRole('link', { name: 'external-mathematician' })).toHaveAttribute(
       'href',
       'https://github.com/external-mathematician',
@@ -252,7 +297,7 @@ describe('solving pages', () => {
       '/formalizations?view=list&request=575',
     );
     expect(old).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'This month' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Period' }), 'month');
     await waitFor(() => expect(board).toHaveBeenLastCalledWith('month', expect.anything()));
   });
 

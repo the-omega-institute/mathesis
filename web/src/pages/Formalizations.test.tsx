@@ -89,18 +89,14 @@ it('lean entry uses shared requests publicly instead of creating another local p
   expect(create).not.toHaveBeenCalled();
 });
 
-it('links leaderboard requests to their in-site reader', async () => {
+it('links leaderboard requests to their in-site reader', () => {
   renderWithApp(
-    <SharedRequestLeaderboard period="all" entrants="all" />,
-    fakeApi({
-      sharedRequestLeaderboard: async () => ({
-        repository: 'the-omega-institute/trureturing-requests',
-        observed_at: '2026-11-24T00:00:00Z',
-        rows: [{ rank: 1, contributor: request.claimants[0]!, completed: 1, requests: [575] }],
-      }),
-    }),
+    <SharedRequestLeaderboard
+      rows={[{ rank: 1, contributor: request.claimants[0]!, completed: 1, requests: [575] }]}
+    />,
+    fakeApi(),
   );
-  expect(await screen.findByRole('link', { name: '#575' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: '#575' })).toHaveAttribute(
     'href',
     '/formalizations?view=list&request=575',
   );

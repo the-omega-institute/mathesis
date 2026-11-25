@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
+import type { SharedRequestBoard } from '../api/types';
 import { useAsync } from '../api/useAsync';
 import { Async, DateText, ExternalLink } from './ui';
 import { InlineLatex, Markdown } from './Markdown';
@@ -224,84 +225,42 @@ export function SharedRequests({ initialQuery = '' }: { initialQuery?: string })
   );
 }
 
-export function SharedRequestLeaderboard({
-  period,
-  entrants,
-}: {
-  period: 'all' | 'month';
-  entrants: 'all' | 'people' | 'agents';
-}) {
-  const api = useApi();
-  const board = useAsync(
-    useCallback(
-      (signal: AbortSignal) => api.sharedRequestLeaderboard(period, { signal }),
-      [api, period],
-    ),
-  );
+/** The canonical contribution records, with task links opening the in-site reader. */
+export function SharedRequestLeaderboard({ rows }: { rows: SharedRequestBoard['rows'] }) {
   return (
-    <Async state={board.state} onRetry={board.reload}>
-      {(data) => {
-        const rows = data.rows.filter(
-          (row) => entrants === 'all' || row.contributor.agent === (entrants === 'agents'),
-        );
-        return (
-          <section aria-label={t('Shared request contributions')}>
-            <p>
-              {t(
-                'Contributions come from the shared requests and their linked merged pull requests. Claims are participation records; they do not earn points.',
-              )}
-            </p>
-            {!data.observed_at ? (
-              <p>
-                {t('Formalization requests are being synchronized. Please check again shortly.')}
-              </p>
-            ) : null}
-            {rows.length ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>{t('Rank')}</th>
-                    <th>{t('Contributor')}</th>
-                    <th>{t('Completed requests')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.contributor.login}>
-                      <td>{row.rank}</td>
-                      <th>
-                        <ExternalLink href={row.contributor.url}>
-                          {row.contributor.login}
-                        </ExternalLink>
-                      </th>
-                      <td>
-                        {row.completed}{' '}
-                        <span className="small">
-                          {row.requests.map((number) => (
-                            <span key={number}>
-                              {' '}
-                              <Link to={{ kind: 'formalizations', view: 'list', request: number }}>
-                                #{number}
-                              </Link>
-                            </span>
-                          ))}
-                        </span>
-                      </td>
-                    </tr>
+    <div className="table-wrap">
+      <table className="data-table leaderboard-table">
+        <thead>
+          <tr>
+            <th scope="col">{t('Rank')}</th>
+            <th scope="col">{t('Contributor')}</th>
+            <th scope="col">{t('Completed requests')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.contributor.login}>
+              <td>{row.rank}</td>
+              <th scope="row">
+                <ExternalLink href={row.contributor.url}>{row.contributor.login}</ExternalLink>
+              </th>
+              <td>
+                {row.completed}{' '}
+                <span className="small">
+                  {row.requests.map((number) => (
+                    <span key={number}>
+                      {' '}
+                      <Link to={{ kind: 'formalizations', view: 'list', request: number }}>
+                        #{number}
+                      </Link>
+                    </span>
                   ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>{t('No ranked formalization contributions yet.')}</p>
-            )}
-            <p>
-              <Link to={{ kind: 'formalizations', view: 'list' }}>
-                {t('Find a request to contribute to')}
-              </Link>
-            </p>
-          </section>
-        );
-      }}
-    </Async>
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
