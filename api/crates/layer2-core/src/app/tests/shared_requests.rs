@@ -4,6 +4,8 @@ fn request(number: u64, ranked: bool) -> SharedFormalizationRequest {
     SharedFormalizationRequest {
         number,
         title: "A precise lemma".into(),
+        body: "A formalization target.".into(),
+        comments: vec![],
         url: format!("https://github.com/{REQUEST_REPOSITORY}/issues/{number}"),
         state: "merged".into(),
         updated_at: "2026-11-24T00:00:00Z".parse().unwrap(),
@@ -23,6 +25,16 @@ fn request(number: u64, ranked: bool) -> SharedFormalizationRequest {
         paper_repository: None,
         lean_source: None,
     }
+}
+
+#[test]
+fn old_request_snapshots_load_without_body_or_discussion() {
+    let mut old = serde_json::to_value(request(1, false)).unwrap();
+    old.as_object_mut().unwrap().remove("body");
+    old.as_object_mut().unwrap().remove("comments");
+    let restored: SharedFormalizationRequest = serde_json::from_value(old).unwrap();
+    assert!(restored.body.is_empty());
+    assert!(restored.comments.is_empty());
 }
 
 #[tokio::test]

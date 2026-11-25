@@ -27,6 +27,7 @@ export type Route =
       q?: string;
       before?: string;
       view?: 'list';
+      request?: number;
     }
   | { kind: 'learn_lean' }
   | { kind: 'conjecture'; record: string; claim: string }
@@ -149,6 +150,7 @@ export function parseRoute(pathname: string, search = ''): Route {
         return { kind: 'learn_lean' };
       case 'formalizations': {
         const params = new URLSearchParams(search);
+        const request = Number(params.get('request'));
         const msc = params.get('msc');
         if (msc && !findSubject(msc)) return notFound;
         return {
@@ -158,6 +160,7 @@ export function parseRoute(pathname: string, search = ''): Route {
           ...(params.get('q') ? { q: params.get('q')! } : {}),
           ...(params.get('before') ? { before: params.get('before')! } : {}),
           ...(params.get('view') === 'list' ? { view: 'list' as const } : {}),
+          ...(Number.isSafeInteger(request) && request > 0 ? { request } : {}),
         };
       }
       case 'submit': {
@@ -328,6 +331,7 @@ export function routePath(route: Route): string {
       if (route.q) params.set('q', route.q);
       if (route.before) params.set('before', route.before);
       if (route.view) params.set('view', route.view);
+      if (route.request) params.set('request', String(route.request));
       return `/formalizations${params.size ? `?${params}` : ''}`;
     }
     case 'submit': {

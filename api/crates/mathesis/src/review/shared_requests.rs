@@ -152,6 +152,32 @@ fn claimants(issue: &Value, comments: &[Value]) -> Vec<RequestContributor> {
     people.into_values().collect()
 }
 
+fn discussion(comments: &[Value]) -> Result<Vec<RequestComment>, String> {
+    comments
+        .iter()
+        .map(|comment| {
+            Ok(RequestComment {
+                id: comment["id"]
+                    .as_u64()
+                    .filter(|id| *id > 0)
+                    .ok_or("invalid request comment id")?,
+                author: contributor(&comment["user"]).ok_or("request comment author missing")?,
+                body: comment["body"].as_str().unwrap_or_default().into(),
+                created_at: comment["created_at"]
+                    .as_str()
+                    .ok_or("request comment date missing")?
+                    .parse()
+                    .map_err(|_| "invalid request comment date")?,
+                updated_at: comment["updated_at"]
+                    .as_str()
+                    .ok_or("request comment update missing")?
+                    .parse()
+                    .map_err(|_| "invalid request comment update")?,
+            })
+        })
+        .collect()
+}
+
 fn refers_to_request(body: &str, number: u64) -> bool {
     [
         format!("https://github.com/{REQUEST_REPOSITORY}/issues/{number}"),
@@ -245,11 +271,16 @@ pub(crate) async fn fetch(
             .map_err(|_| "invalid request update time")?;
         if let Some(saved) = old.get(&number)
             && saved.updated_at == updated_at
+            // Comment edits need not change the issue timestamp. Always read
+            // discussions again; only an issue with no comments can reuse them.
+            && saved.comments.is_empty()
+            && issue["comments"].as_u64().unwrap_or(0) == 0
             // A PR can merge after its issue was closed without updating the issue.
             // Recheck unresolved closures daily, staggered across the anonymous budget.
             && !(saved.state == "closed" && number % 24 == u64::from(Utc::now().hour()))
         {
             let mut saved = (*saved).clone();
+            saved.body = issue["body"].as_str().unwrap_or_default().into();
             for done in &mut saved.completions {
                 done.ranked = ranked(&done.contributor, &saved.requested_by, excluded, eligible);
             }
@@ -306,6 +337,8 @@ pub(crate) async fn fetch(
         requests.push(SharedFormalizationRequest {
             number,
             title: title.trim_start_matches("[Formalization]").trim().into(),
+            body: body.into(),
+            comments: discussion(&comments)?,
             url: format!("https://github.com/{REQUEST_REPOSITORY}/issues/{number}"),
             state: state.into(),
             updated_at,
@@ -381,6 +414,18 @@ pub(crate) async fn run(
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn discussion_keeps_authorship_markdown_and_comment_edits() {
+        let comment = json!({"id": 123, "user": {"login": "alice", "type": "User"},
+            "body": "A **proof** of $x = x$", "created_at": "2026-11-24T00:00:00Z", "updated_at": "2026-11-24T01:00:00Z"});
+        let saved = discussion(&[comment.clone()]).unwrap();
+        assert_eq!(saved[0].author.login, "alice");
+        assert_eq!(saved[0].body, "A **proof** of $x = x$");
+        assert!(saved[0].updated_at > saved[0].created_at);
+        let mut invalid = comment;
+        invalid["user"]["login"] = json!("invalid/link");
+        assert!(discussion(&[invalid]).is_err());
+    }
     #[test]
     fn claims_are_self_authored_explicit_and_release_does_not_erase_an_assignee() {
         let person = |login| json!({"login":login,"type":"User"});

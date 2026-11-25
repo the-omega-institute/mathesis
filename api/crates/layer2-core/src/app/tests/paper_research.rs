@@ -68,6 +68,8 @@ async fn public_reading_keeps_source_questions_and_version_bound_requests_withou
         requests.push(SharedFormalizationRequest {
             number,
             title: "A precise bound".into(),
+            body: "A formalization target.".into(),
+            comments: vec![],
             url: format!("https://github.com/{REQUEST_REPOSITORY}/issues/{number}"),
             state: if number == 1 { "merged" } else { "open" }.into(),
             updated_at: chrono::Utc::now(),

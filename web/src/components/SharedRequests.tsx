@@ -2,13 +2,14 @@ import { useCallback, useState } from 'react';
 import { useApi } from '../api/context';
 import { useAsync } from '../api/useAsync';
 import { Async, DateText, ExternalLink } from './ui';
-import { InlineLatex } from './Markdown';
+import { InlineLatex, Markdown } from './Markdown';
 import { t } from '../i18n/locale';
-
-export const SHARED_REQUESTS = 'https://github.com/the-omega-institute/trureturing-requests/issues';
+import { Link, useRouter } from '../routing/router';
 
 export function SharedRequests({ initialQuery = '' }: { initialQuery?: string }) {
   const api = useApi();
+  const { route } = useRouter();
+  const selected = route.kind === 'formalizations' ? route.request : undefined;
   const data = useAsync(
     useCallback((signal: AbortSignal) => api.sharedFormalizationRequests({ signal }), [api]),
   );
@@ -18,52 +19,56 @@ export function SharedRequests({ initialQuery = '' }: { initialQuery?: string })
   return (
     <section aria-label={t('Shared formalization requests')}>
       <p>
-        {t(
-          'Choose a request, claim it in the shared discussion, and link your proof contribution there. People and agents use the same request.',
-        )}
+        {t('Read the mathematical target, follow the discussion, and see who is contributing.')}
       </p>
-      <p>
-        {t(
-          'To claim a request, assign yourself or comment /claim. Comment /unclaim to release your claim.',
-        )}
-      </p>
-      <div className="filter-row">
-        <label>
-          {t('Search requests')}{' '}
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setLimit(30);
-            }}
-          />
-        </label>
-        <label>
-          {t('Status')}{' '}
-          <select
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setLimit(30);
-            }}
-          >
-            <option value="open">{t('Open requests')}</option>
-            <option value="claimed">{t('Claimed')}</option>
-            <option value="merged">{t('Merged contributions')}</option>
-            <option value="all">{t('All')}</option>
-          </select>
-        </label>
-      </div>
+      {selected ? (
+        <p>
+          <Link to={{ kind: 'formalizations', view: 'list' }}>
+            {t('Back to awaiting formalization')}
+          </Link>
+        </p>
+      ) : (
+        <div className="filter-row">
+          <label>
+            {t('Search requests')}{' '}
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setLimit(30);
+              }}
+            />
+          </label>
+          <label>
+            {t('Status')}{' '}
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setLimit(30);
+              }}
+            >
+              <option value="open">{t('Open requests')}</option>
+              <option value="claimed">{t('Claimed')}</option>
+              <option value="merged">{t('Merged contributions')}</option>
+              <option value="all">{t('All')}</option>
+            </select>
+          </label>
+        </div>
+      )}
       <Async state={data.state} onRetry={data.reload}>
         {(snapshot) => {
-          const rows = snapshot.requests.filter(
-            (row) =>
-              (status === 'all' ||
-                (status === 'open'
-                  ? ['open', 'claimed'].includes(row.state)
-                  : row.state === status)) &&
-              row.title.toLowerCase().includes(query.trim().toLowerCase()),
+          const rows = snapshot.requests.filter((row) =>
+            selected
+              ? row.number === selected
+              : (status === 'all' ||
+                  (status === 'open'
+                    ? ['open', 'claimed'].includes(row.state)
+                    : row.state === status)) &&
+                `${row.title}\n${row.body ?? ''}`
+                  .toLowerCase()
+                  .includes(query.trim().toLowerCase()),
           );
           return (
             <>
@@ -73,17 +78,26 @@ export function SharedRequests({ initialQuery = '' }: { initialQuery?: string })
                 </p>
               ) : (
                 <p>
-                  {t(
-                    'The shared request list is being synchronized. You can participate directly in the shared queue.',
-                  )}
+                  {t('Formalization requests are being synchronized. Please check again shortly.')}
                 </p>
               )}
-              <ul className="entry-list">
+              <div className="formalization-request-list">
                 {rows.slice(0, limit).map((row) => (
-                  <li key={row.number}>
-                    <ExternalLink href={row.url}>
-                      <InlineLatex source={row.title} />
-                    </ExternalLink>
+                  <article className="formalization-request-card" key={row.number}>
+                    {selected === row.number ? (
+                      <h2 className="formalization-request-heading">
+                        <span className="formalization-request-number">#{row.number}</span>
+                        <InlineLatex source={row.title} />
+                      </h2>
+                    ) : (
+                      <Link
+                        to={{ kind: 'formalizations', view: 'list', request: row.number }}
+                        className="formalization-request-heading"
+                      >
+                        <span className="formalization-request-number">#{row.number}</span>
+                        <InlineLatex source={row.title} />
+                      </Link>
+                    )}
                     <p className="entry-meta">
                       {t(
                         row.state === 'claimed'
@@ -107,42 +121,105 @@ export function SharedRequests({ initialQuery = '' }: { initialQuery?: string })
                         </>
                       ) : null}
                     </p>
-                    {row.completions.map((done) => (
-                      <p key={done.url}>
-                        <ExternalLink href={done.url}>
-                          {t('Merged proof contribution')}
-                        </ExternalLink>{' '}
-                        ·{' '}
-                        <ExternalLink href={done.contributor.url}>
-                          {done.contributor.login}
-                        </ExternalLink>
-                      </p>
-                    ))}
-                    {row.paper_repository ? (
-                      <p>
-                        <ExternalLink href={row.paper_repository}>
-                          {t('Paper repository')}
-                        </ExternalLink>
-                      </p>
+                    {selected === row.number ? (
+                      <div className="formalization-request-detail">
+                        {row.body ? (
+                          <Markdown text={row.body} />
+                        ) : (
+                          <p className="muted">
+                            {t('The request description is being synchronized.')}
+                          </p>
+                        )}
+                        <dl className="formalization-request-meta">
+                          <div>
+                            <dt>{t('Proposed by')}</dt>
+                            <dd>{row.requested_by}</dd>
+                          </div>
+                          {row.paper_repository ? (
+                            <div>
+                              <dt>{t('Source paper')}</dt>
+                              <dd>
+                                <ExternalLink href={row.paper_repository}>
+                                  {row.paper_repository.split('/').pop()}
+                                </ExternalLink>
+                              </dd>
+                            </div>
+                          ) : null}
+                          {row.lean_source ? (
+                            <div>
+                              <dt>{t('Existing Lean source')}</dt>
+                              <dd>
+                                <ExternalLink href={row.lean_source}>
+                                  {t('Open source')}
+                                </ExternalLink>
+                              </dd>
+                            </div>
+                          ) : null}
+                        </dl>
+                        {row.completions.length ? (
+                          <div>
+                            <h3>{t('Merged proof contributions')}</h3>
+                            {row.completions.map((done) => (
+                              <p key={done.url}>
+                                <ExternalLink href={done.url}>
+                                  {t('Read the merged contribution')}
+                                </ExternalLink>
+                                {' · '}
+                                <ExternalLink href={done.contributor.url}>
+                                  {done.contributor.login}
+                                </ExternalLink>
+                                {' · '}
+                                <code>{done.revision.slice(0, 8)}</code>
+                              </p>
+                            ))}
+                          </div>
+                        ) : null}
+                        {row.comments?.length ? (
+                          <section
+                            className="formalization-request-discussion"
+                            aria-label={t('Discussion')}
+                          >
+                            <h3>{t('Discussion')}</h3>
+                            {row.comments.map((comment) => (
+                              <article className="formalization-request-comment" key={comment.id}>
+                                <p className="entry-meta">
+                                  <ExternalLink href={comment.author.url}>
+                                    {comment.author.login}
+                                  </ExternalLink>
+                                  {' · '}
+                                  <DateText iso={comment.created_at} withTime />
+                                </p>
+                                <Markdown text={comment.body} />
+                              </article>
+                            ))}
+                          </section>
+                        ) : null}
+                        <p className="small formalization-request-source">
+                          <ExternalLink href={row.url}>{t('Original on GitHub')}</ExternalLink>
+                        </p>
+                      </div>
                     ) : null}
-                  </li>
+                  </article>
                 ))}
-              </ul>
+              </div>
               {rows.length > limit ? (
                 <button className="text-button" onClick={() => setLimit(limit + 30)}>
                   {t('Show more')}
                 </button>
               ) : null}
               {snapshot.observed_at && !rows.length ? (
-                <p>{t('No requests match these filters.')}</p>
+                <p>
+                  {t(
+                    selected
+                      ? 'This request is not in the latest synchronized list.'
+                      : 'No requests match these filters.',
+                  )}
+                </p>
               ) : null}
             </>
           );
         }}
       </Async>
-      <p>
-        <ExternalLink href={SHARED_REQUESTS}>{t('Open the shared request queue')}</ExternalLink>
-      </p>
     </section>
   );
 }
@@ -176,9 +253,7 @@ export function SharedRequestLeaderboard({
             </p>
             {!data.observed_at ? (
               <p>
-                {t(
-                  'The shared request list is being synchronized. You can participate directly in the shared queue.',
-                )}
+                {t('Formalization requests are being synchronized. Please check again shortly.')}
               </p>
             ) : null}
             {rows.length ? (
@@ -205,9 +280,9 @@ export function SharedRequestLeaderboard({
                           {row.requests.map((number) => (
                             <span key={number}>
                               {' '}
-                              <ExternalLink href={`${SHARED_REQUESTS}/${number}`}>
+                              <Link to={{ kind: 'formalizations', view: 'list', request: number }}>
                                 #{number}
-                              </ExternalLink>
+                              </Link>
                             </span>
                           ))}
                         </span>
@@ -220,9 +295,9 @@ export function SharedRequestLeaderboard({
               <p>{t('No ranked formalization contributions yet.')}</p>
             )}
             <p>
-              <ExternalLink href={SHARED_REQUESTS}>
+              <Link to={{ kind: 'formalizations', view: 'list' }}>
                 {t('Find a request to contribute to')}
-              </ExternalLink>
+              </Link>
             </p>
           </section>
         );

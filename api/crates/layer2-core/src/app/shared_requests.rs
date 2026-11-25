@@ -52,6 +52,8 @@ impl App {
                 || !["open", "claimed", "merged", "closed"].contains(&request.state.as_str())
                 || request.title.trim().is_empty()
                 || request.title.len() > 1024
+                || request.body.len() > 262_144
+                || request.comments.len() > 10_000
                 || !valid_login(&request.requested_by)
                 || request.claimants.len() > 100
                 || request.completions.len() > 100
@@ -73,6 +75,17 @@ impl App {
                 return Err(CoreError::invalid(
                     "invalid canonical formalization request",
                 ));
+            }
+            let mut comment_ids = std::collections::BTreeSet::new();
+            for comment in &request.comments {
+                if comment.id == 0
+                    || !comment_ids.insert(comment.id)
+                    || !valid_person(&comment.author)
+                    || comment.body.len() > 262_144
+                    || comment.updated_at < comment.created_at
+                {
+                    return Err(CoreError::invalid("invalid shared request comment"));
+                }
             }
             for completion in &request.completions {
                 let number = completion

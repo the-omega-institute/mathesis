@@ -7,6 +7,7 @@ import type { Entrant, LeaderboardRow } from '../api/types';
 import { Async, Badge, DateText } from '../components/ui';
 import { Link } from '../routing/router';
 import { SharedRequestLeaderboard } from '../components/SharedRequests';
+import { FormalizationNav } from '../components/FormalizationNav';
 
 export function EntrantName({ entrant }: { entrant: Entrant }) {
   return (
@@ -108,6 +109,7 @@ export function LeaderboardPage({
           </p>
         </div>
       </header>
+      {category === 'formalization' ? <FormalizationNav active="leaderboard" /> : null}
       <div className="filter-row" role="group" aria-label={t('Contribution type')}>
         <button
           type="button"

@@ -1,3 +1,4 @@
+import { SharedRequestLink } from './SharedRequestLink';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAsync } from '../api/useAsync';
 import {
@@ -429,9 +430,11 @@ function LibraryExplorer({
               ) : null}
               {node.abstract ? <LatexText source={node.abstract} /> : null}
               <p>
-                <ExternalLink href={node.source}>
-                  {t(node.request ? 'Open request' : 'Lean source')}
-                </ExternalLink>
+                {node.request ? (
+                  <SharedRequestLink url={node.source}>{t('Open request')}</SharedRequestLink>
+                ) : (
+                  <ExternalLink href={node.source}>{t('Lean source')}</ExternalLink>
+                )}
               </p>
               {(['before', 'after'] as const).map((direction) => {
                 const items = neighbors(direction);

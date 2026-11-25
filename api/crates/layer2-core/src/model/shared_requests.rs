@@ -22,9 +22,23 @@ pub struct RequestCompletion {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RequestComment {
+    pub id: u64,
+    pub author: RequestContributor,
+    pub body: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedFormalizationRequest {
     pub number: u64,
     pub title: String,
+    /// Synchronized request text. Older snapshots deserialize as an empty body.
+    #[serde(default)]
+    pub body: String,
+    #[serde(default)]
+    pub comments: Vec<RequestComment>,
     pub url: String,
     /// open, claimed, merged or closed. Closure alone is never a proof receipt.
     pub state: String,

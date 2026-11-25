@@ -41,10 +41,7 @@ it('shows recent shared proof work with its contributor alongside research witho
   );
   const section = screen.getByRole('region', { name: 'Latest research' });
   const link = await within(section).findByRole('link', { name: 'A proof of the finite bound' });
-  expect(link).toHaveAttribute(
-    'href',
-    'https://github.com/the-omega-institute/trureturing-requests/issues/5',
-  );
+  expect(link).toHaveAttribute('href', '/formalizations?view=list&request=5');
   expect(within(section).getByRole('link', { name: 'A Contributor' })).toBeVisible();
   expect(within(section).getAllByRole('link', { name: 'Read PDF' })).toHaveLength(2);
   expect(within(section).queryByText('Verified in Lean')).toBeNull();

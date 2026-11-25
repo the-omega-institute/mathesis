@@ -126,7 +126,7 @@ it('keeps the existing reading and declared request links available if enrichmen
   expect(await screen.findByText('Existing public results')).toBeVisible();
   expect(screen.getByRole('link', { name: 'An exact task' })).toHaveAttribute(
     'href',
-    reading.requests[0]!.request.url,
+    '/formalizations?view=list&request=5',
   );
   expect(screen.queryByText('Merged contribution')).toBeNull();
 });
