@@ -249,7 +249,7 @@ describe('solving pages', () => {
     );
     expect(screen.getByRole('link', { name: '#575' })).toHaveAttribute(
       'href',
-      'https://github.com/the-omega-institute/trureturing-requests/issues/575',
+      '/formalizations?view=list&request=575',
     );
     expect(old).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'This month' }));

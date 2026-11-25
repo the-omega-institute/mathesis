@@ -1,12 +1,11 @@
 import '../styles/formalizations.css';
 import { t } from '../i18n/locale';
-import { ExternalLink } from '../components/ui';
-import { Link } from '../routing/router';
 import { ResearchGraphPage } from './ResearchGraph';
 import { useRouter } from '../routing/router';
 import { useEffect } from 'react';
 import { SharedLibraryGraph } from '../components/SharedLibraryGraph';
-import { SharedRequests, SHARED_REQUESTS } from '../components/SharedRequests';
+import { SharedRequests } from '../components/SharedRequests';
+import { FormalizationNav } from '../components/FormalizationNav';
 
 export function FormalizationsPage({
   msc,
@@ -37,28 +36,8 @@ export function FormalizationsPage({
             )}
           </p>
         </div>
-        <nav className="formalization-actions" aria-label={t('Formalization contributions')}>
-          <a className="button" href={SHARED_REQUESTS} target="_blank" rel="noopener noreferrer">
-            {t('Contribute Lean work')}
-          </a>
-          <Link to={{ kind: 'leaderboard', category: 'formalization' }}>{t('Leaderboard')}</Link>
-        </nav>
       </header>
-      <nav className="section-tabs" aria-label={t('Formalization views')}>
-        <Link to={{ kind: 'formalizations' }} aria-current={view !== 'list' ? 'page' : undefined}>
-          {t('Dependency graph')}
-        </Link>
-        <Link
-          to={{ kind: 'formalizations', view: 'list' }}
-          aria-current={view === 'list' ? 'page' : undefined}
-        >
-          {t('Results and proof work')}
-        </Link>
-        <Link to={{ kind: 'learn_lean' }}>{t('Learn Lean')}</Link>
-        <ExternalLink href="https://github.com/the-omega-institute/trureturing-requests/issues">
-          {t('Shared formalization requests')}
-        </ExternalLink>
-      </nav>
+      <FormalizationNav active={view === 'list' ? 'requests' : 'graph'} />
       {view === 'list' ? (
         <SharedRequests initialQuery={q} />
       ) : (

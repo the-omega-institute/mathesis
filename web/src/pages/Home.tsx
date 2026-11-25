@@ -134,9 +134,15 @@ export function HomePage() {
                 {t('Recent proof contribution')} · <DateText iso={contribution.done.merged_at} />
               </p>
               <h3>
-                <ExternalLink href={contribution.request.url}>
+                <Link
+                  to={{
+                    kind: 'formalizations',
+                    view: 'list',
+                    request: contribution.request.number,
+                  }}
+                >
                   <InlineLatex source={contribution.request.title} />
-                </ExternalLink>
+                </Link>
               </h3>
               <p>
                 <ExternalLink href={contribution.done.url}>

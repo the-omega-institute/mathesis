@@ -152,6 +152,55 @@ fn claimants(issue: &Value, comments: &[Value]) -> Vec<RequestContributor> {
     people.into_values().collect()
 }
 
+fn discussion(comments: &[Value]) -> Result<Vec<RequestComment>, String> {
+    comments
+        .iter()
+        .map(|comment| {
+            Ok(RequestComment {
+                id: comment["id"]
+                    .as_u64()
+                    .filter(|id| *id > 0)
+                    .ok_or("invalid request comment id")?,
+                author: contributor(&comment["user"]).ok_or("request comment author missing")?,
+                body: comment["body"].as_str().unwrap_or_default().into(),
+                created_at: comment["created_at"]
+                    .as_str()
+                    .ok_or("request comment date missing")?
+                    .parse()
+                    .map_err(|_| "invalid request comment date")?,
+                updated_at: comment["updated_at"]
+                    .as_str()
+                    .ok_or("request comment update missing")?
+                    .parse()
+                    .map_err(|_| "invalid request comment update")?,
+            })
+        })
+        .collect()
+}
+
+fn comment_threads(comments: Vec<Value>) -> Result<BTreeMap<u64, Vec<Value>>, String> {
+    let prefix = format!("{API}/repos/{REQUEST_REPOSITORY}/issues/");
+    let mut threads = BTreeMap::<u64, Vec<Value>>::new();
+    for comment in comments {
+        let number = comment["issue_url"]
+            .as_str()
+            .and_then(|url| url.strip_prefix(&prefix))
+            .and_then(|number| number.parse::<u64>().ok())
+            .filter(|number| *number > 0)
+            .ok_or("invalid request comment issue")?;
+        threads.entry(number).or_default().push(comment);
+    }
+    for thread in threads.values_mut() {
+        thread.sort_by(|a, b| {
+            a["created_at"]
+                .as_str()
+                .cmp(&b["created_at"].as_str())
+                .then_with(|| a["id"].as_u64().cmp(&b["id"].as_u64()))
+        });
+    }
+    Ok(threads)
+}
+
 fn refers_to_request(body: &str, number: u64) -> bool {
     [
         format!("https://github.com/{REQUEST_REPOSITORY}/issues/{number}"),
@@ -223,6 +272,16 @@ pub(crate) async fn fetch(
             "/repos/{REQUEST_REPOSITORY}/issues?state=all&sort=updated&direction=desc"
         ))
         .await?;
+    // One repository-wide paginated read replaces a separate call for every
+    // issue. The current queue has hundreds of discussions, beyond the
+    // anonymous hourly allowance if fetched individually.
+    let mut threads = comment_threads(
+        github
+            .pages(&format!(
+                "/repos/{REQUEST_REPOSITORY}/issues/comments?sort=created&direction=asc"
+            ))
+            .await?,
+    )?;
     let old: BTreeMap<_, _> = previous.requests.iter().map(|r| (r.number, r)).collect();
     let mut requests = vec![];
     let mut pulls = BTreeMap::<u64, Value>::new();
@@ -243,28 +302,31 @@ pub(crate) async fn fetch(
             .ok_or("request update time missing")?
             .parse()
             .map_err(|_| "invalid request update time")?;
+        let comments = threads.remove(&number).unwrap_or_default();
         if let Some(saved) = old.get(&number)
             && saved.updated_at == updated_at
             // A PR can merge after its issue was closed without updating the issue.
-            // Recheck unresolved closures daily, staggered across the anonymous budget.
-            && !(saved.state == "closed" && number % 24 == u64::from(Utc::now().hour()))
+            // Recheck closed requests daily, staggered across the anonymous budget.
+            && !(issue["state"] == "closed" && number % 24 == u64::from(Utc::now().hour()))
         {
             let mut saved = (*saved).clone();
+            saved.body = issue["body"].as_str().unwrap_or_default().into();
+            saved.comments = discussion(&comments)?;
+            saved.claimants = claimants(&issue, &comments);
+            if issue["state"] == "open" {
+                saved.state = if saved.claimants.is_empty() {
+                    "open"
+                } else {
+                    "claimed"
+                }
+                .into();
+            }
             for done in &mut saved.completions {
                 done.ranked = ranked(&done.contributor, &saved.requested_by, excluded, eligible);
             }
             requests.push(saved);
             continue;
         }
-        let comments = if issue["comments"].as_u64().unwrap_or(0) > 0 {
-            github
-                .pages(&format!(
-                    "/repos/{REQUEST_REPOSITORY}/issues/{number}/comments"
-                ))
-                .await?
-        } else {
-            vec![]
-        };
         let body = issue["body"].as_str().unwrap_or_default();
         let mut candidates = references(body);
         for comment in &comments {
@@ -306,6 +368,8 @@ pub(crate) async fn fetch(
         requests.push(SharedFormalizationRequest {
             number,
             title: title.trim_start_matches("[Formalization]").trim().into(),
+            body: body.into(),
+            comments: discussion(&comments)?,
             url: format!("https://github.com/{REQUEST_REPOSITORY}/issues/{number}"),
             state: state.into(),
             updated_at,
@@ -381,6 +445,44 @@ pub(crate) async fn run(
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn repository_comments_stay_in_their_issue_and_keep_chronological_order() {
+        let comment = |number, id, created_at| {
+            json!({
+                "issue_url": format!("{API}/repos/{REQUEST_REPOSITORY}/issues/{number}"),
+                "id": id, "created_at": created_at
+            })
+        };
+        let threads = comment_threads(vec![
+            comment(2, 3, "2026-11-24T00:00:00Z"),
+            comment(1, 2, "2026-11-24T01:00:00Z"),
+            comment(1, 1, "2026-11-24T00:00:00Z"),
+        ])
+        .unwrap();
+        assert_eq!(
+            threads[&1]
+                .iter()
+                .map(|c| c["id"].as_u64().unwrap())
+                .collect::<Vec<_>>(),
+            [1, 2]
+        );
+        assert_eq!(threads[&2].len(), 1);
+        assert!(
+            comment_threads(vec![json!({"issue_url": "https://example.test/issues/1"})]).is_err()
+        );
+    }
+    #[test]
+    fn discussion_keeps_authorship_markdown_and_comment_edits() {
+        let comment = json!({"id": 123, "user": {"login": "alice", "type": "User"},
+            "body": "A **proof** of $x = x$", "created_at": "2026-11-24T00:00:00Z", "updated_at": "2026-11-24T01:00:00Z"});
+        let saved = discussion(std::slice::from_ref(&comment)).unwrap();
+        assert_eq!(saved[0].author.login, "alice");
+        assert_eq!(saved[0].body, "A **proof** of $x = x$");
+        assert!(saved[0].updated_at > saved[0].created_at);
+        let mut invalid = comment;
+        invalid["user"]["login"] = json!("invalid/link");
+        assert!(discussion(&[invalid]).is_err());
+    }
     #[test]
     fn claims_are_self_authored_explicit_and_release_does_not_erase_an_assignee() {
         let person = |login| json!({"login":login,"type":"User"});

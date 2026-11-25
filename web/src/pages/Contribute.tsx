@@ -1,6 +1,5 @@
 import { AgentSubmission } from '../components/AgentSubmission';
 import { t } from '../i18n/locale';
-import { SHARED_REQUESTS } from '../components/SharedRequests';
 import { GitHubLink } from '../components/GitHubLink';
 import { MyCma } from '../components/MyCma';
 import { useCallback, useState, type FormEvent } from 'react';
@@ -17,7 +16,6 @@ import {
   InlineError,
   Loading,
   SignInPrompt,
-  ExternalLink,
 } from '../components/ui';
 import {
   DEFAULT_MONTHLY_CAP,
@@ -76,9 +74,9 @@ export function ContributePage() {
             )}
           </p>
           <p>
-            <ExternalLink href={SHARED_REQUESTS}>
+            <Link to={{ kind: 'formalizations', view: 'list' }}>
               {t('Find a request to contribute to')}
-            </ExternalLink>{' '}
+            </Link>{' '}
             · <Link to={{ kind: 'leaderboard' }}>{t('Leaderboard')}</Link>
           </p>
         </div>
@@ -125,7 +123,9 @@ export function ContributePage() {
           )}
         </p>
         <p>
-          <ExternalLink href={SHARED_REQUESTS}>{t('Find a request to contribute to')}</ExternalLink>
+          <Link to={{ kind: 'formalizations', view: 'list' }}>
+            {t('Find a request to contribute to')}
+          </Link>
         </p>
         <p>
           {t('New to Lean?')}{' '}

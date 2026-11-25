@@ -10849,6 +10849,8 @@
         "required": [
           "number",
           "title",
+          "body",
+          "comments",
           "url",
           "state",
           "updated_at",
@@ -10865,6 +10867,10 @@
           },
           "title": {
             "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "Synchronized issue description for the in-site formalization request reader"
           },
           "url": {
             "type": "string",
@@ -10909,6 +10915,13 @@
               "string",
               "null"
             ]
+          },
+          "comments": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/components/schemas/RequestComment"
+            }
           }
         }
       },
@@ -11121,6 +11134,36 @@
           "macros",
           "requests_observed_at"
         ]
+      },
+      "RequestComment": {
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "body",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "author": {
+            "$ref": "#/components/schemas/RequestContributor"
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     }
   }

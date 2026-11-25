@@ -62,6 +62,87 @@
 .formalization-work article > p {
   margin-block: 0.3rem;
 }
+.formalization-request-list {
+  display: grid;
+  gap: 1px;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+.formalization-request-card {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.formalization-request-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+}
+.formalization-request-heading:hover .inline-latex,
+.formalization-request-heading:focus-visible .inline-latex {
+  color: var(--accent);
+}
+.formalization-request-number {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.formalization-request-card > .entry-meta {
+  margin: 0.45rem 0 0 3.2rem;
+}
+.formalization-request-detail {
+  max-width: 90ch;
+  margin: 1.5rem 0;
+  overflow-wrap: anywhere;
+}
+.formalization-request-detail pre {
+  overflow-x: auto;
+}
+.formalization-request-comment {
+  margin-block: 1.5rem;
+}
+.formalization-request-comment > .entry-meta {
+  margin-bottom: 0.4rem;
+}
+.formalization-request-comment > .prose > :first-child {
+  margin-top: 0;
+}
+.formalization-request-source {
+  margin-top: 2rem;
+}
+.formalization-request-detail h3 {
+  margin-top: 1.25rem;
+  font-size: 0.95rem;
+}
+.formalization-request-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.8rem 1.5rem;
+  margin: 1rem 0;
+}
+.formalization-request-meta div {
+  min-width: 0;
+}
+.formalization-request-meta dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.formalization-request-meta dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
 .author-line.is-compact {
   gap: 0 0.5rem;
   margin-block: 0.4rem;

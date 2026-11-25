@@ -2552,8 +2552,14 @@ async fn shared_request_snapshot_requires_admin_and_conflicting_retries_do_not_r
     );
     let router =
         crate::router(app.clone()).layer(middleware::from_fn_with_state(app.clone(), test_auth));
-    let snapshot =
-        serde_json::json!({"revision":1,"observed_at":"2026-11-24T00:00:00Z","requests":[]});
+    let snapshot = serde_json::json!({"revision":1,"observed_at":"2026-11-24T00:00:00Z","requests":[{
+        "number": 1, "title": "A precise lemma", "body": "The target is $x=x$.",
+        "url": "https://github.com/the-omega-institute/trureturing-requests/issues/1",
+        "state": "open", "updated_at": "2026-11-24T00:00:00Z", "requested_by": "author",
+        "claimants": [], "completions": [], "paper_repository": null, "lean_source": null,
+        "comments": [{"id": 1, "author": {"login": "contributor", "url": "https://github.com/contributor", "agent": false},
+            "body": "A useful intermediate step.", "created_at": "2026-11-23T00:00:00Z", "updated_at": "2026-11-23T00:00:00Z"}]
+    }]});
     let path = "/staff/formalization-requests/snapshot";
     assert_eq!(
         call(&router, "PUT", path, None, Some(snapshot.clone()))

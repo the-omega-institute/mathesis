@@ -7,6 +7,7 @@ import { resultLabel } from '../lib/statements';
 import { Link } from '../routing/router';
 import { InlineLatex, LatexText, MacrosProvider } from './Markdown';
 import { ExternalLink } from './ui';
+import { SharedRequestLink } from './SharedRequestLink';
 import './paper-research.css';
 
 /** Public source statements and shared work. Private review advice never enters this view. */
@@ -104,9 +105,9 @@ export function PaperResearch({
             <ul className="paper-request-list">
               {requests.map(({ request }) => (
                 <li key={request.number}>
-                  <ExternalLink href={request.url}>
+                  <SharedRequestLink url={request.url}>
                     <InlineLatex source={request.title} />
-                  </ExternalLink>
+                  </SharedRequestLink>
                   <p className="entry-meta">
                     {t(
                       request.state === 'open'
@@ -136,7 +137,7 @@ export function PaperResearch({
               ))}
               {missingLinks.map((request) => (
                 <li key={request.url}>
-                  <ExternalLink href={request.url}>{request.label}</ExternalLink>
+                  <SharedRequestLink url={request.url}>{request.label}</SharedRequestLink>
                 </li>
               ))}
             </ul>

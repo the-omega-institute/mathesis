@@ -17,6 +17,20 @@ export const zh: Record<string, string> = {
   'Reading and materials': '解读与论文资料',
   'Formalization requests': '形式化请求',
   'Shared formalization requests': '公开形式化任务',
+  'Read the mathematical target, follow the discussion, and see who is contributing.':
+    '阅读数学目标、查看讨论，了解正在参与的贡献者。',
+  'Back to awaiting formalization': '返回待形式化任务',
+  'Formalization requests are being synchronized. Please check again shortly.':
+    '形式化任务正在同步，请稍后查看。',
+  'This request is not in the latest synchronized list.': '最新同步的列表中尚未找到这项任务。',
+  'Original on GitHub': 'GitHub 原始记录',
+  Discussion: '讨论',
+  'The request description is being synchronized.': '请求正文正在同步。',
+  'Source paper': '来源论文',
+  'Existing Lean source': '已有 Lean 源码',
+  'Open source': '打开源码',
+  'Merged proof contributions': '已合并的证明贡献',
+  'Read the merged contribution': '查看已合并贡献',
   'Join the shared proof work on GitHub. Each request describes the result and its current progress.':
     '欢迎在 GitHub 参与共同的证明工作。每条请求列出了具体结果和当前进展。',
   Materials: '论文资料',
@@ -165,7 +179,6 @@ export const zh: Record<string, string> = {
   Conjectures: '猜想',
   Formalizations: '形式化',
   'To formalize': '待形式化',
-  'Awaiting formalization': '等待形式化',
   'Read result': '阅读结果',
   'No results awaiting formalization': '目前没有待形式化的结果',
   'Choose a result below and read its proof. Results awaiting a Lean statement remain visible; once the statement is ready, you can submit a proof directly.':
@@ -2175,6 +2188,8 @@ export const zh: Record<string, string> = {
   'Explore independently checked proof connections': '查看经过独立核验的证明关系',
 
   'Dependency graph': '依赖关系图',
+  'Existing DAG': '现有依赖图',
+  'Awaiting formalization': '等待形式化',
   'Theory resources': '理论资源',
   'Back to the dependency graph': '返回依赖关系图',
   'Used in a checked Lean proof': '经核验的 Lean 证明使用',

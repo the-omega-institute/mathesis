@@ -1,4 +1,5 @@
 import { t } from '../i18n/locale';
+import { FormalizationNav } from '../components/FormalizationNav';
 import { Link } from '../routing/router';
 import '../styles/learn-lean.css';
 
@@ -130,6 +131,7 @@ export function LearnLeanPage() {
           </p>
         </div>
       </header>
+      <FormalizationNav active="learn" />
       <div className="learning-layout">
         <nav className="learning-contents" aria-label={t('Learning path')}>
           <p>{t('Learning path')}</p>

@@ -15,6 +15,7 @@ const ROUTES: Route[] = [
   { kind: 'formalizations', msc: '81', focus: 'module:Quantum/Base' },
   { kind: 'learn_lean' },
   { kind: 'formalizations', view: 'list', q: 'gaps' },
+  { kind: 'formalizations', view: 'list', request: 575 },
   { kind: 'leaderboard', category: 'formalization' },
   { kind: 'result', record: 'a-note', claim: 's1', version: '2' },
   { kind: 'submit', intake: 'lean', record: 'a-note', claim: 's1', version: '2' },

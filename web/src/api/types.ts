@@ -1383,6 +1383,14 @@ export type RequestContributor = { login: string; url: string; agent: boolean };
 export type SharedFormalizationRequest = {
   number: number;
   title: string;
+  body?: string;
+  comments?: {
+    id: number;
+    author: RequestContributor;
+    body: string;
+    created_at: string;
+    updated_at: string;
+  }[];
   url: string;
   state: 'open' | 'claimed' | 'merged' | 'closed';
   updated_at: string;
