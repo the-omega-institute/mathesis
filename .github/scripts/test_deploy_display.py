@@ -73,10 +73,44 @@ class RolloutTests(unittest.TestCase):
             raise TimeoutError('uncertain update')
         with patch.object(d,'prepare',return_value=plan), patch.object(d,'cd',side_effect=cd) as calls, \
                 patch.object(d,'image_revision',return_value='a'*40), \
-                patch.object(d,'github',return_value={'status':'ahead','files':[{'filename':'web/src/pages/Home.tsx'}]}):
+                patch.object(d,'github',side_effect=lambda path: {'object':{'sha':plan['source_commit']}} if path.startswith('git/ref/')
+                             else {'status':'ahead','files':[{'filename':'web/src/pages/Home.tsx'}]}):
             with self.assertRaises(TimeoutError):d.apply(plan,False)
             self.assertEqual(sum(c.args[0]=='PUT' for c in calls.call_args_list if c.args),1)
             self.assertEqual(calls.call_args.args[2],3)
+
+    def test_completed_old_operation_is_read_back_without_another_write(self):
+        plan={'image_run_id':'12','source_commit':'b'*40,'image':d.IMAGE+'b'*64}
+        before={'project':'omega','name':'mathesis','owner_type':'org','owner':d.ORG,'generation':3,'revision':7,
+                'spec':{'services':{'web':{'image':plan['image'],'replicas':1}}}}
+        status={'last_reconcile':{'ok':True,'revision':7},'services':{'web':{'ready':1,'updated':1,
+                'pods':[{'ready':True,'app_container':{'image_id':plan['image']}}]}}}
+        def cd(method='GET',*args,**kwargs):
+            self.assertEqual(method,'GET')
+            return copy.deepcopy(status if kwargs.get('status') else before)
+        def github(path):
+            self.assertTrue(path.startswith('compare/'))
+            return {'status':'identical','files':[]}
+        class Response:
+            status=200
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def read(self,*args):return b'<html>Mathesis</html>'
+        with patch.object(d,'prepare',return_value=plan),patch.object(d,'cd',side_effect=cd) as calls, \
+                patch.object(d,'image_revision',return_value='b'*40),patch.object(d,'github',side_effect=github), \
+                patch.object(d.urllib.request,'urlopen',return_value=Response()) as public:
+            self.assertEqual(d.apply(plan,False)['state'],'deployed')
+            self.assertEqual(public.call_args.args[0].get_header('User-agent'),'mathesis-paper-factory-verification')
+            self.assertFalse(any(c.args and c.args[0]=='PUT' for c in calls.call_args_list))
+
+    def test_stale_plan_cannot_overwrite_a_different_deployed_image(self):
+        plan={'image_run_id':'12','source_commit':'b'*40,'image':d.IMAGE+'b'*64}
+        before={'spec':{'services':{'web':{'image':d.IMAGE+'c'*64}}}}
+        with patch.object(d,'prepare',return_value=plan),patch.object(d,'cd',return_value=before) as calls, \
+                patch.object(d,'github',return_value={'object':{'sha':'d'*40}}):
+            with self.assertRaisesRegex(ValueError,'refuse stale deployment'):
+                d.apply(plan,False)
+            calls.assert_called_once_with()
 
 
 if __name__ == '__main__':
