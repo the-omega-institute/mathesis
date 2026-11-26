@@ -102,8 +102,12 @@ def validate_changes(files):
 
 
 def desired_spec(before, image):
-    require(before['project'] == 'omega' and before['name'] == 'mathesis', 'foreign CD application')
+    require(before['project'] == 'omega' and before['name'] == 'mathesis'
+            and before.get('owner_type') == 'org' and before.get('owner') == ORG, 'foreign CD application')
     spec = copy.deepcopy(before['spec'])
+    # GET selects its owner with org_id in the query; PUT requires the owner
+    # selector in the request body, outside the stored normalized spec.
+    spec['target_org_id'] = ORG
     spec['services']['web']['image'] = image
     for service in spec['services'].values():
         service.pop('image_digest', None)  # CD returns this computed field on reads.

@@ -35,7 +35,7 @@ class RolloutTests(unittest.TestCase):
             d.validate_receipt(receipt,dict(run,head_sha='c'*40),baseline=True)
 
     def test_web_update_preserves_all_other_spec_values_and_the_original(self):
-        before = {'project':'omega','name':'mathesis','spec':{'addons':{'mongodb':{'enabled':True}},'services':{
+        before = {'project':'omega','name':'mathesis','owner_type':'org','owner':d.ORG,'spec':{'addons':{'mongodb':{'enabled':True}},'services':{
             'web':{'image':'old','image_digest':'computed','replicas':2},
             'worker':{'image':'unchanged','image_digest':'computed','env':{'PRIVATE':'preserved'}}}}}
         original = copy.deepcopy(before)
@@ -44,6 +44,9 @@ class RolloutTests(unittest.TestCase):
         self.assertEqual(after['services']['web'],{'image':'new','replicas':2})
         self.assertEqual(after['services']['worker'],{'image':'unchanged','env':{'PRIVATE':'preserved'}})
         self.assertEqual(after['addons'],before['spec']['addons'])
+        self.assertEqual(after['target_org_id'],d.ORG)
+        with self.assertRaisesRegex(ValueError,'foreign CD application'):
+            d.desired_spec(dict(before,owner='another-owner'),'new')
 
     def test_untrusted_or_changed_plan_never_contacts_deployment(self):
         with patch.object(d,'prepare',return_value={'changed':True}), patch.object(d,'cd') as cd:
@@ -64,7 +67,7 @@ class RolloutTests(unittest.TestCase):
 
     def test_lost_update_receipt_is_not_retried(self):
         plan={'image_run_id':'12','source_commit':'b'*40,'image':d.IMAGE+'b'*64}
-        before={'project':'omega','name':'mathesis','generation':3,'spec':{'services':{'web':{'image':d.IMAGE+'a'*64}}}}
+        before={'project':'omega','name':'mathesis','owner_type':'org','owner':d.ORG,'generation':3,'spec':{'services':{'web':{'image':d.IMAGE+'a'*64}}}}
         def cd(method='GET',*args,**kwargs):
             if method=='GET':return copy.deepcopy(before)
             raise TimeoutError('uncertain update')
