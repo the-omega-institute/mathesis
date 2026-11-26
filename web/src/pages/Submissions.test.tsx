@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { author, submission, editor } from '../test/fixtures';
@@ -54,7 +54,8 @@ it('distinguishes loading and network failures from failed reviews, and supports
     ),
   );
   expect(await screen.findByText('Loading review status…')).toBeVisible();
-  reject(new Error('Network unavailable'));
+  await waitFor(() => expect(reviewSummary).toHaveBeenCalledOnce());
+  await act(async () => reject(new Error('Network unavailable')));
   expect(await screen.findByText('Review status could not be loaded')).toBeVisible();
   expect(screen.queryByText('Review interrupted')).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Retry status' }));
