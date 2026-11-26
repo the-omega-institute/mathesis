@@ -1,0 +1,55 @@
+name: Deploy checked display maintenance
+on:
+  pull_request:
+    paths: ['.github/scripts/deploy_display.py', '.github/scripts/test_deploy_display.py', '.github/workflows/display-rollout.yml']
+  workflow_run:
+    workflows: ['Publish images after CI']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      image_run_id:
+        description: Successful image publication run with the current develop source
+        type: string
+        required: true
+      dry_run:
+        description: Validate provenance and application delta without updating the Web image
+        type: boolean
+        default: true
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: mathesis-display-rollout
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s .github/scripts -p 'test_deploy_display.py'
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: develop
+          persist-credentials: false
+      - name: Verify immutable image receipt and successful source CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_RUN: ${{ github.event.workflow_run.id || inputs.image_run_id }}
+        run: python3 .github/scripts/deploy_display.py prepare --run-id "$IMAGE_RUN" --plan "$RUNNER_TEMP/display-plan.json"
+      - name: Update only the verified Web image and read back the existing application
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NYXID_MATHESIS_DEPLOY_KEY: ${{ secrets.NYXID_MATHESIS_DEPLOY_KEY }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          options=()
+          if [ "$DRY_RUN" = true ]; then options+=(--dry-run); fi
+          python3 .github/scripts/deploy_display.py apply --plan "$RUNNER_TEMP/display-plan.json" "${options[@]}" >> "$GITHUB_STEP_SUMMARY"
