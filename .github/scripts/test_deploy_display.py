@@ -13,7 +13,7 @@ class RolloutTests(unittest.TestCase):
                 d.validate_receipt(dict(receipt,**{field:value}),12)
 
     def test_only_display_changes_are_admitted(self):
-        d.validate_changes([{'filename':'web/src/pages/PapersPage.tsx'},{'filename':'infra/web/deploy_display.py'}])
+        d.validate_changes([{'filename':'web/src/pages/PapersPage.tsx'},{'filename':'.github/scripts/deploy_display.py'}])
         for filename in ['api/src/main.rs','infra/api/deployment.yaml','web/package.json','.github/workflows/ci.yml']:
             with self.subTest(filename=filename), self.assertRaisesRegex(ValueError,'outside display'):
                 d.validate_changes([{'filename':filename}])
