@@ -17,6 +17,9 @@ class RolloutTests(unittest.TestCase):
         for filename in ['api/src/main.rs','infra/api/deployment.yaml','web/package.json','.github/workflows/ci.yml']:
             with self.subTest(filename=filename), self.assertRaisesRegex(ValueError,'outside display'):
                 d.validate_changes([{'filename':filename}])
+        with self.assertRaisesRegex(ValueError,'outside display'):
+            d.validate_changes([{'filename':'web/src/moved.rs','previous_filename':'api/src/main.rs','status':'renamed'}])
+        d.validate_changes([{'filename':'web/src/pages/New.tsx','previous_filename':'web/src/pages/Old.tsx','status':'renamed'}])
 
     def test_web_update_preserves_all_other_spec_values_and_the_original(self):
         before = {'project':'omega','name':'mathesis','spec':{'addons':{'mongodb':{'enabled':True}},'services':{

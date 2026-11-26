@@ -92,7 +92,8 @@ def image_revision(image):
 def validate_changes(files):
     operational = {'.github/workflows/display-rollout.yml', '.github/workflows/display-monitor.yml',
                    '.github/display-monitor.json', '.github/scripts/deploy_display.py', '.github/scripts/test_deploy_display.py'}
-    require(all(f['filename'].startswith('web/src/') or f['filename'] in operational for f in files),
+    paths = [path for f in files for path in (f['filename'], f.get('previous_filename')) if path is not None]
+    require(all(path.startswith('web/src/') or path in operational for path in paths),
             'source delta includes changes outside display maintenance; use the existing operator deployment path')
 
 
