@@ -25,6 +25,15 @@ class RolloutTests(unittest.TestCase):
             d.validate_changes([{'filename':'web/src/moved.rs','previous_filename':'api/src/main.rs','status':'renamed'}])
         d.validate_changes([{'filename':'web/src/pages/New.tsx','previous_filename':'web/src/pages/Old.tsx','status':'renamed'}])
 
+    def test_historical_manual_commit_receipt_is_accepted_only_as_the_baseline(self):
+        receipt = {'source_ref':'run-'+'a'*12,'source_commit':'a'*40,'workflow_run':'12','image':d.IMAGE+'b'*64}
+        run = {'id':12,'head_branch':'develop','head_sha':'a'*40}
+        d.validate_receipt(receipt,run,baseline=True)
+        with self.assertRaisesRegex(ValueError,'invalid source'):
+            d.validate_receipt(receipt,run)
+        with self.assertRaisesRegex(ValueError,'publisher workflow source'):
+            d.validate_receipt(receipt,dict(run,head_sha='c'*40),baseline=True)
+
     def test_web_update_preserves_all_other_spec_values_and_the_original(self):
         before = {'project':'omega','name':'mathesis','spec':{'addons':{'mongodb':{'enabled':True}},'services':{
             'web':{'image':'old','image_digest':'computed','replicas':2},

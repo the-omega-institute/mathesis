@@ -50,8 +50,11 @@ def prepare(run_id):
     return dict(receipt, image_run_id=str(run_id))
 
 
-def validate_receipt(receipt, run):
-    require(receipt.get('source_ref') == 'develop' and OID.fullmatch(receipt.get('source_commit', '')), 'invalid source identity')
+def validate_receipt(receipt, run, baseline=False):
+    source = receipt.get('source_commit', '')
+    require(OID.fullmatch(source), 'invalid source identity')
+    refs = {'develop', 'run-' + source[:12]} if baseline else {'develop'}
+    require(receipt.get('source_ref') in refs, 'invalid source identity')
     require(str(receipt.get('workflow_run')) == str(run['id']), 'foreign image workflow receipt')
     require(run.get('head_branch') == 'develop' and run.get('head_sha') == receipt['source_commit'],
             'publisher workflow source does not match its receipt')
@@ -85,7 +88,7 @@ def image_revision(image):
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
                 receipt = json.loads(archive.read('web.json'))
             if receipt['image'] == image:
-                validate_receipt(receipt, run)
+                validate_receipt(receipt, run, baseline=True)
                 return receipt['source_commit']
     raise ValueError('deployed Web digest has no retained publisher receipt; reconcile its original source before rollout')
 
