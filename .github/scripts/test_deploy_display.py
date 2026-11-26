@@ -7,10 +7,14 @@ import deploy_display as d
 class RolloutTests(unittest.TestCase):
     def test_source_and_image_receipts_are_bound_to_the_exact_publisher(self):
         receipt = {'source_ref':'develop','source_commit':'a'*40,'workflow_run':'12','image':d.IMAGE+'b'*64}
-        d.validate_receipt(receipt,12)
+        run = {'id':12,'head_branch':'develop','head_sha':'a'*40}
+        d.validate_receipt(receipt,run)
         for field,value in [('source_ref','main'),('source_commit','main'),('workflow_run','13'),('image','ghcr.io/other/web:latest')]:
             with self.subTest(field=field), self.assertRaises(ValueError):
-                d.validate_receipt(dict(receipt,**{field:value}),12)
+                d.validate_receipt(dict(receipt,**{field:value}),run)
+        for field,value in [('head_branch','unreviewed'),('head_sha','c'*40)]:
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError,'publisher workflow source'):
+                d.validate_receipt(receipt,dict(run,**{field:value}))
 
     def test_only_display_changes_are_admitted(self):
         d.validate_changes([{'filename':'web/src/pages/PapersPage.tsx'},{'filename':'.github/scripts/deploy_display.py'}])

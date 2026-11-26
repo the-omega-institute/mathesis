@@ -42,7 +42,7 @@ def prepare(run_id):
         candidates = [n for n in archive.namelist() if n == 'web.json']
         require(candidates == ['web.json'], 'unexpected Web receipt inventory')
         receipt = json.loads(archive.read('web.json'))
-    validate_receipt(receipt, run_id)
+    validate_receipt(receipt, run)
     source = receipt['source_commit']
     require(github('git/ref/heads/develop')['object']['sha'] == source, 'newer default-branch work exists; refuse stale deployment')
     runs = github('actions/workflows/ci.yml/runs?head_sha=' + source + '&event=push&status=success&per_page=100')['workflow_runs']
@@ -50,9 +50,11 @@ def prepare(run_id):
     return dict(receipt, image_run_id=str(run_id))
 
 
-def validate_receipt(receipt, run_id):
+def validate_receipt(receipt, run):
     require(receipt.get('source_ref') == 'develop' and OID.fullmatch(receipt.get('source_commit', '')), 'invalid source identity')
-    require(str(receipt.get('workflow_run')) == str(run_id), 'foreign image workflow receipt')
+    require(str(receipt.get('workflow_run')) == str(run['id']), 'foreign image workflow receipt')
+    require(run.get('head_branch') == 'develop' and run.get('head_sha') == receipt['source_commit'],
+            'publisher workflow source does not match its receipt')
     require(re.fullmatch(re.escape(IMAGE) + '[0-9a-f]{64}', receipt.get('image', '')), 'foreign or mutable Web image')
 
 
@@ -83,8 +85,7 @@ def image_revision(image):
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
                 receipt = json.loads(archive.read('web.json'))
             if receipt['image'] == image:
-                require(OID.fullmatch(receipt.get('source_commit', ''))
-                        and str(receipt.get('workflow_run')) == str(run['id']), 'deployed image receipt is not source-bound')
+                validate_receipt(receipt, run)
                 return receipt['source_commit']
     raise ValueError('deployed Web digest has no retained publisher receipt; reconcile its original source before rollout')
 
