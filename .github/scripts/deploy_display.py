@@ -44,7 +44,6 @@ def prepare(run_id):
         receipt = json.loads(archive.read('web.json'))
     validate_receipt(receipt, run)
     source = receipt['source_commit']
-    require(github('git/ref/heads/develop')['object']['sha'] == source, 'newer default-branch work exists; refuse stale deployment')
     runs = github('actions/workflows/ci.yml/runs?head_sha=' + source + '&event=push&status=success&per_page=100')['workflow_runs']
     require(any(r['head_sha'] == source and r['head_branch'] == 'develop' for r in runs), 'successful push CI for the exact source is required')
     return dict(receipt, image_run_id=str(run_id))
@@ -130,6 +129,9 @@ def apply(plan, dry_run=True):
     require(prepare(plan['image_run_id']) == plan, 'image/source plan changed')
     before = cd()
     current = before['spec']['services']['web']['image']
+    if current != plan['image']:
+        require(github('git/ref/heads/develop')['object']['sha'] == plan['source_commit'],
+                'newer default-branch work exists; refuse stale deployment')
     baseline = image_revision(current)
     comparison = github('compare/' + baseline + '...' + plan['source_commit'])
     require(comparison['status'] in ('ahead', 'identical'), 'source is not a descendant of the deployed Web version')
@@ -149,7 +151,9 @@ def apply(plan, dry_run=True):
                 require(observed['spec']['services'][name] == service, 'another service changed during Web rollout')
         status = cd(status=True)
         if web_ready(status, observed, plan['image']):
-            with urllib.request.urlopen(PUBLIC, timeout=30) as response:
+            request = urllib.request.Request(PUBLIC, headers={
+                'User-Agent':'mathesis-paper-factory-verification', 'Accept':'text/html'})
+            with urllib.request.urlopen(request, timeout=30) as response:
                 require(response.status == 200 and b'<html' in response.read(1024*1024).lower(), 'public Web readback failed')
             return {'state':'deployed', 'image':plan['image'], 'source_commit':plan['source_commit'], 'generation':observed['generation']}
         time.sleep(5)
