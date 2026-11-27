@@ -52,7 +52,17 @@ impl PaperReader for LatexReader {
         } else {
             parse::parse(&files).map_err(reason)?
         };
-        if paper.statements.is_empty() {
+        let has_headline = paper.statements.iter().any(|statement| {
+            matches!(
+                statement.kind,
+                StatementKind::Theorem | StatementKind::Proposition
+            )
+        });
+        let has_closed_statement = paper
+            .statements
+            .iter()
+            .any(|statement| !statement.kind.is_open());
+        if paper.statements.is_empty() || (!has_headline && has_closed_statement) {
             let text = if paper.main_file.to_ascii_lowercase().ends_with(".pdf") {
                 pdf::text(
                     files
@@ -71,9 +81,9 @@ impl PaperReader for LatexReader {
                     .unwrap_or_default()
                     .to_owned()
             };
-            paper
-                .statements
-                .push(prose_contribution(paper.abstract_text.as_deref(), &text)?);
+            let mut contribution = prose_contribution(paper.abstract_text.as_deref(), &text)?;
+            contribution.index = paper.statements.len() + 1;
+            paper.statements.push(contribution);
         }
         let bibliography = if paper.main_file.to_ascii_lowercase().ends_with(".pdf") {
             mathesis_latex::bibliography::Bibliography::pdf()
@@ -228,6 +238,16 @@ mod tests {
                     .contains("dE/dt=0")
             );
         }
+    }
+
+    #[test]
+    fn supporting_lemmas_do_not_replace_the_manuscripts_prose_contribution() {
+        let source = br"\documentclass{article}\begin{document}\begin{abstract}We introduce a dynamical model and establish its conserved quantity.\end{abstract}\section{Model}We specify the dynamics and derive its conservation law.\begin{lemma}A supporting identity.\end{lemma}\begin{proof}The two terms cancel.\end{proof}\end{document}";
+        let read = LatexReader.read(source, "model.tex").unwrap();
+        assert_eq!(read.statements.len(), 2);
+        assert_eq!(read.statements[0].kind, ClaimKind::Lemma);
+        assert_eq!(read.statements[1].kind, ClaimKind::Contribution);
+        assert!(!read.statements[1].has_proof);
     }
 
     #[tokio::test]
