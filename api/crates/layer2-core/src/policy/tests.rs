@@ -871,3 +871,37 @@ fn methodology_uses_the_same_content_correctness_literature_and_utility_gates() 
         }
     );
 }
+
+#[test]
+fn prose_theory_admission_requires_supported_model_assumptions_and_derivation() {
+    let mut method = content_method();
+    method.utility.kind = UtilityKind::TheoreticalModel;
+    method.utility.problem = "Conservation within a differentiable model".into();
+    method.utility.progress = "Energy remains constant along its trajectories".into();
+    method.utility.prerequisites.clear();
+    method.utility.discharge.clear();
+    assert!(!method.utility.supports_admission());
+    method.utility.prerequisites = "Explicit dynamics and differentiability assumptions".into();
+    method.utility.discharge =
+        "The manuscript derives a zero energy derivative under these assumptions".into();
+    let mut paper = current_method_paper(method, None);
+    paper.claims[0].kind = ClaimKind::Contribution;
+    paper.claims[0].has_proof = false;
+    assert!(matches!(
+        Policy::default().decide(&paper, &[]),
+        Decision::Accept { .. }
+    ));
+    let report = paper
+        .reports
+        .iter_mut()
+        .rev()
+        .find(|report| report.stage == Stage::Escape)
+        .unwrap();
+    if let StagePayload::Escape { assessments } = &mut report.payload {
+        assessments[0].correctness = Some(Correctness::Gap);
+    }
+    assert!(matches!(
+        Policy::default().decide(&paper, &[]),
+        Decision::NotAccepted { .. }
+    ));
+}

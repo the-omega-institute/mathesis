@@ -310,6 +310,9 @@ function ConfirmRowView({
           disabled={row.excluded}
           onChange={(e) => onPatch({ kind: e.target.value as ClaimKind })}
         >
+          {row.kind === 'contribution' ? (
+            <option value="contribution">{t('Contribution')}</option>
+          ) : null}
           {CLAIM_KINDS.map((k) => (
             <option key={k} value={k}>
               {t(CLAIM_KIND_LABELS[k])}

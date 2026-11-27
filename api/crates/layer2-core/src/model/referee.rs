@@ -258,6 +258,10 @@ pub enum Feasibility {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FormalizationCandidate {
     pub claim: ClaimId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_statement: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_location: Option<String>,
     pub feasibility: Feasibility,
     /// Mathlib notions the formal statement would use.
     #[serde(default)]
@@ -761,6 +765,10 @@ pub struct RefereeRoundView {
 pub struct FormalizationSuggestion {
     pub excerpt: bool,
     pub claim: ClaimId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_statement: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_location: Option<String>,
     pub feasibility: Feasibility,
     pub plan: String,
 }
@@ -831,6 +839,8 @@ impl RefereeRound {
                 .map(|candidate| FormalizationSuggestion {
                     excerpt: candidate.plan.chars().count() > 3_000,
                     claim: candidate.claim.clone(),
+                    target_statement: candidate.target_statement.clone(),
+                    source_location: candidate.source_location.clone(),
                     feasibility: candidate.feasibility,
                     plan: candidate.plan.chars().take(3_000).collect(),
                 })

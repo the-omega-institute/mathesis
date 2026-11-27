@@ -1,5 +1,15 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  'A paper is accepted when its central claims are supported by complete arguments and evidence, and at least one adds substantive theoretical knowledge or settles a named open problem. We compare the contribution with relevant prior work and examine its assumptions, derivations and evidence. Theoretical models are assessed within their stated scope; empirical claims require empirical support.':
+    '论文的主要主张需要有完整论证和证据，且至少一项实质推进理论知识或解决明确的开放问题。我们会对照相关文献，检查假设、推导与证据。理论模型按其声明的适用范围审查，实证主张需要实证支持。',
+  'Mathesis reviews theoretical research and conjectures with AI, including mathematics, theoretical physics, theoretical computer science and methodology. Each submission receives one final report with the assessment, reasons and suggestions.':
+    'Mathesis 使用 AI 审读理论研究与猜想，涵盖数学、理论物理、理论计算机科学与方法论。每篇投稿都会收到一份最终报告，包括判断、理由与推进建议。',
+  'Upload your manuscript in its existing academic format. Numbered theorems and lemmas are optional; we review the claims and arguments in the full text.':
+    '按论文原有的学术格式上传即可，无须添加编号的定理或引理；我们将审读全文中的主张与论证。',
+  'Article type': '文章类型',
+  'Research article': '研究论文',
+  'We will review the contributions and arguments in your full manuscript.':
+    '我们将审读全文中的理论贡献与论证。',
   Methodology: '方法论',
   'Research tracks': '研究类别',
   Mathematics: '数学',

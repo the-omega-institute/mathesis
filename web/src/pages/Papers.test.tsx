@@ -265,10 +265,7 @@ it('searches the complete archive through the API and resets pagination when fil
   );
   await user.click(screen.getByRole('button', { name: 'Clear filters' }));
   await waitFor(() =>
-    expect(listPapers).toHaveBeenLastCalledWith(
-      { before: null, limit: 25, exclude_kind: 'methodology' },
-      expect.any(Object),
-    ),
+    expect(listPapers).toHaveBeenLastCalledWith({ before: null, limit: 25 }, expect.any(Object)),
   );
 });
 

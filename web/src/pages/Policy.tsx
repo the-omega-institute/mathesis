@@ -11,7 +11,7 @@ export function PolicyPage() {
           <h1>{t('Review policy')}</h1>
           <p className="lede">
             {t(
-              'Mathesis reviews mathematical papers and conjectures with AI. Each submission receives one final report with the assessment, reasons and suggestions.',
+              'Mathesis reviews theoretical research and conjectures with AI, including mathematics, theoretical physics, theoretical computer science and methodology. Each submission receives one final report with the assessment, reasons and suggestions.',
             )}
           </p>
         </div>
@@ -21,6 +21,11 @@ export function PolicyPage() {
         <p>
           {t(
             'Upload a PDF or LaTeX project, check the manuscript PDF, and confirm the title, abstract and authors. Submit when the manuscript is ready. Review time varies with the manuscript and the number of submissions waiting.',
+          )}
+        </p>
+        <p>
+          {t(
+            'Upload your manuscript in its existing academic format. Numbered theorems and lemmas are optional; we review the claims and arguments in the full text.',
           )}
         </p>
         <Async state={state.status === 'idle' ? { status: 'loading' } : state}>
@@ -37,7 +42,7 @@ export function PolicyPage() {
         <h2 id="criteria-h">{t('What we look for')}</h2>
         <p>
           {t(
-            'A paper is accepted when its main results are supported by complete arguments and at least one adds substantive mathematical content or settles a named open problem. We compare the results with relevant prior work and examine the proofs and their assumptions. Papers and short notes use the same criteria.',
+            'A paper is accepted when its central claims are supported by complete arguments and evidence, and at least one adds substantive theoretical knowledge or settles a named open problem. We compare the contribution with relevant prior work and examine its assumptions, derivations and evidence. Theoretical models are assessed within their stated scope; empirical claims require empirical support.',
           )}
         </p>
         <p>

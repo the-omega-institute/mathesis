@@ -221,6 +221,10 @@ impl App {
                 let mut references = vec![];
                 let mut bytes_used = 0;
                 for (position, statement) in read.statements.into_iter().enumerate() {
+                    // A prose review scope is not a formalization statement.
+                    if statement.kind == ClaimKind::Contribution {
+                        continue;
+                    }
                     // Omit unsupported oversized entries; never truncate a mathematical statement.
                     if position >= 100
                         || statement.body.len() > 30_000

@@ -542,7 +542,7 @@ type RefereeView = {
 type RefereeRound = {
   letter_contract?: number;
   research_suggestions?: (ImprovementTarget & { claim?: string; kind: ImprovementKind; suggestion: string; progress: string; status: "checked" | "proposed"; excerpt: boolean })[];
-  formalization_suggestions?: { claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
+  formalization_suggestions?: { target_statement?: string; source_location?: string; claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
   number: number;                   // 1-based, increases on restart
   version: number;                  // the paper version reviewed
   claims_revision: number;          // the confirmed statement set reviewed
@@ -1435,3 +1435,13 @@ Each history entry may also expose its checked `archive` citation. Private revie
 records and producer/operator identities remain omitted. Existing exact-retry,
 changed-payload conflict and exact-current-predecessor rules are unchanged. See
 [Methodology papers](METHODOLOGY_PAPERS.md) for delivery CLI and workflow usage.
+
+Prose theoretical manuscripts need no numbered theorem/lemma structure. Intake
+uses `kind: "contribution"` for a source-bound whole-manuscript review scope, with
+`has_proof: false`; the audit must read the full manuscript. It is not a formal
+proposition. An upload-first draft may change between `paper` and `methodology`
+in final metadata under the usual source/revision fence. Theory-model utility
+may use `kind: "theoretical_model"`, with supported problem, progress, prerequisites
+and discharge. Formalization candidates for prose scopes require an exact
+`target_statement` (at most 20,000 characters) and `source_location` (at most
+1,000); missing or oversized values cannot ground a probe.

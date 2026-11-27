@@ -468,7 +468,7 @@ it('shows methodology, repository issues and complete release history on collect
   expect(screen.getByRole('link', { name: '提出问题或修订建议' })).toBeVisible();
 });
 
-it('separates methodology from mathematics and sends the methodology filter to both APIs', async () => {
+it('includes methodology in the archive and supports an explicit methodology filter', async () => {
   const live = {
     ...liveVersion(),
     id: 'methodology-protocol',
@@ -480,14 +480,10 @@ it('separates methodology from mathematics and sends the methodology filter to b
   });
   const math = renderWithApp(<PapersPage />, api);
   await waitFor(() => expect(api.listCollectedPapers).toHaveBeenCalled());
-  expect(screen.queryByRole('link', { name: live.title })).toBeNull();
+  expect(await screen.findByRole('link', { name: live.title })).toBeVisible();
   expect(api.listPapers).toHaveBeenCalledWith(
-    expect.objectContaining({ exclude_kind: 'methodology' }),
+    expect.not.objectContaining({ exclude_kind: 'methodology' }),
     expect.anything(),
-  );
-  expect(screen.getByRole('link', { name: 'Methodology' })).toHaveAttribute(
-    'href',
-    '/papers?type=methodology',
   );
   math.unmount();
   renderWithApp(<PapersPage initialFilters={{ kind: 'methodology' }} />, api);

@@ -1,9 +1,24 @@
 # Methodology papers
 
-Mathesis keeps methodology and meta-science work in a separate `methodology`
-track. The Papers directory opens on Mathematics; its Methodology tab uses
-`kind=methodology`. MSC codes are optional. Mathematical browsing uses
-`exclude_kind=methodology`; API requests without filters retain all kinds.
+Mathesis reviews theoretical research, including mathematics, theoretical physics,
+theoretical computer science and methodology. Methodology is an optional article
+type in the ordinary upload-first submission. The unified Papers directory and
+search include it; `kind=methodology` selects it explicitly. MSC codes are optional.
+
+Readable manuscripts need no theorem or lemma formatting. Without identifiable
+statement environments/headings, intake stores a source excerpt as a `contribution`
+review scope with `has_proof: false`. The referee and source auditor receive the
+complete source/PDF and must identify and assess every material central claim,
+its assumptions, argument, evidence and location. The excerpt is neither a
+synthetic theorem nor a proof. Ordinary source, revision, decision and privacy
+gates remain in force. Numbered mathematical manuscripts retain their readings.
+
+Formalization advice for prose scopes requires a bounded `target_statement` and
+`source_location`, with explicit hypotheses. Only this exact substatement reaches
+a private Lean probe. Whole-manuscript scopes cannot themselves be approved as
+public theorem targets or indexed as collected mathematical statements; precise
+propositions must enter the existing target/contribution flow. Physical
+applicability, empirical evidence and kernel-checked implications remain distinct.
 
 External authors submit `kind: "methodology"` through the ordinary submission
 API. The same correctness, supported literature, utility and content gates apply.

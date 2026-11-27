@@ -75,7 +75,6 @@ export function PapersPage({
   const { navigate } = useRouter();
   const [query, setQuery] = useState<PaperQuery>({
     ...initialFilters,
-    ...(initialFilters.kind ? {} : { exclude_kind: 'methodology' as const }),
     ...(initialQuery ? { q: initialQuery } : {}),
   });
   const [draft, setDraft] = useState<PaperQuery>(query);
@@ -109,20 +108,6 @@ export function PapersPage({
           {subject ? <p className="muted">MSC {subject.code}</p> : null}
         </div>
       </header>
-      <nav className="archive-subjects" aria-label={t('Research tracks')}>
-        <Link
-          to={{ kind: 'papers' }}
-          aria-current={query.kind !== 'methodology' && !query.msc ? 'page' : undefined}
-        >
-          {t('Mathematics')}
-        </Link>
-        <Link
-          to={{ kind: 'papers', work: 'methodology' }}
-          aria-current={query.kind === 'methodology' ? 'page' : undefined}
-        >
-          {t('Methodology')}
-        </Link>
-      </nav>
       <div className="archive-browse">
         <nav className="archive-subjects" aria-label={t('Browse by subject')}>
           <Link
@@ -179,7 +164,7 @@ export function PapersPage({
             aria-label={t('Search papers')}
             onSubmit={(event) => {
               event.preventDefault();
-              setQuery({ ...draft, exclude_kind: draft.kind ? undefined : 'methodology' });
+              setQuery({ ...draft });
               navigate({
                 kind: 'papers',
                 q: draft.q?.trim(),
@@ -243,8 +228,8 @@ export function PapersPage({
                 className="button button-quiet"
                 type="button"
                 onClick={() => {
-                  setDraft({ exclude_kind: 'methodology' });
-                  setQuery({ exclude_kind: 'methodology' });
+                  setDraft({});
+                  setQuery({});
                   navigate({ kind: 'papers' });
                 }}
               >

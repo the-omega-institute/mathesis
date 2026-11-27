@@ -159,6 +159,8 @@ export type Step<T> = {
 export type FormalizationSuggestion = {
   excerpt?: boolean;
   claim: string;
+  target_statement?: string;
+  source_location?: string;
   feasibility: Feasibility;
   plan: string;
 };
@@ -325,7 +327,14 @@ export type SourceKind =
 export type Source = { kind: SourceKind; locator: string; year?: number };
 
 export type ClaimKind =
-  'theorem' | 'proposition' | 'lemma' | 'corollary' | 'claim' | 'conjecture' | 'question';
+  | 'contribution'
+  | 'theorem'
+  | 'proposition'
+  | 'lemma'
+  | 'corollary'
+  | 'claim'
+  | 'conjecture'
+  | 'question';
 export type ClaimRole = 'main' | 'supporting';
 export type Settles = { name: string; source: Source };
 export type Claim = {
@@ -493,6 +502,7 @@ export type MethodologyReading = {
     kind:
       | 'methodology'
       | 'general_theorem'
+      | 'theoretical_model'
       | 'finite_enumeration'
       | 'checker'
       | 'numeric_reduction'

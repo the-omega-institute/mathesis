@@ -45,6 +45,8 @@ pub enum UtilityKind {
     GeneralTheorem,
     /// A methodological problem and demonstrated non-binding advance.
     Methodology,
+    /// A theoretical model or derivation with explicit assumptions and progress.
+    TheoreticalModel,
     FiniteEnumeration,
     Checker,
     NumericReduction,
@@ -74,6 +76,7 @@ impl UtilityReading {
                     .all(|text| !text.trim().is_empty()),
                 UtilityKind::FiniteEnumeration | UtilityKind::CertifiedInstance => false,
                 UtilityKind::Checker
+                | UtilityKind::TheoreticalModel
                 | UtilityKind::NumericReduction
                 | UtilityKind::Counterexample => [
                     &self.problem,

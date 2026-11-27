@@ -16,6 +16,7 @@ use mathesis_latex::{
 
 fn kind(kind: StatementKind) -> ClaimKind {
     match kind {
+        StatementKind::Contribution => ClaimKind::Contribution,
         StatementKind::Theorem => ClaimKind::Theorem,
         StatementKind::Proposition => ClaimKind::Proposition,
         StatementKind::Lemma => ClaimKind::Lemma,
@@ -46,11 +47,34 @@ impl PaperReader for LatexReader {
     }
     fn read(&self, bytes: &[u8], filename: &str) -> Result<ReadPaper, String> {
         let files = unpack(bytes, filename, Limits::default()).map_err(reason)?;
-        let paper = if let Some((path, bytes)) = pdf::manuscript(&files)? {
+        let mut paper = if let Some((path, bytes)) = pdf::manuscript(&files)? {
             pdf::read(bytes, path)?
         } else {
             parse::parse(&files).map_err(reason)?
         };
+        if paper.statements.is_empty() {
+            let text = if paper.main_file.to_ascii_lowercase().ends_with(".pdf") {
+                pdf::text(
+                    files
+                        .get(&paper.main_file)
+                        .ok_or("missing manuscript PDF")?,
+                )?
+            } else {
+                let mut warnings = vec![];
+                let expanded =
+                    parse::strip_comments(&parse::expand(&files, &paper.main_file, &mut warnings));
+                expanded
+                    .split_once("\\begin{document}")
+                    .map_or(expanded.as_str(), |(_, body)| body)
+                    .split("\\end{document}")
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned()
+            };
+            paper
+                .statements
+                .push(prose_contribution(paper.abstract_text.as_deref(), &text)?);
+        }
         let bibliography = if paper.main_file.to_ascii_lowercase().ends_with(".pdf") {
             mathesis_latex::bibliography::Bibliography::pdf()
         } else {
@@ -95,6 +119,33 @@ impl PaperReader for LatexReader {
             warnings: paper.warnings,
         })
     }
+}
+
+/// Keep an exact source excerpt as the scope of a whole-manuscript reading.
+/// Review models receive the full source separately and must identify and check
+/// its actual claims. The excerpt is never a synthetic theorem or a proof.
+fn prose_contribution(
+    abstract_text: Option<&str>,
+    text: &str,
+) -> Result<mathesis_latex::Statement, String> {
+    if text.chars().filter(|c| c.is_alphanumeric()).count() < 20 {
+        return Err("The manuscript has too little readable text. Upload the complete source or a searchable PDF.".into());
+    }
+    let (excerpt, location) = abstract_text
+        .filter(|s| !s.trim().is_empty())
+        .map_or((text, "Manuscript"), |s| (s, "Abstract"));
+    Ok(mathesis_latex::Statement {
+        index: 1,
+        kind: StatementKind::Contribution,
+        environment: "manuscript".into(),
+        display_name: "Manuscript contribution".into(),
+        title: None,
+        label: None,
+        body: excerpt.chars().take(40_000).collect(),
+        has_proof: false,
+        section: Some(location.into()),
+        references: vec![],
+    })
 }
 
 /// The source with inputs inlined and comments removed, for review models.
@@ -154,6 +205,121 @@ impl Compile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_prose_theory_as_source_scope_without_inventing_a_theorem() {
+        for abstract_part in [
+            r"\begin{abstract}A verification protocol preserves a version-bound invariant.\end{abstract}",
+            "",
+        ] {
+            let source = format!(
+                r"\documentclass{{article}}\title{{Verification-centered research}}\author{{A. Author}}\begin{{document}}\maketitle {abstract_part}\section{{Model}}Let $E$ be the energy of the system. Under the stated symmetry assumptions we derive $dE/dt=0$. The model does not assert empirical validity.\end{{document}}"
+            );
+            let read = LatexReader.read(source.as_bytes(), "theory.tex").unwrap();
+            assert_eq!(read.statements.len(), 1);
+            let scope = &read.statements[0];
+            assert_eq!(scope.kind, ClaimKind::Contribution);
+            assert!(!scope.has_proof);
+            assert!(scope.latex_label.is_none());
+            assert!(source.contains(&scope.body));
+            assert!(
+                source_text(source.as_bytes(), "theory.tex")
+                    .unwrap()
+                    .contains("dE/dt=0")
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn prose_methodology_upload_enters_ordinary_review_after_metadata_confirmation() {
+        use mathesis_core::{
+            app::{App, Upload},
+            memory::MemoryStores,
+            model::*,
+            policy::Policy,
+            ports::SystemClock,
+        };
+        use std::{collections::BTreeSet, sync::Arc};
+        let stores = Arc::new(MemoryStores::default());
+        let app = App::new(
+            stores.ports(Arc::new(SystemClock), Arc::new(LatexReader)),
+            Policy::default(),
+            BTreeSet::new(),
+        );
+        let author = app
+            .ensure_service_account(&"author".into(), "A. Author", Role::Endorser)
+            .await
+            .unwrap();
+        let source = br"\documentclass{article}\title{A verification protocol}\author{A. Author}\begin{document}\begin{abstract}We define a protocol for checking version-bound research claims.\end{abstract}\section{Protocol}All admitted evidence is checked against the same immutable manuscript version.\end{document}";
+        let draft = app
+            .prepare_submission(
+                &author,
+                PrepareSubmission {
+                    kind: SubmissionKind::Paper,
+                    purpose: SubmissionPurpose::Publication,
+                    processing_consent: Some(AI_PROCESSING_REQUEST_VERSION.into()),
+                },
+                Upload {
+                    filename: "methodology.tex".into(),
+                    bytes: source.to_vec(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(draft.extracted[0].kind, ClaimKind::Contribution);
+        assert_eq!(draft.extracted[0].role, ClaimRole::Main);
+        assert!(!draft.extracted[0].has_proof);
+        let worker = app
+            .ensure_service_account(&"worker".into(), "Worker", Role::Reviewer)
+            .await
+            .unwrap();
+        app.record_compilation(&worker, &draft.id, 1, Ok(b"%PDF compiled source".to_vec()))
+            .await
+            .unwrap();
+        let metadata: NewPaper = serde_json::from_value(serde_json::json!({
+            "kind":"methodology", "title":draft.title, "authors":[{"name":"A. Author"}],
+            "abstract_text":draft.abstract_text, "processing_consent":AI_PROCESSING_REQUEST_VERSION,
+            "ai_disclosure":{"level":"none","statement":"No AI used."}
+        }))
+        .unwrap();
+        let request = SubmitPrepared {
+            version: 1,
+            source_sha256: draft.current_version().unwrap().archive.sha256.clone(),
+            claims_revision: draft.claims_revision,
+            metadata,
+            claims: vec![ClaimConfirmation {
+                id: "C1".into(),
+                kind: ClaimKind::Contribution,
+                role: ClaimRole::Main,
+                excluded: false,
+                depends_on: vec![],
+                depends_on_conjectures: vec![],
+                settles: None,
+            }],
+        };
+        let submitted = app
+            .submit_prepared(&author, &draft.id, request.clone())
+            .await
+            .unwrap();
+        assert_eq!(submitted.kind, SubmissionKind::Methodology);
+        assert_eq!(submitted.status, SubmissionStatus::InReview);
+        assert!(matches!(
+            &submitted.decision,
+            Some(mathesis_core::policy::Decision::Pending { .. })
+        ));
+        assert!(
+            submitted
+                .claims
+                .iter()
+                .all(|c| c.kind == ClaimKind::Contribution && !c.has_proof)
+        );
+        assert_eq!(
+            app.submit_prepared(&author, &draft.id, request)
+                .await
+                .unwrap(),
+            submitted
+        );
+    }
 
     #[tokio::test]
     async fn pdf_intake_preserves_original_bytes_metadata_and_review_text() {

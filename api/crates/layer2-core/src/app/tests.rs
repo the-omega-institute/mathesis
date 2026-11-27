@@ -1630,6 +1630,8 @@ async fn audit_orders_and_fences_decision_advice_letter_then_formal() {
         }],
         formalization: vec![FormalizationCandidate {
             claim: paper.claims[0].id.clone(),
+            target_statement: None,
+            source_location: None,
             feasibility: Feasibility::Ready,
             mathlib: vec![],
             missing: vec![],

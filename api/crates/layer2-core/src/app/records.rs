@@ -195,9 +195,9 @@ fn new_results(s: &Submission) -> usize {
         .claims
         .iter()
         .filter(|c| {
-            s.claim(&c.claim)
-                .is_some_and(|claim| claim.is_main_result())
-                && !c.known
+            s.claim(&c.claim).is_some_and(|claim| {
+                claim.is_main_result() && claim.kind != ClaimKind::Contribution
+            }) && !c.known
                 && c.assessment.as_ref().is_some_and(|a| {
                     a.correctness == Some(Correctness::Correct) && a.has_escape_content()
                 })
@@ -231,7 +231,7 @@ fn summary(record: &Record, submission: &Submission) -> PaperSummary {
         main_results: submission
             .claims
             .iter()
-            .filter(|c| c.is_main_result())
+            .filter(|c| c.is_main_result() && c.kind != ClaimKind::Contribution)
             .count(),
         new_results: new_results(submission),
         lean_verified: submission.formalization.verified(),
@@ -827,6 +827,7 @@ impl App {
                 submission
                     .claims
                     .iter()
+                    .filter(|c| c.kind != ClaimKind::Contribution)
                     .map(|c| PublicClaim {
                         id: c.id.clone(),
                         kind: c.kind,

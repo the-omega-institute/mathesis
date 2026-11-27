@@ -130,6 +130,7 @@ export const AI_DISCLOSURE_STATEMENTS: { readonly [K in AiUseLevel]: string } = 
 export const AI_USES = Object.keys(AI_USE_LABELS) as AiUseLevel[];
 
 export const CLAIM_KIND_LABELS: { readonly [K in ClaimKind]: string } = {
+  contribution: 'Contribution',
   theorem: 'Theorem',
   proposition: 'Proposition',
   lemma: 'Lemma',
@@ -138,7 +139,9 @@ export const CLAIM_KIND_LABELS: { readonly [K in ClaimKind]: string } = {
   conjecture: 'Conjecture',
   question: 'Question',
 };
-export const CLAIM_KINDS = Object.keys(CLAIM_KIND_LABELS) as ClaimKind[];
+export const CLAIM_KINDS = (Object.keys(CLAIM_KIND_LABELS) as ClaimKind[]).filter(
+  (kind) => kind !== 'contribution',
+);
 
 /** Conjectures and questions are open statements: the paper does not prove them. */
 export function isOpenKind(kind: ClaimKind): boolean {

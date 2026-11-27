@@ -1206,6 +1206,14 @@ impl Worker {
         if submission.kind == mathesis_core::model::SubmissionKind::Methodology {
             prompt.push_str(referee_prompts::METHODOLOGY_PAPER);
         }
+        if submission.kind == mathesis_core::model::SubmissionKind::Methodology
+            || submission
+                .claims
+                .iter()
+                .any(|claim| claim.kind == mathesis_core::model::ClaimKind::Contribution)
+        {
+            prompt.push_str(referee_prompts::THEORETICAL_MANUSCRIPT);
+        }
         // Existing rounds without declared evidence keep their admitted input digest.
         if let Some(version) = submission
             .versions

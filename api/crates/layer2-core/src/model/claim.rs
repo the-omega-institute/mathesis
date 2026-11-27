@@ -9,6 +9,9 @@ use crate::{CoreError, CoreResult, ids::ClaimId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ClaimKind {
+    /// Source-bound prose used for whole-manuscript review. This is not a
+    /// mathematical proposition or an assertion that the excerpt is proved.
+    Contribution,
     Theorem,
     Proposition,
     Lemma,
