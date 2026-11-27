@@ -49,8 +49,6 @@ Upload only the intended manuscript and its dependencies. Do not upload agent se
 
    Numbered theorems/lemmas are optional. A prose manuscript may return `kind: "contribution"`: preserve this source-bound whole-manuscript review scope without relabelling it as a theorem or claiming it is proved. The review reads the full manuscript. Final metadata may change a prepared `paper` to `methodology` (or back) before review begins.
 
-   Numbered theorems/lemmas are optional. A prose manuscript may return `kind: "contribution"`: preserve this source-bound whole-manuscript review scope without relabelling it as a theorem or claiming it is proved. The review reads the full manuscript. Final metadata may change a prepared `paper` to `methodology` (or back) before review begins.
-
    Copy version, source hash, claims revision and claim IDs from the current server response. Preserve statement kinds, main/supporting roles and actual dependencies. Do not guess an ID or attest to a different source. Internal claim IDs belong in API calls, not the author's report. A stale fence returns a conflict: reload and compare; never force it. Exact final retries do not start another round.
 
 7. Return the private `/submissions/{id}` link, current status and any specific action needed. While in review, wait; source replacement is unavailable. Read the final private report at `/api/v1/submissions/{id}/review` when complete. Never report acceptance from a draft, intermediate report or compilation success. Acceptance is separate from a Lean verification result.
