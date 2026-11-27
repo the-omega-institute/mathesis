@@ -1823,6 +1823,22 @@ async fn research_graph_is_public_bounded_and_private_focus_is_not_found() {
 }
 
 #[tokio::test]
+async fn agent_schema_advertises_methodology_intake_and_versioned_publication() {
+    let (_, spec, _) = call(&router(), "GET", "/openapi.json", None, None).await;
+    let schemas = &spec["components"]["schemas"];
+    assert!(
+        schemas["PrepareSubmission"]["properties"]["kind"]["enum"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("methodology"))
+    );
+    assert_eq!(
+        schemas["PublicCollectedPaper"]["properties"]["versions"]["items"]["$ref"],
+        "#/components/schemas/PublicCollectedVersion"
+    );
+}
+
+#[tokio::test]
 async fn public_proof_work_contract_has_no_client_success_route_and_hides_missing_endpoints() {
     let router = router();
     let response = router
