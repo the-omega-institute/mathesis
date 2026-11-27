@@ -214,7 +214,7 @@ type NewPaper = {
 // is shown reordered; every other name, and every stored or submitted value, is unchanged.
 type Author = { name: string; person?: string; orcid?: string; affiliation?: string; google_scholar?: string; website?: string };
 
-type ClaimKind = "theorem" | "proposition" | "lemma" | "corollary" | "claim" | "conjecture" | "question";
+type ClaimKind = "contribution" | "theorem" | "proposition" | "lemma" | "corollary" | "claim" | "conjecture" | "question";
 type Claim = { id: string /* C1, C2, … */; kind: ClaimKind; label: string; latex_label?: string;
   statement: string /* LaTeX */; role: "main" | "supporting"; has_proof: boolean; section?: string;
   depends_on: string[]; settles?: { name: string; source: Source } };
@@ -1182,8 +1182,8 @@ the current capability boundary; it is not a historical verification receipt.
 The submission form uses Manuscript, Authors, Files, and Review & submit tabs.
 It accepts a single PDF, TeX, ZIP, or tar.gz upload; selecting several source files
 creates one ZIP with their relative paths. Use a ZIP for a project with nested
-folders. PDFs must contain selectable text and numbered mathematical headings;
-scanned PDFs need OCR before upload. PDF text extraction is bounded to 500 pages,
+folders. PDFs must contain selectable text; numbered mathematical headings are
+optional. Scanned PDFs need OCR before upload. PDF text extraction is bounded to 500 pages,
 4 MB of text and 20 seconds, using Poppler in the API and worker runtime. The
 original PDF bytes remain the reading copy. Extracted statements carry a warning
 about symbols and boundaries; authors check the PDF before starting review.
