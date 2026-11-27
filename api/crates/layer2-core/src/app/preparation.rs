@@ -88,11 +88,19 @@ impl App {
         }
         let new = &request.metadata;
         new.validate()?;
-        if new.kind != submission.kind || new.typed_conjecture.is_some() {
+        let manuscript_reclassification = matches!(
+            (submission.kind, new.kind),
+            (SubmissionKind::Paper, SubmissionKind::Methodology)
+                | (SubmissionKind::Methodology, SubmissionKind::Paper)
+        );
+        if (new.kind != submission.kind && !manuscript_reclassification)
+            || new.typed_conjecture.is_some()
+        {
             return Err(CoreError::invalid(
                 "the manuscript type must match the upload",
             ));
         }
+        submission.kind = new.kind;
         let title = new
             .title
             .as_ref()

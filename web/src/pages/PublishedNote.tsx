@@ -5,8 +5,8 @@ import { publishedLeanSource } from '../lib/publishedLean';
 import { sharedLibraryFocus } from '../lib/sharedLibrary';
 import { AuthorLine } from '../components/AuthorLine';
 import { PaperMaterialLinks, PaperMaterials } from '../components/PaperMaterials';
-import { InlineLatex, LatexText } from '../components/Markdown';
-import { DateText, ExternalLink } from '../components/ui';
+import { InlineLatex, LatexText, Markdown } from '../components/Markdown';
+import { Badge, DateText, ExternalLink } from '../components/ui';
 import { sourceHref, sourceLabel } from '../lib/links';
 import { CitationMetadata } from '../components/PaperMetadata';
 import { routePath, paperRoute } from '../routing/routes';
@@ -58,16 +58,29 @@ export function PublishedNotePage({
   version?: string;
   note?: ProjectNote;
 }) {
-  const versions = supplied ? [supplied] : projectNoteVersions.filter((note) => note.id === id);
-  const note = version
-    ? versions.find((note) => note.revision === version)
-    : (supplied ?? projectNotes.find((note) => note.id === id));
+  const versions = supplied
+    ? supplied.versions?.length
+      ? supplied.versions
+      : [supplied]
+    : projectNoteVersions.filter((note) => note.id === id);
+  const note = supplied
+    ? !version || supplied.revision === version
+      ? supplied
+      : undefined
+    : version
+      ? projectNoteVersions.find((note) => note.id === id && note.revision === version)
+      : projectNotes.find((note) => note.id === id);
   const { route, navigate } = useRouter();
   const routeRecord = route.kind === 'paper' ? route.record : undefined;
   const routeVersion = route.kind === 'paper' ? route.version : undefined;
   const canonicalRecord = note ? paperRoute(note.id, note.archive?.doi).record : undefined;
   useEffect(() => {
-    if (canonicalRecord?.startsWith('doi:') && routeRecord && routeRecord !== canonicalRecord)
+    if (
+      !routeVersion &&
+      canonicalRecord?.startsWith('doi:') &&
+      routeRecord &&
+      routeRecord !== canonicalRecord
+    )
       navigate(
         { kind: 'paper', record: canonicalRecord, version: routeVersion },
         { replace: true },
@@ -92,13 +105,27 @@ export function PublishedNotePage({
             <InlineLatex source={note.title} />
           </h1>
           <AuthorLine authors={note.authors} />
+          {note.kind === 'methodology' ? (
+            <p className="entry-meta">
+              <Badge tone="neutral">{t('Methodology')}</Badge>
+            </p>
+          ) : null}
           <p className="entry-meta">
-            {t('Version {version}', { version: note.revision })} ·{' '}
+            {t('Version {version}', { version: note.revision })}
+            {note.version_label ? ` · ${note.version_label}` : ''} ·{' '}
             <DateText iso={note.published_on} />
           </p>
         </div>
       </header>
       <nav className="paper-access" aria-label={t('Read this work')}>
+        {note.repository_url ? (
+          <ExternalLink href={note.repository_url}>{t('View source repository')}</ExternalLink>
+        ) : null}
+        {note.issues_url || note.repository_url ? (
+          <ExternalLink href={note.issues_url ?? `${note.repository_url}/issues`}>
+            {t('Open issue / suggest revision')}
+          </ExternalLink>
+        ) : null}
         <a href={note.pdf.url}>{t('Read PDF')}</a>
         <a href={note.source.url} download>
           {t('Download source')}
@@ -224,7 +251,7 @@ export function PublishedNotePage({
             <summary>{t('Cite this paper')}</summary>
             <p>{projectCitation(note)}</p>
           </details>
-          {versions.length > 1 || note.previous_version ? (
+          {versions.length > 1 || note.previous_version || note.changelog || note.version_label ? (
             <section className="paper-versions" aria-labelledby="public-versions-h">
               <h2 id="public-versions-h">{t('Version history')}</h2>
               <ul className="version-list">
@@ -235,18 +262,14 @@ export function PublishedNotePage({
                         {t('Version {version}', { version: item.revision })}
                       </span>
                     ) : (
-                      <Link
-                        to={paperRoute(
-                          id,
-                          item.archive?.doi,
-                          item.archive?.doi ? undefined : item.revision,
-                        )}
-                      >
+                      <Link to={paperRoute(id, undefined, item.revision)}>
                         {t('Version {version}', { version: item.revision })}
                       </Link>
                     )}
+                    {item.version_label ? ` · ${item.version_label}` : ''}
                     {' · '}
                     <DateText iso={item.published_on} />
+                    {item.changelog ? <Markdown text={item.changelog} /> : null}
                     {item.revision !== note.revision ? (
                       <div className="paper-version-files">
                         <a href={item.pdf.url}>PDF</a>

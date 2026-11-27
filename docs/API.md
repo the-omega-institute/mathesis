@@ -194,7 +194,7 @@ type Role = "editor" | "endorser" | "reviewer" | "admin";
 type Person = { id: string; display_name: string; email?: string; picture?: string;
   orcid?: string; affiliation?: string; roles: Role[]; created_at: string; last_seen_at: string };
 
-type SubmissionKind = "paper" | "note" | "conjecture";
+type SubmissionKind = "paper" | "note" | "conjecture" | "methodology";
 type TypedConjecture = { title: string; statement: string; background?: string; origin?: string };
 type NewPaper = {
   title?: string;              // supplied title; required for PDF (max 1,000 characters)
@@ -214,7 +214,7 @@ type NewPaper = {
 // is shown reordered; every other name, and every stored or submitted value, is unchanged.
 type Author = { name: string; person?: string; orcid?: string; affiliation?: string; google_scholar?: string; website?: string };
 
-type ClaimKind = "theorem" | "proposition" | "lemma" | "corollary" | "claim" | "conjecture" | "question";
+type ClaimKind = "contribution" | "theorem" | "proposition" | "lemma" | "corollary" | "claim" | "conjecture" | "question";
 type Claim = { id: string /* C1, C2, … */; kind: ClaimKind; label: string; latex_label?: string;
   statement: string /* LaTeX */; role: "main" | "supporting"; has_proof: boolean; section?: string;
   depends_on: string[]; settles?: { name: string; source: Source } };
@@ -542,7 +542,7 @@ type RefereeView = {
 type RefereeRound = {
   letter_contract?: number;
   research_suggestions?: (ImprovementTarget & { claim?: string; kind: ImprovementKind; suggestion: string; progress: string; status: "checked" | "proposed"; excerpt: boolean })[];
-  formalization_suggestions?: { claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
+  formalization_suggestions?: { target_statement?: string; source_location?: string; claim: string; feasibility: "ready" | "needs_library" | "hard"; plan: string; excerpt: boolean }[];
   number: number;                   // 1-based, increases on restart
   version: number;                  // the paper version reviewed
   claims_revision: number;          // the confirmed statement set reviewed
@@ -1005,7 +1005,7 @@ identity configuration, verification boundaries and current limitations.
 
 | Method | Path (under `/api/v1`) | Access | Result |
 |---|---|---|---|
-| GET | `/papers?q=&author=&msc=&kind=&limit=&before=` | Public | Indexed public archive search; plain words, author substring (`Family, Given` and `Given Family` select the same works, also on `/collected-papers`), MSC prefix and type; newest record first |
+| GET | `/papers?q=&author=&msc=&kind=&exclude_kind=&limit=&before=` | Public | Indexed public archive search; plain words, author substring (`Family, Given` and `Given Family` select the same works, also on `/collected-papers`), MSC prefix and type; newest record first |
 | GET | `/submissions/{id}/review` | Authors/staff | Downloadable Orchestra review dossier, current source digest and version, safe projected rounds and letters |
 | POST | `/formalizations` | Signed in | Store attributed Lean source; returns a deposit, never a verification receipt |
 | GET | `/formalizations?limit=&before=` | Owner | Cursor page of own deposits |
@@ -1182,8 +1182,8 @@ the current capability boundary; it is not a historical verification receipt.
 The submission form uses Manuscript, Authors, Files, and Review & submit tabs.
 It accepts a single PDF, TeX, ZIP, or tar.gz upload; selecting several source files
 creates one ZIP with their relative paths. Use a ZIP for a project with nested
-folders. PDFs must contain selectable text and numbered mathematical headings;
-scanned PDFs need OCR before upload. PDF text extraction is bounded to 500 pages,
+folders. PDFs must contain selectable text; numbered mathematical headings are
+optional. Scanned PDFs need OCR before upload. PDF text extraction is bounded to 500 pages,
 4 MB of text and 20 seconds, using Poppler in the API and worker runtime. The
 original PDF bytes remain the reading copy. Extracted statements carry a warning
 about symbols and boundaries; authors check the PDF before starting review.
@@ -1395,3 +1395,53 @@ The legacy collected-result formalization POST now returns 200 with
 It indexes the source-bound result for compatibility, but does not enqueue a
 proof task or create a request. Formalization execution and claims use the
 canonical queue; historical proof and receipt routes remain readable.
+
+## Methodology and trusted repository releases
+
+`SubmissionKind` additionally accepts `methodology` in ordinary submission input
+and `kind` search filters. Both `GET /api/v1/papers` and
+`GET /api/v1/collected-papers` accept `exclude_kind=methodology` to browse only
+mathematics, or `kind=methodology` for the methodology track. An omitted filter
+retains all kinds. Combining inclusion and exclusion intersects their conditions.
+
+`POST /api/v1/pre-reviewed-deliveries` retains its three multipart fields
+`metadata`, `pdf`, `source` and `mathesis.pre-reviewed-delivery.v1` schema. Only
+identities in `WISHPOOL_INTERNAL_SUBJECTS` may use it. `review.verdict` accepts
+`PASS` or `INTERNAL_EDITORIAL`, both with a nonempty private object `record` and
+64-character lowercase hexadecimal file hashes. Automated referee/Oracle/source
+audit review is bypassed; collection does not award an ordinary admission record.
+
+Optional fields on `paper` (omitted when absent in stored delivery serialization):
+
+| Field | Validation / projection |
+| --- | --- |
+| `kind` | `paper`, `note`, `methodology`; absent means `note`; `conjecture` is refused |
+| `repository_url` | Literal `https://github.com/<owner>/<repo>` with bounded ASCII slugs |
+| `issues_url` | Literal GitHub `<owner>/<repo>/issues`; must match a supplied repository; otherwise projected as `<repository_url>/issues` when available |
+| `version_label` | Nonempty display string, at most 64 characters, no control characters |
+| `changelog` | Nonempty Markdown/plain text, at most 10,000 characters |
+
+Repository URLs forbid credentials, query/fragment, encoding and trailing slash.
+MSC codes remain optional, including `msc: []` for methodology. Public collection
+list/detail responses expose the effective kind and these optional fields. Detail
+`GET /api/v1/collected-papers/<work-id>?version=N` additionally exposes full current
+`versions` history, oldest first, even when an older version is selected:
+
+```json
+{"versions":[{"revision":"1","published_on":"2026-11-27T00:00:00Z","version_label":"v1.0","changelog":"Initial protocol.","pdf":{"url":"/api/v1/collected-papers/protocol/files/pdf?version=1","bytes":1,"sha256":"<exact hash>"},"source":{"url":"/api/v1/collected-papers/protocol/files/source?version=1","bytes":1,"sha256":"<exact hash>"}}]}
+```
+
+Each history entry may also expose its checked `archive` citation. Private review
+records and producer/operator identities remain omitted. Existing exact-retry,
+changed-payload conflict and exact-current-predecessor rules are unchanged. See
+[Methodology papers](METHODOLOGY_PAPERS.md) for delivery CLI and workflow usage.
+
+Prose theoretical manuscripts need no numbered theorem/lemma structure. Intake
+uses `kind: "contribution"` for a source-bound whole-manuscript review scope, with
+`has_proof: false`; the audit must read the full manuscript. It is not a formal
+proposition. An upload-first draft may change between `paper` and `methodology`
+in final metadata under the usual source/revision fence. Theory-model utility
+may use `kind: "theoretical_model"`, with supported problem, progress, prerequisites
+and discharge. Formalization candidates for prose scopes require an exact
+`target_statement` (at most 20,000 characters) and `source_location` (at most
+1,000); missing or oversized values cannot ground a probe.

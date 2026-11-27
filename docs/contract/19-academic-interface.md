@@ -110,3 +110,9 @@ Part of the repository contract in [CLAUDE.md](../../CLAUDE.md); equally binding
   the single download. Never truncate mathematical sentences or treat an excerpt as
   the full report. Preserve named/numbered results; when a legacy result lacks a title or number,
   use its result type without replacing it with a section heading or inventing a number.
+
+- Theoretical research includes methodology and theoretical physics. Intake does not
+  require theorem/lemma markup. A `contribution` is a source excerpt authorizing
+  whole-manuscript review, never a synthetic proved theorem. Authors may select
+  Methodology in Details before final source-bound submission. The ordinary
+  archive and search include every article type unless explicitly filtered.

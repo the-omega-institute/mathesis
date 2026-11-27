@@ -46,7 +46,8 @@ export function UploadSubmission({
   const { navigate } = useRouter();
   const [draft, setDraft] = useState(initialSubmission);
   const [step, setStep] = useState(initialSubmission ? 1 : 0);
-  const kind = draft?.kind ?? 'paper';
+  const [selectedKind, setSelectedKind] = useState<'paper' | 'methodology'>();
+  const kind = selectedKind ?? draft?.kind ?? 'paper';
   const [files, setFiles] = useState<File[]>([]);
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
   const [pdfChecked, setPdfChecked] = useState(false);
@@ -407,6 +408,20 @@ export function UploadSubmission({
         {step === 2 ? (
           <>
             <h2>{t('Manuscript details')}</h2>
+            {kind === 'paper' || kind === 'methodology' ? (
+              <Field label={t('Article type')} htmlFor="manuscript-kind">
+                <select
+                  id="manuscript-kind"
+                  value={kind}
+                  onChange={(event) =>
+                    setSelectedKind(event.target.value as 'paper' | 'methodology')
+                  }
+                >
+                  <option value="paper">{t('Research article')}</option>
+                  <option value="methodology">{t('Methodology')}</option>
+                </select>
+              </Field>
+            ) : null}
             <p className="submission-instruction">
               {t(
                 'Check the title and abstract read from your manuscript. You can edit either field.',
@@ -524,55 +539,61 @@ export function UploadSubmission({
                 onChange={(e) => setReviewScope(e.target.value)}
               />
             </Field>
-            <details className="plain-details">
-              <summary>
-                {t('Identified results (')}
-                {rows.length})
-              </summary>
+            {rows.every((row) => row.kind === 'contribution') ? (
               <p className="hint">
-                {t(
-                  'These statements will be reviewed. Adjust a main result or exclude a statement if needed.',
-                )}
+                {t('We will review the contributions and arguments in your full manuscript.')}
               </p>
-              {rows.map((row) => (
-                <div className="intake-claim" key={row.id}>
-                  <p>
-                    <strong>{draft?.extracted.find((c) => c.id === row.id)?.label}</strong>
-                  </p>
-                  <LatexText
-                    source={draft?.extracted.find((c) => c.id === row.id)?.statement ?? ''}
-                  />
-                  <div className="button-row">
-                    <label className="checkbox">
-                      <input
-                        type="checkbox"
-                        checked={row.role === 'main'}
-                        onChange={(e) =>
-                          setRows((current) =>
-                            updateRow(current, row.id, {
-                              role: e.target.checked ? 'main' : 'supporting',
-                            }),
-                          )
-                        }
-                      />
-                      {t('Main result')}
-                    </label>
-                    <label className="checkbox">
-                      <input
-                        type="checkbox"
-                        checked={row.excluded}
-                        onChange={(e) =>
-                          setRows((current) =>
-                            updateRow(current, row.id, { excluded: e.target.checked }),
-                          )
-                        }
-                      />
-                      {t('Exclude')}
-                    </label>
+            ) : (
+              <details className="plain-details">
+                <summary>
+                  {t('Identified results (')}
+                  {rows.length})
+                </summary>
+                <p className="hint">
+                  {t(
+                    'These statements will be reviewed. Adjust a main result or exclude a statement if needed.',
+                  )}
+                </p>
+                {rows.map((row) => (
+                  <div className="intake-claim" key={row.id}>
+                    <p>
+                      <strong>{draft?.extracted.find((c) => c.id === row.id)?.label}</strong>
+                    </p>
+                    <LatexText
+                      source={draft?.extracted.find((c) => c.id === row.id)?.statement ?? ''}
+                    />
+                    <div className="button-row">
+                      <label className="checkbox">
+                        <input
+                          type="checkbox"
+                          checked={row.role === 'main'}
+                          onChange={(e) =>
+                            setRows((current) =>
+                              updateRow(current, row.id, {
+                                role: e.target.checked ? 'main' : 'supporting',
+                              }),
+                            )
+                          }
+                        />
+                        {t('Main result')}
+                      </label>
+                      <label className="checkbox">
+                        <input
+                          type="checkbox"
+                          checked={row.excluded}
+                          onChange={(e) =>
+                            setRows((current) =>
+                              updateRow(current, row.id, { excluded: e.target.checked }),
+                            )
+                          }
+                        />
+                        {t('Exclude')}
+                      </label>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </details>
+                ))}
+              </details>
+            )}
             <PublicationChoice checked={makePublic} onChange={setMakePublic} />
           </>
         ) : null}

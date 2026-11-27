@@ -1,11 +1,24 @@
 import snapshot from '../data/project-notes.json';
-import type { Author, CollectedPaper, PaperMaterials, Settles } from '../api/types';
+import type {
+  Author,
+  CollectedPaper,
+  CollectedVersion,
+  SubmissionKind,
+  PaperMaterials,
+  Settles,
+} from '../api/types';
 import type { PaperQuery } from '../api/client';
 import { routePath } from '../routing/routes';
 import { authorNameMatches, canonicalAuthorName } from './authorName';
 import { publicationSubjects } from './projectNoteSubjects';
 
 export type ProjectNote = {
+  kind?: SubmissionKind;
+  repository_url?: string;
+  issues_url?: string;
+  version_label?: string;
+  changelog?: string;
+  versions?: CollectedVersion[];
   materials?: PaperMaterials;
   archive?: { doi: string; concept_doi?: string };
   id: string;
@@ -31,6 +44,12 @@ export type ProjectNote = {
 /** Adapt a trusted API collection record to the same compact paper reader used by historical notes. */
 export function collectedPaperNote(paper: CollectedPaper): ProjectNote {
   return {
+    kind: paper.kind,
+    repository_url: paper.repository_url,
+    issues_url: paper.issues_url,
+    version_label: paper.version_label,
+    changelog: paper.changelog,
+    versions: paper.versions,
     archive: paper.archive,
     materials: paper.materials,
     id: paper.id,
@@ -88,12 +107,14 @@ export function findProjectNotes(
   query: PaperQuery,
   notes: readonly ProjectNote[] = projectNotes,
 ): ProjectNote[] {
-  if (query.kind && query.kind !== 'note') return [];
   const msc = query.msc?.trim().toUpperCase();
   const q = (query.q ?? '').trim();
   const terms = q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const author = (query.author ?? '').trim();
   return notes.filter((note) => {
+    const kind = note.kind ?? 'note';
+    if ((query.kind && query.kind !== kind) || query.exclude_kind === kind) return false;
+    if (msc && kind === 'methodology') return false;
     const codes = publicationSubjects(note.id, note.msc);
     if (msc && !codes.some((code) => code.startsWith(msc))) return false;
     const authors = note.authors

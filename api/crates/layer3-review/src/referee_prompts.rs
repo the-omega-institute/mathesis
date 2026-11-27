@@ -220,6 +220,10 @@ pub struct ImprovementOut {
 #[serde(default)]
 pub struct FormalizationOut {
     pub claim: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_statement: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_location: Option<String>,
     pub feasibility: String,
     pub mathlib: Vec<String>,
     pub missing: Vec<String>,
@@ -375,6 +379,12 @@ pub fn audit(input: &AdvisorInput) -> String {
     } else {
         legacy.to_owned()
     };
+    if input.kind == "methodology" {
+        instructions.push_str(METHODOLOGY_PAPER);
+    }
+    if theoretical_manuscript(input) {
+        instructions.push_str(THEORETICAL_MANUSCRIPT);
+    }
     if input.manuscript_origin.is_some() {
         instructions.push_str(MANUSCRIPT_PROVENANCE);
     }
@@ -399,6 +409,33 @@ pub fn audit(input: &AdvisorInput) -> String {
         },
         serde_json::to_string_pretty(input).unwrap_or_default()
     )
+}
+
+/// Additive instructions only for the methodology submission track. Existing
+/// mathematical prompt contracts, including contracts 0–3, remain byte-identical.
+pub const METHODOLOGY_PAPER: &str = r#"
+METHODOLOGY PAPER TRACK
+Apply the same correct/content/bind_only/undetermined discipline to methodological claims.
+bind_only means mere recombination, renaming, prompt-wrapping or routine assembly of existing frameworks, tools or metrics, without a new non-binding mechanism, verification invariant, causal ablation or transferable protocol.
+content requires a live non-binding methodological mechanism, verification/admission protocol, architectural contract or controlled causal empirical evaluation exceeding routine binding of existing components. Identify concrete manuscript witnesses, source locations, the non-binding step and its live use. Check the claimed invariants, controls, assumptions, empirical support and scope; assertions and diagrams alone do not establish correctness. Missing evidence is undetermined, never automatically bind_only.
+Compare actual methodological prerequisites and opened literature. In the source audit use utility.kind methodology, status supported only with a nonempty rationale, the explicit methodological problem solved (problem), and the demonstrated non-binding advance (progress). Supported literature and supported utility remain necessary for the content route. A bind_only result can qualify only by settling an exactly named, sourced open methodological problem or benchmark, with the ordinary supported settlement evidence; a benchmark score alone is not settlement. Recommendations never decide publication.
+"#;
+
+pub const THEORETICAL_MANUSCRIPT: &str = r#"
+THEORETICAL MANUSCRIPT READING
+Research may be mathematics, theoretical physics, theoretical computer science or methodology. The absence of numbered theorem/lemma environments is not an error, missing proof, or reason to refuse review. Read the complete supplied manuscript. A confirmed entry of kind contribution is a source excerpt locating the manuscript's contribution, not an extracted theorem and not proof evidence. Identify its actual central claims, definitions, assumptions and arguments in the report, with precise manuscript locations. Check every material central claim before giving that contribution an overall correctness reading; do not approve an entire contribution because one subclaim is sound, and do not judge it from its abstract alone.
+Assess theoretical derivations under their stated model assumptions. Distinguish mathematical conclusions from physical applicability, empirical evidence, conjectures and proposed mechanisms. Require experiments for empirical assertions, not for every theoretical argument. In methodology work, a rigorous analysis or demonstrated invariant can supply evidence without a causal experiment. Missing evidence remains not_checked/undetermined; prose or the absence of formal markup alone establishes neither correctness nor a gap.
+For theoretical-model utility the audit may use utility.kind theoretical_model, with supported status only when rationale, problem, progress, prerequisites and discharge identify the actual advance and its established scope. Existing general_theorem and methodology categories remain available. Evaluate the actual independent literature in the relevant discipline; a missing Lean/Mathlib match is not a literature review or a novelty finding.
+After review, identify precise formalizable content even when the paper has no named lemmas: definitions, model assumptions, algebraic identities, limiting arguments, symmetry/conservation statements, protocol invariants or proved implications. Formalization candidates must give target_statement with explicit quantifiers and hypotheses and source_location identifying the supporting text or equations. Record missing definitions and bridges. A candidate is an exact substatement, never the whole abstract or the assertion that a physical model describes reality. Do not mark empirical claims, approximations or open obligations as proved. If no faithful target can yet be stated, explain what must be clarified rather than inventing a theorem or a Lean result.
+"#;
+
+fn theoretical_manuscript(input: &AdvisorInput) -> bool {
+    input.kind == "methodology"
+        || input
+            .confirmed_claims
+            .as_ref()
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|claims| claims.iter().any(|claim| claim["kind"] == "contribution"))
 }
 
 pub const MANUSCRIPT_PROVENANCE: &str = r#"
@@ -525,9 +562,14 @@ In Further directions, lead with the supplied rank-1 improvement when present, t
 
 pub fn advice(input: &AdvisorInput) -> String {
     format!(
-        "{ADVICE}\n{}\nINPUT (data):\n{}",
+        "{ADVICE}\n{}{}\nINPUT (data):\n{}",
         if input.kind == "conjecture" {
             "This is a conjecture: give sharpening advice and no proved formalization candidates. Do not attack it."
+        } else {
+            ""
+        },
+        if theoretical_manuscript(input) {
+            THEORETICAL_MANUSCRIPT
         } else {
             ""
         },

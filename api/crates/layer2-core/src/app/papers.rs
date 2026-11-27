@@ -58,6 +58,7 @@ pub(crate) fn claims_from(read: &ReadPaper) -> Vec<Claim> {
             // Theorems are main results by default; without any theorem,
             // propositions are. The author confirms or changes this.
             let main = match s.kind {
+                ClaimKind::Contribution => true,
                 ClaimKind::Theorem => true,
                 ClaimKind::Proposition => !any_theorem,
                 _ => false,
@@ -103,7 +104,7 @@ impl App {
         }
         if read.statements.is_empty() {
             return Err(CoreError::invalid(
-                "no theorem, lemma, proposition, corollary or conjecture environments were found; declare them with \\newtheorem",
+                "the manuscript has no readable contribution; upload the complete source or a searchable PDF",
             ));
         }
         Ok(read)

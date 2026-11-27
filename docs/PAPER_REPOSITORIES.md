@@ -265,3 +265,13 @@ statements, citations, review queues or contribution credit. The paper readers
 show available readings by language, slide PDFs/notes, visualizations and the
 repository, explaining that these materials are not verification. See
 [§33](contract/33-paper-materials.md) and [API.md](API.md).
+
+## Methodology track
+
+The catalog also preserves public `kind: "methodology"` collected/consented works,
+including repository URLs, release labels, changelogs and available version history.
+They retain ordinary archive/publication eligibility and repository generation.
+`stats.methodology_papers` counts them separately; `public_papers`, statement/Lean
+metrics and `by_msc` remain mathematics-only. Legacy works without kind retain
+their mathematical scope. See [Methodology papers](METHODOLOGY_PAPERS.md) for the
+trusted inverse flow from an authored paper repository into Mathesis.

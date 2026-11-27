@@ -16,6 +16,43 @@ const prepared: Submission = {
   versions: [version(1)],
   extracted: draft.extracted.slice(0, 2),
 };
+
+it('submits a prose methodology article without asking for theorem formatting', async () => {
+  const scope = {
+    ...prepared.extracted[0]!,
+    kind: 'contribution' as const,
+    role: 'main' as const,
+    label: 'Manuscript contribution',
+    statement: 'A version-bound verification protocol.',
+    has_proof: false,
+  };
+  const prose = { ...prepared, extracted: [scope] };
+  const submitPrepared = vi.fn(async () => ({
+    ...prose,
+    kind: 'methodology' as const,
+    status: { state: 'in_review' as const },
+  }));
+  renderWithApp(
+    <SubmitPage initialSubmission={prose} onSubmitted={vi.fn()} />,
+    fakeApi({ submitPrepared }, author),
+  );
+  const user = userEvent.setup();
+  await checkPdf(user);
+  await user.selectOptions(screen.getByLabelText('Article type'), 'methodology');
+  await user.click(screen.getByRole('tab', { name: 'Submit' }));
+  expect(
+    screen.getByText('We will review the contributions and arguments in your full manuscript.'),
+  ).toBeVisible();
+  expect(screen.queryByText('Main result')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Submit for review' }));
+  expect(submitPrepared).toHaveBeenCalledWith(
+    prose.id,
+    expect.objectContaining({
+      metadata: expect.objectContaining({ kind: 'methodology' }),
+      claims: [expect.objectContaining({ id: scope.id, kind: 'contribution', role: 'main' })],
+    }),
+  );
+});
 async function upload(
   user: ReturnType<typeof userEvent.setup>,
   files: File | File[] = new File(['source'], 'paper.tex'),

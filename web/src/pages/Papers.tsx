@@ -110,7 +110,10 @@ export function PapersPage({
       </header>
       <div className="archive-browse">
         <nav className="archive-subjects" aria-label={t('Browse by subject')}>
-          <Link to={{ kind: 'papers' }} aria-current={!query.msc ? 'page' : undefined}>
+          <Link
+            to={{ kind: 'papers' }}
+            aria-current={!query.msc && query.kind !== 'methodology' ? 'page' : undefined}
+          >
             {t('All papers')}
           </Link>
           {['05', '11', '81', '15'].map((code) => (
@@ -217,6 +220,7 @@ export function PapersPage({
                   <option value="">{t('All research')}</option>
                   <option value="paper">{t('Papers')}</option>
                   <option value="note">{t('Short notes')}</option>
+                  <option value="methodology">{t('Methodology')}</option>
                   <option value="conjecture">{t('Conjectures')}</option>
                 </select>
               </label>

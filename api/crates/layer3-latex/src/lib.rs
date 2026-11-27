@@ -33,6 +33,8 @@ pub type LatexResult<T> = Result<T, LatexError>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StatementKind {
+    /// A source excerpt locating a prose contribution for manuscript review.
+    Contribution,
     Theorem,
     Proposition,
     Lemma,

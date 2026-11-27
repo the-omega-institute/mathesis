@@ -43,6 +43,10 @@ pub struct ContentWitness {
 #[serde(rename_all = "snake_case")]
 pub enum UtilityKind {
     GeneralTheorem,
+    /// A methodological problem and demonstrated non-binding advance.
+    Methodology,
+    /// A theoretical model or derivation with explicit assumptions and progress.
+    TheoreticalModel,
     FiniteEnumeration,
     Checker,
     NumericReduction,
@@ -67,8 +71,12 @@ impl UtilityReading {
             && !self.rationale.trim().is_empty()
             && match self.kind {
                 UtilityKind::GeneralTheorem => true,
+                UtilityKind::Methodology => [&self.problem, &self.progress]
+                    .iter()
+                    .all(|text| !text.trim().is_empty()),
                 UtilityKind::FiniteEnumeration | UtilityKind::CertifiedInstance => false,
                 UtilityKind::Checker
+                | UtilityKind::TheoreticalModel
                 | UtilityKind::NumericReduction
                 | UtilityKind::Counterexample => [
                     &self.problem,

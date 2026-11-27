@@ -307,3 +307,58 @@ fn report_style_does_not_change_source_comparison_requirements() {
         !referee_prompts::letter(&current, None).contains("explain the exact saved limitation")
     );
 }
+
+#[test]
+fn methodology_track_adapts_audits_without_touching_mathematics_prompt_contracts() {
+    let mut current = input();
+    for kind in ["paper", "note", "conjecture"] {
+        current.kind = kind.into();
+        for method in [None, Some("trureturing-content-2026-10-15".into())] {
+            current.review_method = method;
+            let unchanged = referee_prompts::audit(&current);
+            assert!(!unchanged.contains("METHODOLOGY PAPER TRACK"));
+        }
+    }
+    current.kind = "methodology".into();
+    let prompt = referee_prompts::audit(&current);
+    for requirement in [
+        "METHODOLOGY PAPER TRACK",
+        "prompt-wrapping",
+        "verification invariant",
+        "causal",
+        "transferable protocol",
+        "undetermined",
+        "utility.kind methodology",
+        "problem",
+        "progress",
+    ] {
+        assert!(prompt.contains(requirement), "{requirement}");
+    }
+}
+
+#[test]
+fn prose_theory_is_read_in_full_and_yields_precise_formalization_targets() {
+    let mut current = input();
+    current.kind = "paper".into();
+    current.confirmed_claims = Some(
+        serde_json::json!([{"id":"C1","kind":"contribution","statement":"The source abstract."}]),
+    );
+    for prompt in [
+        referee_prompts::audit(&current),
+        referee_prompts::advice(&current),
+    ] {
+        for requirement in [
+            "THEORETICAL MANUSCRIPT READING",
+            "Read the complete supplied manuscript",
+            "theoretical physics",
+            "target_statement",
+            "source_location",
+            "not a literature review",
+            "not for every theoretical argument",
+        ] {
+            assert!(prompt.contains(requirement), "{requirement}");
+        }
+    }
+    current.confirmed_claims = None;
+    assert!(!referee_prompts::audit(&current).contains("THEORETICAL MANUSCRIPT READING"));
+}

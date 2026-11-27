@@ -5,7 +5,8 @@ repository. Rules here are binding.
 
 ## 1. What Mathesis is
 
-A venue where mathematicians submit their own papers, short notes and
+A venue for theoretical research, including mathematics, theoretical physics,
+theoretical computer science and methodology. Authors submit papers, short notes and
 conjectures through one entry and one review pipeline. The venue reads their
 statements, audits the referee's mathematical reading, and gives accepted work
 one shared `WP-<year>-NNNN` record sequence. Authors may instead choose an independent
@@ -16,9 +17,10 @@ pipeline; only their labels differ.
 - **Input**: papers and notes upload PDF, `.tex`, `.zip` or `.tar.gz` manuscripts.
   PDF intake uses a bounded Poppler text read and numbered statement headings,
   preserves the original PDF bytes, and suggests bounded front-matter title/abstract.
-  Ambiguous fields stay empty; authors confirm bibliographic metadata before review. Scans
-  without text or unreadable statement boundaries are refused with an actionable
-  explanation. PDF extraction warnings remain visible before confirmation.
+  Ambiguous fields stay empty; authors confirm bibliographic metadata before review.
+  Scans without readable text are refused with an actionable explanation. Numbered
+  theorem/lemma structure is optional. Prose manuscripts use a source excerpt as a
+  `contribution` scope for full-text review, never a synthetic proved theorem. PDF extraction warnings remain visible before confirmation.
   The web form uses Upload → Check PDF → Details → Authors → Submit tabs;
   source-derived metadata is editable after the PDF check. Preparation persists a
   private incomplete draft, using the ordinary durable compile lane. Its intake
@@ -32,7 +34,8 @@ pipeline; only their labels differ.
   Typed input becomes a minimal stored `.tex`, using the same reader, blob store,
   PDF build and author confirmation. Its single conjecture is a main claim.
 - **Statements**: the author confirms kind, main or supporting role and
-  dependencies. Papers/notes require a proved main result; conjectures require a
+  dependencies. Papers/notes require an assessable main contribution; a prose
+  contribution scope is checked against the complete manuscript. Conjectures require a
   main conjecture or question. Stored documents without `kind` load as `paper`.
   Extracted `has_proof` records recognized proof markup, not proof correctness or
   absence. A current source audit may establish a prose proof for formalization

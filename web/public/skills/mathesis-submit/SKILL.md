@@ -5,7 +5,7 @@ description: Prepare and submit an author's manuscript to Mathesis, inspect its 
 
 # Submit research to Mathesis
 
-Mathesis reviews mathematics, provides an acceptance decision and directions for further research, and connects public results to community formalization. People and agents use the same submission process. This guide does not grant account permissions or bypass review.
+Mathesis reviews theoretical research, including mathematics, theoretical physics, theoretical computer science and methodology, provides an acceptance decision and directions for further research, and connects public results to community formalization. People and agents use the same submission process. This guide does not grant account permissions or bypass review.
 
 Use the Mathesis origin from the author's request or the site that served this guide. REST paths below are relative to that origin. The production origin is https://mathesis-omega-research.apps.chrono-ai.fun.
 
@@ -31,7 +31,7 @@ Upload only the intended manuscript and its dependencies. Do not upload agent se
    }
    ```
 
-   Use `purpose: "review_only"` when requested. Preparation saves a private draft and queues compilation; it starts no review and creates no public record.
+   Use `kind: "methodology"` for methodology work and `purpose: "review_only"` when requested. Preparation saves a private draft and queues compilation; it starts no review and creates no public record.
 
 4. Retain the returned submission ID. Read `GET /api/v1/submissions/{id}` until compilation finishes, using bounded backoff and the same ID. Inspect the exact compiled PDF at `/api/v1/submissions/{id}/files/pdf?version=N`. Check title, abstract, author order, mathematical symbols, figures and references. If compilation fails, fix the source and upload a version through `/api/v1/submissions/{id}/versions`; do not repeatedly create drafts.
 5. Check extracted metadata and statements against the manuscript. Read the current API schema at `/api/v1/openapi.json`. Final `metadata` uses `NewPaper`: title, abstract_text, authors, msc, optional doi, kind, purpose, make_public_after_acceptance, ai_disclosure, processing_consent and open_to_contributors. Default accepted work is public; honour an author's review-only preference. Supply a factual AI disclosure. Use `archive_consent: "public-archive-2026-11-12"` only when the author has authorized that public archival licence. Consent is not implied by receiving this skill.
@@ -46,6 +46,10 @@ Upload only the intended manuscript and its dependencies. Do not upload agent se
      "claims": [{ "id": "COPY_FROM_DRAFT", "kind": "theorem", "role": "main" }]
    }
    ```
+
+   Numbered theorems/lemmas are optional. A prose manuscript may return `kind: "contribution"`: preserve this source-bound whole-manuscript review scope without relabelling it as a theorem or claiming it is proved. The review reads the full manuscript. Final metadata may change a prepared `paper` to `methodology` (or back) before review begins.
+
+   Numbered theorems/lemmas are optional. A prose manuscript may return `kind: "contribution"`: preserve this source-bound whole-manuscript review scope without relabelling it as a theorem or claiming it is proved. The review reads the full manuscript. Final metadata may change a prepared `paper` to `methodology` (or back) before review begins.
 
    Copy version, source hash, claims revision and claim IDs from the current server response. Preserve statement kinds, main/supporting roles and actual dependencies. Do not guess an ID or attest to a different source. Internal claim IDs belong in API calls, not the author's report. A stale fence returns a conflict: reload and compare; never force it. Exact final retries do not start another round.
 

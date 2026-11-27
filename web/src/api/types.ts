@@ -159,6 +159,8 @@ export type Step<T> = {
 export type FormalizationSuggestion = {
   excerpt?: boolean;
   claim: string;
+  target_statement?: string;
+  source_location?: string;
   feasibility: Feasibility;
   plan: string;
 };
@@ -281,7 +283,7 @@ export type PolicyDocument = { policy: Policy; stages: PolicyStage[] };
 export type AiUseLevel = 'none' | 'assisted' | 'substantial' | 'primarily';
 export type AiDisclosure = { level: AiUseLevel; statement: string };
 
-export type SubmissionKind = 'paper' | 'note' | 'conjecture';
+export type SubmissionKind = 'paper' | 'note' | 'conjecture' | 'methodology';
 export type TypedConjecture = {
   title: string;
   statement: string;
@@ -325,7 +327,14 @@ export type SourceKind =
 export type Source = { kind: SourceKind; locator: string; year?: number };
 
 export type ClaimKind =
-  'theorem' | 'proposition' | 'lemma' | 'corollary' | 'claim' | 'conjecture' | 'question';
+  | 'contribution'
+  | 'theorem'
+  | 'proposition'
+  | 'lemma'
+  | 'corollary'
+  | 'claim'
+  | 'conjecture'
+  | 'question';
 export type ClaimRole = 'main' | 'supporting';
 export type Settles = { name: string; source: Source };
 export type Claim = {
@@ -491,7 +500,9 @@ export type MethodologyReading = {
   }[];
   utility: {
     kind:
+      | 'methodology'
       | 'general_theorem'
+      | 'theoretical_model'
       | 'finite_enumeration'
       | 'checker'
       | 'numeric_reduction'
@@ -743,7 +754,22 @@ export type PaperMaterials = {
   }[];
   formalization_requests?: { label: string; url: string }[];
 };
+export type CollectedVersion = {
+  revision: string;
+  published_on: string;
+  version_label?: string;
+  changelog?: string;
+  archive?: { doi: string; concept_doi?: string };
+  pdf: { url: string };
+  source: { url: string };
+};
 export type CollectedPaper = {
+  kind?: SubmissionKind;
+  repository_url?: string;
+  issues_url?: string;
+  version_label?: string;
+  changelog?: string;
+  versions?: CollectedVersion[];
   materials?: PaperMaterials;
   archive?: { doi: string; concept_doi?: string };
   id: string;

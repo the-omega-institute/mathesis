@@ -16,7 +16,7 @@ export type Route =
       q?: string;
       author?: string;
       msc?: string;
-      work?: 'paper' | 'note' | 'conjecture';
+      work?: 'paper' | 'note' | 'conjecture' | 'methodology';
     }
   | { kind: 'research_problem'; id: string; before?: string }
   | { kind: 'conjectures' }
@@ -141,7 +141,9 @@ export function parseRoute(pathname: string, search = ''): Route {
           ...(q ? { q } : {}),
           ...(author ? { author } : {}),
           ...(msc ? { msc } : {}),
-          ...(work === 'paper' || work === 'note' || work === 'conjecture' ? { work } : {}),
+          ...(work === 'paper' || work === 'note' || work === 'conjecture' || work === 'methodology'
+            ? { work }
+            : {}),
         };
       }
       case 'policy':

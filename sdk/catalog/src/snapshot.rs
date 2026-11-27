@@ -25,8 +25,31 @@ pub fn snapshot(api_base: &str, output: &Path) -> Result<SnapshotMeta> {
         fs::create_dir_all(&collected_dir)?;
         fs::create_dir_all(&papers_dir)?;
         fs::create_dir_all(&formal_dir)?;
-        let (collected, ccount) =
+        let (mut collected, ccount) =
             collect_pages(&client, &api_base, "/collected-papers", &collected_dir)?;
+        // Methodology releases carry reader-facing history on their detail route.
+        // Preserve that public history for offline repository rendering, and fail
+        // atomically if the selected version changed during the snapshot.
+        for row in &mut collected {
+            if text(row, "kind").as_deref() != Some("methodology") {
+                continue;
+            }
+            let id = text(row, "id").ok_or_else(|| msg("methodology paper has no id"))?;
+            let detail = get_json(
+                &client,
+                &format!("{api_base}/collected-papers/{}", urlencoding(&id)),
+            )?;
+            if row.as_object().is_none_or(|fields| {
+                fields
+                    .iter()
+                    .any(|(key, value)| detail.get(key) != Some(value))
+            }) {
+                return Err(msg(format!(
+                    "methodology paper changed during snapshot: {id}"
+                )));
+            }
+            *row = detail;
+        }
         let (accepted, pcount) = collect_pages(&client, &api_base, "/papers", &papers_dir)?;
         let accepted = accepted
             .into_iter()

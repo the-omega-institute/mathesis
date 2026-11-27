@@ -15,6 +15,8 @@ export function formalizationAdvice(submission: Submission, round?: RefereeRound
     return [
       {
         claim,
+        target: 'target_statement' in candidate ? candidate.target_statement : undefined,
+        location: 'source_location' in candidate ? candidate.source_location : undefined,
         plan:
           candidate.plan +
           ('excerpt' in candidate && candidate.excerpt
@@ -29,7 +31,8 @@ export function formalizationAdvice(submission: Submission, round?: RefereeRound
 
 /** Source extraction is a hint; an audit can recognize a proof written in prose. */
 export function hasReviewedProof(claim: Claim, round?: RefereeRound): boolean {
-  if (claim.kind === 'conjecture' || claim.kind === 'question') return false;
+  if (claim.kind === 'conjecture' || claim.kind === 'question' || claim.kind === 'contribution')
+    return false;
   const reading =
     round?.audit?.state.state === 'done'
       ? round.audit.state.result.claims.find((item) => item.claim === claim.id)
@@ -42,8 +45,8 @@ export function formalizationAdviceText(submission: Submission, round?: RefereeR
   const text = candidates.length
     ? candidates
         .map(
-          ({ claim, plan, state, progress }) =>
-            `### ${resultLabel(claim)}\n\n${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${state === 'in_progress' && progress === 'blocked' ? 'Formalization is blocked. Review the saved result and remaining obligations before further proof work.' : { proposed: 'You can request this result be formalized in Lean.', approved: 'You approved this result for formalization. The exact Lean statement needs preparation or confirmation.', in_progress: 'Saved proof work is unfinished. Further automatic work requires an active remaining author allowance.', verified: 'An independently verified formal proof is available.', declined: 'You declined this formalization.' }[state]}` : ''}`,
+          ({ claim, plan, state, progress, target, location }) =>
+            `### ${resultLabel(claim)}\n\n${target ? `${target}\n\n` : ''}${location ? `${location}\n\n` : ''}${manuscriptReferences(plan, submission.claims)}${state ? `\n\n${state === 'in_progress' && progress === 'blocked' ? 'Formalization is blocked. Review the saved result and remaining obligations before further proof work.' : { proposed: 'You can request this result be formalized in Lean.', approved: 'You approved this result for formalization. The exact Lean statement needs preparation or confirmation.', in_progress: 'Saved proof work is unfinished. Further automatic work requires an active remaining author allowance.', verified: 'An independently verified formal proof is available.', declined: 'You declined this formalization.' }[state]}` : ''}`,
         )
         .join('\n\n')
     : round?.formalization_suggestions

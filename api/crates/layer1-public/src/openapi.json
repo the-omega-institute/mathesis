@@ -104,10 +104,24 @@
               "enum": [
                 "paper",
                 "note",
-                "conjecture"
+                "conjecture",
+                "methodology"
               ]
             },
             "description": ""
+          },
+          {
+            "name": "exclude_kind",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "paper",
+                "note",
+                "conjecture",
+                "methodology"
+              ]
+            },
+            "description": "Exclude this work type; omission includes all types."
           }
         ]
       }
@@ -4476,6 +4490,19 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "exclude_kind",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "paper",
+                "note",
+                "conjecture",
+                "methodology"
+              ]
+            },
+            "description": "Exclude this work type; omission includes all types."
           }
         ],
         "responses": {
@@ -5007,7 +5034,8 @@
             "enum": [
               "paper",
               "note",
-              "conjecture"
+              "conjecture",
+              "methodology"
             ]
           },
           "submission": {
@@ -8513,7 +8541,8 @@
             "enum": [
               "paper",
               "note",
-              "conjecture"
+              "conjecture",
+              "methodology"
             ]
           },
           "purpose": {
@@ -10252,7 +10281,8 @@
             "enum": [
               "paper",
               "note",
-              "conjecture"
+              "conjecture",
+              "methodology"
             ]
           },
           "version": {
@@ -10780,6 +10810,36 @@
           "materials": {
             "$ref": "#/components/schemas/PaperMaterials",
             "description": "Omitted when absent, private or not the current public version."
+          },
+          "kind": {
+            "enum": [
+              "paper",
+              "note",
+              "methodology"
+            ],
+            "description": "Effective article type; historical collected works default to note."
+          },
+          "repository_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "issues_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "version_label": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "changelog": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCollectedVersion"
+            }
           }
         },
         "required": [
@@ -11164,6 +11224,77 @@
             "format": "date-time"
           }
         }
+      },
+      "PublicCollectedVersion": {
+        "type": "object",
+        "description": "Immutable bibliographic version history; contains no private review evidence.",
+        "properties": {
+          "revision": {
+            "type": "string"
+          },
+          "published_on": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pdf": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "bytes",
+              "sha256"
+            ]
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "bytes",
+              "sha256"
+            ]
+          },
+          "archive": {
+            "type": "object",
+            "description": "Independently checked archive citation when available."
+          },
+          "version_label": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "changelog": {
+            "type": "string",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "revision",
+          "published_on",
+          "pdf",
+          "source"
+        ]
       }
     }
   }

@@ -22,6 +22,17 @@ pub struct CollectedLean {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CollectedMetadata {
+    /// Historical collected works are notes, independently of the submission default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<SubmissionKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issues_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub changelog: Option<String>,
     pub title: String,
     #[serde(rename = "abstract")]
     pub abstract_text: String,
@@ -60,6 +71,47 @@ pub struct PreReviewedDelivery {
     pub paper: CollectedMetadata,
     pub review: CollectionReview,
 }
+impl CollectedMetadata {
+    pub fn effective_kind(&self) -> SubmissionKind {
+        self.kind.unwrap_or(SubmissionKind::Note)
+    }
+}
+
+/// Accept only literal public GitHub repository/issue paths. No URL normalization
+/// may hide credentials, encoded separators, dot segments or a different host.
+fn github_repository(url: &str, issues: bool) -> CoreResult<&str> {
+    let path = url.strip_prefix("https://github.com/").unwrap_or_default();
+    let parts: Vec<_> = path.split('/').collect();
+    let slug = |s: &str, max: usize| {
+        !s.is_empty()
+            && s.len() <= max
+            && s != "."
+            && s != ".."
+            && s.bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+    };
+    if parts.len() != if issues { 3 } else { 2 }
+        || !slug(parts[0], 39)
+        || !parts[0]
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        || parts[0].starts_with('-')
+        || parts[0].ends_with('-')
+        || parts[0].contains("--")
+        || !slug(parts[1], 100)
+        || (issues && parts[2] != "issues")
+    {
+        return Err(CoreError::invalid(
+            "require a public HTTPS GitHub repository or /issues URL",
+        ));
+    }
+    Ok(if issues {
+        url.strip_suffix("/issues").unwrap()
+    } else {
+        url
+    })
+}
+
 impl PreReviewedDelivery {
     pub fn validate(&self) -> CoreResult<()> {
         if self.schema != "mathesis.pre-reviewed-delivery.v1" || !self.authorize_publication {
@@ -97,6 +149,44 @@ impl PreReviewedDelivery {
                 "supply ordered authors without asserting Mathesis account ownership",
             ));
         }
+        if self.paper.effective_kind() == SubmissionKind::Conjecture {
+            return Err(CoreError::invalid(
+                "collection accepts paper, note or methodology; conjectures use their own intake",
+            ));
+        }
+        if let Some(url) = &self.paper.repository_url {
+            github_repository(url, false)?;
+        }
+        if let Some(url) = &self.paper.issues_url {
+            let repository = github_repository(url, true)?;
+            if self
+                .paper
+                .repository_url
+                .as_ref()
+                .is_some_and(|r| r != repository)
+            {
+                return Err(CoreError::invalid(
+                    "issues_url must belong to repository_url",
+                ));
+            }
+        }
+        if let Some(label) = &self.paper.version_label {
+            require_text("version label", label, 64)?;
+            if label.chars().count() > 64 {
+                return Err(CoreError::invalid("version label exceeds 64 characters"));
+            }
+            if label.chars().any(char::is_control) {
+                return Err(CoreError::invalid(
+                    "version label contains control characters",
+                ));
+            }
+        }
+        if let Some(changelog) = &self.paper.changelog {
+            require_text("changelog", changelog, 10_000)?;
+            if changelog.chars().count() > 10_000 {
+                return Err(CoreError::invalid("changelog exceeds 10000 characters"));
+            }
+        }
         validate_msc(&self.paper.msc)?;
         if self.paper.license != "CC-BY-4.0" {
             return Err(CoreError::invalid(
@@ -132,7 +222,7 @@ impl PreReviewedDelivery {
             super::manuscript::public_link(&lean.url)?;
         }
         let r = &self.review;
-        if r.verdict != "PASS"
+        if !matches!(r.verdict.as_str(), "PASS" | "INTERNAL_EDITORIAL")
             || r.record.as_object().is_none_or(|v| v.is_empty())
             || [&r.pdf_sha256, &r.source_sha256].iter().any(|s| {
                 s.len() != 64
@@ -142,7 +232,7 @@ impl PreReviewedDelivery {
             })
         {
             return Err(CoreError::invalid(
-                "require a PASS review, exact lowercase SHA-256 file bindings and a nonempty review record",
+                "require PASS or INTERNAL_EDITORIAL, exact lowercase SHA-256 file bindings and a nonempty review record",
             ));
         }
         if serde_json::to_vec(self)
@@ -320,7 +410,8 @@ pub struct CollectedExplanation {
 impl CollectedVersion {
     pub fn matches(&self, q: &PaperSearch) -> bool {
         let p = &self.delivery.paper;
-        if q.kind.is_some_and(|k| k != SubmissionKind::Note)
+        if q.kind.is_some_and(|k| k != p.effective_kind())
+            || q.exclude_kind == Some(p.effective_kind())
             || q.msc
                 .as_ref()
                 .is_some_and(|m| !p.msc.iter().any(|c| c.starts_with(&m.to_uppercase())))
@@ -390,6 +481,67 @@ mod tests {
     }
 
     #[test]
+    fn additive_metadata_preserves_legacy_serialization_and_validates_boundaries() {
+        let legacy = delivery();
+        assert_eq!(legacy.paper.effective_kind(), SubmissionKind::Note);
+        let json = serde_json::to_value(&legacy).unwrap();
+        for key in [
+            "kind",
+            "repository_url",
+            "issues_url",
+            "version_label",
+            "changelog",
+        ] {
+            assert!(json["paper"].get(key).is_none());
+        }
+        let mut value = legacy.clone();
+        value.paper.kind = Some(SubmissionKind::Methodology);
+        value.paper.msc.clear();
+        value.review.verdict = "INTERNAL_EDITORIAL".into();
+        value.paper.repository_url =
+            Some("https://github.com/mathesis-papers/human-in-the-loop-automated-research".into());
+        value.paper.version_label = Some("v1.0".into());
+        value.paper.changelog = Some("Initial protocol and causal evaluation.".into());
+        value.validate().unwrap();
+        for url in [
+            "http://github.com/a/b",
+            "https://github.com/a/b?x",
+            "https://github.com/a/b#x",
+            "https://user@github.com/a/b",
+            "https://github.com/a/..",
+            "https://github.com/a/b/",
+            "https://github.com/a/b%2fc",
+            "https://github.com/á/b",
+            "https://github.com/a/b/issues",
+        ] {
+            let mut invalid = value.clone();
+            invalid.paper.repository_url = Some(url.into());
+            assert!(invalid.validate().is_err(), "{url}");
+        }
+        value.paper.issues_url = Some("https://github.com/other/repo/issues".into());
+        assert!(value.validate().is_err());
+        value.paper.issues_url = None;
+        for kind in [SubmissionKind::Paper, SubmissionKind::Note] {
+            value.paper.kind = Some(kind);
+            value.validate().unwrap();
+        }
+        value.paper.kind = Some(SubmissionKind::Conjecture);
+        assert!(value.validate().is_err());
+        value.paper.kind = Some(SubmissionKind::Methodology);
+        value.paper.version_label = Some("x".repeat(65));
+        assert!(value.validate().is_err());
+        value.paper.version_label = None;
+        value.paper.changelog = Some("x".repeat(10_001));
+        assert!(value.validate().is_err());
+        value.paper.changelog = None;
+        value.review.pdf_sha256 = "A".repeat(64);
+        assert!(value.validate().is_err());
+        value.review.pdf_sha256 = "a".repeat(64);
+        value.review.record = serde_json::json!({});
+        assert!(value.validate().is_err());
+    }
+
+    #[test]
     fn trusted_delivery_requires_explicit_review_bindings() {
         let value = delivery();
         value.validate().unwrap();
@@ -401,7 +553,7 @@ mod tests {
     #[test]
     fn collection_search_matches_title_author_and_source() {
         let d = delivery();
-        let v = CollectedVersion {
+        let mut v = CollectedVersion {
             archive: None,
             source_index: None,
             explanation: CollectedExplanation::default(),
@@ -427,6 +579,13 @@ mod tests {
         };
         q.validate().unwrap();
         assert!(v.matches(&q));
+        q.kind = Some(SubmissionKind::Methodology);
+        assert!(!v.matches(&q));
+        v.delivery.paper.kind = Some(SubmissionKind::Methodology);
+        assert!(v.matches(&q));
+        q.exclude_kind = Some(SubmissionKind::Methodology);
+        assert!(!v.matches(&q));
+        q.exclude_kind = None;
         q.q = Some("unrelated".into());
         assert!(!v.matches(&q));
     }

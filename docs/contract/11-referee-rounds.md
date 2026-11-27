@@ -195,3 +195,9 @@ Author-funded steps create no donation attribution. Attribution alone charges no
 tokens: only a verified NyxID usage receipt can meter usage. Replays retain the
 saved payer, workspace, generation and request identity. Oracle remains operator
 funded; local elaboration and proof verification carry no CMA payer.
+
+- Prose `contribution` scopes require the complete manuscript reading, including
+  each material central claim, model assumptions, derivations and evidence.
+  Formalization advice identifies an exact bounded `target_statement` and
+  `source_location`; probes use that substatement, not the whole source excerpt.
+  Whole-manuscript scopes cannot become public proposition targets.

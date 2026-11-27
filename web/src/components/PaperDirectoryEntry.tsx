@@ -28,7 +28,8 @@ export function PaperDirectoryEntry({ entry }: { entry: ResearchEntry }) {
         </Link>
       </h2>
       <div className="paper-directory-meta">
-        {subjects.length ? (
+        {(paper?.kind ?? note?.kind) === 'methodology' ? <span>{t('Methodology')}</span> : null}
+        {subjects.length && (paper?.kind ?? note?.kind) !== 'methodology' ? (
           <ul className="paper-directory-subjects" aria-label={t('Subjects')} role="list">
             {subjects.map((subject) => (
               <li key={subject.code}>

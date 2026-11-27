@@ -503,6 +503,7 @@ struct PaperQuery {
     author: Option<String>,
     msc: Option<String>,
     kind: Option<mathesis_core::model::SubmissionKind>,
+    exclude_kind: Option<mathesis_core::model::SubmissionKind>,
 }
 async fn list_papers(
     State(app): AppState,
@@ -515,6 +516,7 @@ async fn list_papers(
                 author: q.author,
                 msc: q.msc,
                 kind: q.kind,
+                exclude_kind: q.exclude_kind,
             },
             q.limit,
             q.before,
@@ -641,6 +643,7 @@ async fn paper_landing(
         mathesis_core::model::SubmissionKind::Paper => "Research paper",
         mathesis_core::model::SubmissionKind::Note => "Short note",
         mathesis_core::model::SubmissionKind::Conjecture => "Conjecture",
+        mathesis_core::model::SubmissionKind::Methodology => "Methodology",
     };
     let citation_pdf = if has_pdf {
         format!("<meta name=\"citation_pdf_url\" content=\"{pdf_url}\">")

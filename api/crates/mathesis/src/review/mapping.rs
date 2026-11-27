@@ -21,7 +21,7 @@ pub(crate) fn statements(claims: &[Claim]) -> Vec<Statement> {
             label: c.label.clone(),
             statement: c.statement.clone(),
             main: c.role == ClaimRole::Main,
-            proved: !c.kind.is_open(),
+            proved: !c.kind.is_open() && c.kind != mathesis_core::model::ClaimKind::Contribution,
             depends_on: c.depends_on.iter().map(ToString::to_string).collect(),
         })
         .collect()
@@ -159,7 +159,7 @@ pub(crate) fn confirmed_statements(claims: &[Claim]) -> Vec<Statement> {
             label: c.label.clone(),
             statement: c.statement.clone(),
             main: c.role == ClaimRole::Main,
-            proved: !c.kind.is_open(),
+            proved: !c.kind.is_open() && c.kind != mathesis_core::model::ClaimKind::Contribution,
             depends_on: c.depends_on.iter().map(ToString::to_string).collect(),
         })
         .collect()
@@ -966,6 +966,18 @@ pub(crate) fn advice(
             dropped += 1;
             continue;
         };
+        let target_statement = item
+            .target_statement
+            .filter(|text| !text.trim().is_empty() && text.chars().count() <= 20_000);
+        let source_location = item
+            .source_location
+            .filter(|text| !text.trim().is_empty() && text.chars().count() <= 1_000);
+        if claim.kind == mathesis_core::model::ClaimKind::Contribution
+            && (target_statement.is_none() || source_location.is_none())
+        {
+            dropped += 1;
+            continue;
+        }
         let feasibility = match item.feasibility.as_str() {
             "ready" => Feasibility::Ready,
             "needs_library" => Feasibility::NeedsLibrary,
@@ -981,6 +993,8 @@ pub(crate) fn advice(
         };
         formalization.push(FormalizationCandidate {
             claim: claim.id.clone(),
+            target_statement,
+            source_location,
             feasibility,
             mathlib: item.mathlib,
             missing: item.missing,
@@ -1038,7 +1052,12 @@ pub(crate) fn formal_targets(
         .filter_map(|f| {
             claims
                 .iter()
-                .find(|c| c.id == f.claim && !c.kind.is_open())
+                .find(|c| {
+                    c.id == f.claim
+                        && !c.kind.is_open()
+                        && (c.kind != mathesis_core::model::ClaimKind::Contribution
+                            || (f.target_statement.is_some() && f.source_location.is_some()))
+                })
                 .map(|c| (f, c))
         })
         .collect();
@@ -1050,7 +1069,11 @@ pub(crate) fn formal_targets(
         .map(|(f, c)| mathesis_review::lean::FormalTarget {
             claim: c.id.to_string(),
             label: c.label.clone(),
-            statement: c.statement.clone(),
+            statement: f
+                .target_statement
+                .clone()
+                .filter(|_| c.kind == mathesis_core::model::ClaimKind::Contribution)
+                .unwrap_or_else(|| c.statement.clone()),
             lean_sketch: f.lean_sketch.clone(),
             plan: f.plan.clone(),
             mathlib: f.mathlib.clone(),
@@ -1127,6 +1150,43 @@ mod referee_tests {
     use mathesis_review::referee_prompts::{
         AdviceOut, ConcernOut, FormalizationOut, ImprovementOut, LetterOut, ReadingOut, RefereeOut,
     };
+
+    #[test]
+    fn prose_formalization_requires_a_precise_source_target_and_preserves_it() {
+        let mut source = claims();
+        source[0].kind = ClaimKind::Contribution;
+        source[0].statement = "An abstract describing several research claims.".into();
+        source[0].has_proof = false;
+        assert!(!confirmed_statements(&source)[0].proved);
+        let proposal = FormalizationOut {
+            claim: "C1".into(),
+            feasibility: "ready".into(),
+            effort: "small".into(),
+            plan: "Prove conservation within the stated differentiable model.".into(),
+            ..Default::default()
+        };
+        let raw = |item| AdviceOut {
+            formalization: vec![item],
+            ..Default::default()
+        };
+        assert!(
+            advice(raw(proposal.clone()), &source)
+                .formalization
+                .is_empty()
+        );
+        let mut located = proposal;
+        located.target_statement = Some("For every differentiable trajectory satisfying the model equations, energy is constant.".into());
+        located.source_location = Some("Section 2, equations (3)-(5)".into());
+        let mapped = advice(raw(located.clone()), &source);
+        let targets = formal_targets(&mapped, &source);
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].statement, located.target_statement.unwrap());
+        assert_ne!(targets[0].statement, source[0].statement);
+        assert_eq!(
+            mapped.formalization[0].source_location.as_deref(),
+            Some("Section 2, equations (3)-(5)")
+        );
+    }
 
     pub(super) fn claims() -> Vec<Claim> {
         [ClaimKind::Theorem, ClaimKind::Conjecture]

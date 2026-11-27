@@ -1736,6 +1736,7 @@ async fn archive_text_search_and_formalization_receipts_survive_reconnect() {
         .unwrap();
     RecordStore::insert(&db.store, &record).await.unwrap();
     let q = PaperSearch {
+        exclude_kind: None,
         q: Some("spectral".into()),
         msc: Some("11".into()),
         author: Some("A. Author".into()),

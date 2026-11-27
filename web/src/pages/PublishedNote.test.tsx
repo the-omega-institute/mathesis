@@ -407,3 +407,109 @@ it('carries live collected materials through the paper adapter and omits them on
   await screen.findByRole('heading', { level: 1, name: live.title });
   expect(screen.queryByRole('region', { name: 'Materials' })).not.toBeInTheDocument();
 });
+
+it('shows methodology, repository issues and complete release history on collected versions', async () => {
+  const live: CollectedPaper = {
+    ...liveVersion(),
+    id: 'human-in-the-loop-automated-research',
+    kind: 'methodology',
+    repository_url: 'https://github.com/mathesis-papers/human-in-the-loop-automated-research',
+    issues_url: 'https://github.com/mathesis-papers/human-in-the-loop-automated-research/issues',
+    version_label: 'v2.0',
+    changelog: 'Add **causal ablation**.',
+    revision: '2',
+    previous_version: '1',
+    versions: [
+      {
+        revision: '1',
+        published_on: '2026-11-20T00:00:00Z',
+        version_label: 'v1.0',
+        changelog: 'Initial protocol.',
+        archive: { doi: '10.5281/zenodo.100' },
+        pdf: { url: '/v1.pdf' },
+        source: { url: '/v1.zip' },
+      },
+      {
+        revision: '2',
+        published_on: '2026-11-27T00:00:00Z',
+        version_label: 'v2.0',
+        changelog: 'Add **causal ablation**.',
+        pdf: { url: '/v2.pdf' },
+        source: { url: '/v2.zip' },
+      },
+    ],
+  };
+  const api = fakeApi({ getCollectedPaper: vi.fn(async () => live) });
+  function LocalizedPaper() {
+    useLocale();
+    return <PaperPage record={live.id} />;
+  }
+  renderWithApp(<LocalizedPaper />, api);
+  await screen.findByRole('heading', { name: live.title });
+  expect(screen.getByText('Methodology')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'View source repository' })).toHaveAttribute(
+    'href',
+    live.repository_url,
+  );
+  expect(screen.getByRole('link', { name: 'Open issue / suggest revision' })).toHaveAttribute(
+    'href',
+    live.issues_url,
+  );
+  const history = screen.getByRole('region', { name: 'Version history' });
+  expect(within(history).getByText('Initial protocol.')).toBeVisible();
+  expect(within(history).getByText('causal ablation')).toBeVisible();
+  expect(within(history).getByRole('link', { name: 'Version 1' })).toHaveAttribute(
+    'href',
+    `/papers/${live.id}?version=1`,
+  );
+  expect(within(history).getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/v1.pdf');
+  act(() => setLocale('zh'));
+  expect(screen.getByText('方法论')).toBeVisible();
+  expect(screen.getByRole('link', { name: '提出问题或修订建议' })).toBeVisible();
+});
+
+it('includes methodology in the archive and supports an explicit methodology filter', async () => {
+  const live = {
+    ...liveVersion(),
+    id: 'methodology-protocol',
+    title: 'Methodology protocol',
+    kind: 'methodology' as const,
+  };
+  const api = fakeApi({
+    listCollectedPapers: vi.fn(async () => ({ items: [live], next_before: null })),
+  });
+  const math = renderWithApp(<PapersPage />, api);
+  await waitFor(() => expect(api.listCollectedPapers).toHaveBeenCalled());
+  expect(await screen.findByRole('link', { name: live.title })).toBeVisible();
+  expect(api.listPapers).toHaveBeenCalledWith(
+    expect.not.objectContaining({ exclude_kind: 'methodology' }),
+    expect.anything(),
+  );
+  math.unmount();
+  renderWithApp(<PapersPage initialFilters={{ kind: 'methodology' }} />, api);
+  await screen.findByRole('link', { name: live.title });
+  expect(api.listPapers).toHaveBeenLastCalledWith(
+    expect.objectContaining({ kind: 'methodology' }),
+    expect.anything(),
+  );
+  expect(api.listCollectedPapers).toHaveBeenLastCalledWith(
+    expect.objectContaining({ kind: 'methodology' }),
+    expect.anything(),
+  );
+  expect(screen.getByRole('option', { name: 'Methodology' })).toHaveValue('methodology');
+});
+
+it('keeps explicit collected-version reads pinned when that version has an archive DOI', async () => {
+  const live = { ...projectNotes[0]!, archive: { doi: '10.5281/zenodo.100' } };
+  window.history.pushState(null, '', `/papers/${live.id}?version=${live.revision}`);
+  const page = renderWithApp(
+    <PublishedNotePage id={live.id} version={live.revision} note={live} />,
+    fakeApi(),
+  );
+  expect(screen.getByRole('heading', { level: 1, name: live.title })).toBeVisible();
+  expect(window.location.pathname).toBe(`/papers/${live.id}`);
+  expect(window.location.search).toBe(`?version=${live.revision}`);
+  page.unmount();
+  renderWithApp(<PublishedNotePage id={live.id} version="999" note={live} />, fakeApi());
+  expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+});

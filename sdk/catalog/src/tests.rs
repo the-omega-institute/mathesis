@@ -358,6 +358,11 @@ fn fixture_node(
 fn statistics_keep_similar_statements_separate_and_split_basis() {
     let works = vec![
         Work {
+            kind: None,
+            repository_url: None,
+            issues_url: None,
+            version_label: None,
+            changelog: None,
             work: "w1".into(),
             repository_name: Some("w1".into()),
             record: "w1".into(),
@@ -381,6 +386,11 @@ fn statistics_keep_similar_statements_separate_and_split_basis() {
             previous_version: None,
         },
         Work {
+            kind: None,
+            repository_url: None,
+            issues_url: None,
+            version_label: None,
+            changelog: None,
             work: "w2".into(),
             repository_name: Some("w2".into()),
             record: "w2".into(),
@@ -464,6 +474,11 @@ fn statistics_keep_similar_statements_separate_and_split_basis() {
 fn cff_has_required_version_and_authors() {
     let w = fixture_node("w", "c", "preparing", None, None, None);
     let work = Work {
+        kind: None,
+        repository_url: None,
+        issues_url: None,
+        version_label: None,
+        changelog: None,
         work: "w".into(),
         repository_name: Some("w".into()),
         record: "w".into(),
@@ -523,6 +538,11 @@ fn check_rejects_tampered_stats() {
 #[test]
 fn cff_is_valid_yaml_and_escapes_special_scalars() {
     let work = Work {
+        kind: None,
+        repository_url: None,
+        issues_url: None,
+        version_label: None,
+        changelog: None,
         work: "special".into(),
         repository_name: Some("special".into()),
         record: "WP-2026-0099".into(),
@@ -889,4 +909,74 @@ fn materials_index_is_deterministic_versioned_and_in_the_render_hash_manifest() 
     assert_eq!(fs::read(&index_path).unwrap(), original);
     fs::write(&index_path, b"{}").unwrap();
     assert!(check(&out).is_err());
+}
+
+#[test]
+fn methodology_survives_render_and_check_without_entering_mathematical_counts() {
+    let root = temp("methodology-track");
+    let row = json!({"id":"protocol","revision":"2","title":"A research protocol","authors":[{"name":"Author"}],"license":"CC-BY-4.0","kind":"methodology","msc":["68"],"repository_url":"https://github.com/mathesis-papers/protocol","issues_url":"https://github.com/mathesis-papers/protocol/issues","version_label":"v2.0","changelog":"New causal ablation","versions":[{"revision":"1","version_label":"v1.0","changelog":"Initial protocol"},{"revision":"2","version_label":"v2.0","changelog":"New causal ablation"}],"published_on":"2026-11-27T00:00:00Z"});
+    let work = paper_work(&row, false, &BTreeMap::new()).unwrap();
+    assert_eq!(work.kind.as_deref(), Some("methodology"));
+    assert_eq!(work.versions.len(), 2);
+    let snapshot = Snapshot {
+        root: root.clone(),
+        meta: SnapshotMeta {
+            schema_version: SNAPSHOT_SCHEMA.into(),
+            generator_version: GENERATOR_VERSION.into(),
+            api_base: "https://mathesis.example".into(),
+            captured_at: "2026-11-27T00:00:00Z".into(),
+            listings: BTreeMap::new(),
+            collected_works: 1,
+            accepted_records: 0,
+            directory_nodes: 0,
+        },
+        collected: vec![row],
+        accepted: vec![],
+        opportunities: vec![],
+        proofs: vec![],
+    };
+    let nodes = [
+        fixture_node(
+            "protocol",
+            "C1",
+            "verified",
+            Some("digest"),
+            Some(json!({"verdict":"proved","target_digest":"digest"})),
+            Some(json!({"kind":"new_lean"})),
+        ),
+        fixture_node("protocol", "C2", "open", Some("open-target"), None, None),
+    ];
+    let stats = compute_stats(&snapshot, &[work], &nodes);
+    assert_eq!(stats.registered_statements, 0);
+    assert_eq!(stats.independently_verified_statements, 0);
+    assert_eq!(stats.open_formalization_targets, 0);
+    assert_eq!(stats.public_papers, 0);
+    assert_eq!(stats.methodology_papers, 1);
+    assert!(stats.by_msc.is_empty());
+    let output = root.join("output");
+    write_json(
+        &root.join("snapshot.json"),
+        &serde_json::to_value(&snapshot.meta).unwrap(),
+    )
+    .unwrap();
+    write_json(&root.join("raw/collected.json"), &json!(snapshot.collected)).unwrap();
+    write_json(&root.join("raw/papers.json"), &json!([])).unwrap();
+    write_json(&root.join("raw/opportunities.json"), &json!([])).unwrap();
+    render(
+        &root,
+        &output,
+        "mathesis-papers",
+        "Mathesis",
+        "https://mathesis.example",
+        None,
+    )
+    .unwrap();
+    check(&output).unwrap();
+    let catalog = read_json(&output.join("catalog/works.json")).unwrap();
+    assert_eq!(catalog["works"][0]["kind"], "methodology");
+    assert_eq!(
+        catalog["works"][0]["versions"][0]["changelog"],
+        "Initial protocol"
+    );
+    fs::remove_dir_all(root).unwrap();
 }

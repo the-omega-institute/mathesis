@@ -39,13 +39,21 @@ fn is_disproved(n: &Node) -> bool {
             == Some("disproved")
 }
 pub(crate) fn compute_stats(snapshot: &Snapshot, works: &[Work], nodes: &[Node]) -> Stats {
+    let math_work =
+        |w: &&Work| w.publication == "public" && w.kind.as_deref() != Some("methodology");
+    let math_node = |n: &&Node| {
+        n.scope == "in_scope"
+            && !works
+                .iter()
+                .any(|w| w.work == n.work && w.kind.as_deref() == Some("methodology"))
+    };
     let mut by_msc = BTreeMap::<String, MscStats>::new();
-    for w in works.iter().filter(|w| w.publication == "public") {
+    for w in works.iter().filter(math_work) {
         let key = top_msc(&w.msc);
         let x = by_msc.entry(key.clone()).or_default();
         x.papers += 1;
     }
-    for n in nodes.iter().filter(|n| n.scope == "in_scope") {
+    for n in nodes.iter().filter(math_node) {
         let key = works
             .iter()
             .find(|w| w.work == n.work)
@@ -60,7 +68,7 @@ pub(crate) fn compute_stats(snapshot: &Snapshot, works: &[Work], nodes: &[Node])
             x.open_targets += 1;
         }
     }
-    let scoped_nodes: Vec<&Node> = nodes.iter().filter(|n| n.scope == "in_scope").collect();
+    let scoped_nodes: Vec<&Node> = nodes.iter().filter(math_node).collect();
     let verified: Vec<&Node> = scoped_nodes
         .iter()
         .copied()
@@ -72,8 +80,12 @@ pub(crate) fn compute_stats(snapshot: &Snapshot, works: &[Work], nodes: &[Node])
         .count();
     Stats {
         snapshot_time: snapshot.meta.captured_at.clone(),
-        public_papers: works.iter().filter(|w| w.publication == "public").count(),
-        registered_statements: nodes.iter().filter(|n| n.scope == "in_scope").count(),
+        public_papers: works.iter().filter(math_work).count(),
+        methodology_papers: works
+            .iter()
+            .filter(|w| w.publication == "public" && w.kind.as_deref() == Some("methodology"))
+            .count(),
+        registered_statements: nodes.iter().filter(math_node).count(),
         independently_verified_statements: verified.len(),
         verified_from_existing_library_declarations: verified
             .iter()
@@ -97,28 +109,28 @@ pub(crate) fn compute_stats(snapshot: &Snapshot, works: &[Work], nodes: &[Node])
             .count(),
         verified_counterexamples_disproofs: nodes
             .iter()
-            .filter(|n| n.scope == "in_scope" && is_disproved(n))
+            .filter(|n| math_node(n) && is_disproved(n))
             .count(),
         open_formalization_targets: nodes
             .iter()
-            .filter(|n| n.scope == "in_scope" && n.status == "open" && !is_verified(n))
+            .filter(|n| math_node(n) && n.status == "open" && !is_verified(n))
             .count(),
         statements_awaiting_formal_target: awaiting,
         awaiting_target_needs_attention: nodes
             .iter()
             .filter(|n| {
-                n.scope == "in_scope" && {
+                math_node(n) && {
                     n.proof_state.as_deref() == Some("needs_attention") && n.target_digest.is_none()
                 }
             })
             .count(),
         papers_with_lean_source: works
             .iter()
-            .filter(|w| w.publication == "public" && w.lean_source.is_some())
+            .filter(|w| math_work(w) && w.lean_source.is_some())
             .count(),
         papers_with_doi: works
             .iter()
-            .filter(|w| w.publication == "public" && w.doi.as_deref().is_some_and(valid_doi))
+            .filter(|w| math_work(w) && w.doi.as_deref().is_some_and(valid_doi))
             .count(),
         by_msc,
     }

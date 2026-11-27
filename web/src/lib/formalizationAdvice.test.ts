@@ -9,6 +9,26 @@ import {
 } from './formalizationAdvice';
 
 describe('author formalization advice', () => {
+  it('shows a precise prose-derived target without offering the whole paper as a proved theorem', () => {
+    const claim = { ...submission.claims[0]!, kind: 'contribution' as const, has_proof: false };
+    const paper = { ...submission, claims: [claim] };
+    const round = {
+      ...refereeRound,
+      formalization_suggestions: [
+        {
+          claim: claim.id,
+          feasibility: 'needs_library' as const,
+          plan: 'Define the model and prove the invariant.',
+          target_statement: 'Every valid protocol transition preserves the version invariant.',
+          source_location: 'Section 3, admission rule.',
+        },
+      ],
+    };
+    const text = formalizationAdviceText(paper, round);
+    expect(text).toContain('Every valid protocol transition preserves');
+    expect(text).toContain('Section 3, admission rule.');
+    expect(hasReviewedProof(claim, round)).toBe(false);
+  });
   it('retains an audited recommendation when source extraction missed a prose proof', () => {
     const paper = {
       ...submission,

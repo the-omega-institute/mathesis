@@ -11,6 +11,8 @@ pub struct CollectedFileLink {
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct PublicCollectedPaper {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub versions: Vec<PublicCollectedVersion>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub materials: Option<PaperMaterials>,
     pub id: String,
@@ -28,6 +30,34 @@ pub struct PublicCollectedPaper {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub problem_links: Vec<Option<super::ResearchProblemLink>>,
 }
+/// Bibliographic history only; producer review records never enter this projection.
+#[derive(Debug, Clone, Serialize)]
+pub struct PublicCollectedVersion {
+    pub revision: String,
+    pub published_on: chrono::DateTime<chrono::Utc>,
+    pub pdf: CollectedFileLink,
+    pub source: CollectedFileLink,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archive: Option<ArchiveCitation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changelog: Option<String>,
+}
+impl From<&CollectedVersion> for PublicCollectedVersion {
+    fn from(v: &CollectedVersion) -> Self {
+        let p = PublicCollectedPaper::from(v);
+        Self {
+            revision: p.revision,
+            published_on: p.published_on,
+            pdf: p.pdf,
+            source: p.source,
+            archive: p.archive,
+            version_label: p.paper.version_label,
+            changelog: p.paper.changelog,
+        }
+    }
+}
 impl From<&CollectedVersion> for PublicCollectedPaper {
     fn from(v: &CollectedVersion) -> Self {
         let d = &v.delivery;
@@ -40,11 +70,19 @@ impl From<&CollectedVersion> for PublicCollectedPaper {
             sha256: blob.sha256.clone(),
         };
         Self {
+            versions: vec![],
             materials: None,
             id: d.work_id.clone(),
             revision: d.version.to_string(),
             previous_version: d.previous_version.map(|v| v.to_string()),
             paper: CollectedMetadata {
+                kind: Some(d.paper.effective_kind()),
+                issues_url: d.paper.issues_url.clone().or_else(|| {
+                    d.paper
+                        .repository_url
+                        .as_ref()
+                        .map(|url| format!("{url}/issues"))
+                }),
                 archive_doi: None,
                 authors: canonical_authors(&d.paper.authors),
                 plain_language: v
@@ -117,6 +155,22 @@ impl App {
                 )
                 .await?;
         }
+        // Follow the immutable predecessor chain from the current publication, even
+        // when reading an old version. Version numbers need not be consecutive.
+        let mut history = current.clone();
+        while let Some(item) = history {
+            public.versions.push(PublicCollectedVersion::from(&item));
+            history = match item.delivery.previous_version {
+                Some(previous) if previous < item.delivery.version => {
+                    self.ports
+                        .collected
+                        .get(&item.delivery.work_id, Some(previous))
+                        .await?
+                }
+                _ => None,
+            };
+        }
+        public.versions.reverse();
         if public.problem_links.is_empty() {
             return Ok(public);
         }
@@ -167,6 +221,10 @@ impl App {
                 let mut references = vec![];
                 let mut bytes_used = 0;
                 for (position, statement) in read.statements.into_iter().enumerate() {
+                    // A prose review scope is not a formalization statement.
+                    if statement.kind == ClaimKind::Contribution {
+                        continue;
+                    }
                     // Omit unsupported oversized entries; never truncate a mathematical statement.
                     if position >= 100
                         || statement.body.len() > 30_000

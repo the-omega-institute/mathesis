@@ -1,0 +1,46 @@
+# Copy to .github/workflows/deliver.yml in a paper repository.
+# Commit paper.pdf, manuscript/ and mathesis.json before tagging.
+# Configure repository variables MATHESIS_URL and MATHESIS_DELIVERY_REVISION
+# (an exact reviewed 40-character Mathesis commit), and secret MATHESIS_TOKEN.
+name: Deliver editorial methodology paper
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mathesis-delivery-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  deliver:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: paper
+          persist-credentials: false
+      - name: Require a pinned delivery helper
+        env:
+          HELPER_REVISION: ${{ vars.MATHESIS_DELIVERY_REVISION }}
+        run: '[[ "$HELPER_REVISION" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          repository: the-omega-institute/mathesis
+          ref: ${{ vars.MATHESIS_DELIVERY_REVISION }}
+          path: mathesis
+          persist-credentials: false
+          sparse-checkout: sdk/collection
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test the pinned helper
+        run: python3 -m unittest discover -s mathesis/sdk/collection -v
+      - name: Validate and deliver immutable version
+        env:
+          MATHESIS_URL: ${{ vars.MATHESIS_URL }}
+          MATHESIS_TOKEN: ${{ secrets.MATHESIS_TOKEN }}
+        run: |
+          python3 mathesis/sdk/collection/deliver_collected_paper.py paper --dry-run > /dev/null
+          python3 mathesis/sdk/collection/deliver_collected_paper.py paper --auto-previous-version

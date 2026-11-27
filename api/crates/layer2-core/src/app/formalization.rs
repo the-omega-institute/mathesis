@@ -32,6 +32,11 @@ impl App {
         let statement = submission
             .claim(claim)
             .ok_or_else(|| CoreError::not_found("statement", claim.as_str()))?;
+        if statement.kind == ClaimKind::Contribution {
+            return Err(CoreError::invalid(
+                "choose a precise proposition from the manuscript; a whole-manuscript contribution is not a formalization target",
+            ));
+        }
         if statement.kind.is_open() {
             return Err(CoreError::invalid(
                 "conjectures are followed up, not formalized as proved results",
@@ -87,7 +92,7 @@ impl App {
         let proved = reading.map_or(statement.has_proof, |reading| {
             reading.correctness == Correctness::Correct
         });
-        if statement.kind.is_open() || !proved {
+        if statement.kind.is_open() || statement.kind == ClaimKind::Contribution || !proved {
             return Err(CoreError::invalid(
                 "only proved paper statements may be formalized",
             ));

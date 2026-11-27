@@ -282,9 +282,6 @@ fn statements(text: &str) -> Result<Vec<Statement>, String> {
         out.push(last);
     }
     out.retain(|s| !s.body.trim().is_empty());
-    if out.is_empty() {
-        return Err("No numbered mathematical statements could be read from this PDF. Use selectable text with headings such as Theorem 1, or upload LaTeX source.".into());
-    }
     Ok(out)
 }
 
@@ -304,7 +301,11 @@ mod tests {
         assert_eq!(result[0].body, "Every even integer is divisible by two.");
         assert!(result[0].has_proof && result[1].has_proof);
         assert!(!result[2].has_proof && !result[3].has_proof);
-        assert!(statements("A paragraph with no identified statement.").is_err());
+        assert!(
+            statements("A paragraph with no identified statement.")
+                .unwrap()
+                .is_empty()
+        );
         assert!(heading("Theorem above implies the claim.").is_none());
     }
     #[test]
