@@ -679,9 +679,9 @@ impl App {
                     .filter(|a| {
                         a.correctness == Some(Correctness::Correct)
                             && a.shape == ProofShape::Content
-                            && submission
-                                .claim(&a.claim)
-                                .is_some_and(|c| c.is_main_result())
+                            && submission.claim(&a.claim).is_some_and(|c| {
+                                c.is_main_result() && c.kind != ClaimKind::Contribution
+                            })
                     })
                     .map(|a| PublicWitness {
                         claim: a.claim.clone(),
