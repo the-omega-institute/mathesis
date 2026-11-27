@@ -281,7 +281,7 @@ export type PolicyDocument = { policy: Policy; stages: PolicyStage[] };
 export type AiUseLevel = 'none' | 'assisted' | 'substantial' | 'primarily';
 export type AiDisclosure = { level: AiUseLevel; statement: string };
 
-export type SubmissionKind = 'paper' | 'note' | 'conjecture';
+export type SubmissionKind = 'paper' | 'note' | 'conjecture' | 'methodology';
 export type TypedConjecture = {
   title: string;
   statement: string;
@@ -491,6 +491,7 @@ export type MethodologyReading = {
   }[];
   utility: {
     kind:
+      | 'methodology'
       | 'general_theorem'
       | 'finite_enumeration'
       | 'checker'
@@ -743,7 +744,22 @@ export type PaperMaterials = {
   }[];
   formalization_requests?: { label: string; url: string }[];
 };
+export type CollectedVersion = {
+  revision: string;
+  published_on: string;
+  version_label?: string;
+  changelog?: string;
+  archive?: { doi: string; concept_doi?: string };
+  pdf: { url: string };
+  source: { url: string };
+};
 export type CollectedPaper = {
+  kind?: SubmissionKind;
+  repository_url?: string;
+  issues_url?: string;
+  version_label?: string;
+  changelog?: string;
+  versions?: CollectedVersion[];
   materials?: PaperMaterials;
   archive?: { doi: string; concept_doi?: string };
   id: string;

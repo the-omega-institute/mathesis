@@ -174,6 +174,7 @@ struct Search {
     author: Option<String>,
     msc: Option<String>,
     kind: Option<SubmissionKind>,
+    exclude_kind: Option<SubmissionKind>,
     limit: Option<u32>,
     before: Option<String>,
 }
@@ -185,6 +186,7 @@ async fn list(State(app): AppState, Query(q): Query<Search>) -> ApiResult<impl I
                 author: q.author,
                 msc: q.msc,
                 kind: q.kind,
+                exclude_kind: q.exclude_kind,
             },
             q.limit,
             q.before,

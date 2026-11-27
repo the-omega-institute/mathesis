@@ -283,7 +283,12 @@ pub(crate) fn render_site(
         (
             "Public papers",
             stats.public_papers,
-            "Current in-scope archive versions",
+            "Current in-scope mathematics archive versions (excludes methodology)",
+        ),
+        (
+            "Methodology papers",
+            stats.methodology_papers,
+            "Current in-scope methodology archive versions, separate from mathematics and MSC counts",
         ),
         (
             "Registered statements",
@@ -352,6 +357,9 @@ pub(crate) fn render_site(
             html(&super::render::authors_markdown(&w.authors)),
             link(&mathesis_url, "Mathesis paper")
         )?;
+        if w.kind.as_deref() == Some("methodology") {
+            body.push_str(" · <small>Methodology</small>");
+        }
         let target = if let Some(repo) = mapping.get(&w.work) {
             let url = format!("{PAPERS_SITE}/{repo}/");
             write!(

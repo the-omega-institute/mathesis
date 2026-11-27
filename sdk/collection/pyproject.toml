@@ -1,0 +1,5 @@
+[project]
+name = "mathesis-collection"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Deterministic trusted Mathesis paper delivery helper (Python standard library)"

@@ -839,3 +839,133 @@ async fn collected_author_forms_share_one_search_and_one_public_name_without_cha
         Err(CoreError::Conflict(_))
     ));
 }
+
+#[tokio::test]
+async fn internal_methodology_versions_are_immutable_public_history_without_private_reviews() {
+    let mut w = World::new().await;
+    w.app = App::with_internal_accounts(
+        w.stores.ports(Arc::new(SystemClock), Arc::new(FakeReader)),
+        Policy::default(),
+        BTreeSet::from(["admin".into()]),
+        20,
+        BTreeSet::from(["publisher".into()]),
+    );
+    let owner = w.person("publisher", &[]).await;
+    let outsider = w.person("outsider", &[Role::Admin]).await;
+    for version in 1..=2 {
+        let (mut d, pdf, source) = package(version);
+        d.review.verdict = "INTERNAL_EDITORIAL".into();
+        d.paper.kind = Some(SubmissionKind::Methodology);
+        d.paper.repository_url = Some("https://github.com/mathesis-papers/protocol".into());
+        d.paper.version_label = Some(format!("v{version}.0"));
+        d.paper.changelog = Some(format!("Release {version}: checked protocol changes."));
+        assert!(
+            w.app
+                .collect_pre_reviewed(
+                    &outsider,
+                    d.clone(),
+                    Upload {
+                        filename: pdf.filename.clone(),
+                        bytes: pdf.bytes.clone()
+                    },
+                    Upload {
+                        filename: source.filename.clone(),
+                        bytes: source.bytes.clone()
+                    }
+                )
+                .await
+                .is_err()
+        );
+        let receipt = w
+            .app
+            .collect_pre_reviewed(
+                &owner,
+                d.clone(),
+                Upload {
+                    filename: pdf.filename.clone(),
+                    bytes: pdf.bytes.clone(),
+                },
+                Upload {
+                    filename: source.filename.clone(),
+                    bytes: source.bytes.clone(),
+                },
+            )
+            .await
+            .unwrap();
+        let retry = w
+            .app
+            .collect_pre_reviewed(
+                &owner,
+                d.clone(),
+                Upload {
+                    filename: pdf.filename.clone(),
+                    bytes: pdf.bytes.clone(),
+                },
+                Upload {
+                    filename: source.filename.clone(),
+                    bytes: source.bytes.clone(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(receipt).unwrap(),
+            serde_json::to_value(retry).unwrap()
+        );
+        d.paper.changelog = Some("Changed under the same version".into());
+        assert!(matches!(
+            w.app.collect_pre_reviewed(&owner, d, pdf, source).await,
+            Err(CoreError::Conflict(_))
+        ));
+    }
+    for version in [None, Some(1)] {
+        let public =
+            serde_json::to_value(w.app.collected_paper("a-note", version).await.unwrap()).unwrap();
+        assert_eq!(public["kind"], "methodology");
+        assert_eq!(
+            public["issues_url"],
+            "https://github.com/mathesis-papers/protocol/issues"
+        );
+        assert_eq!(public["versions"].as_array().unwrap().len(), 2);
+        assert_eq!(public["versions"][0]["version_label"], "v1.0");
+        assert_eq!(
+            public["versions"][1]["changelog"],
+            "Release 2: checked protocol changes."
+        );
+        assert!(!public.to_string().contains("private_evidence"));
+        assert!(public.get("review").is_none());
+    }
+    let list = w
+        .app
+        .collected_papers(
+            PaperSearch {
+                kind: Some(SubmissionKind::Methodology),
+                ..Default::default()
+            },
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(list.items.len(), 1);
+    let math = w
+        .app
+        .collected_papers(
+            PaperSearch {
+                exclude_kind: Some(SubmissionKind::Methodology),
+                ..Default::default()
+            },
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(math.items.is_empty());
+    assert!(
+        w.stores
+            .queued()
+            .await
+            .iter()
+            .all(|(_, kind)| *kind == JobKind::CollectedExplanation)
+    );
+}

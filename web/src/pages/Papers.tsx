@@ -75,6 +75,7 @@ export function PapersPage({
   const { navigate } = useRouter();
   const [query, setQuery] = useState<PaperQuery>({
     ...initialFilters,
+    ...(initialFilters.kind ? {} : { exclude_kind: 'methodology' as const }),
     ...(initialQuery ? { q: initialQuery } : {}),
   });
   const [draft, setDraft] = useState<PaperQuery>(query);
@@ -108,9 +109,26 @@ export function PapersPage({
           {subject ? <p className="muted">MSC {subject.code}</p> : null}
         </div>
       </header>
+      <nav className="archive-subjects" aria-label={t('Research tracks')}>
+        <Link
+          to={{ kind: 'papers' }}
+          aria-current={query.kind !== 'methodology' && !query.msc ? 'page' : undefined}
+        >
+          {t('Mathematics')}
+        </Link>
+        <Link
+          to={{ kind: 'papers', work: 'methodology' }}
+          aria-current={query.kind === 'methodology' ? 'page' : undefined}
+        >
+          {t('Methodology')}
+        </Link>
+      </nav>
       <div className="archive-browse">
         <nav className="archive-subjects" aria-label={t('Browse by subject')}>
-          <Link to={{ kind: 'papers' }} aria-current={!query.msc ? 'page' : undefined}>
+          <Link
+            to={{ kind: 'papers' }}
+            aria-current={!query.msc && query.kind !== 'methodology' ? 'page' : undefined}
+          >
             {t('All papers')}
           </Link>
           {['05', '11', '81', '15'].map((code) => (
@@ -161,7 +179,7 @@ export function PapersPage({
             aria-label={t('Search papers')}
             onSubmit={(event) => {
               event.preventDefault();
-              setQuery({ ...draft });
+              setQuery({ ...draft, exclude_kind: draft.kind ? undefined : 'methodology' });
               navigate({
                 kind: 'papers',
                 q: draft.q?.trim(),
@@ -217,6 +235,7 @@ export function PapersPage({
                   <option value="">{t('All research')}</option>
                   <option value="paper">{t('Papers')}</option>
                   <option value="note">{t('Short notes')}</option>
+                  <option value="methodology">{t('Methodology')}</option>
                   <option value="conjecture">{t('Conjectures')}</option>
                 </select>
               </label>
@@ -224,8 +243,8 @@ export function PapersPage({
                 className="button button-quiet"
                 type="button"
                 onClick={() => {
-                  setDraft({});
-                  setQuery({});
+                  setDraft({ exclude_kind: 'methodology' });
+                  setQuery({ exclude_kind: 'methodology' });
                   navigate({ kind: 'papers' });
                 }}
               >

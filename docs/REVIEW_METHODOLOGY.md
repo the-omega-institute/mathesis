@@ -82,6 +82,27 @@ search and utility discipline. Their delta describes a conditional new obligatio
 they carry no live proof witnesses and no proof-correctness assertion. Independent
 paper-derived problem reviews use the same versioned protocol.
 
+## Methodology paper track
+
+`SubmissionKind::Methodology` uses the ordinary external review pipeline and
+publication policy. Its additive referee/source-auditor instructions apply the
+same `content`, `bind_only` and `undetermined` distinctions to methods. Routine
+recombination, renaming, prompt wrapping and tool/metric assembly are bind-only
+unless they contain a live non-binding mechanism, verification invariant, causal
+ablation or transferable protocol. Content needs concrete manuscript witnesses
+for a mechanism, verification/admission protocol, architectural contract or
+controlled causal evaluation exceeding that routine assembly.
+
+`utility.kind: "methodology"` supports admission only with `status: "supported"`
+and nonempty `rationale`, `problem` and `progress`: the methodological question
+solved and the non-binding advance demonstrated. Correctness, supported
+literature and ordinary witness requirements remain independent gates. A named,
+sourced open methodological problem or benchmark can use the existing supported
+settlement route, including for bind-only work; a metric score alone does not
+establish settlement. Existing paper/note/conjecture prompts (contracts 0–3 and
+current contracts) retain their bytes. Internal editorial collection is a separate
+trusted channel; see [Methodology papers](METHODOLOGY_PAPERS.md).
+
 ## Compatibility, privacy and limitations
 
 Each round already binds version, claims revision and source digest. Author-safe

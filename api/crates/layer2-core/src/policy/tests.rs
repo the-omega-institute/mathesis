@@ -639,6 +639,7 @@ fn kinds_round_trip_and_old_documents_default_to_paper() {
         SubmissionKind::Paper,
         SubmissionKind::Note,
         SubmissionKind::Conjecture,
+        SubmissionKind::Methodology,
     ] {
         let mut s = original.clone();
         s.kind = kind;
@@ -830,5 +831,43 @@ fn correctness_blocks_publication_even_when_required_knowledge_is_unavailable() 
     }
     assert!(
         matches!(Policy::default().decide(&submission, &[]), Decision::NotAccepted { reasons } if matches!(reasons.as_slice(), [RejectReason::IncorrectResult { .. }]))
+    );
+}
+
+#[test]
+fn methodology_uses_the_same_content_correctness_literature_and_utility_gates() {
+    let mut method = content_method();
+    method.utility.kind = UtilityKind::Methodology;
+    assert!(!method.utility.supports_admission());
+    method.utility.problem = "Detecting invalid admission across review versions".into();
+    method.utility.progress = "A witnessed version-fenced verification invariant".into();
+    assert!(method.utility.supports_admission());
+    let mut paper = current_method_paper(method.clone(), None);
+    paper.kind = SubmissionKind::Methodology;
+    assert!(matches!(
+        Policy::default().decide(&paper, &[]),
+        Decision::Accept {
+            basis: AdmissionBasis::EscapeWitness
+        }
+    ));
+    for status in [EvidenceStatus::Unsupported, EvidenceStatus::Insufficient] {
+        let mut unsupported = method.clone();
+        unsupported.utility.status = status;
+        paper = current_method_paper(unsupported, None);
+        paper.kind = SubmissionKind::Methodology;
+        assert!(matches!(
+            Policy::default().decide(&paper, &[]),
+            Decision::NotAccepted { .. }
+        ));
+    }
+    method.escape = ProofShape::BindOnly;
+    method.witnesses.clear();
+    paper = current_method_paper(method, None);
+    paper.kind = SubmissionKind::Methodology;
+    assert_eq!(
+        Policy::default().decide(&paper, &[]),
+        Decision::NotAccepted {
+            reasons: vec![RejectReason::BindOnly]
+        }
     );
 }

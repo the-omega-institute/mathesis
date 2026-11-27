@@ -25,7 +25,7 @@ describe('subject browsing', () => {
     expect(window.location.pathname).toBe('/subjects/11');
     expect(window.location.search).toBe('');
     expect(listPapers).toHaveBeenLastCalledWith(
-      { msc: '11', before: null, limit: 25 },
+      { exclude_kind: 'methodology', msc: '11', before: null, limit: 25 },
       expect.anything(),
     );
     expect(within(screen.getByRole('main')).queryByRole('search')).toBeNull();
@@ -39,7 +39,7 @@ describe('subject browsing', () => {
     expect(screen.queryByRole('link', { name: numberNote.title })).toBeNull();
     expect(screen.getAllByRole('link', { name: 'Read PDF' })).toHaveLength(3);
     expect(listPapers).toHaveBeenLastCalledWith(
-      { msc: '81', before: null, limit: 25 },
+      { exclude_kind: 'methodology', msc: '81', before: null, limit: 25 },
       expect.anything(),
     );
     await user.selectOptions(screen.getByLabelText('Choose a subject'), '11');
@@ -66,7 +66,7 @@ describe('subject browsing', () => {
     await screen.findByRole('link', { name: 'An older paper' });
     expect(screen.queryByRole('link', { name: note.title })).toBeNull();
     expect(listPapers).toHaveBeenLastCalledWith(
-      { msc: '11', before: 'next', limit: 25 },
+      { exclude_kind: 'methodology', msc: '11', before: 'next', limit: 25 },
       expect.anything(),
     );
     await userEvent.click(screen.getByRole('button', { name: '← Newer' }));

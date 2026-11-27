@@ -134,6 +134,7 @@ pub enum SubmissionKind {
     Paper,
     Note,
     Conjecture,
+    Methodology,
 }
 
 /// Publication is the legacy default. Review-only requests never create public records.
@@ -680,6 +681,7 @@ mod tests {
             SubmissionKind::Paper,
             SubmissionKind::Note,
             SubmissionKind::Conjecture,
+            SubmissionKind::Methodology,
         ] {
             let mut new = legacy.clone();
             new.kind = kind;

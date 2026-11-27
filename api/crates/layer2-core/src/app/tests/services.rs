@@ -381,6 +381,7 @@ async fn archive_search_filters_before_pagination_and_never_reads_private_revisi
         ids.push((id, s.id));
     }
     let query = PaperSearch {
+        exclude_kind: None,
         q: Some("UniquePublicationWord".into()),
         author: Some("Author".into()),
         msc: Some("11".into()),

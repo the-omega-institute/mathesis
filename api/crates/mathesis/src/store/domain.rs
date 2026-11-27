@@ -276,6 +276,16 @@ impl RecordStore for MongoStore {
                 filter.insert("kind", bson_value(&kind)?);
             }
         }
+        if let Some(kind) = search.exclude_kind {
+            let mut clauses = filter.get_array("$and").cloned().unwrap_or_default();
+            let excluded = if kind == mathesis_core::model::SubmissionKind::Paper {
+                doc! {"kind": {"$exists": true, "$ne": "paper"}}
+            } else {
+                doc! {"kind": {"$ne": bson_value(&kind)?}}
+            };
+            clauses.push(excluded.into());
+            filter.insert("$and", clauses);
+        }
         let literal = |s: &str| {
             s.chars()
                 .map(|c| {

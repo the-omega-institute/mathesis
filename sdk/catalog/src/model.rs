@@ -33,6 +33,16 @@ pub struct LeanSource {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Work {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issues_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub changelog: Option<String>,
     pub work: String,
     pub repository_name: Option<String>,
     pub record: String,
@@ -56,6 +66,8 @@ pub struct Work {
 pub struct Stats {
     pub snapshot_time: String,
     pub public_papers: usize,
+    #[serde(default)]
+    pub methodology_papers: usize,
     pub registered_statements: usize,
     pub independently_verified_statements: usize,
     pub verified_from_existing_library_declarations: usize,
@@ -130,6 +142,17 @@ pub(crate) fn paper_work(
         Some(repository_name(&work, mapping))
     };
     Ok(Work {
+        kind: Some(text(v, "kind").unwrap_or_else(|| {
+            if v.get("id").is_some() {
+                "note".into()
+            } else {
+                "paper".into()
+            }
+        })),
+        repository_url: text(v, "repository_url"),
+        issues_url: text(v, "issues_url"),
+        version_label: text(v, "version_label"),
+        changelog: text(v, "changelog"),
         work: work.clone(),
         repository_name,
         record,
@@ -146,9 +169,13 @@ pub(crate) fn paper_work(
         doi: text(v, "doi").or_else(|| v.get("archive").and_then(|x| text(x, "doi"))),
         concept_doi: text(v, "concept_doi")
             .or_else(|| v.get("archive").and_then(|x| text(x, "concept_doi"))),
-        versions: vec![
-            json!({"version": current_version(v), "revision": v.get("revision").cloned().unwrap_or(Value::Null), "published_on": v.get("published_on").cloned().unwrap_or(Value::Null), "previous_version": v.get("previous_version").cloned().unwrap_or(Value::Null)}),
-        ],
+        versions: if arr(v, "versions").is_empty() {
+            vec![
+                json!({"version": current_version(v), "revision": v.get("revision").cloned().unwrap_or(Value::Null), "published_on": v.get("published_on").cloned().unwrap_or(Value::Null), "previous_version": v.get("previous_version").cloned().unwrap_or(Value::Null), "version_label": v.get("version_label"), "changelog": v.get("changelog")}),
+            ]
+        } else {
+            arr(v, "versions")
+        },
         current_version: current_version(v),
         abstract_text: text(v, "abstract").or_else(|| text(v, "abstract_text")),
         lean_source: lean_source(v),

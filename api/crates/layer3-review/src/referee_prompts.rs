@@ -375,6 +375,9 @@ pub fn audit(input: &AdvisorInput) -> String {
     } else {
         legacy.to_owned()
     };
+    if input.kind == "methodology" {
+        instructions.push_str(METHODOLOGY_PAPER);
+    }
     if input.manuscript_origin.is_some() {
         instructions.push_str(MANUSCRIPT_PROVENANCE);
     }
@@ -400,6 +403,16 @@ pub fn audit(input: &AdvisorInput) -> String {
         serde_json::to_string_pretty(input).unwrap_or_default()
     )
 }
+
+/// Additive instructions only for the methodology submission track. Existing
+/// mathematical prompt contracts, including contracts 0–3, remain byte-identical.
+pub const METHODOLOGY_PAPER: &str = r#"
+METHODOLOGY PAPER TRACK
+Apply the same correct/content/bind_only/undetermined discipline to methodological claims.
+bind_only means mere recombination, renaming, prompt-wrapping or routine assembly of existing frameworks, tools or metrics, without a new non-binding mechanism, verification invariant, causal ablation or transferable protocol.
+content requires a live non-binding methodological mechanism, verification/admission protocol, architectural contract or controlled causal empirical evaluation exceeding routine binding of existing components. Identify concrete manuscript witnesses, source locations, the non-binding step and its live use. Check the claimed invariants, controls, assumptions, empirical support and scope; assertions and diagrams alone do not establish correctness. Missing evidence is undetermined, never automatically bind_only.
+Compare actual methodological prerequisites and opened literature. In the source audit use utility.kind methodology, status supported only with a nonempty rationale, the explicit methodological problem solved (problem), and the demonstrated non-binding advance (progress). Supported literature and supported utility remain necessary for the content route. A bind_only result can qualify only by settling an exactly named, sourced open methodological problem or benchmark, with the ordinary supported settlement evidence; a benchmark score alone is not settlement. Recommendations never decide publication.
+"#;
 
 pub const MANUSCRIPT_PROVENANCE: &str = r#"
 MANUSCRIPT ORIGIN AND PRIOR WORK

@@ -1,5 +1,11 @@
 /** Simplified Chinese interface copy. Research text keeps its original language. */
 export const zh: Record<string, string> = {
+  Methodology: '方法论',
+  'Research tracks': '研究类别',
+  Mathematics: '数学',
+  'View source repository': '查看源代码仓库',
+  'Open issue / suggest revision': '提出问题或修订建议',
+
   'Help formalize a result, share a conjecture, or work on an open problem.':
     '欢迎帮助我们完成形式化、提出你的猜想，或一起解决开放问题。',
   'Be the first to contribute': '期待第一位社区贡献者',

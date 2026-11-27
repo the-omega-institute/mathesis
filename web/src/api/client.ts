@@ -212,7 +212,8 @@ export interface PaperQuery extends PageParams {
   q?: string;
   author?: string;
   msc?: string;
-  kind?: 'paper' | 'note' | 'conjecture' | '';
+  kind?: 'paper' | 'note' | 'conjecture' | 'methodology' | '';
+  exclude_kind?: 'paper' | 'note' | 'conjecture' | 'methodology';
 }
 
 export interface PageParams {
@@ -788,7 +789,7 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
       request(
         'GET',
         api(
-          `/papers${buildQuery({ ...page(p), q: p.q, author: p.author, msc: p.msc, kind: p.kind })}`,
+          `/papers${buildQuery({ ...page(p), q: p.q, author: p.author, msc: p.msc, kind: p.kind, exclude_kind: p.exclude_kind })}`,
         ),
         undefined,
         o,
@@ -807,7 +808,7 @@ export function createApiClient(fetchImpl: FetchLike = (input, init) => fetch(in
       request(
         'GET',
         api(
-          `/collected-papers${buildQuery({ ...page(p), q: p.q, author: p.author, msc: p.msc, kind: p.kind })}`,
+          `/collected-papers${buildQuery({ ...page(p), q: p.q, author: p.author, msc: p.msc, kind: p.kind, exclude_kind: p.exclude_kind })}`,
         ),
         undefined,
         o,

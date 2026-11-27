@@ -16,8 +16,8 @@ multipart request with three fields:
 
 The operator identity must be listed in `WISHPOOL_INTERNAL_SUBJECTS`. The envelope
 requires a producer/work slug, a monotonically versioned paper, ordered authors,
-CC-BY-4.0, exact lowercase SHA-256 values for both files, an explicit `PASS` review
-record, and any pinned public Lean source. A retry of the same bytes returns the
+CC-BY-4.0, exact lowercase SHA-256 values for both files, an explicit `PASS` or
+`INTERNAL_EDITORIAL` review record, and any pinned public Lean source. A retry of the same bytes returns the
 same receipt. A changed payload under a published version is rejected. A new
 version must name the exact current predecessor; published versions are immutable.
 
@@ -33,6 +33,32 @@ This path is intentionally explicit. It is not a background import of every
 upstream result, and ordinary external submissions continue through
 `/manuscript-deliveries` and the independent Mathesis review pipeline. A real delivery is collected only when the producer calls this endpoint; a
 source repository or an archive DOI alone does not create a Mathesis paper.
+
+## Methodology and repository versions
+
+`paper.kind` optionally selects `paper`, `note` or `methodology`; omission retains
+`note` for legacy deliveries and stored versions. `conjecture` is refused here.
+`msc: []` is valid. Optional `repository_url` and `issues_url` accept literal public
+HTTPS GitHub repository and matching `/issues` paths with ASCII slugs, no
+credentials, query, fragment, encoding or trailing slash. A repository without
+an issues URL exposes its `/issues` path. Optional `version_label` is a nonempty
+display tag (at most 64 characters); `changelog` is nonempty Markdown/plain text
+(at most 10,000 characters). These fields are part of the immutable delivery.
+
+Both review verdicts require nonempty object `record` and exact 64-character
+lowercase hexadecimal PDF/source hashes. Neither verdict expands the trusted
+operator allowlist or starts an automated admission review. Public list/detail
+responses expose the effective kind and supplied release/repository metadata.
+Detail responses also expose `versions`, oldest first, including each revision's
+files, date, optional checked archive DOI, display label and changelog. Historical
+reads show the complete current history without changing historical metadata.
+Private review records remain omitted. Use `kind=methodology` or
+`exclude_kind=methodology` on collection and ordinary paper listings; unfiltered
+API calls continue to include all kinds.
+
+See [Methodology papers](METHODOLOGY_PAPERS.md) for the deterministic repository
+delivery helper and a tag-push workflow template. Existing clients may continue
+to send the original delivery envelope without any new fields.
 
 ## Outreach engine integration
 
@@ -84,7 +110,7 @@ to eight English and Chinese paragraphs (normally 450–800 English words and
 900–1600 Chinese characters). It cannot award verification or formalization credit.
 
 A generated explanation lives in a separately revision-fenced sidecar. The
-original request digest, PASS evidence, reviewed source/PDF bytes, authors,
+original request digest, private review evidence, reviewed source/PDF bytes, authors,
 publication date and retry receipt stay immutable. Until it is ready, any supplied
 upstream explanation remains available. Existing public versions can be queued by
 an administrator with `POST /api/v1/collected-papers/<work-id>/plain-language/request?version=N`.

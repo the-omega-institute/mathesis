@@ -6362,3 +6362,17 @@ async fn collected_exposition_is_version_bound_and_never_runs_referee_or_formali
     assert_eq!(w.formalizer.calls.load(Ordering::SeqCst), 0);
     assert!(w.file().await.rounds.is_empty());
 }
+
+#[tokio::test]
+async fn methodology_submissions_receive_non_binding_instructions_in_the_initial_referee() {
+    let w = World::new_kind(
+        vec![completed("major_revision")],
+        true,
+        mathesis_core::model::SubmissionKind::Methodology,
+    )
+    .await;
+    w.run_round().await;
+    let prompts = w.oracle.prompts.lock().await;
+    assert!(!prompts.is_empty());
+    assert!(prompts[0].contains(referee_prompts::METHODOLOGY_PAPER));
+}

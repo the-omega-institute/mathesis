@@ -337,6 +337,7 @@ export const SUBMISSION_KIND_LABELS = {
   paper: 'Paper',
   note: 'Short note',
   conjecture: 'Conjecture',
+  methodology: 'Methodology',
 } as const;
 
 /** "1 new result", "3 new results". */

@@ -10,6 +10,8 @@ pub struct PaperSearch {
     pub author: Option<String>,
     pub msc: Option<String>,
     pub kind: Option<SubmissionKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exclude_kind: Option<SubmissionKind>,
 }
 impl PaperSearch {
     pub fn validate(&mut self) -> CoreResult<()> {
@@ -49,7 +51,11 @@ impl PaperSearch {
         Ok(())
     }
     pub fn is_empty(&self) -> bool {
-        self.q.is_none() && self.author.is_none() && self.msc.is_none() && self.kind.is_none()
+        self.q.is_none()
+            && self.author.is_none()
+            && self.msc.is_none()
+            && self.kind.is_none()
+            && self.exclude_kind.is_none()
     }
     /// The author filter of every archive search, in either written form of a name.
     pub fn matches_author(&self, authors: &[Author]) -> bool {
@@ -61,7 +67,7 @@ impl PaperSearch {
     }
     /// The memory adapter's plain-word search; production uses MongoDB's text index.
     pub fn matches_record(&self, r: &Record) -> bool {
-        if self.kind.is_some_and(|k| k != r.kind) {
+        if self.kind.is_some_and(|k| k != r.kind) || self.exclude_kind == Some(r.kind) {
             return false;
         }
         if !self.matches_author(&r.authors) {

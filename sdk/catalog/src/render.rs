@@ -69,6 +69,9 @@ fn paper_readme(work: &Work, nodes: &[Node], site: &str) -> String {
     if let Some(a) = &work.abstract_text {
         let _ = writeln!(s, "{}\n", a);
     }
+    if work.kind.as_deref() == Some("methodology") {
+        s.push_str("**Track:** Methodology\n\n");
+    }
     let _ = writeln!(s, "- PDF: [frozen public file](paper.pdf)");
     if let Some(doi) = &work.doi {
         let _ = writeln!(s, "- DOI: [https://doi.org/{doi}](https://doi.org/{doi})");
@@ -180,6 +183,21 @@ pub(crate) fn citation(work: &Work, site: &str) -> String {
     s
 }
 fn changelog(work: &Work) -> String {
+    if work.versions.iter().any(|v| text(v, "changelog").is_some()) {
+        let mut output = String::from("# Changelog\n");
+        for version in &work.versions {
+            let label = text(version, "version_label")
+                .or_else(|| text(version, "revision"))
+                .unwrap_or_else(|| version["version"].to_string());
+            let _ = writeln!(
+                output,
+                "\n## {}\n\n{}",
+                label,
+                text(version, "changelog").unwrap_or_default()
+            );
+        }
+        return output;
+    }
     format!(
         "# Changelog\n\n- Version {}: public Mathesis snapshot at {}.\n- Formalization events are represented by exact-version nodes in `formalization/nodes.json`.\n",
         work.current_version
@@ -572,8 +590,16 @@ fn profile_readme(
             writeln!(s, "- **{}** — [{}]({}) · {}", n.label, n.claim, page, src)?;
         }
     }
+    let _ = writeln!(
+        s,
+        "\nMethodology papers: {} (reported separately; excluded from mathematics and MSC counts).",
+        stats.methodology_papers
+    );
     s.push_str("\n## Recent papers\n\n");
-    let mut recent: Vec<&Work> = works.iter().filter(|w| w.publication == "public").collect();
+    let mut recent: Vec<&Work> = works
+        .iter()
+        .filter(|w| w.publication == "public" && w.kind.as_deref() != Some("methodology"))
+        .collect();
     recent.sort_by(|a, b| {
         b.published_on
             .cmp(&a.published_on)
